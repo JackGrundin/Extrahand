@@ -1,8 +1,20 @@
+import { useEffect, useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../context/AuthContext';
+import { api } from '../api/klient';
 
 export default function ProfilScreen() {
   const { användare, loggaUt } = useAuth();
+  const [betyg, setBetyg] = useState(null);
+
+  useEffect(() => {
+    if (användare?.id) {
+      api.hämtaBetyg(användare.id)
+        .then(setBetyg)
+        .catch(console.error);
+    }
+  }, [användare?.id]);
 
   return (
     <View style={styles.container}>
@@ -19,6 +31,16 @@ export default function ProfilScreen() {
         </Text>
       </View>
 
+      {betyg && betyg.antal > 0 ? (
+        <View style={styles.betygRad}>
+          <Ionicons name="star" size={18} color="#f59e0b" />
+          <Text style={styles.betygSnitt}>{betyg.snitt.toFixed(1)}</Text>
+          <Text style={styles.betygAntal}>({betyg.antal} betyg)</Text>
+        </View>
+      ) : (
+        <Text style={styles.ingetBetyg}>Inga betyg ännu</Text>
+      )}
+
       <TouchableOpacity style={styles.loggaUtKnapp} onPress={loggaUt}>
         <Text style={styles.loggaUtText}>Logga ut</Text>
       </TouchableOpacity>
@@ -32,8 +54,12 @@ const styles = StyleSheet.create({
   avatarText: { color: '#fff', fontSize: 32, fontWeight: 'bold' },
   namn: { fontSize: 22, fontWeight: 'bold', color: '#1a1a1a', marginBottom: 4 },
   email: { fontSize: 15, color: '#666', marginBottom: 12 },
-  typBadge: { backgroundColor: '#eff6ff', paddingHorizontal: 14, paddingVertical: 6, borderRadius: 20, marginBottom: 40 },
+  typBadge: { backgroundColor: '#eff6ff', paddingHorizontal: 14, paddingVertical: 6, borderRadius: 20, marginBottom: 16 },
   typText: { color: '#2563eb', fontWeight: '600' },
+  betygRad: { flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: 32 },
+  betygSnitt: { fontSize: 17, fontWeight: '700', color: '#1a1a1a' },
+  betygAntal: { fontSize: 14, color: '#888' },
+  ingetBetyg: { fontSize: 14, color: '#aaa', marginBottom: 32 },
   loggaUtKnapp: { borderWidth: 1, borderColor: '#ef4444', borderRadius: 10, paddingVertical: 14, paddingHorizontal: 40 },
   loggaUtText: { color: '#ef4444', fontWeight: '600', fontSize: 15 },
 });

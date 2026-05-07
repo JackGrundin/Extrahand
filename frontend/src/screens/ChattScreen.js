@@ -1,11 +1,26 @@
 import { useEffect, useState, useRef, useCallback } from 'react';
 import { View, Text, FlatList, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform, ActivityIndicator } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
+import { Ionicons } from '@expo/vector-icons';
 import { api } from '../api/klient';
 import { useAuth } from '../context/AuthContext';
 
-export default function ChattScreen({ route }) {
+export default function ChattScreen({ route, navigation }) {
   const { ansokningId } = route.params;
+
+  // Lägg till betygsätt-knapp i headern
+  useEffect(() => {
+    navigation.setOptions({
+      headerRight: () => (
+        <TouchableOpacity
+          onPress={() => navigation.navigate('Betygsatt', { ansokningId })}
+          style={{ marginRight: 16 }}
+        >
+          <Ionicons name="star-outline" size={22} color="#f59e0b" />
+        </TouchableOpacity>
+      ),
+    });
+  }, [navigation, ansokningId]);
   const { användare } = useAuth();
   const [meddelanden, setMeddelanden] = useState([]);
   const [text, setText] = useState('');

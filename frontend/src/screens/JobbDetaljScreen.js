@@ -3,7 +3,7 @@ import { View, Text, TouchableOpacity, StyleSheet, Alert, ScrollView, ActivityIn
 import { useAuth } from '../context/AuthContext';
 import { api } from '../api/klient';
 
-export default function JobbDetaljScreen({ route }) {
+export default function JobbDetaljScreen({ route, navigation }) {
   const { jobb } = route.params;
   const { användare } = useAuth();
   const [laddar, setLaddar] = useState(false);
