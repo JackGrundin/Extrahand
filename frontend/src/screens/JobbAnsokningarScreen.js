@@ -1,7 +1,42 @@
 import { useCallback, useState } from 'react';
-import { View, Text, FlatList, TouchableOpacity, StyleSheet, ActivityIndicator, RefreshControl } from 'react-native';
+import { View, Text, FlatList, TouchableOpacity, StyleSheet, ActivityIndicator, RefreshControl, TextInput, Alert } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { api } from '../api/klient';
+
+function TimmArKort({ item, onSparat }) {
+  const [timmar, setTimmar] = useState(String(item.timmar ?? 0));
+  const [sparar, setSparar] = useState(false);
+
+  async function spara() {
+    const val = parseInt(timmar);
+    if (isNaN(val) || val < 0) { Alert.alert('Fel', 'Ange ett giltigt antal timmar'); return; }
+    setSparar(true);
+    try {
+      await api.loggaTimmar(item.id, val);
+      onSparat();
+    } catch (fel) {
+      Alert.alert('Fel', fel.message);
+    } finally {
+      setSparar(false);
+    }
+  }
+
+  return (
+    <View style={styles.timmArRad}>
+      <TextInput
+        style={styles.timmArInput}
+        value={timmar}
+        onChangeText={setTimmar}
+        keyboardType="numeric"
+        placeholder="0"
+      />
+      <Text style={styles.timmArEtikett}>tim</Text>
+      <TouchableOpacity style={[styles.timmArKnapp, sparar && { opacity: 0.5 }]} onPress={spara} disabled={sparar}>
+        <Text style={styles.timmArKnappText}>Logga</Text>
+      </TouchableOpacity>
+    </View>
+  );
+}
 
 export default function JobbAnsokningarScreen({ route, navigation }) {
   const { jobbId, titel } = route.params;
@@ -34,9 +69,7 @@ export default function JobbAnsokningarScreen({ route, navigation }) {
       ListHeaderComponent={
         <Text style={styles.rubrik}>{ansökningar.length} ansökning{ansökningar.length !== 1 ? 'ar' : ''}</Text>
       }
-      ListEmptyComponent={
-        <Text style={styles.tom}>Inga ansökningar ännu</Text>
-      }
+      ListEmptyComponent={<Text style={styles.tom}>Inga ansökningar ännu</Text>}
       renderItem={({ item, index }) => (
         <TouchableOpacity
           style={styles.kort}
@@ -57,6 +90,7 @@ export default function JobbAnsokningarScreen({ route, navigation }) {
             <Text style={styles.ingetMeddelande}>Ingen ansökningstext</Text>
           )}
           <Text style={styles.chattLänk}>Öppna chatt →</Text>
+          <TimmArKort item={item} onSparat={hämta} />
         </TouchableOpacity>
       )}
     />
@@ -75,6 +109,11 @@ const styles = StyleSheet.create({
   datum: { fontSize: 13, color: '#999', marginTop: 2 },
   meddelande: { fontSize: 14, color: '#555', lineHeight: 20, marginBottom: 10 },
   ingetMeddelande: { fontSize: 14, color: '#aaa', fontStyle: 'italic', marginBottom: 10 },
-  chattLänk: { fontSize: 13, color: '#2563eb', fontWeight: '500' },
+  chattLänk: { fontSize: 13, color: '#2563eb', fontWeight: '500', marginBottom: 12 },
+  timmArRad: { flexDirection: 'row', alignItems: 'center', gap: 8, borderTopWidth: 1, borderTopColor: '#f0f0f0', paddingTop: 12 },
+  timmArInput: { borderWidth: 1, borderColor: '#ddd', borderRadius: 8, paddingHorizontal: 12, paddingVertical: 6, width: 64, fontSize: 15, textAlign: 'center' },
+  timmArEtikett: { fontSize: 14, color: '#666' },
+  timmArKnapp: { backgroundColor: '#059669', borderRadius: 8, paddingHorizontal: 14, paddingVertical: 7 },
+  timmArKnappText: { color: '#fff', fontWeight: '600', fontSize: 13 },
   tom: { textAlign: 'center', color: '#999', marginTop: 40, fontSize: 16 },
 });

@@ -15,10 +15,8 @@ export default function ChattListaScreen({ navigation }) {
   async function hämta() {
     try {
       if (ärFöretag) {
-        // Företag: hämta alla jobb och filtrera på egna
         const allaJobb = await api.hämtaJobb();
         const minaJobb = allaJobb.filter((j) => j.Foretag_id === användare.id);
-        // Hämta ansökningsantal för varje jobb parallellt
         const jobbMedAntal = await Promise.all(
           minaJobb.map(async (j) => {
             const ansökningar = await api.ansökningarFörJobb(j.id);
@@ -27,7 +25,6 @@ export default function ChattListaScreen({ navigation }) {
         );
         setPoster(jobbMedAntal.filter((j) => j.antalAnsökningar > 0));
       } else {
-        // Privatperson: hämta egna ansökningar
         const ansökningar = await api.minaAnsökningar();
         setPoster(ansökningar);
       }
@@ -84,12 +81,19 @@ export default function ChattListaScreen({ navigation }) {
         >
           <View style={styles.kortHuvud}>
             <View style={styles.avatarBlå}>
-              <Text style={styles.avatarText}>J</Text>
+              <Text style={styles.avatarText}>
+                {(item.foretagNamn ?? item.jobbTitel ?? 'J')[0].toUpperCase()}
+              </Text>
             </View>
             <View style={{ flex: 1 }}>
-              <Text style={styles.titel}>Jobbansökan</Text>
-              <Text style={styles.datum}>{new Date(item.created_at).toLocaleDateString('sv-SE')}</Text>
+              <Text style={styles.titel} numberOfLines={1}>
+                {item.foretagNamn ?? 'Okänt företag'}
+              </Text>
+              <Text style={styles.underTitel} numberOfLines={1}>
+                {item.jobbTitel ?? ''}
+              </Text>
             </View>
+            <Text style={styles.datum}>{new Date(item.created_at).toLocaleDateString('sv-SE')}</Text>
           </View>
           {item.meddelande
             ? <Text style={styles.förhandsgranskning} numberOfLines={2}>{item.meddelande}</Text>
@@ -106,13 +110,14 @@ const styles = StyleSheet.create({
   kort: { backgroundColor: '#fff', borderRadius: 12, padding: 16, marginBottom: 10, shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 4, elevation: 2 },
   kortHuvud: { flexDirection: 'row', alignItems: 'center', marginBottom: 6 },
   titel: { fontSize: 16, fontWeight: '600', color: '#1a1a1a', flex: 1 },
+  underTitel: { fontSize: 13, color: '#888', marginTop: 2 },
   info: { fontSize: 13, color: '#888', marginBottom: 8 },
   badge: { backgroundColor: '#eff6ff', borderRadius: 12, paddingHorizontal: 10, paddingVertical: 3, marginLeft: 8 },
   badgeText: { color: '#2563eb', fontWeight: '700', fontSize: 13 },
   länk: { fontSize: 13, color: '#2563eb', fontWeight: '500' },
   avatarBlå: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#eff6ff', justifyContent: 'center', alignItems: 'center', marginRight: 12 },
   avatarText: { color: '#2563eb', fontWeight: '700', fontSize: 18 },
-  datum: { fontSize: 12, color: '#aaa', marginTop: 2 },
+  datum: { fontSize: 12, color: '#aaa', marginLeft: 8 },
   förhandsgranskning: { fontSize: 14, color: '#555', lineHeight: 20 },
   inget: { fontSize: 14, color: '#bbb', fontStyle: 'italic' },
   tom: { textAlign: 'center', color: '#999', marginTop: 60, fontSize: 16 },

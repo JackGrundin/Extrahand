@@ -31,15 +31,15 @@ router.get('/:id', async (req, res) => {
 
 // POST /api/jobb — kräver inloggning som företag
 router.post('/', kräverInloggning, kräverTyp('företag'), async (req, res) => {
-  const { titel, beskrivning, plats, lon, typ } = req.body;
+  const { titel, beskrivning, plats, lon, typ, kategori } = req.body;
 
   if (!titel || !beskrivning || !typ) {
     return res.status(400).json({ fel: 'Fälten titel, beskrivning och typ krävs' });
   }
 
-  const giltiga_typer = ['deltid', 'heltid', 'uppdrag'];
+  const giltiga_typer = ['gig', 'sommarjobb', 'deltid', 'heltid', 'uppdrag'];
   if (!giltiga_typer.includes(typ)) {
-    return res.status(400).json({ fel: 'Typ måste vara "deltid", "heltid" eller "uppdrag"' });
+    return res.status(400).json({ fel: 'Ogiltig typ' });
   }
 
   try {
@@ -49,6 +49,7 @@ router.post('/', kräverInloggning, kräverTyp('företag'), async (req, res) => 
       plats: plats || null,
       lon: lon || null,
       typ,
+      kategori: kategori || null,
       foretag_id: req.användare.id,
     });
     res.status(201).json(jobb);

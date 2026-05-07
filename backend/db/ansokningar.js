@@ -19,14 +19,45 @@ async function skapaAnsökan({ jobb_id, sokande_id, meddelande }) {
 }
 
 async function hämtaAnsökningarFörSökande(sokande_id) {
-  const { data, error } = await supabase
+  const { data: ansökningar, error } = await supabase
     .from('ansokningar')
     .select('*')
     .eq('sokande_id', sokande_id)
     .order('created_at', { ascending: false });
 
   if (error) throw error;
-  return data;
+  if (!ansökningar.length) return [];
+
+  const jobbIds = [...new Set(ansökningar.map(a => a.jobb_id))];
+  const { data: jobb } = await supabase.from('Jobb').select('id, Titel, Foretag_id').in('id', jobbIds);
+
+  const foretagIds = [...new Set((jobb || []).map(j => j.Foretag_id))];
+  const { data: foretag } = await supabase.from('användare').select('id, Namn').in('id', foretagIds);
+
+  const jobbMap = Object.fromEntries((jobb || []).map(j => [j.id, j]));
+  const foretagMap = Object.fromEntries((foretag || []).map(f => [f.id, f]));
+
+  return ansökningar.map(a => ({
+    ...a,
+    jobbTitel: jobbMap[a.jobb_id]?.Titel ?? null,
+    foretagNamn: foretagMap[jobbMap[a.jobb_id]?.Foretag_id]?.Namn ?? null,
+  }));
+}
+
+async function hämtaTotalTimmar(sokande_id) {
+  const { data } = await supabase
+    .from('ansokningar')
+    .select('timmar')
+    .eq('sokande_id', sokande_id);
+  return (data || []).reduce((sum, a) => sum + (a.timmar || 0), 0);
+}
+
+async function uppdateraTimmar(id, timmar) {
+  const { error } = await supabase
+    .from('ansokningar')
+    .update({ timmar })
+    .eq('id', id);
+  if (error) throw error;
 }
 
 async function hämtaAnsökningarFörJobb(jobb_id) {
@@ -52,4 +83,4 @@ async function finnsDubblettAnsökan(jobb_id, sokande_id) {
   return !!data;
 }
 
-module.exports = { skapaAnsökan, hämtaAnsökningarFörSökande, hämtaAnsökningarFörJobb, finnsDubblettAnsökan };
+module.exports = { skapaAnsökan, hämtaAnsökningarFörSökande, hämtaAnsökningarFörJobb, finnsDubblettAnsökan, hämtaTotalTimmar, uppdateraTimmar };

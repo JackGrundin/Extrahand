@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useCallback, useState } from 'react';
 import { View, Text, FlatList, TouchableOpacity, StyleSheet, ActivityIndicator, RefreshControl } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { api } from '../api/klient';
@@ -20,7 +20,6 @@ export default function MinaAnsokningarScreen({ navigation }) {
     }
   }
 
-  // Uppdatera listan varje gång skärmen visas
   useFocusEffect(useCallback(() => { hämta(); }, []));
 
   if (laddar) return <ActivityIndicator style={{ flex: 1 }} size="large" />;
@@ -39,16 +38,26 @@ export default function MinaAnsokningarScreen({ navigation }) {
       renderItem={({ item }) => (
         <TouchableOpacity
           style={styles.kort}
-          onPress={() => navigation.navigate('Chatt', { ansokningId: item.id, titel: item.jobb_id })}
+          onPress={() => navigation.navigate('Chatt', { ansokningId: item.id })}
         >
           <View style={styles.kortHuvud}>
-            <Text style={styles.jobbId} numberOfLines={1}>Ansökan</Text>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.jobbTitel} numberOfLines={1}>
+                {item.jobbTitel ?? 'Okänt jobb'}
+              </Text>
+              <Text style={styles.foretagNamn} numberOfLines={1}>
+                {item.foretagNamn ?? ''}
+              </Text>
+            </View>
             <Text style={styles.datum}>{new Date(item.created_at).toLocaleDateString('sv-SE')}</Text>
           </View>
           {item.meddelande ? (
             <Text style={styles.meddelande} numberOfLines={2}>{item.meddelande}</Text>
           ) : (
             <Text style={styles.ingetMeddelande}>Ingen ansökningsttext</Text>
+          )}
+          {item.timmar > 0 && (
+            <Text style={styles.timmar}>{item.timmar} tim loggade</Text>
           )}
           <Text style={styles.chattLänk}>Öppna chatt →</Text>
         </TouchableOpacity>
@@ -60,11 +69,13 @@ export default function MinaAnsokningarScreen({ navigation }) {
 const styles = StyleSheet.create({
   lista: { flex: 1, backgroundColor: '#f5f5f5', padding: 16 },
   kort: { backgroundColor: '#fff', borderRadius: 12, padding: 16, marginBottom: 12, shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 4, elevation: 2 },
-  kortHuvud: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 6 },
-  jobbId: { fontSize: 15, fontWeight: '600', color: '#1a1a1a', flex: 1 },
-  datum: { fontSize: 13, color: '#999' },
+  kortHuvud: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 6 },
+  jobbTitel: { fontSize: 15, fontWeight: '600', color: '#1a1a1a' },
+  foretagNamn: { fontSize: 13, color: '#2563eb', marginTop: 2 },
+  datum: { fontSize: 13, color: '#999', marginLeft: 8 },
   meddelande: { fontSize: 14, color: '#555', lineHeight: 20, marginBottom: 10 },
   ingetMeddelande: { fontSize: 14, color: '#aaa', fontStyle: 'italic', marginBottom: 10 },
+  timmar: { fontSize: 13, color: '#059669', fontWeight: '500', marginBottom: 6 },
   chattLänk: { fontSize: 13, color: '#2563eb', fontWeight: '500' },
   tomContainer: { flex: 1, alignItems: 'center', marginTop: 60 },
   tomText: { fontSize: 16, color: '#999' },

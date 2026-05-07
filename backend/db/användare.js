@@ -40,6 +40,11 @@ async function hämtaAnvändareViaId(id) {
   return data;
 }
 
+async function uppdateraProfilBild(id, url) {
+  const { error } = await supabase.from('användare').update({ profil_bild: url }).eq('id', id);
+  if (error) throw error;
+}
+
 async function uppdateraProfil(id, { cv, erfarenheter, kompetenser, intressen }) {
   const { error } = await supabase
     .from('användare')
@@ -65,4 +70,4 @@ async function hämtaPushToken(id) {
   return data?.push_token || null;
 }
 
-module.exports = { skapaAnvändare, hämtaAnvändareViaEmail, hämtaAnvändareViaId, uppdateraProfil, sparaPushToken, hämtaPushToken };
+module.exports = { skapaAnvändare, hämtaAnvändareViaEmail, hämtaAnvändareViaId, uppdateraProfil, uppdateraProfilBild, sparaPushToken, hämtaPushToken };

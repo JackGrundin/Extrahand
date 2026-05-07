@@ -1,7 +1,8 @@
-import { useCallback, useEffect, useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView, ActivityIndicator } from 'react-native';
+import { useCallback, useState } from 'react';
+import { View, Text, TouchableOpacity, StyleSheet, ScrollView, ActivityIndicator, Image, Alert } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
+import * as ImagePicker from 'expo-image-picker';
 import { useAuth } from '../context/AuthContext';
 import { api } from '../api/klient';
 
@@ -21,6 +22,7 @@ export default function ProfilScreen({ navigation }) {
   const [betyg, setBetyg] = useState(null);
   const [profil, setProfil] = useState(null);
   const [laddar, setLaddar] = useState(true);
+  const [laddaUppBild, setLaddaUppBild] = useState(false);
 
   async function hämta() {
     try {
@@ -39,21 +41,57 @@ export default function ProfilScreen({ navigation }) {
 
   useFocusEffect(useCallback(() => { hämta(); }, []));
 
+  async function väljaProfilBild() {
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert('Tillstånd saknas', 'Appen behöver tillgång till ditt bildbibliotek.');
+      return;
+    }
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.5,
+      base64: true,
+    });
+    if (result.canceled || !result.assets[0].base64) return;
+
+    setLaddaUppBild(true);
+    try {
+      const { url } = await api.laddaUppProfilBild(`data:image/jpeg;base64,${result.assets[0].base64}`);
+      setProfil(prev => ({ ...prev, profilBild: url }));
+    } catch (fel) {
+      Alert.alert('Fel', fel.message);
+    } finally {
+      setLaddaUppBild(false);
+    }
+  }
+
   if (laddar) return <ActivityIndicator style={{ flex: 1 }} size="large" />;
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.innehall}>
-      <View style={styles.avatar}>
-        <Text style={styles.avatarText}>{användare?.namn?.[0]?.toUpperCase()}</Text>
-      </View>
+      <TouchableOpacity onPress={väljaProfilBild} style={styles.avatarWrapper} disabled={laddaUppBild}>
+        {profil?.profilBild ? (
+          <Image source={{ uri: profil.profilBild }} style={styles.profilBild} />
+        ) : (
+          <View style={styles.avatar}>
+            <Text style={styles.avatarText}>{användare?.namn?.[0]?.toUpperCase()}</Text>
+          </View>
+        )}
+        <View style={styles.kameraIkon}>
+          {laddaUppBild
+            ? <ActivityIndicator size="small" color="#fff" />
+            : <Ionicons name="camera" size={14} color="#fff" />
+          }
+        </View>
+      </TouchableOpacity>
 
       <Text style={styles.namn}>{användare?.namn}</Text>
       <Text style={styles.email}>{användare?.email}</Text>
 
       <View style={styles.typBadge}>
-        <Text style={styles.typText}>
-          {ärPrivatperson ? 'Privatperson' : 'Företag'}
-        </Text>
+        <Text style={styles.typText}>{ärPrivatperson ? 'Privatperson' : 'Företag'}</Text>
       </View>
 
       {betyg && betyg.antal > 0 ? (
@@ -64,6 +102,13 @@ export default function ProfilScreen({ navigation }) {
         </View>
       ) : (
         <Text style={styles.ingetBetyg}>Inga betyg ännu</Text>
+      )}
+
+      {ärPrivatperson && profil?.totalTimmar > 0 && (
+        <View style={styles.timmArBadge}>
+          <Ionicons name="time-outline" size={16} color="#059669" />
+          <Text style={styles.timmArText}>{profil.totalTimmar} jobbade timmar</Text>
+        </View>
       )}
 
       {ärPrivatperson && (
@@ -97,22 +142,27 @@ export default function ProfilScreen({ navigation }) {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#fff' },
   innehall: { alignItems: 'center', padding: 32, paddingBottom: 48 },
-  avatar: { width: 80, height: 80, borderRadius: 40, backgroundColor: '#2563eb', justifyContent: 'center', alignItems: 'center', marginBottom: 16 },
-  avatarText: { color: '#fff', fontSize: 32, fontWeight: 'bold' },
+  avatarWrapper: { position: 'relative', marginBottom: 16 },
+  avatar: { width: 88, height: 88, borderRadius: 44, backgroundColor: '#2563eb', justifyContent: 'center', alignItems: 'center' },
+  profilBild: { width: 88, height: 88, borderRadius: 44 },
+  avatarText: { color: '#fff', fontSize: 34, fontWeight: 'bold' },
+  kameraIkon: { position: 'absolute', bottom: 0, right: 0, backgroundColor: '#2563eb', borderRadius: 12, width: 24, height: 24, justifyContent: 'center', alignItems: 'center', borderWidth: 2, borderColor: '#fff' },
   namn: { fontSize: 22, fontWeight: 'bold', color: '#1a1a1a', marginBottom: 4 },
   email: { fontSize: 15, color: '#666', marginBottom: 12 },
   typBadge: { backgroundColor: '#eff6ff', paddingHorizontal: 14, paddingVertical: 6, borderRadius: 20, marginBottom: 16 },
   typText: { color: '#2563eb', fontWeight: '600' },
-  betygRad: { flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: 24 },
+  betygRad: { flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: 12 },
   betygSnitt: { fontSize: 17, fontWeight: '700', color: '#1a1a1a' },
   betygAntal: { fontSize: 14, color: '#888' },
-  ingetBetyg: { fontSize: 14, color: '#aaa', marginBottom: 24 },
+  ingetBetyg: { fontSize: 14, color: '#aaa', marginBottom: 12 },
+  timmArBadge: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#f0fdf4', borderRadius: 20, paddingHorizontal: 14, paddingVertical: 7, marginBottom: 20 },
+  timmArText: { fontSize: 14, color: '#059669', fontWeight: '600' },
   redigeraKnapp: { flexDirection: 'row', alignItems: 'center', gap: 6, borderWidth: 1, borderColor: '#2563eb', borderRadius: 10, paddingVertical: 10, paddingHorizontal: 20, marginBottom: 24 },
   redigeraText: { color: '#2563eb', fontWeight: '600', fontSize: 15 },
   sektion: { width: '100%', marginBottom: 20 },
   sektionsRubrik: { fontSize: 13, fontWeight: '700', color: '#888', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 6 },
   sektionsText: { fontSize: 15, color: '#333', lineHeight: 22 },
   tomProfil: { fontSize: 14, color: '#aaa', textAlign: 'center', lineHeight: 22, marginBottom: 24, paddingHorizontal: 8 },
-  loggaUtKnapp: { borderWidth: 1, borderColor: '#ef4444', borderRadius: 10, paddingVertical: 14, paddingHorizontal: 40 },
+  loggaUtKnapp: { borderWidth: 1, borderColor: '#ef4444', borderRadius: 10, paddingVertical: 14, paddingHorizontal: 40, marginTop: 8 },
   loggaUtText: { color: '#ef4444', fontWeight: '600', fontSize: 15 },
 });

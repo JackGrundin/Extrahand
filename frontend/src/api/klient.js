@@ -47,6 +47,8 @@ export const api = {
 
   // Profil
   uppdateraProfil: (kropp) => anrop('PUT', '/users/profil', kropp),
+  laddaUppProfilBild: (bild) => anrop('POST', '/users/profil-bild', { bild }),
+  loggaTimmar: (ansokningId, timmar) => anrop('PUT', `/ansokningar/${ansokningId}/timmar`, { timmar }),
 
   // Push-notifikationer
   sparaPushToken: (token) => anrop('PUT', '/users/push-token', { token }),

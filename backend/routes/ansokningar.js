@@ -1,6 +1,6 @@
 const express = require('express');
 const { kräverInloggning, kräverTyp } = require('../middleware/auth');
-const { skapaAnsökan, hämtaAnsökningarFörSökande, hämtaAnsökningarFörJobb, finnsDubblettAnsökan } = require('../db/ansokningar');
+const { skapaAnsökan, hämtaAnsökningarFörSökande, hämtaAnsökningarFörJobb, finnsDubblettAnsökan, uppdateraTimmar } = require('../db/ansokningar');
 
 const router = express.Router();
 
@@ -47,6 +47,21 @@ router.get('/jobb/:jobbId', kräverInloggning, kräverTyp('företag'), async (re
   } catch (fel) {
     console.error('Fel vid hämtning av ansökningar:', fel);
     res.status(500).json({ fel: 'Serverfel vid hämtning av ansökningar' });
+  }
+});
+
+// PUT /api/ansokningar/:id/timmar — företag loggar arbetade timmar
+router.put('/:id/timmar', kräverInloggning, kräverTyp('företag'), async (req, res) => {
+  const { timmar } = req.body;
+  if (typeof timmar !== 'number' || timmar < 0) {
+    return res.status(400).json({ fel: 'Timmar måste vara ett positivt tal' });
+  }
+  try {
+    await uppdateraTimmar(req.params.id, timmar);
+    res.json({ ok: true });
+  } catch (fel) {
+    console.error('Timmar fel:', fel);
+    res.status(500).json({ fel: 'Serverfel' });
   }
 });
 

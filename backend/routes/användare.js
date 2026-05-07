@@ -1,13 +1,26 @@
 const express = require('express');
+const { createClient } = require('@supabase/supabase-js');
+const ws = require('ws');
 const { kräverInloggning } = require('../middleware/auth');
-const { hämtaAnvändareViaEmail, uppdateraProfil, sparaPushToken, hämtaPushToken } = require('../db/användare');
+const { hämtaAnvändareViaEmail, uppdateraProfil, uppdateraProfilBild, sparaPushToken, hämtaPushToken } = require('../db/användare');
+const { hämtaTotalTimmar } = require('../db/ansokningar');
 
 const router = express.Router();
 
-// GET /api/användare/profil — kräver giltig JWT
+const supabase = createClient(
+  process.env.SUPABASE_URL,
+  process.env.SUPABASE_SECRET_KEY,
+  { realtime: { transport: ws } }
+);
+
+// GET /api/users/profil — kräver giltig JWT
 router.get('/profil', kräverInloggning, async (req, res) => {
   try {
-    const användare = await hämtaAnvändareViaEmail(req.användare.email);
+    const [användare, totalTimmar] = await Promise.all([
+      hämtaAnvändareViaEmail(req.användare.email),
+      hämtaTotalTimmar(req.användare.id),
+    ]);
+
     if (!användare) {
       return res.status(404).json({ fel: 'Användaren hittades inte' });
     }
@@ -22,6 +35,8 @@ router.get('/profil', kräverInloggning, async (req, res) => {
       erfarenheter: användare.erfarenheter ?? null,
       kompetenser: användare.kompetenser ?? null,
       intressen: användare.intressen ?? null,
+      profilBild: användare.profil_bild ?? null,
+      totalTimmar,
     });
   } catch (fel) {
     console.error('Profilfel:', fel);
@@ -46,26 +61,44 @@ router.put('/profil', kräverInloggning, async (req, res) => {
   }
 });
 
+// POST /api/users/profil-bild — laddar upp profilbild till Supabase Storage
+router.post('/profil-bild', kräverInloggning, async (req, res) => {
+  const { bild } = req.body;
+  if (!bild) return res.status(400).json({ fel: 'Bild saknas' });
+
+  try {
+    const base64 = bild.includes(',') ? bild.split(',')[1] : bild;
+    const buffer = Buffer.from(base64, 'base64');
+    const filNamn = `${req.användare.id}.jpg`;
+
+    const { error: uploadFel } = await supabase.storage
+      .from('profilbilder')
+      .upload(filNamn, buffer, { contentType: 'image/jpeg', upsert: true });
+
+    if (uploadFel) throw uploadFel;
+
+    const { data: { publicUrl } } = supabase.storage.from('profilbilder').getPublicUrl(filNamn);
+
+    await uppdateraProfilBild(req.användare.id, publicUrl);
+    res.json({ url: publicUrl });
+  } catch (fel) {
+    console.error('Profilbild fel:', fel);
+    res.status(500).json({ fel: 'Serverfel vid uppladdning' });
+  }
+});
+
 // POST /api/users/testa-notifikation — skickar en testnotifikation till inloggad användare
 router.post('/testa-notifikation', kräverInloggning, async (req, res) => {
   try {
     const pushToken = await hämtaPushToken(req.användare.id);
-
     if (!pushToken) {
       return res.status(400).json({ fel: 'Ingen push-token sparad. Logga in i appen på en riktig enhet först.' });
     }
-
     const svar = await fetch('https://exp.host/--/api/v2/push/send', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        to: pushToken,
-        title: 'Testnotifikation',
-        body: 'Push-notifikationer fungerar!',
-        sound: 'default',
-      }),
+      body: JSON.stringify({ to: pushToken, title: 'Testnotifikation', body: 'Push-notifikationer fungerar!', sound: 'default' }),
     });
-
     const data = await svar.json();
     res.json({ ok: true, expoSvar: data });
   } catch (fel) {
