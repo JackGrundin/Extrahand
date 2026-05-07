@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Alert, ScrollView, ActivityIndicator } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, ScrollView, ActivityIndicator } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../context/AuthContext';
@@ -87,17 +87,6 @@ export default function ProfilScreen({ navigation }) {
         </>
       )}
 
-      <TouchableOpacity
-        style={styles.testKnapp}
-        onPress={() =>
-          api.testaNotifikation()
-            .then(() => Alert.alert('Skickat!', 'Kolla om notifikationen dyker upp.'))
-            .catch((fel) => Alert.alert('Fel', fel.message))
-        }
-      >
-        <Text style={styles.testText}>Testa notifikation</Text>
-      </TouchableOpacity>
-
       <TouchableOpacity style={styles.loggaUtKnapp} onPress={loggaUt}>
         <Text style={styles.loggaUtText}>Logga ut</Text>
       </TouchableOpacity>
@@ -124,8 +113,6 @@ const styles = StyleSheet.create({
   sektionsRubrik: { fontSize: 13, fontWeight: '700', color: '#888', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 6 },
   sektionsText: { fontSize: 15, color: '#333', lineHeight: 22 },
   tomProfil: { fontSize: 14, color: '#aaa', textAlign: 'center', lineHeight: 22, marginBottom: 24, paddingHorizontal: 8 },
-  testKnapp: { borderWidth: 1, borderColor: '#2563eb', borderRadius: 10, paddingVertical: 12, paddingHorizontal: 40, marginBottom: 12 },
-  testText: { color: '#2563eb', fontWeight: '600', fontSize: 15 },
   loggaUtKnapp: { borderWidth: 1, borderColor: '#ef4444', borderRadius: 10, paddingVertical: 14, paddingHorizontal: 40 },
   loggaUtText: { color: '#ef4444', fontWeight: '600', fontSize: 15 },
 });
