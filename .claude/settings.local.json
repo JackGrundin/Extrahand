@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm start *)",
+      "Bash(curl -s -X POST http://localhost:3000/api/auth/registrera -H 'Content-Type: application/json' -d '{\"namn\":\"Anna Svensson\",\"email\":\"anna@test.se\",\"lösenord\":\"hemligt123\",\"typ\":\"privatperson\"}')",
+      "Bash(curl -s -X POST http://localhost:3000/api/auth/registrera -H 'Content-Type: application/json' -d '{\"namn\":\"Acme AB\",\"email\":\"info@acme.se\",\"lösenord\":\"hemligt123\",\"typ\":\"företag\"}')",
+      "Bash(curl -s -X POST http://localhost:3000/api/auth/logga-in -H 'Content-Type: application/json' -d '{\"email\":\"anna@test.se\",\"lösenord\":\"hemligt123\"}')",
+      "Bash(curl -s -o /dev/null -w '%{http_code}' -X POST http://localhost:3000/api/auth/logga-in -H 'Content-Type: application/json' -d '{\"email\":\"anna@test.se\",\"lösenord\":\"feltkod\"}')",
+      "Bash(curl -s -o /dev/null -w '%{http_code}' -X POST http://localhost:3000/api/auth/registrera -H 'Content-Type: application/json' -d '{\"namn\":\"Anna igen\",\"email\":\"anna@test.se\",\"lösenord\":\"hemligt123\",\"typ\":\"privatperson\"}')",
+      "Bash(kill %1)",
+      "Bash(curl -s -X POST http://localhost:3000/api/auth/registrera -H 'Content-Type: application/json' -d '{\"namn\":\"Anna\",\"email\":\"anna@test.se\",\"losenord\":\"hemligt123\",\"typ\":\"privatperson\"}')",
+      "Bash(curl -s -X POST http://localhost:3000/api/auth/logga-in -H 'Content-Type: application/json' -d '{\"email\":\"anna@test.se\",\"losenord\":\"hemligt123\"}')"
+    ]
+  }
+}
