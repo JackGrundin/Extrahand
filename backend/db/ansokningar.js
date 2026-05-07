@@ -29,18 +29,25 @@ async function hämtaAnsökningarFörSökande(sokande_id) {
   if (!ansökningar.length) return [];
 
   const jobbIds = [...new Set(ansökningar.map(a => a.jobb_id))];
-  const { data: jobb } = await supabase.from('Jobb').select('id, Titel, Foretag_id').in('id', jobbIds);
-
-  const foretagIds = [...new Set((jobb || []).map(j => j.Foretag_id))];
-  const { data: foretag } = await supabase.from('användare').select('id, Namn').in('id', foretagIds);
+  const { data: jobb } = await supabase.from('Jobb').select('*').in('id', jobbIds);
 
   const jobbMap = Object.fromEntries((jobb || []).map(j => [j.id, j]));
+
+  const foretagIds = [...new Set(
+    (jobb || []).map(j => j.Foretag_id ?? j.foretag_id).filter(id => id != null)
+  )];
+  const { data: foretag } = await supabase.from('användare').select('id, Namn').in('id', foretagIds);
+
   const foretagMap = Object.fromEntries((foretag || []).map(f => [f.id, f]));
 
   return ansökningar.map(a => ({
     ...a,
     jobbTitel: jobbMap[a.jobb_id]?.Titel ?? null,
-    foretagNamn: foretagMap[jobbMap[a.jobb_id]?.Foretag_id]?.Namn ?? null,
+    foretagNamn: (() => {
+      const j = jobbMap[a.jobb_id];
+      const fid = j?.Foretag_id ?? j?.foretag_id;
+      return foretagMap[fid]?.Namn ?? null;
+    })(),
   }));
 }
 
