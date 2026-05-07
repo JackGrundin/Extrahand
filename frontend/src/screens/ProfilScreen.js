@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../context/AuthContext';
 import { api } from '../api/klient';
@@ -41,6 +41,17 @@ export default function ProfilScreen() {
         <Text style={styles.ingetBetyg}>Inga betyg ännu</Text>
       )}
 
+      <TouchableOpacity
+        style={styles.testKnapp}
+        onPress={() =>
+          api.testaNotifikation()
+            .then(() => Alert.alert('Skickat!', 'Kolla om notifikationen dyker upp.'))
+            .catch((fel) => Alert.alert('Fel', fel.message))
+        }
+      >
+        <Text style={styles.testText}>Testa notifikation</Text>
+      </TouchableOpacity>
+
       <TouchableOpacity style={styles.loggaUtKnapp} onPress={loggaUt}>
         <Text style={styles.loggaUtText}>Logga ut</Text>
       </TouchableOpacity>
@@ -60,6 +71,8 @@ const styles = StyleSheet.create({
   betygSnitt: { fontSize: 17, fontWeight: '700', color: '#1a1a1a' },
   betygAntal: { fontSize: 14, color: '#888' },
   ingetBetyg: { fontSize: 14, color: '#aaa', marginBottom: 32 },
+  testKnapp: { borderWidth: 1, borderColor: '#2563eb', borderRadius: 10, paddingVertical: 12, paddingHorizontal: 40, marginBottom: 12 },
+  testText: { color: '#2563eb', fontWeight: '600', fontSize: 15 },
   loggaUtKnapp: { borderWidth: 1, borderColor: '#ef4444', borderRadius: 10, paddingVertical: 14, paddingHorizontal: 40 },
   loggaUtText: { color: '#ef4444', fontWeight: '600', fontSize: 15 },
 });

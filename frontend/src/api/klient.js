@@ -47,6 +47,7 @@ export const api = {
 
   // Push-notifikationer
   sparaPushToken: (token) => anrop('PUT', '/users/push-token', { token }),
+  testaNotifikation: () => anrop('POST', '/users/testa-notifikation'),
 
   // Betyg
   sättaBetyg: (ansokningId, kropp) => anrop('POST', `/betyg/${ansokningId}`, kropp),
