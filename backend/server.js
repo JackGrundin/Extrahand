@@ -27,8 +27,18 @@ app.use('/api/ansokningar', ansokningarRoutes);
 app.use('/api/meddelanden', meddelandenRoutes);
 app.use('/api/betyg', betygRoutes);
 
-app.listen(PORT, () => {
+process.on('uncaughtException', (err) => {
+  console.error('Ohanterat undantag:', err);
+});
+
+process.on('unhandledRejection', (reason) => {
+  console.error('Ohanterat promise-avvisning:', reason);
+});
+
+const server = app.listen(PORT, () => {
   console.log(`Servern körs på port ${PORT}`);
 });
+
+server.on('error', (err) => console.error('HTTP-server fel:', err));
 
 module.exports = app;
