@@ -26,7 +26,7 @@ export default function JobbDetaljScreen({ route, navigation }) {
     <ScrollView style={styles.container}>
       <Text style={styles.titel}>{jobb.Titel}</Text>
       <Text style={styles.info}>{jobb.Plats} · {jobb.Typ}</Text>
-      {jobb.Lon && <Text style={styles.lön}>{jobb.Lon.toLocaleString('sv-SE')} kr/mån</Text>}
+      {jobb.Lon && <Text style={styles.lön}>{jobb.Lon.toLocaleString('sv-SE')} kr/tim</Text>}
 
       <Text style={styles.sektionsRubrik}>Beskrivning</Text>
       <Text style={styles.beskrivning}>{jobb.Beskrivning}</Text>

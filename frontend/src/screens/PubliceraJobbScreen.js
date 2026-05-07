@@ -68,10 +68,10 @@ export default function PubliceraJobbScreen({ navigation }) {
           onChangeText={setPlats}
         />
 
-        <Text style={styles.label}>Lön (kr/mån)</Text>
+        <Text style={styles.label}>Timlön (kr/tim)</Text>
         <TextInput
           style={styles.input}
-          placeholder="t.ex. 45000"
+          placeholder="t.ex. 200"
           value={lon}
           onChangeText={setLon}
           keyboardType="numeric"

@@ -45,6 +45,9 @@ export const api = {
   hämtaMeddelanden: (ansokningId) => anrop('GET', `/meddelanden/${ansokningId}`),
   skicka: (ansokningId, kropp) => anrop('POST', `/meddelanden/${ansokningId}`, kropp),
 
+  // Profil
+  uppdateraProfil: (kropp) => anrop('PUT', '/users/profil', kropp),
+
   // Push-notifikationer
   sparaPushToken: (token) => anrop('PUT', '/users/push-token', { token }),
   testaNotifikation: () => anrop('POST', '/users/testa-notifikation'),

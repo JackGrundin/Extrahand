@@ -1,6 +1,6 @@
 const express = require('express');
 const { kräverInloggning } = require('../middleware/auth');
-const { hämtaAnvändareViaEmail, sparaPushToken, hämtaPushToken } = require('../db/användare');
+const { hämtaAnvändareViaEmail, uppdateraProfil, sparaPushToken, hämtaPushToken } = require('../db/användare');
 
 const router = express.Router();
 
@@ -18,10 +18,31 @@ router.get('/profil', kräverInloggning, async (req, res) => {
       email: användare.Email,
       typ: användare.Typ,
       skapad: användare.Created_at,
+      cv: användare.cv ?? null,
+      erfarenheter: användare.erfarenheter ?? null,
+      kompetenser: användare.kompetenser ?? null,
+      intressen: användare.intressen ?? null,
     });
   } catch (fel) {
     console.error('Profilfel:', fel);
     res.status(500).json({ fel: 'Serverfel vid hämtning av profil' });
+  }
+});
+
+// PUT /api/users/profil — uppdaterar CV och profilinformation
+router.put('/profil', kräverInloggning, async (req, res) => {
+  const { cv, erfarenheter, kompetenser, intressen } = req.body;
+  try {
+    await uppdateraProfil(req.användare.id, {
+      cv: cv?.trim() || null,
+      erfarenheter: erfarenheter?.trim() || null,
+      kompetenser: kompetenser?.trim() || null,
+      intressen: intressen?.trim() || null,
+    });
+    res.json({ ok: true });
+  } catch (fel) {
+    console.error('Profiluppdatering fel:', fel);
+    res.status(500).json({ fel: 'Serverfel' });
   }
 });
 

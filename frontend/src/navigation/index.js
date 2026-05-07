@@ -16,6 +16,7 @@ import ChattListaScreen from '../screens/ChattListaScreen';
 import PubliceraJobbScreen from '../screens/PubliceraJobbScreen';
 import JobbAnsokningarScreen from '../screens/JobbAnsokningarScreen';
 import BetygsattScreen from '../screens/BetygsattScreen';
+import RedigeraProfilScreen from '../screens/RedigeraProfilScreen';
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -61,6 +62,15 @@ function ChattNavigator() {
   );
 }
 
+function ProfilNavigator() {
+  return (
+    <Stack.Navigator>
+      <Stack.Screen name="ProfilHuvud" component={ProfilScreen} options={{ title: 'Profil' }} />
+      <Stack.Screen name="RedigeraProfil" component={RedigeraProfilScreen} options={{ title: 'Redigera profil' }} />
+    </Stack.Navigator>
+  );
+}
+
 function PubliceraNavigator() {
   return (
     <Stack.Navigator>
@@ -100,7 +110,7 @@ function HuvudNavigator() {
         <Tab.Screen name="PubliceraTab" component={PubliceraNavigator} options={{ tabBarLabel: 'Publicera' }} />
       )}
       <Tab.Screen name="ChattTab" component={ChattNavigator} options={{ tabBarLabel: 'Chatt' }} />
-      <Tab.Screen name="Profil" component={ProfilScreen} options={{ tabBarLabel: 'Profil', headerShown: true, title: 'Profil' }} />
+      <Tab.Screen name="Profil" component={ProfilNavigator} options={{ tabBarLabel: 'Profil', headerShown: false }} />
     </Tab.Navigator>
   );
 }

@@ -40,6 +40,14 @@ async function hämtaAnvändareViaId(id) {
   return data;
 }
 
+async function uppdateraProfil(id, { cv, erfarenheter, kompetenser, intressen }) {
+  const { error } = await supabase
+    .from('användare')
+    .update({ cv, erfarenheter, kompetenser, intressen })
+    .eq('id', id);
+  if (error) throw error;
+}
+
 async function sparaPushToken(id, token) {
   const { error } = await supabase
     .from('användare')
@@ -57,4 +65,4 @@ async function hämtaPushToken(id) {
   return data?.push_token || null;
 }
 
-module.exports = { skapaAnvändare, hämtaAnvändareViaEmail, hämtaAnvändareViaId, sparaPushToken, hämtaPushToken };
+module.exports = { skapaAnvändare, hämtaAnvändareViaEmail, hämtaAnvändareViaId, uppdateraProfil, sparaPushToken, hämtaPushToken };
