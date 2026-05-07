@@ -1,6 +1,7 @@
 const express = require('express');
 const { kräverInloggning } = require('../middleware/auth');
 const { skickaMeddelande, hämtaMeddelanden } = require('../db/meddelanden');
+const { hämtaAnvändareViaId, hämtaPushToken } = require('../db/användare');
 const { createClient } = require('@supabase/supabase-js');
 const ws = require('ws');
 
@@ -31,7 +32,28 @@ async function hämtaOchVerifieraAnsökan(ansokningId, användarId) {
   if (jobbFel || !jobb) return null;
 
   const harTillgång = användarId === ansökan.sokande_id || användarId === jobb.Foretag_id;
-  return harTillgång ? ansökan : null;
+  if (!harTillgång) return null;
+  return { sokande_id: ansökan.sokande_id, foretag_id: jobb.Foretag_id };
+}
+
+async function skickaNotifikation(mottagarId, avsändarNamn, text) {
+  try {
+    const token = await hämtaPushToken(mottagarId);
+    if (!token || !token.startsWith('ExponentPushToken')) return;
+
+    await fetch('https://exp.host/--/api/v2/push/send', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        to: token,
+        title: `Nytt meddelande från ${avsändarNamn}`,
+        body: text.length > 100 ? text.substring(0, 97) + '...' : text,
+        sound: 'default',
+      }),
+    });
+  } catch (fel) {
+    console.error('Push-notifikation misslyckades:', fel);
+  }
 }
 
 // GET /api/meddelanden/:ansokningId — hämta konversation
@@ -69,6 +91,15 @@ router.post('/:ansokningId', kräverInloggning, async (req, res) => {
       avsandare_id: req.användare.id,
       innehall: innehall.trim(),
     });
+
+    // Skicka push-notifikation till mottagaren i bakgrunden
+    const mottagarId = req.användare.id === ansökan.sokande_id
+      ? ansökan.foretag_id
+      : ansökan.sokande_id;
+    hämtaAnvändareViaId(req.användare.id)
+      .then((avsändare) => skickaNotifikation(mottagarId, avsändare?.Namn ?? 'Någon', innehall.trim()))
+      .catch(console.error);
+
     res.status(201).json(meddelande);
   } catch (fel) {
     console.error('Fel vid skickande av meddelande:', fel);

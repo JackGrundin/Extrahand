@@ -40,4 +40,21 @@ async function hämtaAnvändareViaId(id) {
   return data;
 }
 
-module.exports = { skapaAnvändare, hämtaAnvändareViaEmail, hämtaAnvändareViaId };
+async function sparaPushToken(id, token) {
+  const { error } = await supabase
+    .from('användare')
+    .update({ push_token: token })
+    .eq('id', id);
+  if (error) throw error;
+}
+
+async function hämtaPushToken(id) {
+  const { data } = await supabase
+    .from('användare')
+    .select('push_token')
+    .eq('id', id)
+    .single();
+  return data?.push_token || null;
+}
+
+module.exports = { skapaAnvändare, hämtaAnvändareViaEmail, hämtaAnvändareViaId, sparaPushToken, hämtaPushToken };

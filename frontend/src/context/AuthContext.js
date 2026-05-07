@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useState } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as Notifications from 'expo-notifications';
 import { api } from '../api/klient';
 
 const AuthContext = createContext(null);
@@ -25,16 +26,29 @@ export function AuthProvider({ children }) {
     kontrolleraToken();
   }, []);
 
+  async function registreraPushToken() {
+    try {
+      const { status } = await Notifications.requestPermissionsAsync();
+      if (status !== 'granted') return;
+      const { data: token } = await Notifications.getExpoPushTokenAsync();
+      await api.sparaPushToken(token);
+    } catch {
+      // Fungerar inte i simulator – ignorera
+    }
+  }
+
   async function loggaIn(email, lösenord) {
     const svar = await api.loggaIn({ email, lösenord });
     await AsyncStorage.setItem('token', svar.token);
     setAnvändare(svar.användare);
+    registreraPushToken();
   }
 
   async function registrera(namn, email, lösenord, typ) {
     const svar = await api.registrera({ namn, email, lösenord, typ });
     await AsyncStorage.setItem('token', svar.token);
     setAnvändare(svar.användare);
+    registreraPushToken();
   }
 
   async function loggaUt() {
