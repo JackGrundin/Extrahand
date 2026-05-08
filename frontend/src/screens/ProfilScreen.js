@@ -1,5 +1,5 @@
 import { useCallback, useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView, ActivityIndicator, Image, Alert } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, ScrollView, ActivityIndicator, Image, Alert, FlatList } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
@@ -129,6 +129,26 @@ export default function ProfilScreen({ navigation }) {
           {!profil?.cv && !profil?.erfarenheter && !profil?.kompetenser && !profil?.intressen && (
             <Text style={styles.tomProfil}>Fyll i ditt CV och erfarenheter för att sticka ut när du söker jobb.</Text>
           )}
+
+          {betyg && betyg.antal > 0 && (
+            <View style={styles.betygSektion}>
+              <Text style={styles.betygSektionsRubrik}>Betyg från arbetsgivare</Text>
+              {betyg.betyg.map((b, i) => (
+                <View key={i} style={styles.betygKort}>
+                  <View style={styles.betygKortHuvud}>
+                    <View style={styles.stjärnRad}>
+                      {[1,2,3,4,5].map(n => (
+                        <Ionicons key={n} name={n <= b.stjarnor ? 'star' : 'star-outline'} size={14} color="#f59e0b" />
+                      ))}
+                    </View>
+                    <Text style={styles.betygDatum}>{new Date(b.created_at).toLocaleDateString('sv-SE')}</Text>
+                  </View>
+                  {b.företagNamn && <Text style={styles.betygFöretag}>{b.företagNamn}</Text>}
+                  {b.kommentar && <Text style={styles.betygKommentar}>{b.kommentar}</Text>}
+                </View>
+              ))}
+            </View>
+          )}
         </>
       )}
 
@@ -163,6 +183,14 @@ const styles = StyleSheet.create({
   sektionsRubrik: { fontSize: 13, fontWeight: '700', color: '#888', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 6 },
   sektionsText: { fontSize: 15, color: '#333', lineHeight: 22 },
   tomProfil: { fontSize: 14, color: '#aaa', textAlign: 'center', lineHeight: 22, marginBottom: 24, paddingHorizontal: 8 },
+  betygSektion: { width: '100%', marginTop: 8 },
+  betygSektionsRubrik: { fontSize: 13, fontWeight: '700', color: '#888', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 12 },
+  betygKort: { backgroundColor: '#fafafa', borderRadius: 10, padding: 12, marginBottom: 10, borderWidth: 1, borderColor: '#f0f0f0' },
+  betygKortHuvud: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 },
+  stjärnRad: { flexDirection: 'row', gap: 2 },
+  betygDatum: { fontSize: 12, color: '#aaa' },
+  betygFöretag: { fontSize: 13, fontWeight: '600', color: '#555', marginBottom: 4 },
+  betygKommentar: { fontSize: 14, color: '#444', lineHeight: 20 },
   loggaUtKnapp: { borderWidth: 1, borderColor: '#ef4444', borderRadius: 10, paddingVertical: 14, paddingHorizontal: 40, marginTop: 8 },
   loggaUtText: { color: '#ef4444', fontWeight: '600', fontSize: 15 },
 });

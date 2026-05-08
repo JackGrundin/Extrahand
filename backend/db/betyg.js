@@ -43,7 +43,18 @@ async function hämtaBetyg(till_anvandare_id) {
     ? (data.reduce((sum, b) => sum + b.stjarnor, 0) / data.length).toFixed(1)
     : null;
 
-  return { snitt: snitt ? parseFloat(snitt) : null, antal: data.length, betyg: data };
+  const avIds = [...new Set(data.map(b => b.av_anvandare_id).filter(Boolean))];
+  const { data: företag } = avIds.length
+    ? await supabase.from('användare').select('id, Namn').in('id', avIds)
+    : { data: [] };
+  const företagMap = Object.fromEntries((företag || []).map(f => [f.id, f.Namn]));
+
+  const betyg = data.map(b => ({
+    ...b,
+    företagNamn: företagMap[b.av_anvandare_id] ?? null,
+  }));
+
+  return { snitt: snitt ? parseFloat(snitt) : null, antal: data.length, betyg };
 }
 
 module.exports = { skapaBetyg, finnsDublettBetyg, hämtaBetyg };
