@@ -102,7 +102,9 @@ function HuvudNavigator() {
         },
       })}
     >
-      <Tab.Screen name="JobbTab" component={JobbNavigator} options={{ tabBarLabel: 'Jobb' }} />
+      {ärPrivatperson && (
+        <Tab.Screen name="JobbTab" component={JobbNavigator} options={{ tabBarLabel: 'Jobb' }} />
+      )}
       {ärPrivatperson && (
         <Tab.Screen name="AnsökningarTab" component={AnsökningarNavigator} options={{ tabBarLabel: 'Ansökningar' }} />
       )}
