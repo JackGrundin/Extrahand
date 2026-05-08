@@ -74,14 +74,7 @@ export default function MinaAnsokningarScreen({ navigation }) {
           {item.timmar > 0 && (
             <Text style={styles.timmar}>{item.timmar} tim loggade</Text>
           )}
-          <View style={styles.länkRad}>
-            <Text style={styles.chattLänk}>Öppna chatt →</Text>
-            {item.status === 'godkänd' && (
-              <TouchableOpacity onPress={() => navigation.navigate('Betygsatt', { ansokningId: item.id })}>
-                <Text style={styles.betygsättLänk}>Betygsätt →</Text>
-              </TouchableOpacity>
-            )}
-          </View>
+          <Text style={styles.chattLänk}>Öppna chatt →</Text>
         </TouchableOpacity>
       )}
     />
@@ -98,9 +91,7 @@ const styles = StyleSheet.create({
   meddelande: { fontSize: 14, color: '#555', lineHeight: 20, marginBottom: 10 },
   ingetMeddelande: { fontSize: 14, color: '#aaa', fontStyle: 'italic', marginBottom: 10 },
   timmar: { fontSize: 13, color: '#059669', fontWeight: '500', marginBottom: 6 },
-  länkRad: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   chattLänk: { fontSize: 13, color: '#2563eb', fontWeight: '500' },
-  betygsättLänk: { fontSize: 13, color: '#f59e0b', fontWeight: '500' },
   statusBadge: { borderRadius: 10, paddingHorizontal: 8, paddingVertical: 2 },
   statusText: { fontSize: 12, fontWeight: '600' },
   tomContainer: { flex: 1, alignItems: 'center', marginTop: 60 },

@@ -1,5 +1,5 @@
 const express = require('express');
-const { kräverInloggning } = require('../middleware/auth');
+const { kräverInloggning, kräverTyp } = require('../middleware/auth');
 const { skapaBetyg, finnsDublettBetyg, hämtaBetyg } = require('../db/betyg');
 const { createClient } = require('@supabase/supabase-js');
 const ws = require('ws');
@@ -34,7 +34,7 @@ async function hämtaParterFörAnsökan(ansokningId) {
 }
 
 // POST /api/betyg/:ansokningId — sätt betyg på motparten
-router.post('/:ansokningId', kräverInloggning, async (req, res) => {
+router.post('/:ansokningId', kräverInloggning, kräverTyp('företag'), async (req, res) => {
   const { stjarnor, kommentar } = req.body;
 
   if (!stjarnor || !Number.isInteger(stjarnor) || stjarnor < 1 || stjarnor > 5) {
