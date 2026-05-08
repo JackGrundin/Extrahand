@@ -86,9 +86,14 @@ function StatusKnappar({ item, onUppdaterad, navigation }) {
             <Text style={styles.öppnaChattText}>Öppna chatt →</Text>
           </TouchableOpacity>
         </View>
-        <TouchableOpacity onPress={återkalla} disabled={sparar}>
-          <Text style={styles.återkallaText}>Ta tillbaka godkännandet</Text>
-        </TouchableOpacity>
+        <View style={styles.godkändBottomRad}>
+          <TouchableOpacity onPress={återkalla} disabled={sparar}>
+            <Text style={styles.återkallaText}>Ta tillbaka godkännandet</Text>
+          </TouchableOpacity>
+          <TouchableOpacity onPress={() => navigation.navigate('Betygsatt', { ansokningId: item.id })}>
+            <Text style={styles.betygsättText}>Betygsätt →</Text>
+          </TouchableOpacity>
+        </View>
         <View style={styles.loggaDivider} />
         <Text style={styles.loggaRubrik}>Logga arbetstid efter passet</Text>
       </View>
@@ -204,7 +209,9 @@ const styles = StyleSheet.create({
   godkändBadge: { backgroundColor: '#dcfce7', borderRadius: 10, paddingHorizontal: 12, paddingVertical: 5 },
   godkändText: { color: '#16a34a', fontWeight: '700', fontSize: 13 },
   öppnaChattText: { fontSize: 13, color: '#2563eb', fontWeight: '500' },
+  godkändBottomRad: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   återkallaText: { fontSize: 12, color: '#9ca3af', textDecorationLine: 'underline' },
+  betygsättText: { fontSize: 13, color: '#2563eb', fontWeight: '500' },
   loggaDivider: { height: 1, backgroundColor: '#f0f0f0', marginVertical: 12 },
   loggaRubrik: { fontSize: 12, fontWeight: '600', color: '#888', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 8 },
   avvisadBadge: { backgroundColor: '#fee2e2', borderRadius: 10, paddingHorizontal: 12, paddingVertical: 5, alignSelf: 'flex-start', marginBottom: 12 },
