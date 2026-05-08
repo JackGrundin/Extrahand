@@ -1,7 +1,7 @@
 const express = require('express');
 const { kräverInloggning, kräverTyp } = require('../middleware/auth');
 const { skapaAnsökan, hämtaAnsökningarFörSökande, hämtaAnsökningarFörJobb, finnsDubblettAnsökan, uppdateraTimmar, uppdateraStatus, hämtaAnsökanViaId, avvisaAllaUtomEn, återställAllaFörJobb, hämtaAllaKonversationerFörFöretag } = require('../db/ansokningar');
-const { hämtaPushToken } = require('../db/användare');
+const { hämtaPushToken, hämtaAnvändareViaId } = require('../db/användare');
 const { hämtaJobbViaId } = require('../db/jobb');
 
 const router = express.Router();
@@ -24,6 +24,29 @@ router.post('/:jobbId', kräverInloggning, kräverTyp('privatperson'), async (re
     });
 
     res.status(201).json(ansökan);
+
+    try {
+      const [jobb, sökande] = await Promise.all([
+        hämtaJobbViaId(jobbId),
+        hämtaAnvändareViaId(req.användare.id),
+      ]);
+      const foretagId = jobb?.Foretag_id ?? jobb?.foretag_id;
+      const pushToken = await hämtaPushToken(foretagId);
+      if (pushToken) {
+        await fetch('https://exp.host/--/api/v2/push/send', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            to: pushToken,
+            title: 'Ny ansökan!',
+            body: `${sökande?.Namn ?? 'Någon'} har sökt "${jobb?.Titel ?? 'ditt jobb'}"`,
+            sound: 'default',
+          }),
+        });
+      }
+    } catch (notisfel) {
+      console.error('Push-notifikation fel:', notisfel);
+    }
   } catch (fel) {
     console.error('Fel vid ansökan:', fel);
     res.status(500).json({ fel: 'Serverfel vid ansökan' });
