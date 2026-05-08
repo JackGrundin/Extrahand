@@ -1,18 +1,17 @@
-import { useCallback, useState } from 'react';
-import { View, Text, FlatList, TouchableOpacity, StyleSheet, ActivityIndicator, RefreshControl, TextInput, Alert } from 'react-native';
+import { useCallback, useEffect, useState } from 'react';
+import { View, Text, FlatList, TouchableOpacity, StyleSheet, ActivityIndicator, RefreshControl, Alert } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { api } from '../api/klient';
 
-function TimmArKort({ item, onSparat }) {
-  const [timmar, setTimmar] = useState(String(item.timmar ?? 0));
+function TimmArKort({ item, basTimmar, onSparat }) {
+  const startVärde = item.timmar > 0 ? item.timmar : (basTimmar ?? 0);
+  const [timmar, setTimmar] = useState(startVärde);
   const [sparar, setSparar] = useState(false);
 
-  async function spara() {
-    const val = parseInt(timmar);
-    if (isNaN(val) || val < 0) { Alert.alert('Fel', 'Ange ett giltigt antal timmar'); return; }
+  async function spara(nyaTimmar) {
     setSparar(true);
     try {
-      await api.loggaTimmar(item.id, val);
+      await api.loggaTimmar(item.id, nyaTimmar);
       onSparat();
     } catch (fel) {
       Alert.alert('Fel', fel.message);
@@ -21,18 +20,23 @@ function TimmArKort({ item, onSparat }) {
     }
   }
 
+  function justera(delta) {
+    const nytt = Math.max(0, timmar + delta);
+    setTimmar(nytt);
+    spara(nytt);
+  }
+
   return (
     <View style={styles.timmArRad}>
-      <TextInput
-        style={styles.timmArInput}
-        value={timmar}
-        onChangeText={setTimmar}
-        keyboardType="numeric"
-        placeholder="0"
-      />
-      <Text style={styles.timmArEtikett}>tim</Text>
-      <TouchableOpacity style={[styles.timmArKnapp, sparar && { opacity: 0.5 }]} onPress={spara} disabled={sparar}>
-        <Text style={styles.timmArKnappText}>Logga</Text>
+      <TouchableOpacity style={styles.justeraKnapp} onPress={() => justera(-0.5)} disabled={sparar || timmar <= 0}>
+        <Text style={styles.justeraText}>−</Text>
+      </TouchableOpacity>
+      <View style={styles.timmArMitten}>
+        <Text style={styles.timmArVärde}>{timmar % 1 === 0 ? timmar : timmar.toFixed(1)}</Text>
+        <Text style={styles.timmArEtikett}>timmar</Text>
+      </View>
+      <TouchableOpacity style={styles.justeraKnapp} onPress={() => justera(0.5)} disabled={sparar}>
+        <Text style={styles.justeraText}>+</Text>
       </TouchableOpacity>
     </View>
   );
@@ -85,6 +89,8 @@ function StatusKnappar({ item, onUppdaterad, navigation }) {
         <TouchableOpacity onPress={återkalla} disabled={sparar}>
           <Text style={styles.återkallaText}>Ta tillbaka godkännandet</Text>
         </TouchableOpacity>
+        <View style={styles.loggaDivider} />
+        <Text style={styles.loggaRubrik}>Logga arbetstid efter passet</Text>
       </View>
     );
   }
@@ -111,13 +117,18 @@ function StatusKnappar({ item, onUppdaterad, navigation }) {
 export default function JobbAnsokningarScreen({ route, navigation }) {
   const { jobbId, titel } = route.params;
   const [ansökningar, setAnsökningar] = useState([]);
+  const [jobb, setJobb] = useState(null);
   const [laddar, setLaddar] = useState(true);
   const [uppdaterar, setUppdaterar] = useState(false);
 
   async function hämta() {
     try {
-      const data = await api.ansökningarFörJobb(jobbId);
-      setAnsökningar(data);
+      const [ansökningarData, jobbData] = await Promise.all([
+        api.ansökningarFörJobb(jobbId),
+        api.hämtaJobb_id(jobbId),
+      ]);
+      setAnsökningar(ansökningarData);
+      setJobb(jobbData);
     } catch (fel) {
       console.error(fel);
     } finally {
@@ -165,7 +176,7 @@ export default function JobbAnsokningarScreen({ route, navigation }) {
             <Text style={styles.chattLänk}>Visa profil →</Text>
           </TouchableOpacity>
           <StatusKnappar item={item} onUppdaterad={hämta} navigation={navigation} />
-          <TimmArKort item={item} onSparat={hämta} />
+          {item.status === 'godkänd' && <TimmArKort item={item} basTimmar={jobb?.antal_dagar ?? 0} onSparat={hämta} />}
         </TouchableOpacity>
       )}
     />
@@ -194,12 +205,15 @@ const styles = StyleSheet.create({
   godkändText: { color: '#16a34a', fontWeight: '700', fontSize: 13 },
   öppnaChattText: { fontSize: 13, color: '#2563eb', fontWeight: '500' },
   återkallaText: { fontSize: 12, color: '#9ca3af', textDecorationLine: 'underline' },
+  loggaDivider: { height: 1, backgroundColor: '#f0f0f0', marginVertical: 12 },
+  loggaRubrik: { fontSize: 12, fontWeight: '600', color: '#888', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 8 },
   avvisadBadge: { backgroundColor: '#fee2e2', borderRadius: 10, paddingHorizontal: 12, paddingVertical: 5, alignSelf: 'flex-start', marginBottom: 12 },
   avvisadText: { color: '#dc2626', fontWeight: '600', fontSize: 13 },
-  timmArRad: { flexDirection: 'row', alignItems: 'center', gap: 8, borderTopWidth: 1, borderTopColor: '#f0f0f0', paddingTop: 12 },
-  timmArInput: { borderWidth: 1, borderColor: '#ddd', borderRadius: 8, paddingHorizontal: 12, paddingVertical: 6, width: 64, fontSize: 15, textAlign: 'center' },
-  timmArEtikett: { fontSize: 14, color: '#666' },
-  timmArKnapp: { backgroundColor: '#059669', borderRadius: 8, paddingHorizontal: 14, paddingVertical: 7 },
-  timmArKnappText: { color: '#fff', fontWeight: '600', fontSize: 13 },
+  timmArRad: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderTopWidth: 1, borderTopColor: '#f0f0f0', paddingTop: 12 },
+  timmArMitten: { alignItems: 'center' },
+  timmArVärde: { fontSize: 22, fontWeight: '700', color: '#1a1a1a' },
+  timmArEtikett: { fontSize: 12, color: '#888' },
+  justeraKnapp: { width: 44, height: 44, borderRadius: 22, backgroundColor: '#eff6ff', justifyContent: 'center', alignItems: 'center' },
+  justeraText: { fontSize: 22, color: '#2563eb', fontWeight: '500', lineHeight: 26 },
   tom: { textAlign: 'center', color: '#999', marginTop: 40, fontSize: 16 },
 });
