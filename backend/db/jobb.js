@@ -53,4 +53,15 @@ async function hämtaJobbViaId(id) {
   return data;
 }
 
-module.exports = { skapaJobb, hämtaAllaJobb, hämtaJobbViaId };
+async function hämtaJobbFörFöretag(foretag_id) {
+  const { data, error } = await supabase
+    .from('Jobb')
+    .select('*')
+    .eq('Foretag_id', foretag_id)
+    .order('created_at', { ascending: false });
+
+  if (error) throw error;
+  return data || [];
+}
+
+module.exports = { skapaJobb, hämtaAllaJobb, hämtaJobbViaId, hämtaJobbFörFöretag };

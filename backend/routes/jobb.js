@@ -1,6 +1,6 @@
 const express = require('express');
 const { kräverInloggning, kräverTyp } = require('../middleware/auth');
-const { skapaJobb, hämtaAllaJobb, hämtaJobbViaId } = require('../db/jobb');
+const { skapaJobb, hämtaAllaJobb, hämtaJobbViaId, hämtaJobbFörFöretag } = require('../db/jobb');
 
 const router = express.Router();
 
@@ -12,6 +12,17 @@ router.get('/', async (req, res) => {
   } catch (fel) {
     console.error('Fel vid hämtning av jobb:', fel);
     res.status(500).json({ fel: 'Serverfel vid hämtning av jobb' });
+  }
+});
+
+// GET /api/jobb/mina — hämtar inloggat företags egna jobb
+router.get('/mina', kräverInloggning, kräverTyp('företag'), async (req, res) => {
+  try {
+    const jobb = await hämtaJobbFörFöretag(req.användare.id);
+    res.json(jobb);
+  } catch (fel) {
+    console.error('Fel vid hämtning av egna jobb:', fel);
+    res.status(500).json({ fel: 'Serverfel vid hämtning av egna jobb' });
   }
 });
 

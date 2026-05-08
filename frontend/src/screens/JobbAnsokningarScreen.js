@@ -77,10 +77,12 @@ export default function JobbAnsokningarScreen({ route, navigation }) {
         >
           <View style={styles.kortHuvud}>
             <View style={styles.avatar}>
-              <Text style={styles.avatarText}>{index + 1}</Text>
+              <Text style={styles.avatarText}>
+                {(item.sökandeNamn ?? '?').charAt(0).toUpperCase()}
+              </Text>
             </View>
             <View style={styles.info}>
-              <Text style={styles.sökandeTitel}>Sökande #{index + 1}</Text>
+              <Text style={styles.sökandeTitel}>{item.sökandeNamn ?? 'Okänd sökande'}</Text>
               <Text style={styles.datum}>{new Date(item.created_at).toLocaleDateString('sv-SE')}</Text>
             </View>
           </View>

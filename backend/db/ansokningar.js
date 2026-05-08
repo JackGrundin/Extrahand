@@ -68,14 +68,23 @@ async function uppdateraTimmar(id, timmar) {
 }
 
 async function hämtaAnsökningarFörJobb(jobb_id) {
-  const { data, error } = await supabase
+  const { data: ansökningar, error } = await supabase
     .from('ansokningar')
     .select('*')
     .eq('jobb_id', jobb_id)
     .order('created_at', { ascending: false });
 
   if (error) throw error;
-  return data;
+  if (!ansökningar.length) return [];
+
+  const sokandeIds = [...new Set(ansökningar.map(a => a.sokande_id).filter(Boolean))];
+  const { data: sökande } = await supabase.from('användare').select('id, Namn').in('id', sokandeIds);
+  const sökandeMap = Object.fromEntries((sökande || []).map(s => [s.id, s]));
+
+  return ansökningar.map(a => ({
+    ...a,
+    sökandeNamn: sökandeMap[a.sokande_id]?.Namn ?? null,
+  }));
 }
 
 async function finnsDubblettAnsökan(jobb_id, sokande_id) {

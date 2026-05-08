@@ -14,6 +14,7 @@ import MinaAnsokningarScreen from '../screens/MinaAnsokningarScreen';
 import ChattScreen from '../screens/ChattScreen';
 import ChattListaScreen from '../screens/ChattListaScreen';
 import PubliceraJobbScreen from '../screens/PubliceraJobbScreen';
+import MinaJobbScreen from '../screens/MinaJobbScreen';
 import JobbAnsokningarScreen from '../screens/JobbAnsokningarScreen';
 import BetygsattScreen from '../screens/BetygsattScreen';
 import RedigeraProfilScreen from '../screens/RedigeraProfilScreen';
@@ -71,6 +72,16 @@ function ProfilNavigator() {
   );
 }
 
+function MinaJobbNavigator() {
+  return (
+    <Stack.Navigator>
+      <Stack.Screen name="MinaJobb" component={MinaJobbScreen} options={{ title: 'Mina annonser' }} />
+      <Stack.Screen name="JobbAnsokningar" component={JobbAnsokningarScreen} options={({ route }) => ({ title: route.params?.titel ?? 'Ansökningar' })} />
+      <Stack.Screen name="Chatt" component={ChattScreen} options={{ title: 'Chatt' }} />
+    </Stack.Navigator>
+  );
+}
+
 function PubliceraNavigator() {
   return (
     <Stack.Navigator>
@@ -92,11 +103,12 @@ function HuvudNavigator() {
         tabBarInactiveTintColor: '#9ca3af',
         tabBarIcon: ({ color, size, focused }) => {
           const ikoner = {
-            JobbTab:       focused ? 'briefcase'        : 'briefcase-outline',
-            AnsökningarTab: focused ? 'document-text'   : 'document-text-outline',
-            PubliceraTab:  focused ? 'add-circle'       : 'add-circle-outline',
-            ChattTab:      focused ? 'chatbubbles'      : 'chatbubbles-outline',
-            Profil:        focused ? 'person'           : 'person-outline',
+            JobbTab:        focused ? 'briefcase'       : 'briefcase-outline',
+            AnsökningarTab: focused ? 'document-text'  : 'document-text-outline',
+            MinaJobbTab:    focused ? 'list'            : 'list-outline',
+            PubliceraTab:   focused ? 'add-circle'      : 'add-circle-outline',
+            ChattTab:       focused ? 'chatbubbles'     : 'chatbubbles-outline',
+            Profil:         focused ? 'person'          : 'person-outline',
           };
           return <Ionicons name={ikoner[route.name]} size={size} color={color} />;
         },
@@ -107,6 +119,9 @@ function HuvudNavigator() {
       )}
       {ärPrivatperson && (
         <Tab.Screen name="AnsökningarTab" component={AnsökningarNavigator} options={{ tabBarLabel: 'Ansökningar' }} />
+      )}
+      {ärFöretag && (
+        <Tab.Screen name="MinaJobbTab" component={MinaJobbNavigator} options={{ tabBarLabel: 'Mina annonser' }} />
       )}
       {ärFöretag && (
         <Tab.Screen name="PubliceraTab" component={PubliceraNavigator} options={{ tabBarLabel: 'Publicera' }} />
