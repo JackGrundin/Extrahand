@@ -79,6 +79,10 @@ export default function JobbScreen({ navigation }) {
             <Text style={styles.jobbTitel} numberOfLines={1}>{item.Titel}</Text>
             <Text style={styles.info}>{item.Plats} · {item.Typ}</Text>
             {item.Lon && <Text style={styles.lön}>{item.Lon.toLocaleString('sv-SE')} kr/tim</Text>}
+            <View style={styles.extraRad}>
+              {item.antal_dagar != null && <Text style={styles.extraInfo}>{item.antal_dagar} dagar</Text>}
+              {item.arbetstider ? <Text style={styles.extraInfo}>{item.arbetstider}</Text> : null}
+            </View>
           </TouchableOpacity>
         )}
       />
@@ -103,5 +107,7 @@ const styles = StyleSheet.create({
   kategoriTag: { fontSize: 12, color: '#2563eb', backgroundColor: '#eff6ff', borderRadius: 10, paddingHorizontal: 8, paddingVertical: 3, marginLeft: 8 },
   info: { fontSize: 14, color: '#666', marginBottom: 4 },
   lön: { fontSize: 14, color: '#2563eb', fontWeight: '500' },
+  extraRad: { flexDirection: 'row', gap: 12, marginTop: 4 },
+  extraInfo: { fontSize: 13, color: '#888' },
   tom: { textAlign: 'center', color: '#999', marginTop: 60, fontSize: 16 },
 });

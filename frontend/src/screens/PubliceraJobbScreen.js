@@ -12,6 +12,8 @@ export default function PubliceraJobbScreen({ navigation }) {
   const [lon, setLon] = useState('');
   const [typ, setTyp] = useState('gig');
   const [kategori, setKategori] = useState('');
+  const [antalDagar, setAntalDagar] = useState('');
+  const [arbetstider, setArbetstider] = useState('');
   const [laddar, setLaddar] = useState(false);
 
   async function hanteraPublicering() {
@@ -28,6 +30,8 @@ export default function PubliceraJobbScreen({ navigation }) {
         lon: lon ? parseInt(lon) : undefined,
         typ,
         kategori: kategori || undefined,
+        antal_dagar: antalDagar ? parseInt(antalDagar) : undefined,
+        arbetstider: arbetstider.trim() || undefined,
       });
       Alert.alert('Klart!', 'Jobbet har publicerats.', [
         { text: 'OK', onPress: () => navigation.goBack() },
@@ -61,6 +65,12 @@ export default function PubliceraJobbScreen({ navigation }) {
 
         <Text style={styles.label}>Timlön (kr/tim)</Text>
         <TextInput style={styles.input} placeholder="t.ex. 160" value={lon} onChangeText={setLon} keyboardType="numeric" />
+
+        <Text style={styles.label}>Antal dagar</Text>
+        <TextInput style={styles.input} placeholder="t.ex. 5" value={antalDagar} onChangeText={setAntalDagar} keyboardType="numeric" />
+
+        <Text style={styles.label}>Arbetstider</Text>
+        <TextInput style={styles.input} placeholder="t.ex. 08:00-17:00" value={arbetstider} onChangeText={setArbetstider} />
 
         <Text style={styles.label}>Typ *</Text>
         <View style={styles.typVäljare}>

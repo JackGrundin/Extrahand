@@ -28,6 +28,10 @@ export default function JobbDetaljScreen({ route, navigation }) {
       <Text style={styles.titel}>{jobb.Titel}</Text>
       <Text style={styles.info}>{jobb.Plats} · {jobb.Typ}</Text>
       {jobb.Lon && <Text style={styles.lön}>{jobb.Lon.toLocaleString('sv-SE')} kr/tim</Text>}
+      <View style={styles.detaljerRad}>
+        {jobb.antal_dagar != null && <Text style={styles.detalj}>{jobb.antal_dagar} dagar</Text>}
+        {jobb.arbetstider ? <Text style={styles.detalj}>{jobb.arbetstider}</Text> : null}
+      </View>
 
       <Text style={styles.sektionsRubrik}>Beskrivning</Text>
       <Text style={styles.beskrivning}>{jobb.Beskrivning}</Text>
@@ -62,7 +66,9 @@ const styles = StyleSheet.create({
   foretagNamn: { fontSize: 15, color: '#2563eb', fontWeight: '600', marginBottom: 4 },
   titel: { fontSize: 24, fontWeight: 'bold', color: '#1a1a1a', marginBottom: 6 },
   info: { fontSize: 15, color: '#666', marginBottom: 4 },
-  lön: { fontSize: 16, color: '#2563eb', fontWeight: '600', marginBottom: 20 },
+  lön: { fontSize: 16, color: '#2563eb', fontWeight: '600', marginBottom: 8 },
+  detaljerRad: { flexDirection: 'row', gap: 16, marginBottom: 20 },
+  detalj: { fontSize: 14, color: '#666' },
   sektionsRubrik: { fontSize: 16, fontWeight: '600', color: '#1a1a1a', marginBottom: 8 },
   beskrivning: { fontSize: 15, color: '#444', lineHeight: 22, marginBottom: 32 },
   knapp: { backgroundColor: '#2563eb', borderRadius: 12, padding: 16, alignItems: 'center' },
