@@ -24,6 +24,7 @@ export default function JobbDetaljScreen({ route, navigation }) {
 
   return (
     <ScrollView style={styles.container}>
+      {jobb.foretagNamn && <Text style={styles.foretagNamn}>{jobb.foretagNamn}</Text>}
       <Text style={styles.titel}>{jobb.Titel}</Text>
       <Text style={styles.info}>{jobb.Plats} · {jobb.Typ}</Text>
       {jobb.Lon && <Text style={styles.lön}>{jobb.Lon.toLocaleString('sv-SE')} kr/tim</Text>}
@@ -58,6 +59,7 @@ export default function JobbDetaljScreen({ route, navigation }) {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#fff', padding: 20 },
+  foretagNamn: { fontSize: 15, color: '#2563eb', fontWeight: '600', marginBottom: 4 },
   titel: { fontSize: 24, fontWeight: 'bold', color: '#1a1a1a', marginBottom: 6 },
   info: { fontSize: 15, color: '#666', marginBottom: 4 },
   lön: { fontSize: 16, color: '#2563eb', fontWeight: '600', marginBottom: 20 },

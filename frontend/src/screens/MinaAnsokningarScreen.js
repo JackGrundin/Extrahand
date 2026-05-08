@@ -43,10 +43,10 @@ export default function MinaAnsokningarScreen({ navigation }) {
           <View style={styles.kortHuvud}>
             <View style={{ flex: 1 }}>
               <Text style={styles.jobbTitel} numberOfLines={1}>
-                {item.jobbTitel ?? 'Okänt jobb'}
+                {item.foretagNamn ?? 'Okänt företag'}
               </Text>
               <Text style={styles.foretagNamn} numberOfLines={1}>
-                {item.foretagNamn ?? ''}
+                {item.jobbTitel ?? ''}
               </Text>
             </View>
             <Text style={styles.datum}>{new Date(item.created_at).toLocaleDateString('sv-SE')}</Text>
@@ -71,7 +71,7 @@ const styles = StyleSheet.create({
   kort: { backgroundColor: '#fff', borderRadius: 12, padding: 16, marginBottom: 12, shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 4, elevation: 2 },
   kortHuvud: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 6 },
   jobbTitel: { fontSize: 15, fontWeight: '600', color: '#1a1a1a' },
-  foretagNamn: { fontSize: 13, color: '#2563eb', marginTop: 2 },
+  foretagNamn: { fontSize: 13, color: '#888', marginTop: 2 },
   datum: { fontSize: 13, color: '#999', marginLeft: 8 },
   meddelande: { fontSize: 14, color: '#555', lineHeight: 20, marginBottom: 10 },
   ingetMeddelande: { fontSize: 14, color: '#aaa', fontStyle: 'italic', marginBottom: 10 },

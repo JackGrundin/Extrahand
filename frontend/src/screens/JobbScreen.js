@@ -73,9 +73,10 @@ export default function JobbScreen({ navigation }) {
         renderItem={({ item }) => (
           <TouchableOpacity style={styles.kort} onPress={() => navigation.navigate('JobbDetalj', { jobb: item })}>
             <View style={styles.kortTopp}>
-              <Text style={styles.titel}>{item.Titel}</Text>
+              <Text style={styles.titel} numberOfLines={1}>{item.foretagNamn ?? 'Okänt företag'}</Text>
               {item.Kategori && <Text style={styles.kategoriTag}>{item.Kategori}</Text>}
             </View>
+            <Text style={styles.jobbTitel} numberOfLines={1}>{item.Titel}</Text>
             <Text style={styles.info}>{item.Plats} · {item.Typ}</Text>
             {item.Lon && <Text style={styles.lön}>{item.Lon.toLocaleString('sv-SE')} kr/tim</Text>}
           </TouchableOpacity>
@@ -98,6 +99,7 @@ const styles = StyleSheet.create({
   kort: { backgroundColor: '#fff', borderRadius: 12, padding: 16, marginBottom: 12, shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 4, elevation: 2 },
   kortTopp: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 },
   titel: { fontSize: 17, fontWeight: '600', color: '#1a1a1a', flex: 1 },
+  jobbTitel: { fontSize: 14, color: '#555', marginBottom: 4 },
   kategoriTag: { fontSize: 12, color: '#2563eb', backgroundColor: '#eff6ff', borderRadius: 10, paddingHorizontal: 8, paddingVertical: 3, marginLeft: 8 },
   info: { fontSize: 14, color: '#666', marginBottom: 4 },
   lön: { fontSize: 14, color: '#2563eb', fontWeight: '500' },
