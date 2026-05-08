@@ -2,7 +2,7 @@ const express = require('express');
 const { createClient } = require('@supabase/supabase-js');
 const ws = require('ws');
 const { kräverInloggning } = require('../middleware/auth');
-const { hämtaAnvändareViaEmail, uppdateraProfil, uppdateraProfilBild, sparaPushToken, hämtaPushToken } = require('../db/användare');
+const { hämtaAnvändareViaEmail, hämtaAnvändareViaId, uppdateraProfil, uppdateraProfilBild, sparaPushToken, hämtaPushToken } = require('../db/användare');
 const { hämtaTotalTimmar } = require('../db/ansokningar');
 
 const router = express.Router();
@@ -41,6 +41,36 @@ router.get('/profil', kräverInloggning, async (req, res) => {
   } catch (fel) {
     console.error('Profilfel:', fel);
     res.status(500).json({ fel: 'Serverfel vid hämtning av profil' });
+  }
+});
+
+// GET /api/users/:id/profil — hämtar en annan användares publika profil
+router.get('/:id/profil', kräverInloggning, async (req, res) => {
+  try {
+    const [användare, totalTimmar, betygData] = await Promise.all([
+      hämtaAnvändareViaId(req.params.id),
+      hämtaTotalTimmar(req.params.id),
+      null,
+    ]);
+
+    if (!användare) {
+      return res.status(404).json({ fel: 'Användaren hittades inte' });
+    }
+
+    res.json({
+      id: användare.id,
+      namn: användare.Namn,
+      typ: användare.Typ,
+      cv: användare.cv ?? null,
+      erfarenheter: användare.erfarenheter ?? null,
+      kompetenser: användare.kompetenser ?? null,
+      intressen: användare.intressen ?? null,
+      profilBild: användare.profil_bild ?? null,
+      totalTimmar,
+    });
+  } catch (fel) {
+    console.error('Profilfel:', fel);
+    res.status(500).json({ fel: 'Serverfel' });
   }
 });
 

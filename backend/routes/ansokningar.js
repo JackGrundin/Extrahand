@@ -1,6 +1,8 @@
 const express = require('express');
 const { kräverInloggning, kräverTyp } = require('../middleware/auth');
-const { skapaAnsökan, hämtaAnsökningarFörSökande, hämtaAnsökningarFörJobb, finnsDubblettAnsökan, uppdateraTimmar } = require('../db/ansokningar');
+const { skapaAnsökan, hämtaAnsökningarFörSökande, hämtaAnsökningarFörJobb, finnsDubblettAnsökan, uppdateraTimmar, uppdateraStatus, hämtaAnsökanViaId, avvisaAllaUtomEn, återställAllaFörJobb, hämtaAllaKonversationerFörFöretag } = require('../db/ansokningar');
+const { hämtaPushToken } = require('../db/användare');
+const { hämtaJobbViaId } = require('../db/jobb');
 
 const router = express.Router();
 
@@ -39,6 +41,17 @@ router.get('/mina', kräverInloggning, kräverTyp('privatperson'), async (req, r
   }
 });
 
+// GET /api/ansokningar/foretag — hämtar alla konversationer för inloggat företag
+router.get('/foretag', kräverInloggning, kräverTyp('företag'), async (req, res) => {
+  try {
+    const konversationer = await hämtaAllaKonversationerFörFöretag(req.användare.id);
+    res.json(konversationer);
+  } catch (fel) {
+    console.error('Fel vid hämtning av konversationer:', fel);
+    res.status(500).json({ fel: 'Serverfel' });
+  }
+});
+
 // GET /api/ansokningar/jobb/:jobbId — företag ser ansökningar på sitt jobb
 router.get('/jobb/:jobbId', kräverInloggning, kräverTyp('företag'), async (req, res) => {
   try {
@@ -47,6 +60,53 @@ router.get('/jobb/:jobbId', kräverInloggning, kräverTyp('företag'), async (re
   } catch (fel) {
     console.error('Fel vid hämtning av ansökningar:', fel);
     res.status(500).json({ fel: 'Serverfel vid hämtning av ansökningar' });
+  }
+});
+
+// PATCH /api/ansokningar/:id/status — företag godkänner eller återkallar godkännande
+router.patch('/:id/status', kräverInloggning, kräverTyp('företag'), async (req, res) => {
+  const { status } = req.body;
+  if (!['godkänd', 'väntande'].includes(status)) {
+    return res.status(400).json({ fel: 'Ogiltigt status' });
+  }
+  try {
+    const ansökan = await hämtaAnsökanViaId(req.params.id);
+
+    if (status === 'godkänd') {
+      await uppdateraStatus(req.params.id, 'godkänd');
+      await avvisaAllaUtomEn(ansökan.jobb_id, req.params.id);
+    } else {
+      await återställAllaFörJobb(ansökan.jobb_id);
+    }
+
+    res.json({ ok: true });
+
+    if (status === 'godkänd') {
+      try {
+        const [pushToken, jobb] = await Promise.all([
+          hämtaPushToken(ansökan.sokande_id),
+          hämtaJobbViaId(ansökan.jobb_id),
+        ]);
+        if (pushToken) {
+          const jobbTitel = jobb?.Titel ?? 'jobbet';
+          await fetch('https://exp.host/--/api/v2/push/send', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              to: pushToken,
+              title: 'Grattis!',
+              body: `Din ansökan till "${jobbTitel}" har godkänts!`,
+              sound: 'default',
+            }),
+          });
+        }
+      } catch (notisfel) {
+        console.error('Push-notifikation fel:', notisfel);
+      }
+    }
+  } catch (fel) {
+    console.error('Status fel:', fel);
+    res.status(500).json({ fel: 'Serverfel' });
   }
 });
 

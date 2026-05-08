@@ -1,5 +1,11 @@
 import { useCallback, useState } from 'react';
 import { View, Text, FlatList, TouchableOpacity, StyleSheet, ActivityIndicator, RefreshControl } from 'react-native';
+
+const STATUSFÄRGER = {
+  godkänd: { bg: '#dcfce7', text: '#16a34a' },
+  avvisad: { bg: '#fee2e2', text: '#dc2626' },
+  väntande: { bg: '#f3f4f6', text: '#6b7280' },
+};
 import { useFocusEffect } from '@react-navigation/native';
 import { api } from '../api/klient';
 
@@ -49,7 +55,16 @@ export default function MinaAnsokningarScreen({ navigation }) {
                 {item.jobbTitel ?? ''}
               </Text>
             </View>
-            <Text style={styles.datum}>{new Date(item.created_at).toLocaleDateString('sv-SE')}</Text>
+            <View style={{ alignItems: 'flex-end', gap: 4 }}>
+              <Text style={styles.datum}>{new Date(item.created_at).toLocaleDateString('sv-SE')}</Text>
+              {item.status && (
+                <View style={[styles.statusBadge, { backgroundColor: STATUSFÄRGER[item.status]?.bg ?? '#f3f4f6' }]}>
+                  <Text style={[styles.statusText, { color: STATUSFÄRGER[item.status]?.text ?? '#6b7280' }]}>
+                    {item.status.charAt(0).toUpperCase() + item.status.slice(1)}
+                  </Text>
+                </View>
+              )}
+            </View>
           </View>
           {item.meddelande ? (
             <Text style={styles.meddelande} numberOfLines={2}>{item.meddelande}</Text>
@@ -77,6 +92,8 @@ const styles = StyleSheet.create({
   ingetMeddelande: { fontSize: 14, color: '#aaa', fontStyle: 'italic', marginBottom: 10 },
   timmar: { fontSize: 13, color: '#059669', fontWeight: '500', marginBottom: 6 },
   chattLänk: { fontSize: 13, color: '#2563eb', fontWeight: '500' },
+  statusBadge: { borderRadius: 10, paddingHorizontal: 8, paddingVertical: 2 },
+  statusText: { fontSize: 12, fontWeight: '600' },
   tomContainer: { flex: 1, alignItems: 'center', marginTop: 60 },
   tomText: { fontSize: 16, color: '#999' },
 });

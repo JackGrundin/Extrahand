@@ -30,6 +30,7 @@ export const api = {
 
   // Användare
   hämtaProfil: () => anrop('GET', '/users/profil'),
+  hämtaAnvändareProfil: (id) => anrop('GET', `/users/${id}/profil`),
 
   // Jobb
   hämtaJobb: () => anrop('GET', '/jobb'),
@@ -41,6 +42,7 @@ export const api = {
   sökaJobb: (jobbId, kropp) => anrop('POST', `/ansokningar/${jobbId}`, kropp),
   minaAnsökningar: () => anrop('GET', '/ansokningar/mina'),
   ansökningarFörJobb: (jobbId) => anrop('GET', `/ansokningar/jobb/${jobbId}`),
+  företagsKonversationer: () => anrop('GET', '/ansokningar/foretag'),
 
   // Meddelanden
   hämtaMeddelanden: (ansokningId) => anrop('GET', `/meddelanden/${ansokningId}`),
@@ -50,6 +52,7 @@ export const api = {
   uppdateraProfil: (kropp) => anrop('PUT', '/users/profil', kropp),
   laddaUppProfilBild: (bild) => anrop('POST', '/users/profil-bild', { bild }),
   loggaTimmar: (ansokningId, timmar) => anrop('PUT', `/ansokningar/${ansokningId}/timmar`, { timmar }),
+  uppdateraStatus: (ansokningId, status) => anrop('PATCH', `/ansokningar/${ansokningId}/status`, { status }),
 
   // Push-notifikationer
   sparaPushToken: (token) => anrop('PUT', '/users/push-token', { token }),

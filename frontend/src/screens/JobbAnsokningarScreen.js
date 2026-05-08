@@ -38,6 +38,76 @@ function TimmArKort({ item, onSparat }) {
   );
 }
 
+const STATUSFÄRGER = {
+  godkänd: { bg: '#dcfce7', text: '#16a34a' },
+  avvisad: { bg: '#fee2e2', text: '#dc2626' },
+  väntande: { bg: '#f3f4f6', text: '#6b7280' },
+};
+
+function StatusKnappar({ item, onUppdaterad, navigation }) {
+  const [sparar, setSparar] = useState(false);
+
+  async function godkänn() {
+    setSparar(true);
+    try {
+      await api.uppdateraStatus(item.id, 'godkänd');
+      onUppdaterad();
+    } catch (fel) {
+      Alert.alert('Fel', fel.message);
+    } finally {
+      setSparar(false);
+    }
+  }
+
+  async function återkalla() {
+    setSparar(true);
+    try {
+      await api.uppdateraStatus(item.id, 'väntande');
+      onUppdaterad();
+    } catch (fel) {
+      Alert.alert('Fel', fel.message);
+    } finally {
+      setSparar(false);
+    }
+  }
+
+  if (item.status === 'godkänd') {
+    return (
+      <View style={styles.godkändContainer}>
+        <View style={styles.godkändRad}>
+          <View style={styles.godkändBadge}>
+            <Text style={styles.godkändText}>Godkänd</Text>
+          </View>
+          <TouchableOpacity onPress={() => navigation.navigate('Chatt', { ansokningId: item.id })}>
+            <Text style={styles.öppnaChattText}>Öppna chatt →</Text>
+          </TouchableOpacity>
+        </View>
+        <TouchableOpacity onPress={återkalla} disabled={sparar}>
+          <Text style={styles.återkallaText}>Ta tillbaka godkännandet</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
+
+  if (item.status === 'avvisad') {
+    return (
+      <View style={styles.avvisadBadge}>
+        <Text style={styles.avvisadText}>Nekad</Text>
+      </View>
+    );
+  }
+
+  return (
+    <TouchableOpacity
+      style={[styles.godkännKnapp, sparar && { opacity: 0.5 }]}
+      onPress={godkänn}
+      disabled={sparar}
+    >
+      <Text style={styles.godkännKnappText}>Godkänn</Text>
+    </TouchableOpacity>
+  );
+}
+
 export default function JobbAnsokningarScreen({ route, navigation }) {
   const { jobbId, titel } = route.params;
   const [ansökningar, setAnsökningar] = useState([]);
@@ -73,7 +143,7 @@ export default function JobbAnsokningarScreen({ route, navigation }) {
       renderItem={({ item, index }) => (
         <TouchableOpacity
           style={styles.kort}
-          onPress={() => navigation.navigate('Chatt', { ansokningId: item.id, titel: `Ansökan ${index + 1}` })}
+          onPress={() => navigation.navigate('SökanadeProfil', { sokandeId: item.sokande_id, ansokningId: item.id })}
         >
           <View style={styles.kortHuvud}>
             <View style={styles.avatar}>
@@ -91,7 +161,10 @@ export default function JobbAnsokningarScreen({ route, navigation }) {
           ) : (
             <Text style={styles.ingetMeddelande}>Ingen ansökningstext</Text>
           )}
-          <Text style={styles.chattLänk}>Öppna chatt →</Text>
+          <TouchableOpacity onPress={() => navigation.navigate('SökanadeProfil', { sokandeId: item.sokande_id, ansokningId: item.id })} style={styles.profilLänkRad}>
+            <Text style={styles.chattLänk}>Visa profil →</Text>
+          </TouchableOpacity>
+          <StatusKnappar item={item} onUppdaterad={hämta} navigation={navigation} />
           <TimmArKort item={item} onSparat={hämta} />
         </TouchableOpacity>
       )}
@@ -111,7 +184,18 @@ const styles = StyleSheet.create({
   datum: { fontSize: 13, color: '#999', marginTop: 2 },
   meddelande: { fontSize: 14, color: '#555', lineHeight: 20, marginBottom: 10 },
   ingetMeddelande: { fontSize: 14, color: '#aaa', fontStyle: 'italic', marginBottom: 10 },
-  chattLänk: { fontSize: 13, color: '#2563eb', fontWeight: '500', marginBottom: 12 },
+  profilLänkRad: { marginBottom: 12 },
+  chattLänk: { fontSize: 13, color: '#2563eb', fontWeight: '500' },
+  godkännKnapp: { backgroundColor: '#16a34a', borderRadius: 8, paddingVertical: 10, alignItems: 'center', marginBottom: 12 },
+  godkännKnappText: { color: '#fff', fontWeight: '600', fontSize: 14 },
+  godkändContainer: { marginBottom: 12 },
+  godkändRad: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 },
+  godkändBadge: { backgroundColor: '#dcfce7', borderRadius: 10, paddingHorizontal: 12, paddingVertical: 5 },
+  godkändText: { color: '#16a34a', fontWeight: '700', fontSize: 13 },
+  öppnaChattText: { fontSize: 13, color: '#2563eb', fontWeight: '500' },
+  återkallaText: { fontSize: 12, color: '#9ca3af', textDecorationLine: 'underline' },
+  avvisadBadge: { backgroundColor: '#fee2e2', borderRadius: 10, paddingHorizontal: 12, paddingVertical: 5, alignSelf: 'flex-start', marginBottom: 12 },
+  avvisadText: { color: '#dc2626', fontWeight: '600', fontSize: 13 },
   timmArRad: { flexDirection: 'row', alignItems: 'center', gap: 8, borderTopWidth: 1, borderTopColor: '#f0f0f0', paddingTop: 12 },
   timmArInput: { borderWidth: 1, borderColor: '#ddd', borderRadius: 8, paddingHorizontal: 12, paddingVertical: 6, width: 64, fontSize: 15, textAlign: 'center' },
   timmArEtikett: { fontSize: 14, color: '#666' },

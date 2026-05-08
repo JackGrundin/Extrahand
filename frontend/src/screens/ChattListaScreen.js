@@ -14,20 +14,10 @@ export default function ChattListaScreen({ navigation }) {
 
   async function hämta() {
     try {
-      if (ärFöretag) {
-        const allaJobb = await api.hämtaJobb();
-        const minaJobb = allaJobb.filter((j) => j.Foretag_id === användare.id);
-        const jobbMedAntal = await Promise.all(
-          minaJobb.map(async (j) => {
-            const ansökningar = await api.ansökningarFörJobb(j.id);
-            return { ...j, antalAnsökningar: ansökningar.length, ansökningar };
-          })
-        );
-        setPoster(jobbMedAntal.filter((j) => j.antalAnsökningar > 0));
-      } else {
-        const ansökningar = await api.minaAnsökningar();
-        setPoster(ansökningar);
-      }
+      const data = ärFöretag
+        ? await api.företagsKonversationer()
+        : await api.minaAnsökningar();
+      setPoster(data);
     } catch (fel) {
       console.error(fel);
     } finally {
@@ -38,34 +28,13 @@ export default function ChattListaScreen({ navigation }) {
 
   useFocusEffect(useCallback(() => { hämta(); }, []));
 
-  if (laddar) return <ActivityIndicator style={{ flex: 1 }} size="large" />;
+  const STATUSFÄRGER = {
+    godkänd: { bg: '#dcfce7', text: '#16a34a' },
+    avvisad: { bg: '#fee2e2', text: '#dc2626' },
+    väntande: { bg: '#f3f4f6', text: '#6b7280' },
+  };
 
-  if (ärFöretag) {
-    return (
-      <FlatList
-        style={styles.lista}
-        data={poster}
-        keyExtractor={(item) => item.id}
-        refreshControl={<RefreshControl refreshing={uppdaterar} onRefresh={() => { setUppdaterar(true); hämta(); }} />}
-        ListEmptyComponent={<Text style={styles.tom}>Inga aktiva konversationer</Text>}
-        renderItem={({ item }) => (
-          <TouchableOpacity
-            style={styles.kort}
-            onPress={() => navigation.navigate('JobbAnsokningar', { jobbId: item.id, titel: item.Titel })}
-          >
-            <View style={styles.kortHuvud}>
-              <Text style={styles.titel} numberOfLines={1}>{item.Titel}</Text>
-              <View style={styles.badge}>
-                <Text style={styles.badgeText}>{item.antalAnsökningar}</Text>
-              </View>
-            </View>
-            <Text style={styles.info}>{item.Plats} · {item.Typ}</Text>
-            <Text style={styles.länk}>Visa ansökningar →</Text>
-          </TouchableOpacity>
-        )}
-      />
-    );
-  }
+  if (laddar) return <ActivityIndicator style={{ flex: 1 }} size="large" />;
 
   return (
     <FlatList
@@ -74,33 +43,42 @@ export default function ChattListaScreen({ navigation }) {
       keyExtractor={(item) => item.id}
       refreshControl={<RefreshControl refreshing={uppdaterar} onRefresh={() => { setUppdaterar(true); hämta(); }} />}
       ListEmptyComponent={<Text style={styles.tom}>Inga aktiva chattar</Text>}
-      renderItem={({ item }) => (
-        <TouchableOpacity
-          style={styles.kort}
-          onPress={() => navigation.navigate('Chatt', { ansokningId: item.id })}
-        >
-          <View style={styles.kortHuvud}>
-            <View style={styles.avatarBlå}>
-              <Text style={styles.avatarText}>
-                {(item.foretagNamn ?? item.jobbTitel ?? 'J')[0].toUpperCase()}
-              </Text>
+      renderItem={({ item }) => {
+        const rubrik = ärFöretag ? (item.sökandeNamn ?? 'Okänd') : (item.foretagNamn ?? 'Okänt företag');
+        const underRubrik = item.jobbTitel ?? '';
+        const initial = rubrik[0]?.toUpperCase() ?? '?';
+        const status = item.status ?? 'väntande';
+        const statusFärg = STATUSFÄRGER[status];
+
+        return (
+          <TouchableOpacity
+            style={styles.kort}
+            onPress={() => navigation.navigate('Chatt', { ansokningId: item.id })}
+          >
+            <View style={styles.kortHuvud}>
+              <View style={styles.avatarBlå}>
+                <Text style={styles.avatarText}>{initial}</Text>
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.titel} numberOfLines={1}>{rubrik}</Text>
+                <Text style={styles.underTitel} numberOfLines={1}>{underRubrik}</Text>
+              </View>
+              <View style={{ alignItems: 'flex-end', gap: 4 }}>
+                <Text style={styles.datum}>{new Date(item.created_at).toLocaleDateString('sv-SE')}</Text>
+                <View style={[styles.statusBadge, { backgroundColor: statusFärg.bg }]}>
+                  <Text style={[styles.statusText, { color: statusFärg.text }]}>
+                    {status.charAt(0).toUpperCase() + status.slice(1)}
+                  </Text>
+                </View>
+              </View>
             </View>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.titel} numberOfLines={1}>
-                {item.foretagNamn ?? 'Okänt företag'}
-              </Text>
-              <Text style={styles.underTitel} numberOfLines={1}>
-                {item.jobbTitel ?? ''}
-              </Text>
-            </View>
-            <Text style={styles.datum}>{new Date(item.created_at).toLocaleDateString('sv-SE')}</Text>
-          </View>
-          {item.meddelande
-            ? <Text style={styles.förhandsgranskning} numberOfLines={2}>{item.meddelande}</Text>
-            : <Text style={styles.inget}>Ingen ansökningstext</Text>
-          }
-        </TouchableOpacity>
-      )}
+            {item.meddelande
+              ? <Text style={styles.förhandsgranskning} numberOfLines={2}>{item.meddelande}</Text>
+              : <Text style={styles.inget}>Ingen ansökningstext</Text>
+            }
+          </TouchableOpacity>
+        );
+      }}
     />
   );
 }
@@ -108,16 +86,14 @@ export default function ChattListaScreen({ navigation }) {
 const styles = StyleSheet.create({
   lista: { flex: 1, backgroundColor: '#f5f5f5', padding: 16 },
   kort: { backgroundColor: '#fff', borderRadius: 12, padding: 16, marginBottom: 10, shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 4, elevation: 2 },
-  kortHuvud: { flexDirection: 'row', alignItems: 'center', marginBottom: 6 },
-  titel: { fontSize: 16, fontWeight: '600', color: '#1a1a1a', flex: 1 },
-  underTitel: { fontSize: 13, color: '#888', marginTop: 2 },
-  info: { fontSize: 13, color: '#888', marginBottom: 8 },
-  badge: { backgroundColor: '#eff6ff', borderRadius: 12, paddingHorizontal: 10, paddingVertical: 3, marginLeft: 8 },
-  badgeText: { color: '#2563eb', fontWeight: '700', fontSize: 13 },
-  länk: { fontSize: 13, color: '#2563eb', fontWeight: '500' },
+  kortHuvud: { flexDirection: 'row', alignItems: 'center', marginBottom: 8 },
   avatarBlå: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#eff6ff', justifyContent: 'center', alignItems: 'center', marginRight: 12 },
   avatarText: { color: '#2563eb', fontWeight: '700', fontSize: 18 },
-  datum: { fontSize: 12, color: '#aaa', marginLeft: 8 },
+  titel: { fontSize: 15, fontWeight: '600', color: '#1a1a1a' },
+  underTitel: { fontSize: 13, color: '#888', marginTop: 2 },
+  datum: { fontSize: 12, color: '#aaa' },
+  statusBadge: { borderRadius: 8, paddingHorizontal: 8, paddingVertical: 2 },
+  statusText: { fontSize: 11, fontWeight: '600' },
   förhandsgranskning: { fontSize: 14, color: '#555', lineHeight: 20 },
   inget: { fontSize: 14, color: '#bbb', fontStyle: 'italic' },
   tom: { textAlign: 'center', color: '#999', marginTop: 60, fontSize: 16 },

@@ -13,7 +13,29 @@
       "Bash(npx create-expo-app@latest . --template blank)",
       "Bash(npx expo *)",
       "Bash(node --input-type=module --eval ' *)",
-      "Bash(curl -s http://localhost:8081)"
+      "Bash(curl -s http://localhost:8081)",
+      "Bash(node --check src/navigation/index.js)",
+      "Bash(node --check src/screens/ChattListaScreen.js)",
+      "Bash(node --check src/screens/BetygsattScreen.js)",
+      "Bash(node --check src/screens/ChattScreen.js)",
+      "Bash(git -C /Users/jackgrundin/extrahand status)",
+      "Bash(git -C /Users/jackgrundin/extrahand diff)",
+      "Bash(git *)",
+      "Bash(curl *)",
+      "Bash(python3 -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\(list\\(d[0].keys\\(\\)\\) if d else 'tom tabell'\\)\")",
+      "Bash(python3 -c ' *)",
+      "Bash(node server.js)",
+      "Bash(supabase --version)",
+      "Bash(wait)",
+      "Bash(node -e ' *)",
+      "Bash(node --check src/screens/JobbScreen.js)",
+      "Bash(node --check src/screens/PubliceraJobbScreen.js)",
+      "Bash(node --check src/screens/ProfilScreen.js)",
+      "Bash(node --check src/screens/MinaAnsokningarScreen.js)",
+      "Bash(node --check src/screens/JobbAnsokningarScreen.js)",
+      "Bash(node --check routes/användare.js)",
+      "Bash(node --check db/ansokningar.js)",
+      "Bash(node --check routes/ansokningar.js)"
     ]
   }
 }
