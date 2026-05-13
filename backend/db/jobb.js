@@ -64,4 +64,17 @@ async function hämtaJobbFörFöretag(foretag_id) {
   return data || [];
 }
 
-module.exports = { skapaJobb, hämtaAllaJobb, hämtaJobbViaId, hämtaJobbFörFöretag };
+async function uppdateraJobb(id, foretag_id, { titel, beskrivning, plats, lon, typ, kategori, antal_dagar, arbetstider }) {
+  const { data, error } = await supabase
+    .from('Jobb')
+    .update({ Titel: titel, Beskrivning: beskrivning, Plats: plats, Lon: lon, Typ: typ, Kategori: kategori, antal_dagar, arbetstider })
+    .eq('id', id)
+    .eq('Foretag_id', foretag_id)
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data;
+}
+
+module.exports = { skapaJobb, hämtaAllaJobb, hämtaJobbViaId, hämtaJobbFörFöretag, uppdateraJobb };

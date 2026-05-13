@@ -51,7 +51,12 @@ export default function MinaJobbScreen({ navigation }) {
               {item.arbetstider ? <Text style={styles.extra}>{item.arbetstider}</Text> : null}
             </View>
           )}
-          <Text style={styles.seAnsokningar}>Se ansökningar →</Text>
+          <View style={styles.kortBotten}>
+            <Text style={styles.seAnsokningar}>Se ansökningar →</Text>
+            <TouchableOpacity onPress={() => navigation.navigate('RedigeraJobb', { jobb: item })}>
+              <Text style={styles.redigeraText}>Redigera</Text>
+            </TouchableOpacity>
+          </View>
         </TouchableOpacity>
       )}
     />
@@ -67,7 +72,9 @@ const styles = StyleSheet.create({
   info: { fontSize: 14, color: '#666', marginBottom: 4 },
   extraRad: { flexDirection: 'row', gap: 12, marginBottom: 4 },
   extra: { fontSize: 13, color: '#888' },
-  seAnsokningar: { fontSize: 13, color: '#2563eb', fontWeight: '500', marginTop: 6 },
+  kortBotten: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 6 },
+  seAnsokningar: { fontSize: 13, color: '#2563eb', fontWeight: '500' },
+  redigeraText: { fontSize: 13, color: '#6b7280', fontWeight: '500' },
   tomContainer: { flex: 1, alignItems: 'center', marginTop: 60 },
   tomText: { fontSize: 16, color: '#999' },
 });

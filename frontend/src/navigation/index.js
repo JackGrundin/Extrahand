@@ -15,6 +15,7 @@ import ChattScreen from '../screens/ChattScreen';
 import ChattListaScreen from '../screens/ChattListaScreen';
 import PubliceraJobbScreen from '../screens/PubliceraJobbScreen';
 import MinaJobbScreen from '../screens/MinaJobbScreen';
+import RedigeraJobbScreen from '../screens/RedigeraJobbScreen';
 import SökandeProfilScreen from '../screens/SökandeProfilScreen';
 import JobbAnsokningarScreen from '../screens/JobbAnsokningarScreen';
 import BetygsattScreen from '../screens/BetygsattScreen';
@@ -77,6 +78,7 @@ function MinaJobbNavigator() {
   return (
     <Stack.Navigator>
       <Stack.Screen name="MinaJobb" component={MinaJobbScreen} options={{ title: 'Mina annonser' }} />
+      <Stack.Screen name="RedigeraJobb" component={RedigeraJobbScreen} options={{ title: 'Redigera annons' }} />
       <Stack.Screen name="JobbAnsokningar" component={JobbAnsokningarScreen} options={({ route }) => ({ title: route.params?.titel ?? 'Ansökningar' })} />
       <Stack.Screen name="SökanadeProfil" component={SökandeProfilScreen} options={{ title: 'Sökandes profil' }} />
       <Stack.Screen name="Chatt" component={ChattScreen} options={{ title: 'Chatt' }} />
