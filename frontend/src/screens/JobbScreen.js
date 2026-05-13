@@ -1,21 +1,56 @@
 import { useEffect, useState } from 'react';
-import { View, Text, FlatList, TouchableOpacity, StyleSheet, ActivityIndicator, RefreshControl, TextInput, ScrollView } from 'react-native';
+import { View, Text, FlatList, TouchableOpacity, StyleSheet, ActivityIndicator, RefreshControl, TextInput, ScrollView, Modal, KeyboardAvoidingView, Platform } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { api } from '../api/klient';
 
 const TYPER = ['Alla', 'gig', 'sommarjobb'];
-const KATEGORIER = ['Alla', 'Café', 'Restaurang', 'Butik', 'Lager', 'Kontor', 'IT', 'Snickare', 'Städ', 'Övrigt'];
+const KATEGORIER = ['Café', 'Restaurang', 'Butik', 'Lager', 'Kontor', 'IT', 'Snickare', 'Städ', 'Övrigt'];
 const SORTERING = ['Nyast', 'Högst lön', 'Flest dagar'];
+
+function normalisera(s) {
+  return s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+}
+
+function FilterVal({ label, vald, onPress, multiSelect }) {
+  return (
+    <TouchableOpacity onPress={onPress} style={styles.filterVal} activeOpacity={0.7}>
+      <Text style={styles.filterValText}>{label}</Text>
+      {multiSelect ? (
+        <View style={[styles.checkbox, vald && styles.checkboxAktiv]}>
+          {vald && <Ionicons name="checkmark" size={14} color="#fff" />}
+        </View>
+      ) : (
+        vald && <Ionicons name="checkmark" size={20} color="#2563eb" />
+      )}
+    </TouchableOpacity>
+  );
+}
+
+function KategoriRad({ label, värde, onPress }) {
+  return (
+    <TouchableOpacity onPress={onPress} style={styles.kategoriRad} activeOpacity={0.7}>
+      <Text style={styles.kategoriRadText}>{label}</Text>
+      <View style={styles.kategoriRadHöger}>
+        {värde ? <Text style={styles.kategoriRadVärde} numberOfLines={1}>{värde}</Text> : null}
+        <Ionicons name="chevron-forward" size={18} color="#9ca3af" />
+      </View>
+    </TouchableOpacity>
+  );
+}
 
 export default function JobbScreen({ navigation }) {
   const [jobb, setJobb] = useState([]);
   const [laddar, setLaddar] = useState(true);
   const [uppdaterar, setUppdaterar] = useState(false);
   const [valtTyp, setValtTyp] = useState('Alla');
-  const [valtKategori, setValtKategori] = useState('Alla');
+  const [valtaKategorier, setValtaKategorier] = useState([]);
   const [stadFilter, setStadFilter] = useState('');
   const [minLön, setMinLön] = useState('');
   const [minDagar, setMinDagar] = useState('');
   const [sortering, setSortering] = useState('Nyast');
+  const [modalVisas, setModalVisas] = useState(false);
+  const [aktivSektion, setAktivSektion] = useState(null);
+  const [sokKategori, setSokKategori] = useState('');
 
   async function hämta() {
     try {
@@ -31,10 +66,18 @@ export default function JobbScreen({ navigation }) {
 
   useEffect(() => { hämta(); }, []);
 
+  const aktivaFilter = [
+    valtTyp !== 'Alla',
+    valtaKategorier.length > 0,
+    minLön !== '',
+    minDagar !== '',
+    sortering !== 'Nyast',
+  ].filter(Boolean).length;
+
   const filtrerade = jobb
     .filter((j) => {
       const typOk = valtTyp === 'Alla' || j.Typ === valtTyp;
-      const kategoriOk = valtKategori === 'Alla' || j.Kategori === valtKategori;
+      const kategoriOk = valtaKategorier.length === 0 || valtaKategorier.includes(j.Kategori);
       const stadOk = !stadFilter.trim() || (j.Plats ?? '').toLowerCase().includes(stadFilter.trim().toLowerCase());
       const lönOk = !minLön || (j.Lon != null && j.Lon >= parseInt(minLön));
       const dagarOk = !minDagar || (j.antal_dagar != null && j.antal_dagar >= parseInt(minDagar));
@@ -46,63 +89,58 @@ export default function JobbScreen({ navigation }) {
       return new Date(b.created_at) - new Date(a.created_at);
     });
 
+  function stängModal() {
+    setModalVisas(false);
+    setAktivSektion(null);
+    setSokKategori('');
+  }
+
+  function återställFilter() {
+    setValtTyp('Alla');
+    setValtaKategorier([]);
+    setMinLön('');
+    setMinDagar('');
+    setSortering('Nyast');
+  }
+
+  function växlaKategori(k) {
+    setValtaKategorier(prev =>
+      prev.includes(k) ? prev.filter(x => x !== k) : [...prev, k]
+    );
+  }
+
+  function lönTidSummering() {
+    const delar = [];
+    if (minLön) delar.push(`${minLön} kr/tim`);
+    if (minDagar) delar.push(`${minDagar} dagar`);
+    return delar.join(', ');
+  }
+
+  const filtreradeKategorier = KATEGORIER.filter(k =>
+    normalisera(k).includes(normalisera(sokKategori))
+  );
+
   if (laddar) return <ActivityIndicator style={{ flex: 1 }} size="large" />;
 
   return (
     <View style={{ flex: 1, backgroundColor: '#f5f5f5' }}>
-      <View style={styles.filterContainer}>
+      <View style={styles.headerContainer}>
         <TextInput
           style={styles.stadInput}
-          placeholder="Filtrera på stad..."
+          placeholder="Sök på stad..."
           value={stadFilter}
           onChangeText={setStadFilter}
           clearButtonMode="while-editing"
         />
-
-        <View style={styles.inputRad}>
-          <TextInput
-            style={styles.miniInput}
-            placeholder="Min lön (kr/tim)"
-            value={minLön}
-            onChangeText={setMinLön}
-            keyboardType="numeric"
-            clearButtonMode="while-editing"
-          />
-          <TextInput
-            style={styles.miniInput}
-            placeholder="Min antal dagar"
-            value={minDagar}
-            onChangeText={setMinDagar}
-            keyboardType="numeric"
-            clearButtonMode="while-editing"
-          />
-        </View>
-
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipRad}>
-          {SORTERING.map((s) => (
-            <TouchableOpacity key={s} style={[styles.chip, sortering === s && styles.chipAktiv]} onPress={() => setSortering(s)}>
-              <Text style={[styles.chipText, sortering === s && styles.chipTextAktiv]}>{s}</Text>
-            </TouchableOpacity>
-          ))}
-        </ScrollView>
-
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipRad}>
-          {TYPER.map((t) => (
-            <TouchableOpacity key={t} style={[styles.chip, valtTyp === t && styles.chipAktiv]} onPress={() => setValtTyp(t)}>
-              <Text style={[styles.chipText, valtTyp === t && styles.chipTextAktiv]}>
-                {t === 'Alla' ? 'Alla typer' : t.charAt(0).toUpperCase() + t.slice(1)}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </ScrollView>
-
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={[styles.chipRad, { marginBottom: 4 }]}>
-          {KATEGORIER.map((k) => (
-            <TouchableOpacity key={k} style={[styles.chip, styles.chipKategori, valtKategori === k && styles.chipAktiv]} onPress={() => setValtKategori(k)}>
-              <Text style={[styles.chipText, valtKategori === k && styles.chipTextAktiv]}>{k}</Text>
-            </TouchableOpacity>
-          ))}
-        </ScrollView>
+        <TouchableOpacity style={styles.filterKnapp} onPress={() => setModalVisas(true)} activeOpacity={0.8}>
+          <Ionicons name="options-outline" size={16} color="#2563eb" />
+          <Text style={styles.filterKnappText}>Filter</Text>
+          {aktivaFilter > 0 && (
+            <View style={styles.badge}>
+              <Text style={styles.badgeText}>{aktivaFilter}</Text>
+            </View>
+          )}
+        </TouchableOpacity>
       </View>
 
       <FlatList
@@ -127,21 +165,163 @@ export default function JobbScreen({ navigation }) {
           </TouchableOpacity>
         )}
       />
+
+      <Modal visible={modalVisas} animationType="slide" transparent statusBarTranslucent>
+        <KeyboardAvoidingView
+          style={{ flex: 1 }}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        >
+          <TouchableOpacity style={styles.modalBackdrop} activeOpacity={1} onPress={stängModal} />
+          <View style={styles.modalPanel}>
+            <View style={styles.modalHandtag} />
+
+            {aktivSektion === null ? (
+              <>
+                <Text style={styles.modalTitel}>Filtrera jobb</Text>
+                <ScrollView showsVerticalScrollIndicator={false}>
+                  <KategoriRad
+                    label="Sortering"
+                    värde={sortering !== 'Nyast' ? sortering : null}
+                    onPress={() => setAktivSektion('sortering')}
+                  />
+                  <KategoriRad
+                    label="Typ"
+                    värde={valtTyp !== 'Alla' ? valtTyp.charAt(0).toUpperCase() + valtTyp.slice(1) : null}
+                    onPress={() => setAktivSektion('typ')}
+                  />
+                  <KategoriRad
+                    label="Kategori"
+                    värde={valtaKategorier.length > 0 ? valtaKategorier.join(', ') : null}
+                    onPress={() => setAktivSektion('kategori')}
+                  />
+                  <KategoriRad
+                    label="Lön och tid"
+                    värde={lönTidSummering() || null}
+                    onPress={() => setAktivSektion('lonTid')}
+                  />
+                </ScrollView>
+                <View style={styles.modalKnappar}>
+                  <TouchableOpacity style={styles.återställKnapp} onPress={återställFilter} activeOpacity={0.8}>
+                    <Text style={styles.återställText}>Återställ</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity style={styles.visaKnapp} onPress={stängModal} activeOpacity={0.8}>
+                    <Text style={styles.visaText}>Visa {filtrerade.length} jobb</Text>
+                  </TouchableOpacity>
+                </View>
+              </>
+            ) : (
+              <>
+                <TouchableOpacity
+                  style={styles.tillbakaKnapp}
+                  onPress={() => { setAktivSektion(null); setSokKategori(''); }}
+                  activeOpacity={0.7}
+                >
+                  <Ionicons name="chevron-back" size={20} color="#2563eb" />
+                  <Text style={styles.tillbakaText}>
+                    {aktivSektion === 'sortering' ? 'Sortering'
+                      : aktivSektion === 'typ' ? 'Typ'
+                      : aktivSektion === 'kategori' ? 'Kategori'
+                      : 'Lön och tid'}
+                  </Text>
+                </TouchableOpacity>
+
+                {aktivSektion === 'kategori' && (
+                  <TextInput
+                    style={styles.sokInput}
+                    placeholder="Sök kategori..."
+                    value={sokKategori}
+                    onChangeText={setSokKategori}
+                    clearButtonMode="while-editing"
+                    autoCorrect={false}
+                    autoCapitalize="none"
+                  />
+                )}
+
+                <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+                  {aktivSektion === 'sortering' && SORTERING.map((s) => (
+                    <FilterVal key={s} label={s} vald={sortering === s} onPress={() => setSortering(s)} />
+                  ))}
+
+                  {aktivSektion === 'typ' && TYPER.map((t) => (
+                    <FilterVal
+                      key={t}
+                      label={t === 'Alla' ? 'Alla typer' : t.charAt(0).toUpperCase() + t.slice(1)}
+                      vald={valtTyp === t}
+                      onPress={() => setValtTyp(t)}
+                    />
+                  ))}
+
+                  {aktivSektion === 'kategori' && (
+                    <>
+                      {valtaKategorier.length > 0 && (
+                        <TouchableOpacity onPress={() => setValtaKategorier([])} style={styles.rensaKnapp} activeOpacity={0.7}>
+                          <Text style={styles.rensaText}>Rensa val ({valtaKategorier.length})</Text>
+                        </TouchableOpacity>
+                      )}
+                      {filtreradeKategorier.length === 0 ? (
+                        <Text style={styles.ingaResultat}>Inga kategorier hittades</Text>
+                      ) : (
+                        filtreradeKategorier.map((k) => (
+                          <FilterVal
+                            key={k}
+                            label={k}
+                            vald={valtaKategorier.includes(k)}
+                            onPress={() => växlaKategori(k)}
+                            multiSelect
+                          />
+                        ))
+                      )}
+                    </>
+                  )}
+
+                  {aktivSektion === 'lonTid' && (
+                    <View style={{ paddingTop: 8 }}>
+                      <Text style={styles.inputEtikett}>Min lön (kr/tim)</Text>
+                      <TextInput
+                        style={styles.modalInput}
+                        placeholder="t.ex. 150"
+                        value={minLön}
+                        onChangeText={setMinLön}
+                        keyboardType="numeric"
+                        clearButtonMode="while-editing"
+                      />
+                      <Text style={styles.inputEtikett}>Min antal dagar</Text>
+                      <TextInput
+                        style={styles.modalInput}
+                        placeholder="t.ex. 5"
+                        value={minDagar}
+                        onChangeText={setMinDagar}
+                        keyboardType="numeric"
+                        clearButtonMode="while-editing"
+                      />
+                    </View>
+                  )}
+                </ScrollView>
+
+                <TouchableOpacity
+                  style={styles.väljKnapp}
+                  onPress={() => { setAktivSektion(null); setSokKategori(''); }}
+                  activeOpacity={0.8}
+                >
+                  <Text style={styles.visaText}>Välj</Text>
+                </TouchableOpacity>
+              </>
+            )}
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  filterContainer: { backgroundColor: '#fff', paddingHorizontal: 16, paddingTop: 12, borderBottomWidth: 1, borderBottomColor: '#eee' },
-  stadInput: { borderWidth: 1, borderColor: '#ddd', borderRadius: 10, paddingHorizontal: 14, paddingVertical: 9, fontSize: 15, backgroundColor: '#fafafa', marginBottom: 10 },
-  inputRad: { flexDirection: 'row', gap: 8, marginBottom: 10 },
-  miniInput: { flex: 1, borderWidth: 1, borderColor: '#ddd', borderRadius: 10, paddingHorizontal: 12, paddingVertical: 9, fontSize: 14, backgroundColor: '#fafafa' },
-  chipRad: { gap: 8, paddingRight: 4, marginBottom: 10 },
-  chip: { paddingHorizontal: 14, paddingVertical: 7, borderRadius: 20, borderWidth: 1, borderColor: '#ddd', backgroundColor: '#fff' },
-  chipKategori: { borderColor: '#e5e7eb', backgroundColor: '#f9fafb' },
-  chipAktiv: { backgroundColor: '#2563eb', borderColor: '#2563eb' },
-  chipText: { fontSize: 13, color: '#555', fontWeight: '500' },
-  chipTextAktiv: { color: '#fff' },
+  headerContainer: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: '#fff', paddingHorizontal: 16, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: '#eee' },
+  stadInput: { flex: 1, borderWidth: 1, borderColor: '#ddd', borderRadius: 10, paddingHorizontal: 14, paddingVertical: 9, fontSize: 15, backgroundColor: '#fafafa' },
+  filterKnapp: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 12, paddingVertical: 9, borderRadius: 10, borderWidth: 1, borderColor: '#2563eb', backgroundColor: '#eff6ff' },
+  filterKnappText: { fontSize: 14, fontWeight: '600', color: '#2563eb' },
+  badge: { backgroundColor: '#2563eb', borderRadius: 10, minWidth: 18, height: 18, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 4 },
+  badgeText: { fontSize: 11, fontWeight: '700', color: '#fff' },
+
   lista: { padding: 16 },
   kort: { backgroundColor: '#fff', borderRadius: 12, padding: 16, marginBottom: 12, shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 4, elevation: 2 },
   kortTopp: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 },
@@ -153,4 +333,38 @@ const styles = StyleSheet.create({
   extraRad: { flexDirection: 'row', gap: 12, marginTop: 4 },
   extraInfo: { fontSize: 13, color: '#888' },
   tom: { textAlign: 'center', color: '#999', marginTop: 60, fontSize: 16 },
+
+  modalBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)' },
+  modalPanel: { backgroundColor: '#fff', borderTopLeftRadius: 20, borderTopRightRadius: 20, paddingHorizontal: 20, paddingTop: 12, paddingBottom: 32, maxHeight: '85%' },
+  modalHandtag: { width: 40, height: 4, backgroundColor: '#ddd', borderRadius: 2, alignSelf: 'center', marginBottom: 16 },
+  modalTitel: { fontSize: 18, fontWeight: '700', color: '#1a1a1a', textAlign: 'center', marginBottom: 20 },
+
+  kategoriRad: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 16, borderBottomWidth: 1, borderBottomColor: '#f0f0f0' },
+  kategoriRadText: { fontSize: 16, color: '#1a1a1a' },
+  kategoriRadHöger: { flexDirection: 'row', alignItems: 'center', gap: 6, flex: 1, justifyContent: 'flex-end' },
+  kategoriRadVärde: { fontSize: 14, color: '#2563eb', maxWidth: 140 },
+
+  tillbakaKnapp: { flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: 14 },
+  tillbakaText: { fontSize: 17, fontWeight: '600', color: '#2563eb' },
+
+  sokInput: { borderWidth: 1, borderColor: '#ddd', borderRadius: 10, paddingHorizontal: 14, paddingVertical: 9, fontSize: 15, backgroundColor: '#fafafa', marginBottom: 10 },
+
+  filterVal: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: '#f0f0f0' },
+  filterValText: { fontSize: 16, color: '#1a1a1a' },
+  checkbox: { width: 22, height: 22, borderRadius: 6, borderWidth: 2, borderColor: '#d1d5db', alignItems: 'center', justifyContent: 'center' },
+  checkboxAktiv: { backgroundColor: '#2563eb', borderColor: '#2563eb' },
+
+  rensaKnapp: { paddingVertical: 10, marginBottom: 4 },
+  rensaText: { fontSize: 14, color: '#ef4444', fontWeight: '600' },
+  ingaResultat: { fontSize: 15, color: '#999', textAlign: 'center', marginTop: 24 },
+
+  inputEtikett: { fontSize: 14, fontWeight: '600', color: '#374151', marginBottom: 6, marginTop: 12 },
+  modalInput: { borderWidth: 1, borderColor: '#ddd', borderRadius: 10, paddingHorizontal: 14, paddingVertical: 10, fontSize: 15, backgroundColor: '#fafafa', marginBottom: 4 },
+
+  modalKnappar: { flexDirection: 'row', gap: 12, marginTop: 20 },
+  återställKnapp: { flex: 1, paddingVertical: 13, borderRadius: 12, borderWidth: 1, borderColor: '#d1d5db', alignItems: 'center' },
+  återställText: { fontSize: 15, fontWeight: '600', color: '#374151' },
+  visaKnapp: { flex: 2, paddingVertical: 13, borderRadius: 12, backgroundColor: '#2563eb', alignItems: 'center' },
+  väljKnapp: { paddingVertical: 14, borderRadius: 12, backgroundColor: '#2563eb', alignItems: 'center', marginTop: 16 },
+  visaText: { fontSize: 15, fontWeight: '600', color: '#fff' },
 });
