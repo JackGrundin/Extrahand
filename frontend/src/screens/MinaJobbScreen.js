@@ -1,5 +1,5 @@
 import { useCallback, useState } from 'react';
-import { View, Text, FlatList, TouchableOpacity, StyleSheet, ActivityIndicator, RefreshControl, Alert } from 'react-native';
+import { View, Text, FlatList, TouchableOpacity, StyleSheet, ActivityIndicator, RefreshControl, Alert, ActionSheetIOS, Platform } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { api } from '../api/klient';
 
@@ -20,6 +20,24 @@ export default function MinaJobbScreen({ navigation }) {
         }
       }},
     ]);
+  }
+
+  function öppnaÅtgärder(item) {
+    if (Platform.OS === 'ios') {
+      ActionSheetIOS.showActionSheetWithOptions(
+        { options: ['Avbryt', 'Redigera', 'Ta bort'], destructiveButtonIndex: 2, cancelButtonIndex: 0 },
+        (index) => {
+          if (index === 1) navigation.navigate('RedigeraJobb', { jobb: item });
+          if (index === 2) taBort(item.id);
+        }
+      );
+    } else {
+      Alert.alert(item.Titel, null, [
+        { text: 'Redigera', onPress: () => navigation.navigate('RedigeraJobb', { jobb: item }) },
+        { text: 'Ta bort', style: 'destructive', onPress: () => taBort(item.id) },
+        { text: 'Avbryt', style: 'cancel' },
+      ]);
+    }
   }
 
   async function hämta() {
@@ -67,14 +85,9 @@ export default function MinaJobbScreen({ navigation }) {
           )}
           <View style={styles.kortBotten}>
             <Text style={styles.seAnsokningar}>Se ansökningar →</Text>
-            <View style={styles.åtgärder}>
-              <TouchableOpacity onPress={() => navigation.navigate('RedigeraJobb', { jobb: item })}>
-                <Text style={styles.redigeraText}>Redigera</Text>
-              </TouchableOpacity>
-              <TouchableOpacity onPress={() => taBort(item.id)}>
-                <Text style={styles.taBortText}>Ta bort</Text>
-              </TouchableOpacity>
-            </View>
+            <TouchableOpacity style={styles.menyKnapp} onPress={() => öppnaÅtgärder(item)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+              <Text style={styles.menyIkon}>•••</Text>
+            </TouchableOpacity>
           </View>
         </TouchableOpacity>
       )}
@@ -93,9 +106,8 @@ const styles = StyleSheet.create({
   extra: { fontSize: 13, color: '#888' },
   kortBotten: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 6 },
   seAnsokningar: { fontSize: 13, color: '#2563eb', fontWeight: '500' },
-  åtgärder: { flexDirection: 'row', gap: 16 },
-  redigeraText: { fontSize: 13, color: '#6b7280', fontWeight: '500' },
-  taBortText: { fontSize: 13, color: '#ef4444', fontWeight: '500' },
+  menyKnapp: { padding: 4 },
+  menyIkon: { fontSize: 16, color: '#9ca3af', letterSpacing: 1 },
   tomContainer: { flex: 1, alignItems: 'center', marginTop: 60 },
   tomText: { fontSize: 16, color: '#999' },
 });
