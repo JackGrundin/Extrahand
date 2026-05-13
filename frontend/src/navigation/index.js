@@ -182,7 +182,7 @@ function HuvudNavigator() {
       <Tab.Screen
         name="ChattTab"
         component={ChattNavigator}
-        options={{ tabBarButton: () => null }}
+        options={{ tabBarButton: () => null, tabBarItemStyle: { display: 'none' } }}
       />
       <Tab.Screen name="Profil" component={ProfilNavigator} options={{ tabBarLabel: 'Profil' }} />
     </Tab.Navigator>
