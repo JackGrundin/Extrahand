@@ -1,6 +1,6 @@
 const express = require('express');
 const { kräverInloggning, kräverTyp } = require('../middleware/auth');
-const { skapaAnsökan, hämtaAnsökningarFörSökande, hämtaAnsökningarFörJobb, finnsDubblettAnsökan, uppdateraTimmar, uppdateraStatus, hämtaAnsökanViaId, avvisaAllaUtomEn, återställAllaFörJobb, hämtaAllaKonversationerFörFöretag } = require('../db/ansokningar');
+const { skapaAnsökan, hämtaAnsökningarFörSökande, hämtaAnsökningarFörJobb, finnsDubblettAnsökan, uppdateraTimmar, uppdateraStatus, hämtaAnsökanViaId, avvisaAllaUtomEn, återställAllaFörJobb, hämtaAllaKonversationerFörFöretag, ångraAnsökan } = require('../db/ansokningar');
 const { hämtaPushToken, hämtaAnvändareViaId } = require('../db/användare');
 const { hämtaJobbViaId } = require('../db/jobb');
 
@@ -130,6 +130,17 @@ router.patch('/:id/status', kräverInloggning, kräverTyp('företag'), async (re
   } catch (fel) {
     console.error('Status fel:', fel);
     res.status(500).json({ fel: 'Serverfel' });
+  }
+});
+
+// DELETE /api/ansokningar/:id — privatperson ångrar en väntande ansökan
+router.delete('/:id', kräverInloggning, kräverTyp('privatperson'), async (req, res) => {
+  try {
+    await ångraAnsökan(req.params.id, req.användare.id);
+    res.json({ ok: true });
+  } catch (fel) {
+    console.error('Fel vid ångra ansökan:', fel);
+    res.status(500).json({ fel: 'Serverfel vid ångra ansökan' });
   }
 });
 

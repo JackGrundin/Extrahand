@@ -1,5 +1,5 @@
 import { useCallback, useState } from 'react';
-import { View, Text, FlatList, TouchableOpacity, StyleSheet, ActivityIndicator, RefreshControl } from 'react-native';
+import { View, Text, FlatList, TouchableOpacity, StyleSheet, ActivityIndicator, RefreshControl, Alert } from 'react-native';
 
 const STATUSFÄRGER = {
   godkänd: { bg: '#dcfce7', text: '#16a34a' },
@@ -27,6 +27,20 @@ export default function MinaAnsokningarScreen({ navigation }) {
   }
 
   useFocusEffect(useCallback(() => { hämta(); }, []));
+
+  function ångra(id) {
+    Alert.alert('Ångra ansökan', 'Vill du ta tillbaka din ansökan?', [
+      { text: 'Avbryt', style: 'cancel' },
+      { text: 'Ångra ansökan', style: 'destructive', onPress: async () => {
+        try {
+          await api.ångraAnsökan(id);
+          setAnsökningar(prev => prev.filter(a => a.id !== id));
+        } catch (fel) {
+          Alert.alert('Fel', fel.message);
+        }
+      }},
+    ]);
+  }
 
   if (laddar) return <ActivityIndicator style={{ flex: 1 }} size="large" />;
 
@@ -74,7 +88,14 @@ export default function MinaAnsokningarScreen({ navigation }) {
           {item.timmar > 0 && (
             <Text style={styles.timmar}>{item.timmar} tim loggade</Text>
           )}
-          <Text style={styles.chattLänk}>Öppna chatt →</Text>
+          <View style={styles.kortFot}>
+            <Text style={styles.chattLänk}>Öppna chatt →</Text>
+            {item.status === 'väntande' && (
+              <TouchableOpacity onPress={() => ångra(item.id)}>
+                <Text style={styles.ångraLänk}>Ångra ansökan</Text>
+              </TouchableOpacity>
+            )}
+          </View>
         </TouchableOpacity>
       )}
     />
@@ -91,7 +112,9 @@ const styles = StyleSheet.create({
   meddelande: { fontSize: 14, color: '#555', lineHeight: 20, marginBottom: 10 },
   ingetMeddelande: { fontSize: 14, color: '#aaa', fontStyle: 'italic', marginBottom: 10 },
   timmar: { fontSize: 13, color: '#059669', fontWeight: '500', marginBottom: 6 },
+  kortFot: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   chattLänk: { fontSize: 13, color: '#2563eb', fontWeight: '500' },
+  ångraLänk: { fontSize: 13, color: '#dc2626', fontWeight: '500' },
   statusBadge: { borderRadius: 10, paddingHorizontal: 8, paddingVertical: 2 },
   statusText: { fontSize: 12, fontWeight: '600' },
   tomContainer: { flex: 1, alignItems: 'center', marginTop: 60 },

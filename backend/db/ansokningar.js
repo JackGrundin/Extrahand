@@ -177,4 +177,14 @@ async function återställAllaFörJobb(jobb_id) {
   if (error) throw error;
 }
 
-module.exports = { skapaAnsökan, hämtaAnsökningarFörSökande, hämtaAnsökningarFörJobb, finnsDubblettAnsökan, hämtaTotalTimmar, uppdateraTimmar, uppdateraStatus, hämtaAnsökanViaId, avvisaAllaUtomEn, återställAllaFörJobb, hämtaAllaKonversationerFörFöretag, hämtaGodkändaFörJobb };
+async function ångraAnsökan(id, sokande_id) {
+  const { error } = await supabase
+    .from('ansokningar')
+    .delete()
+    .eq('id', id)
+    .eq('sokande_id', sokande_id)
+    .eq('status', 'väntande');
+  if (error) throw error;
+}
+
+module.exports = { skapaAnsökan, hämtaAnsökningarFörSökande, hämtaAnsökningarFörJobb, finnsDubblettAnsökan, hämtaTotalTimmar, uppdateraTimmar, uppdateraStatus, hämtaAnsökanViaId, avvisaAllaUtomEn, återställAllaFörJobb, hämtaAllaKonversationerFörFöretag, hämtaGodkändaFörJobb, ångraAnsökan };
