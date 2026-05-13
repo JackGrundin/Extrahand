@@ -4,7 +4,12 @@ import { Ionicons } from '@expo/vector-icons';
 import { api } from '../api/klient';
 
 const TYPER = ['Alla', 'gig', 'sommarjobb'];
-const KATEGORIER = ['Café', 'Restaurang', 'Butik', 'Lager', 'Kontor', 'IT', 'Snickare', 'Städ', 'Övrigt'];
+const KATEGORIER = [
+  'Servitör', 'Kock', 'Diskare', 'Barista', 'Butiksbiträde', 'Kassör',
+  'Lagerarbetare', 'Paketerare', 'Städare', 'Receptionist', 'Kontorsassistent',
+  'IT-tekniker', 'Snickare', 'Hantlangare', 'Trädgårdsarbetare', 'Barnvakt',
+  'Väktare', 'Chaufför', 'Eventpersonal', 'Handyman', 'Säljare', 'Vakt',
+];
 const SORTERING = ['Nyast', 'Högst lön', 'Flest dagar'];
 
 function normalisera(s) {
@@ -77,7 +82,7 @@ export default function JobbScreen({ navigation }) {
   const filtrerade = jobb
     .filter((j) => {
       const typOk = valtTyp === 'Alla' || j.Typ === valtTyp;
-      const kategoriOk = valtaKategorier.length === 0 || valtaKategorier.includes(j.Kategori);
+      const kategoriOk = valtaKategorier.length === 0 || valtaKategorier.includes(j.Titel);
       const stadOk = !stadFilter.trim() || (j.Plats ?? '').toLowerCase().includes(stadFilter.trim().toLowerCase());
       const lönOk = !minLön || (j.Lon != null && j.Lon >= parseInt(minLön));
       const dagarOk = !minDagar || (j.antal_dagar != null && j.antal_dagar >= parseInt(minDagar));

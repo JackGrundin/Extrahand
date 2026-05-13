@@ -1,9 +1,16 @@
 import { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, ScrollView, ActivityIndicator, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, ScrollView, ActivityIndicator, KeyboardAvoidingView, Platform, Modal } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { api } from '../api/klient';
 
 const TYPER = ['gig', 'sommarjobb'];
 const KATEGORIER = ['Café', 'Restaurang', 'Butik', 'Lager', 'Kontor', 'IT', 'Snickare', 'Städ', 'Övrigt'];
+const TITLAR = [
+  'Servitör', 'Kock', 'Diskare', 'Barista', 'Butiksbiträde', 'Kassör',
+  'Lagerarbetare', 'Paketerare', 'Städare', 'Receptionist', 'Kontorsassistent',
+  'IT-tekniker', 'Snickare', 'Hantlangare', 'Trädgårdsarbetare', 'Barnvakt',
+  'Väktare', 'Chaufför', 'Eventpersonal', 'Handyman', 'Säljare', 'Vakt',
+];
 
 export default function RedigeraJobbScreen({ route, navigation }) {
   const { jobb } = route.params;
@@ -17,6 +24,12 @@ export default function RedigeraJobbScreen({ route, navigation }) {
   const [antalDagar, setAntalDagar] = useState(jobb.antal_dagar ? String(jobb.antal_dagar) : '');
   const [arbetstider, setArbetstider] = useState(jobb.arbetstider ?? '');
   const [laddar, setLaddar] = useState(false);
+  const [titelModalVisas, setTitelModalVisas] = useState(false);
+  const [sokTitel, setSokTitel] = useState('');
+
+  const filtrerade = TITLAR.filter(t =>
+    t.toLowerCase().includes(sokTitel.toLowerCase())
+  );
 
   async function hanteraSpara() {
     if (!titel.trim() || !beskrivning.trim()) {
@@ -46,62 +59,109 @@ export default function RedigeraJobbScreen({ route, navigation }) {
   }
 
   return (
-    <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-      <ScrollView style={styles.container} keyboardShouldPersistTaps="handled">
-        <Text style={styles.label}>Jobbtitel *</Text>
-        <TextInput style={styles.input} value={titel} onChangeText={setTitel} />
+    <>
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+        <ScrollView style={styles.container} keyboardShouldPersistTaps="handled">
+          <Text style={styles.label}>Jobbtitel *</Text>
+          <TouchableOpacity style={styles.väljarKnapp} onPress={() => setTitelModalVisas(true)} activeOpacity={0.7}>
+            <Text style={[styles.väljarText, !titel && styles.väljarPlaceholder]}>
+              {titel || 'Välj jobbtitel...'}
+            </Text>
+            <Ionicons name="chevron-forward" size={18} color="#9ca3af" />
+          </TouchableOpacity>
 
-        <Text style={styles.label}>Beskrivning *</Text>
-        <TextInput
-          style={[styles.input, styles.textArea]}
-          value={beskrivning}
-          onChangeText={setBeskrivning}
-          multiline
-          numberOfLines={5}
-          textAlignVertical="top"
-        />
+          <Text style={styles.label}>Beskrivning *</Text>
+          <TextInput
+            style={[styles.input, styles.textArea]}
+            value={beskrivning}
+            onChangeText={setBeskrivning}
+            multiline
+            numberOfLines={5}
+            textAlignVertical="top"
+          />
 
-        <Text style={styles.label}>Plats</Text>
-        <TextInput style={styles.input} value={plats} onChangeText={setPlats} />
+          <Text style={styles.label}>Plats</Text>
+          <TextInput style={styles.input} value={plats} onChangeText={setPlats} />
 
-        <Text style={styles.label}>Timlön (kr/tim)</Text>
-        <TextInput style={styles.input} value={lon} onChangeText={setLon} keyboardType="numeric" />
+          <Text style={styles.label}>Timlön (kr/tim)</Text>
+          <TextInput style={styles.input} value={lon} onChangeText={setLon} keyboardType="numeric" />
 
-        <Text style={styles.label}>Antal dagar</Text>
-        <TextInput style={styles.input} value={antalDagar} onChangeText={setAntalDagar} keyboardType="numeric" />
+          <Text style={styles.label}>Antal dagar</Text>
+          <TextInput style={styles.input} value={antalDagar} onChangeText={setAntalDagar} keyboardType="numeric" />
 
-        <Text style={styles.label}>Arbetstider</Text>
-        <TextInput style={styles.input} placeholder="t.ex. 08:00-17:00" value={arbetstider} onChangeText={setArbetstider} />
+          <Text style={styles.label}>Arbetstider</Text>
+          <TextInput style={styles.input} placeholder="t.ex. 08:00-17:00" value={arbetstider} onChangeText={setArbetstider} />
 
-        <Text style={styles.label}>Typ *</Text>
-        <View style={styles.typVäljare}>
-          {TYPER.map((t) => (
-            <TouchableOpacity key={t} style={[styles.typKnapp, typ === t && styles.typKnappAktiv]} onPress={() => setTyp(t)}>
-              <Text style={[styles.typText, typ === t && styles.typTextAktiv]}>
-                {t.charAt(0).toUpperCase() + t.slice(1)}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </View>
+          <Text style={styles.label}>Typ *</Text>
+          <View style={styles.typVäljare}>
+            {TYPER.map((t) => (
+              <TouchableOpacity key={t} style={[styles.typKnapp, typ === t && styles.typKnappAktiv]} onPress={() => setTyp(t)}>
+                <Text style={[styles.typText, typ === t && styles.typTextAktiv]}>
+                  {t.charAt(0).toUpperCase() + t.slice(1)}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
 
-        <Text style={styles.label}>Kategori</Text>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.kategoriRad}>
-          {KATEGORIER.map((k) => (
-            <TouchableOpacity
-              key={k}
-              style={[styles.kategoriKnapp, kategori === k && styles.kategoriKnappAktiv]}
-              onPress={() => setKategori(kategori === k ? '' : k)}
-            >
-              <Text style={[styles.kategoriText, kategori === k && styles.kategoriTextAktiv]}>{k}</Text>
-            </TouchableOpacity>
-          ))}
+          <Text style={styles.label}>Kategori</Text>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.kategoriRad}>
+            {KATEGORIER.map((k) => (
+              <TouchableOpacity
+                key={k}
+                style={[styles.kategoriKnapp, kategori === k && styles.kategoriKnappAktiv]}
+                onPress={() => setKategori(kategori === k ? '' : k)}
+              >
+                <Text style={[styles.kategoriText, kategori === k && styles.kategoriTextAktiv]}>{k}</Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+
+          <TouchableOpacity style={[styles.knapp, laddar && styles.knappInaktiv]} onPress={hanteraSpara} disabled={laddar}>
+            {laddar ? <ActivityIndicator color="#fff" /> : <Text style={styles.knappText}>Spara ändringar</Text>}
+          </TouchableOpacity>
         </ScrollView>
+      </KeyboardAvoidingView>
 
-        <TouchableOpacity style={[styles.knapp, laddar && styles.knappInaktiv]} onPress={hanteraSpara} disabled={laddar}>
-          {laddar ? <ActivityIndicator color="#fff" /> : <Text style={styles.knappText}>Spara ändringar</Text>}
-        </TouchableOpacity>
-      </ScrollView>
-    </KeyboardAvoidingView>
+      <Modal visible={titelModalVisas} animationType="slide" transparent statusBarTranslucent>
+        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+          <TouchableOpacity
+            style={styles.backdrop}
+            activeOpacity={1}
+            onPress={() => { setTitelModalVisas(false); setSokTitel(''); }}
+          />
+          <View style={styles.panel}>
+            <View style={styles.handtag} />
+            <Text style={styles.panelTitel}>Välj jobbtitel</Text>
+            <TextInput
+              style={styles.sokInput}
+              placeholder="Sök jobbtitel..."
+              value={sokTitel}
+              onChangeText={setSokTitel}
+              autoCorrect={false}
+              autoCapitalize="none"
+              clearButtonMode="while-editing"
+            />
+            <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+              {filtrerade.length === 0 ? (
+                <Text style={styles.ingaResultat}>Inga titlar hittades</Text>
+              ) : (
+                filtrerade.map((t) => (
+                  <TouchableOpacity
+                    key={t}
+                    style={styles.titelRad}
+                    activeOpacity={0.7}
+                    onPress={() => { setTitel(t); setTitelModalVisas(false); setSokTitel(''); }}
+                  >
+                    <Text style={styles.titelRadText}>{t}</Text>
+                    {titel === t && <Ionicons name="checkmark" size={20} color="#2563eb" />}
+                  </TouchableOpacity>
+                ))
+              )}
+            </ScrollView>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
+    </>
   );
 }
 
@@ -110,6 +170,11 @@ const styles = StyleSheet.create({
   label: { fontSize: 14, fontWeight: '600', color: '#444', marginBottom: 6, marginTop: 16 },
   input: { borderWidth: 1, borderColor: '#ddd', borderRadius: 10, padding: 14, fontSize: 15, backgroundColor: '#fafafa' },
   textArea: { height: 120 },
+
+  väljarKnapp: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderWidth: 1, borderColor: '#ddd', borderRadius: 10, padding: 14, backgroundColor: '#fafafa' },
+  väljarText: { fontSize: 15, color: '#1a1a1a' },
+  väljarPlaceholder: { color: '#aaa' },
+
   typVäljare: { flexDirection: 'row', gap: 8, marginBottom: 8 },
   typKnapp: { flex: 1, padding: 12, borderRadius: 10, borderWidth: 1, borderColor: '#ddd', alignItems: 'center' },
   typKnappAktiv: { backgroundColor: '#2563eb', borderColor: '#2563eb' },
@@ -123,4 +188,13 @@ const styles = StyleSheet.create({
   knapp: { backgroundColor: '#2563eb', borderRadius: 12, padding: 16, alignItems: 'center', marginTop: 28, marginBottom: 40 },
   knappInaktiv: { backgroundColor: '#93c5fd' },
   knappText: { color: '#fff', fontWeight: '600', fontSize: 16 },
+
+  backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)' },
+  panel: { backgroundColor: '#fff', borderTopLeftRadius: 20, borderTopRightRadius: 20, paddingHorizontal: 20, paddingTop: 12, paddingBottom: 32, maxHeight: '80%' },
+  handtag: { width: 40, height: 4, backgroundColor: '#ddd', borderRadius: 2, alignSelf: 'center', marginBottom: 16 },
+  panelTitel: { fontSize: 18, fontWeight: '700', color: '#1a1a1a', textAlign: 'center', marginBottom: 14 },
+  sokInput: { borderWidth: 1, borderColor: '#ddd', borderRadius: 10, paddingHorizontal: 14, paddingVertical: 9, fontSize: 15, backgroundColor: '#fafafa', marginBottom: 10 },
+  titelRad: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: '#f0f0f0' },
+  titelRadText: { fontSize: 16, color: '#1a1a1a' },
+  ingaResultat: { fontSize: 15, color: '#999', textAlign: 'center', marginTop: 24 },
 });
