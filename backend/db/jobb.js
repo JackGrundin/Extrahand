@@ -77,4 +77,13 @@ async function uppdateraJobb(id, foretag_id, { titel, beskrivning, plats, lon, t
   return data;
 }
 
-module.exports = { skapaJobb, hämtaAllaJobb, hämtaJobbViaId, hämtaJobbFörFöretag, uppdateraJobb };
+async function taBortJobb(id, foretag_id) {
+  const { error } = await supabase
+    .from('Jobb')
+    .delete()
+    .eq('id', id)
+    .eq('Foretag_id', foretag_id);
+  if (error) throw error;
+}
+
+module.exports = { skapaJobb, hämtaAllaJobb, hämtaJobbViaId, hämtaJobbFörFöretag, uppdateraJobb, taBortJobb };

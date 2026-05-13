@@ -38,6 +38,7 @@ export const api = {
   publicera: (kropp) => anrop('POST', '/jobb', kropp),
   minaJobb: () => anrop('GET', '/jobb/mina'),
   uppdateraJobb: (id, kropp) => anrop('PUT', `/jobb/${id}`, kropp),
+  taBortJobb: (id) => anrop('DELETE', `/jobb/${id}`),
 
   // Ansökningar
   sökaJobb: (jobbId, kropp) => anrop('POST', `/ansokningar/${jobbId}`, kropp),

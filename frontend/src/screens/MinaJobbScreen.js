@@ -1,5 +1,5 @@
 import { useCallback, useState } from 'react';
-import { View, Text, FlatList, TouchableOpacity, StyleSheet, ActivityIndicator, RefreshControl } from 'react-native';
+import { View, Text, FlatList, TouchableOpacity, StyleSheet, ActivityIndicator, RefreshControl, Alert } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { api } from '../api/klient';
 
@@ -7,6 +7,20 @@ export default function MinaJobbScreen({ navigation }) {
   const [jobb, setJobb] = useState([]);
   const [laddar, setLaddar] = useState(true);
   const [uppdaterar, setUppdaterar] = useState(false);
+
+  async function taBort(id) {
+    Alert.alert('Ta bort annons', 'Är du säker? Detta går inte att ångra.', [
+      { text: 'Avbryt', style: 'cancel' },
+      { text: 'Ta bort', style: 'destructive', onPress: async () => {
+        try {
+          await api.taBortJobb(id);
+          setJobb(prev => prev.filter(j => j.id !== id));
+        } catch (fel) {
+          Alert.alert('Fel', fel.message);
+        }
+      }},
+    ]);
+  }
 
   async function hämta() {
     try {
@@ -53,9 +67,14 @@ export default function MinaJobbScreen({ navigation }) {
           )}
           <View style={styles.kortBotten}>
             <Text style={styles.seAnsokningar}>Se ansökningar →</Text>
-            <TouchableOpacity onPress={() => navigation.navigate('RedigeraJobb', { jobb: item })}>
-              <Text style={styles.redigeraText}>Redigera</Text>
-            </TouchableOpacity>
+            <View style={styles.åtgärder}>
+              <TouchableOpacity onPress={() => navigation.navigate('RedigeraJobb', { jobb: item })}>
+                <Text style={styles.redigeraText}>Redigera</Text>
+              </TouchableOpacity>
+              <TouchableOpacity onPress={() => taBort(item.id)}>
+                <Text style={styles.taBortText}>Ta bort</Text>
+              </TouchableOpacity>
+            </View>
           </View>
         </TouchableOpacity>
       )}
@@ -74,7 +93,9 @@ const styles = StyleSheet.create({
   extra: { fontSize: 13, color: '#888' },
   kortBotten: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 6 },
   seAnsokningar: { fontSize: 13, color: '#2563eb', fontWeight: '500' },
+  åtgärder: { flexDirection: 'row', gap: 16 },
   redigeraText: { fontSize: 13, color: '#6b7280', fontWeight: '500' },
+  taBortText: { fontSize: 13, color: '#ef4444', fontWeight: '500' },
   tomContainer: { flex: 1, alignItems: 'center', marginTop: 60 },
   tomText: { fontSize: 16, color: '#999' },
 });

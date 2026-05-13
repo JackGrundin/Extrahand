@@ -1,6 +1,6 @@
 const express = require('express');
 const { kräverInloggning, kräverTyp } = require('../middleware/auth');
-const { skapaJobb, hämtaAllaJobb, hämtaJobbViaId, hämtaJobbFörFöretag, uppdateraJobb } = require('../db/jobb');
+const { skapaJobb, hämtaAllaJobb, hämtaJobbViaId, hämtaJobbFörFöretag, uppdateraJobb, taBortJobb } = require('../db/jobb');
 
 const router = express.Router();
 
@@ -99,6 +99,17 @@ router.put('/:id', kräverInloggning, kräverTyp('företag'), async (req, res) =
   } catch (fel) {
     console.error('Fel vid uppdatering av jobb:', fel);
     res.status(500).json({ fel: 'Serverfel vid uppdatering av jobb' });
+  }
+});
+
+// DELETE /api/jobb/:id — företag tar bort sitt jobb
+router.delete('/:id', kräverInloggning, kräverTyp('företag'), async (req, res) => {
+  try {
+    await taBortJobb(req.params.id, req.användare.id);
+    res.json({ ok: true });
+  } catch (fel) {
+    console.error('Fel vid borttagning av jobb:', fel);
+    res.status(500).json({ fel: 'Serverfel vid borttagning av jobb' });
   }
 });
 
