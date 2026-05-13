@@ -1,7 +1,7 @@
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { ActivityIndicator, View } from 'react-native';
+import { ActivityIndicator, TouchableOpacity, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
 import { useAuth } from '../context/AuthContext';
@@ -20,9 +20,21 @@ import SökandeProfilScreen from '../screens/SökandeProfilScreen';
 import JobbAnsokningarScreen from '../screens/JobbAnsokningarScreen';
 import BetygsattScreen from '../screens/BetygsattScreen';
 import RedigeraProfilScreen from '../screens/RedigeraProfilScreen';
+import MinaPassScreen from '../screens/MinaPassScreen';
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
+
+function ChatKnapp({ navigation }) {
+  return (
+    <TouchableOpacity
+      onPress={() => navigation.getParent()?.navigate('ChattTab')}
+      style={{ marginRight: 16 }}
+    >
+      <Ionicons name="chatbubbles-outline" size={24} color="#2563eb" />
+    </TouchableOpacity>
+  );
+}
 
 function AuthNavigator() {
   return (
@@ -35,7 +47,11 @@ function AuthNavigator() {
 
 function JobbNavigator() {
   return (
-    <Stack.Navigator>
+    <Stack.Navigator
+      screenOptions={({ navigation }) => ({
+        headerRight: () => <ChatKnapp navigation={navigation} />,
+      })}
+    >
       <Stack.Screen name="Jobb" component={JobbScreen} options={{ title: 'Lediga jobb' }} />
       <Stack.Screen name="JobbDetalj" component={JobbDetaljScreen} options={{ title: 'Jobbdetaljer' }} />
       <Stack.Screen name="JobbAnsokningar" component={JobbAnsokningarScreen} options={({ route }) => ({ title: route.params?.titel ?? 'Ansökningar' })} />
@@ -46,10 +62,27 @@ function JobbNavigator() {
 
 function AnsökningarNavigator() {
   return (
-    <Stack.Navigator>
+    <Stack.Navigator
+      screenOptions={({ navigation }) => ({
+        headerRight: () => <ChatKnapp navigation={navigation} />,
+      })}
+    >
       <Stack.Screen name="MinaAnsokningar" component={MinaAnsokningarScreen} options={{ title: 'Mina ansökningar' }} />
       <Stack.Screen name="Chatt" component={ChattScreen} options={{ title: 'Chatt' }} />
       <Stack.Screen name="Betygsatt" component={BetygsattScreen} options={{ title: 'Betygsätt' }} />
+    </Stack.Navigator>
+  );
+}
+
+function MinaPassNavigator() {
+  return (
+    <Stack.Navigator
+      screenOptions={({ navigation }) => ({
+        headerRight: () => <ChatKnapp navigation={navigation} />,
+      })}
+    >
+      <Stack.Screen name="MinaPass" component={MinaPassScreen} options={{ title: 'Mina pass' }} />
+      <Stack.Screen name="Chatt" component={ChattScreen} options={{ title: 'Chatt' }} />
     </Stack.Navigator>
   );
 }
@@ -67,7 +100,11 @@ function ChattNavigator() {
 
 function ProfilNavigator() {
   return (
-    <Stack.Navigator>
+    <Stack.Navigator
+      screenOptions={({ navigation }) => ({
+        headerRight: () => <ChatKnapp navigation={navigation} />,
+      })}
+    >
       <Stack.Screen name="ProfilHuvud" component={ProfilScreen} options={{ title: 'Profil' }} />
       <Stack.Screen name="RedigeraProfil" component={RedigeraProfilScreen} options={{ title: 'Redigera profil' }} />
     </Stack.Navigator>
@@ -76,7 +113,11 @@ function ProfilNavigator() {
 
 function MinaJobbNavigator() {
   return (
-    <Stack.Navigator>
+    <Stack.Navigator
+      screenOptions={({ navigation }) => ({
+        headerRight: () => <ChatKnapp navigation={navigation} />,
+      })}
+    >
       <Stack.Screen name="MinaJobb" component={MinaJobbScreen} options={{ title: 'Mina annonser' }} />
       <Stack.Screen name="RedigeraJobb" component={RedigeraJobbScreen} options={{ title: 'Redigera annons' }} />
       <Stack.Screen name="JobbAnsokningar" component={JobbAnsokningarScreen} options={({ route }) => ({ title: route.params?.titel ?? 'Ansökningar' })} />
@@ -89,7 +130,11 @@ function MinaJobbNavigator() {
 
 function PubliceraNavigator() {
   return (
-    <Stack.Navigator>
+    <Stack.Navigator
+      screenOptions={({ navigation }) => ({
+        headerRight: () => <ChatKnapp navigation={navigation} />,
+      })}
+    >
       <Stack.Screen name="PubliceraJobb" component={PubliceraJobbScreen} options={{ title: 'Publicera jobb' }} />
     </Stack.Navigator>
   );
@@ -110,9 +155,9 @@ function HuvudNavigator() {
           const ikoner = {
             JobbTab:        focused ? 'briefcase'       : 'briefcase-outline',
             AnsökningarTab: focused ? 'document-text'  : 'document-text-outline',
+            MinaPassTab:    focused ? 'calendar'        : 'calendar-outline',
             MinaJobbTab:    focused ? 'list'            : 'list-outline',
             PubliceraTab:   focused ? 'add-circle'      : 'add-circle-outline',
-            ChattTab:       focused ? 'chatbubbles'     : 'chatbubbles-outline',
             Profil:         focused ? 'person'          : 'person-outline',
           };
           return <Ionicons name={ikoner[route.name]} size={size} color={color} />;
@@ -125,14 +170,21 @@ function HuvudNavigator() {
       {ärPrivatperson && (
         <Tab.Screen name="AnsökningarTab" component={AnsökningarNavigator} options={{ tabBarLabel: 'Ansökningar' }} />
       )}
+      {ärPrivatperson && (
+        <Tab.Screen name="MinaPassTab" component={MinaPassNavigator} options={{ tabBarLabel: 'Mina pass' }} />
+      )}
       {ärFöretag && (
         <Tab.Screen name="MinaJobbTab" component={MinaJobbNavigator} options={{ tabBarLabel: 'Mina annonser' }} />
       )}
       {ärFöretag && (
         <Tab.Screen name="PubliceraTab" component={PubliceraNavigator} options={{ tabBarLabel: 'Publicera' }} />
       )}
-      <Tab.Screen name="ChattTab" component={ChattNavigator} options={{ tabBarLabel: 'Chatt' }} />
-      <Tab.Screen name="Profil" component={ProfilNavigator} options={{ tabBarLabel: 'Profil', headerShown: false }} />
+      <Tab.Screen
+        name="ChattTab"
+        component={ChattNavigator}
+        options={{ tabBarButton: () => null }}
+      />
+      <Tab.Screen name="Profil" component={ProfilNavigator} options={{ tabBarLabel: 'Profil' }} />
     </Tab.Navigator>
   );
 }
