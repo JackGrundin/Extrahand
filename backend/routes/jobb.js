@@ -1,6 +1,9 @@
 const express = require('express');
 const { kräverInloggning, kräverTyp } = require('../middleware/auth');
 const { skapaJobb, hämtaAllaJobb, hämtaJobbViaId, hämtaJobbFörFöretag, uppdateraJobb, taBortJobb } = require('../db/jobb');
+const { hämtaGodkändaFörJobb } = require('../db/ansokningar');
+const { skickaMeddelande } = require('../db/meddelanden');
+const { hämtaPushToken } = require('../db/användare');
 
 const router = express.Router();
 
@@ -105,8 +108,35 @@ router.put('/:id', kräverInloggning, kräverTyp('företag'), async (req, res) =
 // DELETE /api/jobb/:id — företag tar bort sitt jobb
 router.delete('/:id', kräverInloggning, kräverTyp('företag'), async (req, res) => {
   try {
+    const godkända = await hämtaGodkändaFörJobb(req.params.id);
     await taBortJobb(req.params.id, req.användare.id);
     res.json({ ok: true });
+
+    // Meddela godkända privatpersoner att passet tagits bort
+    for (const a of godkända) {
+      try {
+        await skickaMeddelande({
+          ansokan_id: a.id,
+          avsandare_id: req.användare.id,
+          innehall: 'Passet har tagits bort av företaget.',
+        });
+        const pushToken = await hämtaPushToken(a.sokande_id);
+        if (pushToken) {
+          await fetch('https://exp.host/--/api/v2/push/send', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              to: pushToken,
+              title: 'Pass inställt',
+              body: 'Ett pass du var godkänd för har tagits bort av företaget.',
+              sound: 'default',
+            }),
+          });
+        }
+      } catch (notisfel) {
+        console.error('Notifikationsfel vid borttagning av jobb:', notisfel);
+      }
+    }
   } catch (fel) {
     console.error('Fel vid borttagning av jobb:', fel);
     res.status(500).json({ fel: 'Serverfel vid borttagning av jobb' });

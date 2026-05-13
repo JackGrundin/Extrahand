@@ -150,6 +150,16 @@ async function hämtaAllaKonversationerFörFöretag(foretag_id) {
   }));
 }
 
+async function hämtaGodkändaFörJobb(jobb_id) {
+  const { data, error } = await supabase
+    .from('ansokningar')
+    .select('id, sokande_id')
+    .eq('jobb_id', jobb_id)
+    .eq('status', 'godkänd');
+  if (error) throw error;
+  return data || [];
+}
+
 async function avvisaAllaUtomEn(jobb_id, godkänd_id) {
   const { error } = await supabase
     .from('ansokningar')
@@ -167,4 +177,4 @@ async function återställAllaFörJobb(jobb_id) {
   if (error) throw error;
 }
 
-module.exports = { skapaAnsökan, hämtaAnsökningarFörSökande, hämtaAnsökningarFörJobb, finnsDubblettAnsökan, hämtaTotalTimmar, uppdateraTimmar, uppdateraStatus, hämtaAnsökanViaId, avvisaAllaUtomEn, återställAllaFörJobb, hämtaAllaKonversationerFörFöretag };
+module.exports = { skapaAnsökan, hämtaAnsökningarFörSökande, hämtaAnsökningarFörJobb, finnsDubblettAnsökan, hämtaTotalTimmar, uppdateraTimmar, uppdateraStatus, hämtaAnsökanViaId, avvisaAllaUtomEn, återställAllaFörJobb, hämtaAllaKonversationerFörFöretag, hämtaGodkändaFörJobb };
