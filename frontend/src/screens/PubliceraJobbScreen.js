@@ -4,8 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { api } from '../api/klient';
 
 const TYPER = ['gig', 'sommarjobb'];
-const KATEGORIER = ['Café', 'Restaurang', 'Butik', 'Lager', 'Kontor', 'IT', 'Snickare', 'Städ', 'Övrigt'];
-const TITLAR = [
+const KATEGORIER = [
   'Servitör', 'Kock', 'Diskare', 'Barista', 'Butiksbiträde', 'Kassör',
   'Lagerarbetare', 'Paketerare', 'Städare', 'Receptionist', 'Kontorsassistent',
   'IT-tekniker', 'Snickare', 'Hantlangare', 'Trädgårdsarbetare', 'Barnvakt',
@@ -22,11 +21,11 @@ export default function PubliceraJobbScreen({ navigation }) {
   const [antalDagar, setAntalDagar] = useState('');
   const [arbetstider, setArbetstider] = useState('');
   const [laddar, setLaddar] = useState(false);
-  const [titelModalVisas, setTitelModalVisas] = useState(false);
-  const [sokTitel, setSokTitel] = useState('');
+  const [kategoriModalVisas, setKategoriModalVisas] = useState(false);
+  const [sokKategori, setSokKategori] = useState('');
 
-  const filtrerade = TITLAR.filter(t =>
-    t.toLowerCase().includes(sokTitel.toLowerCase())
+  const filtreradeKategorier = KATEGORIER.filter(k =>
+    k.toLowerCase().includes(sokKategori.toLowerCase())
   );
 
   async function hanteraPublicering() {
@@ -61,12 +60,12 @@ export default function PubliceraJobbScreen({ navigation }) {
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <ScrollView style={styles.container} keyboardShouldPersistTaps="handled">
           <Text style={styles.label}>Jobbtitel *</Text>
-          <TouchableOpacity style={styles.väljarKnapp} onPress={() => setTitelModalVisas(true)} activeOpacity={0.7}>
-            <Text style={[styles.väljarText, !titel && styles.väljarPlaceholder]}>
-              {titel || 'Välj jobbtitel...'}
-            </Text>
-            <Ionicons name="chevron-forward" size={18} color="#9ca3af" />
-          </TouchableOpacity>
+          <TextInput
+            style={styles.input}
+            placeholder="t.ex. Sommarjobbare på café"
+            value={titel}
+            onChangeText={setTitel}
+          />
 
           <Text style={styles.label}>Beskrivning *</Text>
           <TextInput
@@ -103,17 +102,12 @@ export default function PubliceraJobbScreen({ navigation }) {
           </View>
 
           <Text style={styles.label}>Kategori</Text>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.kategoriRad}>
-            {KATEGORIER.map((k) => (
-              <TouchableOpacity
-                key={k}
-                style={[styles.kategoriKnapp, kategori === k && styles.kategoriKnappAktiv]}
-                onPress={() => setKategori(kategori === k ? '' : k)}
-              >
-                <Text style={[styles.kategoriText, kategori === k && styles.kategoriTextAktiv]}>{k}</Text>
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
+          <TouchableOpacity style={styles.väljarKnapp} onPress={() => setKategoriModalVisas(true)} activeOpacity={0.7}>
+            <Text style={[styles.väljarText, !kategori && styles.väljarPlaceholder]}>
+              {kategori || 'Välj kategori...'}
+            </Text>
+            <Ionicons name="chevron-forward" size={18} color="#9ca3af" />
+          </TouchableOpacity>
 
           <TouchableOpacity style={[styles.knapp, laddar && styles.knappInaktiv]} onPress={hanteraPublicering} disabled={laddar}>
             {laddar ? <ActivityIndicator color="#fff" /> : <Text style={styles.knappText}>Publicera jobb</Text>}
@@ -121,38 +115,38 @@ export default function PubliceraJobbScreen({ navigation }) {
         </ScrollView>
       </KeyboardAvoidingView>
 
-      <Modal visible={titelModalVisas} animationType="slide" transparent statusBarTranslucent>
+      <Modal visible={kategoriModalVisas} animationType="slide" transparent statusBarTranslucent>
         <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
           <TouchableOpacity
             style={styles.backdrop}
             activeOpacity={1}
-            onPress={() => { setTitelModalVisas(false); setSokTitel(''); }}
+            onPress={() => { setKategoriModalVisas(false); setSokKategori(''); }}
           />
           <View style={styles.panel}>
             <View style={styles.handtag} />
-            <Text style={styles.panelTitel}>Välj jobbtitel</Text>
+            <Text style={styles.panelTitel}>Välj kategori</Text>
             <TextInput
               style={styles.sokInput}
-              placeholder="Sök jobbtitel..."
-              value={sokTitel}
-              onChangeText={setSokTitel}
+              placeholder="Sök kategori..."
+              value={sokKategori}
+              onChangeText={setSokKategori}
               autoCorrect={false}
               autoCapitalize="none"
               clearButtonMode="while-editing"
             />
             <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
-              {filtrerade.length === 0 ? (
-                <Text style={styles.ingaResultat}>Inga titlar hittades</Text>
+              {filtreradeKategorier.length === 0 ? (
+                <Text style={styles.ingaResultat}>Inga kategorier hittades</Text>
               ) : (
-                filtrerade.map((t) => (
+                filtreradeKategorier.map((k) => (
                   <TouchableOpacity
-                    key={t}
-                    style={styles.titelRad}
+                    key={k}
+                    style={styles.kategoriRad}
                     activeOpacity={0.7}
-                    onPress={() => { setTitel(t); setTitelModalVisas(false); setSokTitel(''); }}
+                    onPress={() => { setKategori(k); setKategoriModalVisas(false); setSokKategori(''); }}
                   >
-                    <Text style={styles.titelRadText}>{t}</Text>
-                    {titel === t && <Ionicons name="checkmark" size={20} color="#2563eb" />}
+                    <Text style={styles.kategoriRadText}>{k}</Text>
+                    {kategori === k && <Ionicons name="checkmark" size={20} color="#2563eb" />}
                   </TouchableOpacity>
                 ))
               )}
@@ -179,11 +173,7 @@ const styles = StyleSheet.create({
   typKnappAktiv: { backgroundColor: '#2563eb', borderColor: '#2563eb' },
   typText: { color: '#555', fontWeight: '500', fontSize: 14 },
   typTextAktiv: { color: '#fff' },
-  kategoriRad: { gap: 8, paddingBottom: 4 },
-  kategoriKnapp: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20, borderWidth: 1, borderColor: '#ddd', backgroundColor: '#fafafa' },
-  kategoriKnappAktiv: { backgroundColor: '#2563eb', borderColor: '#2563eb' },
-  kategoriText: { fontSize: 13, color: '#555', fontWeight: '500' },
-  kategoriTextAktiv: { color: '#fff' },
+
   knapp: { backgroundColor: '#2563eb', borderRadius: 12, padding: 16, alignItems: 'center', marginTop: 28, marginBottom: 40 },
   knappInaktiv: { backgroundColor: '#93c5fd' },
   knappText: { color: '#fff', fontWeight: '600', fontSize: 16 },
@@ -193,7 +183,7 @@ const styles = StyleSheet.create({
   handtag: { width: 40, height: 4, backgroundColor: '#ddd', borderRadius: 2, alignSelf: 'center', marginBottom: 16 },
   panelTitel: { fontSize: 18, fontWeight: '700', color: '#1a1a1a', textAlign: 'center', marginBottom: 14 },
   sokInput: { borderWidth: 1, borderColor: '#ddd', borderRadius: 10, paddingHorizontal: 14, paddingVertical: 9, fontSize: 15, backgroundColor: '#fafafa', marginBottom: 10 },
-  titelRad: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: '#f0f0f0' },
-  titelRadText: { fontSize: 16, color: '#1a1a1a' },
+  kategoriRad: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: '#f0f0f0' },
+  kategoriRadText: { fontSize: 16, color: '#1a1a1a' },
   ingaResultat: { fontSize: 15, color: '#999', textAlign: 'center', marginTop: 24 },
 });

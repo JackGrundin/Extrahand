@@ -82,7 +82,7 @@ export default function JobbScreen({ navigation }) {
   const filtrerade = jobb
     .filter((j) => {
       const typOk = valtTyp === 'Alla' || j.Typ === valtTyp;
-      const kategoriOk = valtaKategorier.length === 0 || valtaKategorier.includes(j.Titel);
+      const kategoriOk = valtaKategorier.length === 0 || valtaKategorier.includes(j.Kategori);
       const stadOk = !stadFilter.trim() || (j.Plats ?? '').toLowerCase().includes(stadFilter.trim().toLowerCase());
       const lönOk = !minLön || (j.Lon != null && j.Lon >= parseInt(minLön));
       const dagarOk = !minDagar || (j.antal_dagar != null && j.antal_dagar >= parseInt(minDagar));
