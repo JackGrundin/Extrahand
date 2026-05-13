@@ -99,7 +99,14 @@ export default function MinaPassScreen({ navigation }) {
                 <View style={styles.passInfo}>
                   <Text style={styles.passTitel} numberOfLines={1}>{item.jobbTitel ?? 'Jobb'}</Text>
                   <Text style={styles.passForetag} numberOfLines={1}>{item.foretagNamn ?? 'Okänt företag'}</Text>
-                  <Text style={styles.passDatum}>{dagText}</Text>
+                  <View style={styles.passDetaljer}>
+                    {item.antalDagar != null && (
+                      <Text style={styles.passDetalj}>{item.antalDagar} dag{item.antalDagar !== 1 ? 'ar' : ''}</Text>
+                    )}
+                    {item.arbetstider ? (
+                      <Text style={styles.passDetalj}>{item.arbetstider}</Text>
+                    ) : null}
+                  </View>
                 </View>
                 {item.timmar > 0 && (
                   <View style={styles.timmarBricka}>
@@ -134,7 +141,8 @@ const styles = StyleSheet.create({
   passInfo: { flex: 1 },
   passTitel: { fontSize: 15, fontWeight: '600', color: '#1a1a1a' },
   passForetag: { fontSize: 13, color: '#888', marginTop: 2 },
-  passDatum: { fontSize: 12, color: '#aaa', marginTop: 2 },
+  passDetaljer: { flexDirection: 'row', gap: 8, marginTop: 4 },
+  passDetalj: { fontSize: 12, color: '#6b7280', backgroundColor: '#f3f4f6', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6 },
   timmarBricka: { backgroundColor: '#dcfce7', borderRadius: 8, paddingHorizontal: 8, paddingVertical: 4 },
   timmarText: { fontSize: 13, fontWeight: '700', color: '#16a34a' },
   chattLänk: { fontSize: 13, color: '#2563eb', fontWeight: '500' },
