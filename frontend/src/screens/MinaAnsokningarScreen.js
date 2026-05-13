@@ -56,10 +56,7 @@ export default function MinaAnsokningarScreen({ navigation }) {
         </View>
       }
       renderItem={({ item }) => (
-        <TouchableOpacity
-          style={styles.kort}
-          onPress={() => navigation.navigate('Chatt', { ansokningId: item.id })}
-        >
+        <View style={styles.kort}>
           <View style={styles.kortHuvud}>
             <View style={{ flex: 1 }}>
               <Text style={styles.jobbTitel} numberOfLines={1}>
@@ -89,14 +86,16 @@ export default function MinaAnsokningarScreen({ navigation }) {
             <Text style={styles.timmar}>{item.timmar} tim loggade</Text>
           )}
           <View style={styles.kortFot}>
-            <Text style={styles.chattLänk}>Öppna chatt →</Text>
+            <TouchableOpacity onPress={() => navigation.navigate('Chatt', { ansokningId: item.id })}>
+              <Text style={styles.chattLänk}>Öppna chatt →</Text>
+            </TouchableOpacity>
             {item.status === 'väntande' && (
               <TouchableOpacity onPress={() => ångra(item.id)}>
                 <Text style={styles.ångraLänk}>Ångra ansökan</Text>
               </TouchableOpacity>
             )}
           </View>
-        </TouchableOpacity>
+        </View>
       )}
     />
   );
