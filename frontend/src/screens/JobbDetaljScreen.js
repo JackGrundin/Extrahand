@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Alert, ScrollView, ActivityIndicator } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, Alert, ScrollView, ActivityIndicator, TextInput } from 'react-native';
 import { useAuth } from '../context/AuthContext';
 import { api } from '../api/klient';
 
@@ -8,11 +8,12 @@ export default function JobbDetaljScreen({ route, navigation }) {
   const { användare } = useAuth();
   const [laddar, setLaddar] = useState(false);
   const [sökt, setSökt] = useState(false);
+  const [meddelande, setMeddelande] = useState('');
 
   async function hanteraSökan() {
     setLaddar(true);
     try {
-      await api.sökaJobb(jobb.id);
+      await api.sökaJobb(jobb.id, { meddelande: meddelande.trim() || null });
       setSökt(true);
       Alert.alert('Klart!', 'Din ansökan har skickats.');
     } catch (fel) {
@@ -46,16 +47,33 @@ export default function JobbDetaljScreen({ route, navigation }) {
       )}
 
       {användare?.typ === 'privatperson' && (
-        <TouchableOpacity
-          style={[styles.knapp, sökt && styles.knappInaktiv]}
-          onPress={hanteraSökan}
-          disabled={laddar || sökt}
-        >
+        <>
+          {!sökt && (
+            <>
+              <Text style={styles.sektionsRubrik}>Ansökningstext</Text>
+              <TextInput
+                style={styles.textArea}
+                placeholder="Berätta kort varför du passar för jobbet... (valfritt)"
+                value={meddelande}
+                onChangeText={setMeddelande}
+                multiline
+                numberOfLines={4}
+                textAlignVertical="top"
+                maxLength={500}
+              />
+            </>
+          )}
+          <TouchableOpacity
+            style={[styles.knapp, sökt && styles.knappInaktiv]}
+            onPress={hanteraSökan}
+            disabled={laddar || sökt}
+          >
           {laddar
             ? <ActivityIndicator color="#fff" />
             : <Text style={styles.knappText}>{sökt ? 'Ansökan skickad' : 'Sök jobbet'}</Text>
           }
         </TouchableOpacity>
+        </>
       )}
     </ScrollView>
   );
@@ -71,6 +89,7 @@ const styles = StyleSheet.create({
   detalj: { fontSize: 14, color: '#666' },
   sektionsRubrik: { fontSize: 16, fontWeight: '600', color: '#1a1a1a', marginBottom: 8 },
   beskrivning: { fontSize: 15, color: '#444', lineHeight: 22, marginBottom: 32 },
+  textArea: { borderWidth: 1, borderColor: '#ddd', borderRadius: 10, padding: 14, fontSize: 15, backgroundColor: '#fafafa', minHeight: 110, marginBottom: 16 },
   knapp: { backgroundColor: '#2563eb', borderRadius: 12, padding: 16, alignItems: 'center' },
   knappInaktiv: { backgroundColor: '#9ca3af' },
   knappText: { color: '#fff', fontWeight: '600', fontSize: 16 },
