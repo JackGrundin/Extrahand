@@ -10,7 +10,7 @@ const supabase = createClient(
 async function skapaAnsökan({ jobb_id, sokande_id, meddelande }) {
   const { data, error } = await supabase
     .from('ansokningar')
-    .insert([{ jobb_id, sokande_id, meddelande }])
+    .insert([{ jobb_id, sokande_id, meddelande, status: 'väntande' }])
     .select()
     .single();
 
