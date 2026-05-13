@@ -155,7 +155,7 @@ function HuvudNavigator() {
           const ikoner = {
             JobbTab:        focused ? 'briefcase'       : 'briefcase-outline',
             AnsökningarTab: focused ? 'document-text'  : 'document-text-outline',
-            MinaPassTab:    focused ? 'calendar'        : 'calendar-outline',
+            MinaPassTab:    focused ? 'time'            : 'time-outline',
             MinaJobbTab:    focused ? 'list'            : 'list-outline',
             PubliceraTab:   focused ? 'add-circle'      : 'add-circle-outline',
             Profil:         focused ? 'person'          : 'person-outline',
