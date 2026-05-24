@@ -1,14 +1,86 @@
 import { useEffect, useState, useRef, useCallback } from 'react';
-import { View, Text, FlatList, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform, ActivityIndicator } from 'react-native';
+import { View, Text, FlatList, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform, ActivityIndicator, Alert } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { api } from '../api/klient';
 import { useAuth } from '../context/AuthContext';
 
+function TidrapportKort({ rapport, ärPrivatperson, onUppdaterad }) {
+  const [sparar, setSparar] = useState(false);
+
+  async function hantera(status) {
+    setSparar(true);
+    try {
+      await api.uppdateraTidrapportStatus(rapport.id, status);
+      onUppdaterad();
+    } catch (fel) {
+      Alert.alert('Fel', fel.message);
+    } finally {
+      setSparar(false);
+    }
+  }
+
+  const statusFärger = {
+    väntar: { bg: '#fef9c3', text: '#854d0e', etikett: 'Väntar på godkännande' },
+    godkänd: { bg: '#dcfce7', text: '#16a34a', etikett: 'Godkänd' },
+    bestridd: { bg: '#fee2e2', text: '#dc2626', etikett: 'Bestridd' },
+  };
+  const färg = statusFärger[rapport.status] ?? statusFärger.väntar;
+
+  return (
+    <View style={styles.rapportKort}>
+      <View style={styles.rapportHuvud}>
+        <Ionicons name="document-text-outline" size={18} color="#2563eb" />
+        <Text style={styles.rapportRubrik}>Tidrapport</Text>
+        <View style={[styles.statusBricka, { backgroundColor: färg.bg }]}>
+          <Text style={[styles.statusText, { color: färg.text }]}>{färg.etikett}</Text>
+        </View>
+      </View>
+
+      <View style={styles.rapportRader}>
+        <View style={styles.rapportRad}>
+          <Text style={styles.rapportEtikett}>Datum</Text>
+          <Text style={styles.rapportVärde}>{new Date(rapport.datum).toLocaleDateString('sv-SE')}</Text>
+        </View>
+        <View style={styles.rapportRad}>
+          <Text style={styles.rapportEtikett}>Timmar</Text>
+          <Text style={styles.rapportVärde}>{rapport.timmar} tim</Text>
+        </View>
+        <View style={styles.rapportRad}>
+          <Text style={styles.rapportEtikett}>Timlön</Text>
+          <Text style={styles.rapportVärde}>{rapport.timlon?.toLocaleString('sv-SE')} kr/tim</Text>
+        </View>
+        <View style={[styles.rapportRad, styles.totalRad]}>
+          <Text style={styles.totalEtikett}>Totalt</Text>
+          <Text style={styles.totalVärde}>{rapport.totalt_belopp?.toLocaleString('sv-SE')} kr</Text>
+        </View>
+      </View>
+
+      {ärPrivatperson && rapport.status === 'väntar' && (
+        <View style={styles.rapportKnappar}>
+          <TouchableOpacity
+            style={[styles.bestridKnapp, sparar && { opacity: 0.5 }]}
+            onPress={() => hantera('bestridd')}
+            disabled={sparar}
+          >
+            <Text style={styles.bestridText}>Bestrid</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.godkännKnapp, sparar && { opacity: 0.5 }]}
+            onPress={() => hantera('godkänd')}
+            disabled={sparar}
+          >
+            <Text style={styles.godkännText}>Godkänn</Text>
+          </TouchableOpacity>
+        </View>
+      )}
+    </View>
+  );
+}
+
 export default function ChattScreen({ route, navigation }) {
   const { ansokningId } = route.params;
 
-  // Lägg till betygsätt-knapp i headern
   useEffect(() => {
     navigation.setOptions({
       headerRight: () => (
@@ -21,8 +93,11 @@ export default function ChattScreen({ route, navigation }) {
       ),
     });
   }, [navigation, ansokningId]);
+
   const { användare } = useAuth();
+  const ärPrivatperson = användare?.typ === 'privatperson';
   const [meddelanden, setMeddelanden] = useState([]);
+  const [tidrapport, setTidrapport] = useState(null);
   const [text, setText] = useState('');
   const [laddar, setLaddar] = useState(true);
   const [skickar, setSkickar] = useState(false);
@@ -30,8 +105,12 @@ export default function ChattScreen({ route, navigation }) {
 
   async function hämta() {
     try {
-      const data = await api.hämtaMeddelanden(ansokningId);
-      setMeddelanden(data);
+      const [meddelandeData, rapportData] = await Promise.all([
+        api.hämtaMeddelanden(ansokningId),
+        api.hämtaTidrapport(ansokningId),
+      ]);
+      setMeddelanden(meddelandeData);
+      setTidrapport(rapportData);
     } catch (fel) {
       console.error(fel);
     } finally {
@@ -67,6 +146,15 @@ export default function ChattScreen({ route, navigation }) {
         contentContainerStyle={styles.meddelandeLista}
         onContentSizeChange={() => listRef.current?.scrollToEnd({ animated: false })}
         ListEmptyComponent={<Text style={styles.tom}>Inga meddelanden ännu. Säg hej!</Text>}
+        ListFooterComponent={
+          tidrapport ? (
+            <TidrapportKort
+              rapport={tidrapport}
+              ärPrivatperson={ärPrivatperson}
+              onUppdaterad={hämta}
+            />
+          ) : null
+        }
         renderItem={({ item }) => {
           const ärMitt = item.avsandare_id === användare?.id;
           return (
@@ -112,4 +200,21 @@ const styles = StyleSheet.create({
   skickaKnapp: { backgroundColor: '#2563eb', borderRadius: 20, paddingHorizontal: 18, justifyContent: 'center' },
   inaktiv: { backgroundColor: '#c7d2fe' },
   skickaText: { color: '#fff', fontWeight: '600' },
+  rapportKort: { backgroundColor: '#fff', borderRadius: 14, padding: 16, marginTop: 12, borderWidth: 1, borderColor: '#e0e7ff' },
+  rapportHuvud: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 14 },
+  rapportRubrik: { fontSize: 15, fontWeight: '700', color: '#1a1a1a', flex: 1 },
+  statusBricka: { borderRadius: 10, paddingHorizontal: 10, paddingVertical: 4 },
+  statusText: { fontSize: 12, fontWeight: '600' },
+  rapportRader: { gap: 8, marginBottom: 14 },
+  rapportRad: { flexDirection: 'row', justifyContent: 'space-between' },
+  rapportEtikett: { fontSize: 14, color: '#888' },
+  rapportVärde: { fontSize: 14, fontWeight: '500', color: '#1a1a1a' },
+  totalRad: { borderTopWidth: 1, borderTopColor: '#eee', paddingTop: 8, marginTop: 4 },
+  totalEtikett: { fontSize: 15, fontWeight: '700', color: '#1a1a1a' },
+  totalVärde: { fontSize: 15, fontWeight: '700', color: '#2563eb' },
+  rapportKnappar: { flexDirection: 'row', gap: 10 },
+  bestridKnapp: { flex: 1, borderWidth: 1, borderColor: '#ef4444', borderRadius: 10, paddingVertical: 10, alignItems: 'center' },
+  bestridText: { color: '#ef4444', fontWeight: '600', fontSize: 14 },
+  godkännKnapp: { flex: 1, backgroundColor: '#16a34a', borderRadius: 10, paddingVertical: 10, alignItems: 'center' },
+  godkännText: { color: '#fff', fontWeight: '600', fontSize: 14 },
 });

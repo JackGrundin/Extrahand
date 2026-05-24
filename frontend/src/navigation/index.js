@@ -22,6 +22,7 @@ import BetygsattScreen from '../screens/BetygsattScreen';
 import RedigeraProfilScreen from '../screens/RedigeraProfilScreen';
 import MinaPassScreen from '../screens/MinaPassScreen';
 import FöretagsProfilScreen from '../screens/FöretagsProfilScreen';
+import RapporterScreen from '../screens/RapporterScreen';
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -142,10 +143,19 @@ function PubliceraNavigator() {
   );
 }
 
+function RapporterNavigator() {
+  return (
+    <Stack.Navigator>
+      <Stack.Screen name="RapporterHuvud" component={RapporterScreen} options={{ title: 'Tidrapporter' }} />
+    </Stack.Navigator>
+  );
+}
+
 function HuvudNavigator() {
   const { användare } = useAuth();
   const ärPrivatperson = användare?.typ === 'privatperson';
   const ärFöretag = användare?.typ === 'företag';
+  const ärAdmin = användare?.email === 'info@fastgig.se';
 
   return (
     <Tab.Navigator
@@ -160,6 +170,7 @@ function HuvudNavigator() {
             MinaPassTab:    focused ? 'time'            : 'time-outline',
             MinaJobbTab:    focused ? 'list'            : 'list-outline',
             PubliceraTab:   focused ? 'add-circle'      : 'add-circle-outline',
+            RapporterTab:   focused ? 'bar-chart'       : 'bar-chart-outline',
             Profil:         focused ? 'person'          : 'person-outline',
           };
           return <Ionicons name={ikoner[route.name]} size={size} color={color} />;
@@ -186,6 +197,9 @@ function HuvudNavigator() {
         component={ChattNavigator}
         options={{ tabBarButton: () => null, tabBarItemStyle: { display: 'none' } }}
       />
+      {ärAdmin && (
+        <Tab.Screen name="RapporterTab" component={RapporterNavigator} options={{ tabBarLabel: 'Rapporter' }} />
+      )}
       <Tab.Screen name="Profil" component={ProfilNavigator} options={{ tabBarLabel: 'Profil' }} />
     </Tab.Navigator>
   );

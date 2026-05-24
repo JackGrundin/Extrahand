@@ -60,6 +60,12 @@ export const api = {
   sparaPushToken: (token) => anrop('PUT', '/users/push-token', { token }),
   testaNotifikation: () => anrop('POST', '/users/testa-notifikation'),
 
+  // Tidrapporter
+  skapaRapport: (kropp) => anrop('POST', '/tidrapporter', kropp),
+  hämtaTidrapport: (ansokningId) => anrop('GET', `/tidrapporter/ansokan/${ansokningId}`),
+  uppdateraTidrapportStatus: (id, status) => anrop('PATCH', `/tidrapporter/${id}/status`, { status }),
+  allaRapporter: (fromDate, toDate) => anrop('GET', `/tidrapporter/alla${fromDate || toDate ? `?${fromDate ? 'fromDate=' + fromDate : ''}${fromDate && toDate ? '&' : ''}${toDate ? 'toDate=' + toDate : ''}` : ''}`),
+
   // Betyg
   sättaBetyg: (ansokningId, kropp) => anrop('POST', `/betyg/${ansokningId}`, kropp),
   hämtaBetyg: (anvandareId) => anrop('GET', `/betyg/anvandare/${anvandareId}`),

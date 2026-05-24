@@ -1,8 +1,7 @@
 import { useCallback, useState } from 'react';
-import { View, Text, FlatList, TouchableOpacity, StyleSheet, ActivityIndicator, RefreshControl, Alert } from 'react-native';
+import { View, Text, FlatList, TouchableOpacity, StyleSheet, ActivityIndicator, RefreshControl, Alert, Modal, TextInput, KeyboardAvoidingView, Platform } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { api } from '../api/klient';
-
 
 const STATUSFÄRGER = {
   godkänd: { bg: '#dcfce7', text: '#16a34a' },
@@ -10,7 +9,7 @@ const STATUSFÄRGER = {
   väntande: { bg: '#f3f4f6', text: '#6b7280' },
 };
 
-function StatusKnappar({ item, onUppdaterad, navigation }) {
+function StatusKnappar({ item, onUppdaterad, onAvsluta, navigation }) {
   const [sparar, setSparar] = useState(false);
 
   async function godkänn() {
@@ -56,6 +55,9 @@ function StatusKnappar({ item, onUppdaterad, navigation }) {
             <Text style={styles.betygsättText}>Betygsätt →</Text>
           </TouchableOpacity>
         </View>
+        <TouchableOpacity style={styles.avsluteKnapp} onPress={() => onAvsluta(item.id)}>
+          <Text style={styles.avsluteKnappText}>Avsluta pass</Text>
+        </TouchableOpacity>
       </View>
     );
   }
@@ -80,15 +82,24 @@ function StatusKnappar({ item, onUppdaterad, navigation }) {
 }
 
 export default function JobbAnsokningarScreen({ route, navigation }) {
-  const { jobbId, titel } = route.params;
+  const { jobbId } = route.params;
   const [ansökningar, setAnsökningar] = useState([]);
+  const [jobb, setJobb] = useState(null);
   const [laddar, setLaddar] = useState(true);
   const [uppdaterar, setUppdaterar] = useState(false);
+  const [modalSynlig, setModalSynlig] = useState(false);
+  const [valtAnsokningId, setValtAnsokningId] = useState(null);
+  const [timmarText, setTimmarText] = useState('');
+  const [sparar, setSparar] = useState(false);
 
   async function hämta() {
     try {
-      const ansökningarData = await api.ansökningarFörJobb(jobbId);
+      const [ansökningarData, jobbData] = await Promise.all([
+        api.ansökningarFörJobb(jobbId),
+        api.hämtaJobb_id(jobbId),
+      ]);
       setAnsökningar(ansökningarData);
+      setJobb(jobbData);
     } catch (fel) {
       console.error(fel);
     } finally {
@@ -99,46 +110,116 @@ export default function JobbAnsokningarScreen({ route, navigation }) {
 
   useFocusEffect(useCallback(() => { hämta(); }, []));
 
+  function öppnaAvsluta(ansokningId) {
+    setValtAnsokningId(ansokningId);
+    setTimmarText('');
+    setModalSynlig(true);
+  }
+
+  async function skickaRapport() {
+    const timmar = parseFloat(timmarText.replace(',', '.'));
+    if (!timmar || timmar <= 0) {
+      Alert.alert('Fel', 'Ange ett giltigt antal timmar');
+      return;
+    }
+    setSparar(true);
+    try {
+      await api.skapaRapport({ ansokan_id: valtAnsokningId, timmar });
+      setModalSynlig(false);
+      Alert.alert('Skickat!', 'Tidrapporten har skickats till arbetstagaren för godkännande.');
+    } catch (fel) {
+      Alert.alert('Fel', fel.message);
+    } finally {
+      setSparar(false);
+    }
+  }
+
   if (laddar) return <ActivityIndicator style={{ flex: 1 }} size="large" />;
 
+  const timlön = jobb?.Lon ?? 0;
+  const timmar = parseFloat(timmarText.replace(',', '.')) || 0;
+
   return (
-    <FlatList
-      style={styles.lista}
-      data={ansökningar}
-      keyExtractor={(item) => item.id}
-      refreshControl={<RefreshControl refreshing={uppdaterar} onRefresh={() => { setUppdaterar(true); hämta(); }} />}
-      ListHeaderComponent={
-        <Text style={styles.rubrik}>{ansökningar.length} ansökning{ansökningar.length !== 1 ? 'ar' : ''}</Text>
-      }
-      ListEmptyComponent={<Text style={styles.tom}>Inga ansökningar ännu</Text>}
-      renderItem={({ item, index }) => (
-        <TouchableOpacity
-          style={styles.kort}
-          onPress={() => navigation.navigate('SökanadeProfil', { sokandeId: item.sokande_id, ansokningId: item.id })}
-        >
-          <View style={styles.kortHuvud}>
-            <View style={styles.avatar}>
-              <Text style={styles.avatarText}>
-                {(item.sökandeNamn ?? '?').charAt(0).toUpperCase()}
-              </Text>
+    <>
+      <FlatList
+        style={styles.lista}
+        data={ansökningar}
+        keyExtractor={(item) => item.id}
+        refreshControl={<RefreshControl refreshing={uppdaterar} onRefresh={() => { setUppdaterar(true); hämta(); }} />}
+        ListHeaderComponent={
+          <Text style={styles.rubrik}>{ansökningar.length} ansökning{ansökningar.length !== 1 ? 'ar' : ''}</Text>
+        }
+        ListEmptyComponent={<Text style={styles.tom}>Inga ansökningar ännu</Text>}
+        renderItem={({ item }) => (
+          <TouchableOpacity
+            style={styles.kort}
+            onPress={() => navigation.navigate('SökanadeProfil', { sokandeId: item.sokande_id, ansokningId: item.id })}
+          >
+            <View style={styles.kortHuvud}>
+              <View style={styles.avatar}>
+                <Text style={styles.avatarText}>
+                  {(item.sökandeNamn ?? '?').charAt(0).toUpperCase()}
+                </Text>
+              </View>
+              <View style={styles.info}>
+                <Text style={styles.sökandeTitel}>{item.sökandeNamn ?? 'Okänd sökande'}</Text>
+                <Text style={styles.datum}>{new Date(item.created_at).toLocaleDateString('sv-SE')}</Text>
+              </View>
             </View>
-            <View style={styles.info}>
-              <Text style={styles.sökandeTitel}>{item.sökandeNamn ?? 'Okänd sökande'}</Text>
-              <Text style={styles.datum}>{new Date(item.created_at).toLocaleDateString('sv-SE')}</Text>
+            {item.meddelande ? (
+              <Text style={styles.meddelande} numberOfLines={3}>{item.meddelande}</Text>
+            ) : (
+              <Text style={styles.ingetMeddelande}>Ingen ansökningstext</Text>
+            )}
+            <TouchableOpacity onPress={() => navigation.navigate('SökanadeProfil', { sokandeId: item.sokande_id, ansokningId: item.id })} style={styles.profilLänkRad}>
+              <Text style={styles.chattLänk}>Visa profil →</Text>
+            </TouchableOpacity>
+            <StatusKnappar item={item} onUppdaterad={hämta} onAvsluta={öppnaAvsluta} navigation={navigation} />
+          </TouchableOpacity>
+        )}
+      />
+
+      <Modal visible={modalSynlig} transparent animationType="slide" onRequestClose={() => setModalSynlig(false)}>
+        <KeyboardAvoidingView style={styles.modalBakgrund} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+          <View style={styles.modalKort}>
+            <Text style={styles.modalRubrik}>Avsluta pass</Text>
+
+            {timlön > 0 && (
+              <View style={styles.timlönRad}>
+                <Text style={styles.timlönEtikett}>Timlön från annonsen</Text>
+                <Text style={styles.timlönVärde}>{timlön.toLocaleString('sv-SE')} kr/tim</Text>
+              </View>
+            )}
+
+            <Text style={styles.modalLabel}>Antal jobbade timmar</Text>
+            <TextInput
+              style={styles.modalInput}
+              placeholder="t.ex. 4.5"
+              value={timmarText}
+              onChangeText={setTimmarText}
+              keyboardType="decimal-pad"
+              autoFocus
+            />
+
+            {timmar > 0 && timlön > 0 && (
+              <View style={styles.totalRad}>
+                <Text style={styles.totalEtikett}>Totalt belopp</Text>
+                <Text style={styles.totalVärde}>{(timmar * timlön).toLocaleString('sv-SE')} kr</Text>
+              </View>
+            )}
+
+            <View style={styles.modalKnappar}>
+              <TouchableOpacity style={styles.avbrytKnapp} onPress={() => setModalSynlig(false)}>
+                <Text style={styles.avbrytText}>Avbryt</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={[styles.skickaKnapp, sparar && { opacity: 0.5 }]} onPress={skickaRapport} disabled={sparar}>
+                <Text style={styles.skickaText}>Skicka rapport</Text>
+              </TouchableOpacity>
             </View>
           </View>
-          {item.meddelande ? (
-            <Text style={styles.meddelande} numberOfLines={3}>{item.meddelande}</Text>
-          ) : (
-            <Text style={styles.ingetMeddelande}>Ingen ansökningstext</Text>
-          )}
-          <TouchableOpacity onPress={() => navigation.navigate('SökanadeProfil', { sokandeId: item.sokande_id, ansokningId: item.id })} style={styles.profilLänkRad}>
-            <Text style={styles.chattLänk}>Visa profil →</Text>
-          </TouchableOpacity>
-          <StatusKnappar item={item} onUppdaterad={hämta} navigation={navigation} />
-        </TouchableOpacity>
-      )}
-    />
+        </KeyboardAvoidingView>
+      </Modal>
+    </>
   );
 }
 
@@ -163,10 +244,28 @@ const styles = StyleSheet.create({
   godkändBadge: { backgroundColor: '#dcfce7', borderRadius: 10, paddingHorizontal: 12, paddingVertical: 5 },
   godkändText: { color: '#16a34a', fontWeight: '700', fontSize: 13 },
   öppnaChattText: { fontSize: 13, color: '#2563eb', fontWeight: '500' },
-  godkändBottomRad: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  godkändBottomRad: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 },
   återkallaText: { fontSize: 12, color: '#9ca3af', textDecorationLine: 'underline' },
   betygsättText: { fontSize: 13, color: '#2563eb', fontWeight: '500' },
+  avsluteKnapp: { backgroundColor: '#059669', borderRadius: 8, paddingVertical: 10, alignItems: 'center' },
+  avsluteKnappText: { color: '#fff', fontWeight: '600', fontSize: 14 },
   avvisadBadge: { backgroundColor: '#fee2e2', borderRadius: 10, paddingHorizontal: 12, paddingVertical: 5, alignSelf: 'flex-start', marginBottom: 12 },
   avvisadText: { color: '#dc2626', fontWeight: '600', fontSize: 13 },
   tom: { textAlign: 'center', color: '#999', marginTop: 40, fontSize: 16 },
+  modalBakgrund: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
+  modalKort: { backgroundColor: '#fff', borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 24, paddingBottom: 40 },
+  modalRubrik: { fontSize: 18, fontWeight: '700', color: '#1a1a1a', marginBottom: 20 },
+  timlönRad: { flexDirection: 'row', justifyContent: 'space-between', backgroundColor: '#f0fdf4', borderRadius: 10, padding: 12, marginBottom: 16 },
+  timlönEtikett: { fontSize: 14, color: '#065f46' },
+  timlönVärde: { fontSize: 14, fontWeight: '700', color: '#065f46' },
+  modalLabel: { fontSize: 14, fontWeight: '600', color: '#444', marginBottom: 8 },
+  modalInput: { borderWidth: 1, borderColor: '#ddd', borderRadius: 10, padding: 14, fontSize: 18, backgroundColor: '#fafafa', marginBottom: 16, textAlign: 'center' },
+  totalRad: { flexDirection: 'row', justifyContent: 'space-between', backgroundColor: '#eff6ff', borderRadius: 10, padding: 12, marginBottom: 20 },
+  totalEtikett: { fontSize: 14, color: '#1e40af' },
+  totalVärde: { fontSize: 16, fontWeight: '700', color: '#1e40af' },
+  modalKnappar: { flexDirection: 'row', gap: 12 },
+  avbrytKnapp: { flex: 1, borderWidth: 1, borderColor: '#ddd', borderRadius: 10, padding: 14, alignItems: 'center' },
+  avbrytText: { fontSize: 15, color: '#666', fontWeight: '600' },
+  skickaKnapp: { flex: 1, backgroundColor: '#2563eb', borderRadius: 10, padding: 14, alignItems: 'center' },
+  skickaText: { fontSize: 15, color: '#fff', fontWeight: '600' },
 });
