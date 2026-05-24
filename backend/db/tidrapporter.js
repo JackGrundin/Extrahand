@@ -74,4 +74,39 @@ async function hämtaAllaTidrapporter({ fromDate, toDate } = {}) {
   }));
 }
 
-module.exports = { skapaTidrapport, hämtaTidrapportFörAnsökan, uppdateraTidrapportStatus, hämtaAllaTidrapporter };
+async function hämtaTidrapporterFörFöretag(foretagId) {
+  const { data: rapporter, error } = await supabase
+    .from('tidrapporter')
+    .select('*')
+    .eq('foretag_id', foretagId)
+    .order('datum', { ascending: false });
+
+  if (error) throw error;
+  if (!rapporter || !rapporter.length) return [];
+
+  const ansokanIds = rapporter.map(r => r.ansokan_id);
+  const anvandareIds = [...new Set(rapporter.map(r => r.anvandare_id))];
+
+  const [{ data: ansokningar }, { data: anvandare }] = await Promise.all([
+    supabase.from('ansokningar').select('id, jobb_id').in('id', ansokanIds),
+    supabase.from('användare').select('id, Namn').in('id', anvandareIds),
+  ]);
+
+  const jobbIds = [...new Set((ansokningar || []).map(a => a.jobb_id))];
+  const { data: jobb } = await supabase.from('jobb').select('id, Titel').in('id', jobbIds);
+
+  const ansokanMap = Object.fromEntries((ansokningar || []).map(a => [a.id, a]));
+  const anvandareMap = Object.fromEntries((anvandare || []).map(a => [a.id, a]));
+  const jobbMap = Object.fromEntries((jobb || []).map(j => [j.id, j]));
+
+  return rapporter.map(r => {
+    const ansökan = ansokanMap[r.ansokan_id];
+    return {
+      ...r,
+      jobbTitel: jobbMap[ansökan?.jobb_id]?.Titel ?? null,
+      privatpersonNamn: anvandareMap[r.anvandare_id]?.Namn ?? null,
+    };
+  });
+}
+
+module.exports = { skapaTidrapport, hämtaTidrapportFörAnsökan, uppdateraTidrapportStatus, hämtaAllaTidrapporter, hämtaTidrapporterFörFöretag };

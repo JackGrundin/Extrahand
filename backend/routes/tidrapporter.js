@@ -1,6 +1,6 @@
 const express = require('express');
 const { kräverInloggning, kräverTyp } = require('../middleware/auth');
-const { skapaTidrapport, hämtaTidrapportFörAnsökan, uppdateraTidrapportStatus, hämtaAllaTidrapporter } = require('../db/tidrapporter');
+const { skapaTidrapport, hämtaTidrapportFörAnsökan, uppdateraTidrapportStatus, hämtaAllaTidrapporter, hämtaTidrapporterFörFöretag } = require('../db/tidrapporter');
 const { hämtaAnsökanViaId } = require('../db/ansokningar');
 const { hämtaJobbViaId } = require('../db/jobb');
 const { hämtaAnvändareViaEmail } = require('../db/användare');
@@ -66,6 +66,17 @@ router.patch('/:id/status', kräverInloggning, kräverTyp('privatperson'), async
     res.json({ ok: true });
   } catch (fel) {
     console.error('Status fel:', fel);
+    res.status(500).json({ fel: 'Serverfel' });
+  }
+});
+
+// GET /api/tidrapporter/foretag — företag hämtar sina avslutade pass
+router.get('/foretag', kräverInloggning, kräverTyp('företag'), async (req, res) => {
+  try {
+    const rapporter = await hämtaTidrapporterFörFöretag(req.användare.id);
+    res.json(rapporter);
+  } catch (fel) {
+    console.error('Företags rapporter fel:', fel);
     res.status(500).json({ fel: 'Serverfel' });
   }
 });
