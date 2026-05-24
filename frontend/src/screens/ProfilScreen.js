@@ -111,16 +111,16 @@ export default function ProfilScreen({ navigation }) {
         </View>
       )}
 
+      <TouchableOpacity
+        style={styles.redigeraKnapp}
+        onPress={() => navigation.navigate('RedigeraProfil', { profil })}
+      >
+        <Ionicons name="create-outline" size={18} color="#2563eb" />
+        <Text style={styles.redigeraText}>Redigera profil</Text>
+      </TouchableOpacity>
+
       {ärPrivatperson && (
         <>
-          <TouchableOpacity
-            style={styles.redigeraKnapp}
-            onPress={() => navigation.navigate('RedigeraProfil', { profil })}
-          >
-            <Ionicons name="create-outline" size={18} color="#2563eb" />
-            <Text style={styles.redigeraText}>Redigera profil</Text>
-          </TouchableOpacity>
-
           <ProfilSektion rubrik="CV / Om mig" innehall={profil?.cv} />
           <ProfilSektion rubrik="Tidigare erfarenheter" innehall={profil?.erfarenheter} />
           <ProfilSektion rubrik="Kompetenser" innehall={profil?.kompetenser} />
@@ -129,8 +129,19 @@ export default function ProfilScreen({ navigation }) {
           {!profil?.cv && !profil?.erfarenheter && !profil?.kompetenser && !profil?.intressen && (
             <Text style={styles.tomProfil}>Fyll i ditt CV och erfarenheter för att sticka ut när du söker jobb.</Text>
           )}
+        </>
+      )}
 
-          {betyg && betyg.antal > 0 && (
+      {!ärPrivatperson && (
+        <>
+          <ProfilSektion rubrik="Om företaget" innehall={profil?.beskrivning} />
+          <ProfilSektion rubrik="Bransch" innehall={profil?.bransch} />
+          <ProfilSektion rubrik="Stad" innehall={profil?.stad} />
+          <ProfilSektion rubrik="Hemsida" innehall={profil?.hemsida} />
+        </>
+      )}
+
+      {ärPrivatperson && betyg && betyg.antal > 0 && (
             <View style={styles.betygSektion}>
               <Text style={styles.betygSektionsRubrik}>Betyg från arbetsgivare</Text>
               {betyg.betyg.map((b, i) => (
@@ -149,8 +160,6 @@ export default function ProfilScreen({ navigation }) {
               ))}
             </View>
           )}
-        </>
-      )}
 
       <TouchableOpacity style={styles.loggaUtKnapp} onPress={loggaUt}>
         <Text style={styles.loggaUtText}>Logga ut</Text>
