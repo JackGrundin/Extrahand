@@ -69,6 +69,9 @@ export default function MinaJobbScreen({ navigation }) {
 
   if (laddar) return <ActivityIndicator style={{ flex: 1 }} size="large" />;
 
+  const avslutadeJobbIds = new Set(tidigarePass.map(p => p.jobbId).filter(Boolean));
+  const aktivaJobb = jobb.filter(j => !avslutadeJobbIds.has(j.id));
+
   return (
     <View style={{ flex: 1, backgroundColor: '#f5f5f5' }}>
       <View style={styles.flikar}>
@@ -77,7 +80,7 @@ export default function MinaJobbScreen({ navigation }) {
           onPress={() => setAktivFlik('aktiva')}
         >
           <Text style={[styles.flikText, aktivFlik === 'aktiva' && styles.flikTextAktiv]}>
-            Aktiva ({jobb.length})
+            Aktiva ({aktivaJobb.length})
           </Text>
         </TouchableOpacity>
         <TouchableOpacity
@@ -93,7 +96,7 @@ export default function MinaJobbScreen({ navigation }) {
       {aktivFlik === 'aktiva' ? (
         <FlatList
           style={styles.lista}
-          data={jobb}
+          data={aktivaJobb}
           keyExtractor={(item) => item.id}
           refreshControl={<RefreshControl refreshing={uppdaterar} onRefresh={() => { setUppdaterar(true); hämta(); }} />}
           ListEmptyComponent={

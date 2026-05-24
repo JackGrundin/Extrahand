@@ -103,6 +103,7 @@ async function hämtaTidrapporterFörFöretag(foretagId) {
     const ansökan = ansokanMap[r.ansokan_id];
     return {
       ...r,
+      jobbId: ansökan?.jobb_id ?? null,
       jobbTitel: jobbMap[ansökan?.jobb_id]?.Titel ?? null,
       privatpersonNamn: anvandareMap[r.anvandare_id]?.Namn ?? null,
     };
