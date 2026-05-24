@@ -83,6 +83,16 @@ export default function PubliceraJobbScreen({ navigation }) {
 
           <Text style={styles.label}>Timlön (kr/tim)</Text>
           <TextInput style={styles.input} placeholder="t.ex. 160" value={lon} onChangeText={setLon} keyboardType="numeric" />
+          {lon ? (() => {
+            const timlön = parseFloat(lon) || 0;
+            const faktureringspris = Math.round((timlön + timlön * 0.32 + timlön * 0.06) * 1.40);
+            return timlön > 0 ? (
+              <View style={styles.prisKalkyl}>
+                <Text style={styles.prisRad}>Timlön för personen: <Text style={styles.prisFet}>{timlön.toLocaleString('sv-SE')} kr/h</Text></Text>
+                <Text style={styles.prisRad}>Ni faktureras: <Text style={styles.prisFetBlå}>{faktureringspris.toLocaleString('sv-SE')} kr/h</Text> (inkl. avgifter och moms)</Text>
+              </View>
+            ) : null;
+          })() : null}
 
           <Text style={styles.label}>Antal dagar</Text>
           <TextInput style={styles.input} placeholder="t.ex. 5" value={antalDagar} onChangeText={setAntalDagar} keyboardType="numeric" />
@@ -173,6 +183,11 @@ const styles = StyleSheet.create({
   typKnappAktiv: { backgroundColor: '#2563eb', borderColor: '#2563eb' },
   typText: { color: '#555', fontWeight: '500', fontSize: 14 },
   typTextAktiv: { color: '#fff' },
+
+  prisKalkyl: { backgroundColor: '#f0f9ff', borderRadius: 10, padding: 12, marginTop: 8, gap: 4, borderWidth: 1, borderColor: '#bae6fd' },
+  prisRad: { fontSize: 13, color: '#0369a1' },
+  prisFet: { fontWeight: '700', color: '#0369a1' },
+  prisFetBlå: { fontWeight: '700', color: '#1d4ed8' },
 
   knapp: { backgroundColor: '#2563eb', borderRadius: 12, padding: 16, alignItems: 'center', marginTop: 28, marginBottom: 40 },
   knappInaktiv: { backgroundColor: '#93c5fd' },
