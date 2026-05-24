@@ -35,7 +35,8 @@
       "Bash(node --check src/screens/JobbAnsokningarScreen.js)",
       "Bash(node --check routes/användare.js)",
       "Bash(node --check db/ansokningar.js)",
-      "Bash(node --check routes/ansokningar.js)"
+      "Bash(node --check routes/ansokningar.js)",
+      "Bash(node index.js)"
     ]
   }
 }

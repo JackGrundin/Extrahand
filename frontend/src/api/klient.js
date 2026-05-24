@@ -1,6 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-const API_URL = 'http://192.168.68.108:3000/api';
+const API_URL = 'http://192.168.68.112:3000/api';
 
 async function anrop(metod, sökväg, kropp) {
   const token = await AsyncStorage.getItem('token');
@@ -54,7 +54,6 @@ export const api = {
   // Profil
   uppdateraProfil: (kropp) => anrop('PUT', '/users/profil', kropp),
   laddaUppProfilBild: (bild) => anrop('POST', '/users/profil-bild', { bild }),
-  loggaTimmar: (ansokningId, timmar) => anrop('PUT', `/ansokningar/${ansokningId}/timmar`, { timmar }),
   uppdateraStatus: (ansokningId, status) => anrop('PATCH', `/ansokningar/${ansokningId}/status`, { status }),
 
   // Push-notifikationer

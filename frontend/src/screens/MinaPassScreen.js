@@ -108,11 +108,6 @@ export default function MinaPassScreen({ navigation }) {
                     ) : null}
                   </View>
                 </View>
-                {item.timmar > 0 && (
-                  <View style={styles.timmarBricka}>
-                    <Text style={styles.timmarText}>{item.timmar}h</Text>
-                  </View>
-                )}
               </View>
               <Text style={styles.chattLänk}>Öppna chatt →</Text>
             </TouchableOpacity>

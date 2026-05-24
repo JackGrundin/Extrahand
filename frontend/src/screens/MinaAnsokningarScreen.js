@@ -82,9 +82,7 @@ export default function MinaAnsokningarScreen({ navigation }) {
           ) : (
             <Text style={styles.ingetMeddelande}>Ingen ansökningsttext</Text>
           )}
-          {item.timmar > 0 && (
-            <Text style={styles.timmar}>{item.timmar} tim loggade</Text>
-          )}
+
           <View style={styles.kortFot}>
             <TouchableOpacity onPress={() => navigation.navigate('Chatt', { ansokningId: item.id })}>
               <Text style={styles.chattLänk}>Öppna chatt →</Text>
@@ -110,7 +108,6 @@ const styles = StyleSheet.create({
   datum: { fontSize: 13, color: '#999', marginLeft: 8 },
   meddelande: { fontSize: 14, color: '#555', lineHeight: 20, marginBottom: 10 },
   ingetMeddelande: { fontSize: 14, color: '#aaa', fontStyle: 'italic', marginBottom: 10 },
-  timmar: { fontSize: 13, color: '#059669', fontWeight: '500', marginBottom: 6 },
   kortFot: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   chattLänk: { fontSize: 13, color: '#2563eb', fontWeight: '500' },
   ångraLänk: { fontSize: 13, color: '#dc2626', fontWeight: '500' },

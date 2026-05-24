@@ -61,13 +61,6 @@ async function hämtaTotalTimmar(sokande_id) {
   return (data || []).reduce((sum, a) => sum + (a.timmar || 0), 0);
 }
 
-async function uppdateraTimmar(id, timmar) {
-  const { error } = await supabase
-    .from('ansokningar')
-    .update({ timmar })
-    .eq('id', id);
-  if (error) throw error;
-}
 
 async function hämtaAnsökningarFörJobb(jobb_id) {
   const { data: ansökningar, error } = await supabase
@@ -187,4 +180,4 @@ async function ångraAnsökan(id, sokande_id) {
   if (error) throw error;
 }
 
-module.exports = { skapaAnsökan, hämtaAnsökningarFörSökande, hämtaAnsökningarFörJobb, finnsDubblettAnsökan, hämtaTotalTimmar, uppdateraTimmar, uppdateraStatus, hämtaAnsökanViaId, avvisaAllaUtomEn, återställAllaFörJobb, hämtaAllaKonversationerFörFöretag, hämtaGodkändaFörJobb, ångraAnsökan };
+module.exports = { skapaAnsökan, hämtaAnsökningarFörSökande, hämtaAnsökningarFörJobb, finnsDubblettAnsökan, hämtaTotalTimmar, uppdateraStatus, hämtaAnsökanViaId, avvisaAllaUtomEn, återställAllaFörJobb, hämtaAllaKonversationerFörFöretag, hämtaGodkändaFörJobb, ångraAnsökan };

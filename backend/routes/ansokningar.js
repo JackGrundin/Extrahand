@@ -1,6 +1,6 @@
 const express = require('express');
 const { kräverInloggning, kräverTyp } = require('../middleware/auth');
-const { skapaAnsökan, hämtaAnsökningarFörSökande, hämtaAnsökningarFörJobb, finnsDubblettAnsökan, uppdateraTimmar, uppdateraStatus, hämtaAnsökanViaId, avvisaAllaUtomEn, återställAllaFörJobb, hämtaAllaKonversationerFörFöretag, ångraAnsökan } = require('../db/ansokningar');
+const { skapaAnsökan, hämtaAnsökningarFörSökande, hämtaAnsökningarFörJobb, finnsDubblettAnsökan, uppdateraStatus, hämtaAnsökanViaId, avvisaAllaUtomEn, återställAllaFörJobb, hämtaAllaKonversationerFörFöretag, ångraAnsökan } = require('../db/ansokningar');
 const { hämtaPushToken, hämtaAnvändareViaId } = require('../db/användare');
 const { hämtaJobbViaId } = require('../db/jobb');
 
@@ -144,19 +144,5 @@ router.delete('/:id', kräverInloggning, kräverTyp('privatperson'), async (req,
   }
 });
 
-// PUT /api/ansokningar/:id/timmar — företag loggar arbetade timmar
-router.put('/:id/timmar', kräverInloggning, kräverTyp('företag'), async (req, res) => {
-  const { timmar } = req.body;
-  if (typeof timmar !== 'number' || timmar < 0) {
-    return res.status(400).json({ fel: 'Timmar måste vara ett positivt tal' });
-  }
-  try {
-    await uppdateraTimmar(req.params.id, timmar);
-    res.json({ ok: true });
-  } catch (fel) {
-    console.error('Timmar fel:', fel);
-    res.status(500).json({ fel: 'Serverfel' });
-  }
-});
 
 module.exports = router;
