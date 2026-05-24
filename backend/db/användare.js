@@ -7,10 +7,10 @@ const supabase = createClient(
   { realtime: { transport: ws } }
 );
 
-async function skapaAnvändare({ namn, email, lösenord, typ }) {
+async function skapaAnvändare({ namn, email, lösenord, typ, beskrivning, bransch, stad, hemsida }) {
   const { data, error } = await supabase
     .from('användare')
-    .insert([{ Namn: namn, Email: email, Lösenord: lösenord, Typ: typ }])
+    .insert([{ Namn: namn, Email: email, Lösenord: lösenord, Typ: typ, beskrivning, bransch, stad, hemsida }])
     .select()
     .single();
 
@@ -32,7 +32,7 @@ async function hämtaAnvändareViaEmail(email) {
 async function hämtaAnvändareViaId(id) {
   const { data, error } = await supabase
     .from('användare')
-    .select('id, Namn, Typ, created_at, cv, erfarenheter, kompetenser, intressen, profil_bild')
+    .select('id, Namn, Typ, created_at, cv, erfarenheter, kompetenser, intressen, profil_bild, beskrivning, bransch, stad, hemsida')
     .eq('id', id)
     .single();
 
@@ -45,10 +45,10 @@ async function uppdateraProfilBild(id, url) {
   if (error) throw error;
 }
 
-async function uppdateraProfil(id, { cv, erfarenheter, kompetenser, intressen }) {
+async function uppdateraProfil(id, { cv, erfarenheter, kompetenser, intressen, beskrivning, bransch, stad, hemsida }) {
   const { error } = await supabase
     .from('användare')
-    .update({ cv, erfarenheter, kompetenser, intressen })
+    .update({ cv, erfarenheter, kompetenser, intressen, beskrivning, bransch, stad, hemsida })
     .eq('id', id);
   if (error) throw error;
 }

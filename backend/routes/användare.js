@@ -4,6 +4,7 @@ const ws = require('ws');
 const { kräverInloggning } = require('../middleware/auth');
 const { hämtaAnvändareViaEmail, hämtaAnvändareViaId, uppdateraProfil, uppdateraProfilBild, sparaPushToken, hämtaPushToken } = require('../db/användare');
 const { hämtaTotalTimmar } = require('../db/ansokningar');
+const { hämtaJobbFörFöretag } = require('../db/jobb');
 
 const router = express.Router();
 
@@ -36,6 +37,10 @@ router.get('/profil', kräverInloggning, async (req, res) => {
       kompetenser: användare.kompetenser ?? null,
       intressen: användare.intressen ?? null,
       profilBild: användare.profil_bild ?? null,
+      beskrivning: användare.beskrivning ?? null,
+      bransch: användare.bransch ?? null,
+      stad: användare.stad ?? null,
+      hemsida: användare.hemsida ?? null,
       totalTimmar,
     });
   } catch (fel) {
@@ -47,15 +52,16 @@ router.get('/profil', kräverInloggning, async (req, res) => {
 // GET /api/users/:id/profil — hämtar en annan användares publika profil
 router.get('/:id/profil', kräverInloggning, async (req, res) => {
   try {
-    const [användare, totalTimmar, betygData] = await Promise.all([
-      hämtaAnvändareViaId(req.params.id),
-      hämtaTotalTimmar(req.params.id),
-      null,
-    ]);
+    const användare = await hämtaAnvändareViaId(req.params.id);
 
     if (!användare) {
       return res.status(404).json({ fel: 'Användaren hittades inte' });
     }
+
+    const [totalTimmar, aktivaJobb] = await Promise.all([
+      hämtaTotalTimmar(req.params.id),
+      användare.Typ === 'företag' ? hämtaJobbFörFöretag(req.params.id) : Promise.resolve([]),
+    ]);
 
     res.json({
       id: användare.id,
@@ -66,7 +72,12 @@ router.get('/:id/profil', kräverInloggning, async (req, res) => {
       kompetenser: användare.kompetenser ?? null,
       intressen: användare.intressen ?? null,
       profilBild: användare.profil_bild ?? null,
+      beskrivning: användare.beskrivning ?? null,
+      bransch: användare.bransch ?? null,
+      stad: användare.stad ?? null,
+      hemsida: användare.hemsida ?? null,
       totalTimmar,
+      aktivaJobb,
     });
   } catch (fel) {
     console.error('Profilfel:', fel);
@@ -76,13 +87,17 @@ router.get('/:id/profil', kräverInloggning, async (req, res) => {
 
 // PUT /api/users/profil — uppdaterar CV och profilinformation
 router.put('/profil', kräverInloggning, async (req, res) => {
-  const { cv, erfarenheter, kompetenser, intressen } = req.body;
+  const { cv, erfarenheter, kompetenser, intressen, beskrivning, bransch, stad, hemsida } = req.body;
   try {
     await uppdateraProfil(req.användare.id, {
       cv: cv?.trim() || null,
       erfarenheter: erfarenheter?.trim() || null,
       kompetenser: kompetenser?.trim() || null,
       intressen: intressen?.trim() || null,
+      beskrivning: beskrivning?.trim() || null,
+      bransch: bransch?.trim() || null,
+      stad: stad?.trim() || null,
+      hemsida: hemsida?.trim() || null,
     });
     res.json({ ok: true });
   } catch (fel) {

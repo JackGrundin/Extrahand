@@ -46,6 +46,15 @@ export default function JobbDetaljScreen({ route, navigation }) {
         </TouchableOpacity>
       )}
 
+      {användare?.typ === 'privatperson' && (jobb.Foretag_id ?? jobb.foretag_id) && (
+        <TouchableOpacity
+          style={styles.sekundärKnapp}
+          onPress={() => navigation.navigate('FöretagsProfil', { foretagId: jobb.Foretag_id ?? jobb.foretag_id })}
+        >
+          <Text style={styles.sekundärKnappText}>Om företaget</Text>
+        </TouchableOpacity>
+      )}
+
       {användare?.typ === 'privatperson' && (
         <>
           {!sökt && (

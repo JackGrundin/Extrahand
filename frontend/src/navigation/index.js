@@ -21,6 +21,7 @@ import JobbAnsokningarScreen from '../screens/JobbAnsokningarScreen';
 import BetygsattScreen from '../screens/BetygsattScreen';
 import RedigeraProfilScreen from '../screens/RedigeraProfilScreen';
 import MinaPassScreen from '../screens/MinaPassScreen';
+import FöretagsProfilScreen from '../screens/FöretagsProfilScreen';
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -54,6 +55,7 @@ function JobbNavigator() {
     >
       <Stack.Screen name="Jobb" component={JobbScreen} options={{ title: 'Lediga jobb' }} />
       <Stack.Screen name="JobbDetalj" component={JobbDetaljScreen} options={{ title: 'Jobbdetaljer' }} />
+      <Stack.Screen name="FöretagsProfil" component={FöretagsProfilScreen} options={{ title: 'Företagsprofil' }} />
       <Stack.Screen name="JobbAnsokningar" component={JobbAnsokningarScreen} options={({ route }) => ({ title: route.params?.titel ?? 'Ansökningar' })} />
       <Stack.Screen name="Chatt" component={ChattScreen} options={{ title: 'Chatt' }} />
     </Stack.Navigator>

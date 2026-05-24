@@ -44,8 +44,8 @@ export function AuthProvider({ children }) {
     registreraPushToken();
   }
 
-  async function registrera(namn, email, lösenord, typ) {
-    const svar = await api.registrera({ namn, email, lösenord, typ });
+  async function registrera(namn, email, lösenord, typ, företagsInfo = {}) {
+    const svar = await api.registrera({ namn, email, lösenord, typ, ...företagsInfo });
     await AsyncStorage.setItem('token', svar.token);
     setAnvändare(svar.användare);
     registreraPushToken();
