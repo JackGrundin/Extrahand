@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef, useCallback } from 'react';
-import { View, Text, FlatList, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform, ActivityIndicator, Alert } from 'react-native';
+import { View, Text, FlatList, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform, ActivityIndicator, Alert, RefreshControl } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { api } from '../api/klient';
@@ -100,22 +100,25 @@ export default function ChattScreen({ route, navigation }) {
   const [tidrapport, setTidrapport] = useState(null);
   const [text, setText] = useState('');
   const [laddar, setLaddar] = useState(true);
+  const [uppdaterar, setUppdaterar] = useState(false);
   const [skickar, setSkickar] = useState(false);
   const listRef = useRef(null);
 
   async function hämta() {
     try {
-      const [meddelandeData, rapportData] = await Promise.all([
-        api.hämtaMeddelanden(ansokningId),
-        api.hämtaTidrapport(ansokningId),
-      ]);
-      setMeddelanden(meddelandeData);
-      setTidrapport(rapportData);
+      const data = await api.hämtaMeddelanden(ansokningId);
+      setMeddelanden(data);
     } catch (fel) {
-      console.error(fel);
-    } finally {
-      setLaddar(false);
+      console.error('Meddelanden fel:', fel);
     }
+    try {
+      const rapport = await api.hämtaTidrapport(ansokningId);
+      setTidrapport(rapport);
+    } catch (fel) {
+      console.error('Tidrapport fel:', fel);
+    }
+    setLaddar(false);
+    setUppdaterar(false);
   }
 
   useFocusEffect(useCallback(() => { hämta(); }, []));
@@ -145,6 +148,7 @@ export default function ChattScreen({ route, navigation }) {
         keyExtractor={(item) => item.id}
         contentContainerStyle={styles.meddelandeLista}
         onContentSizeChange={() => listRef.current?.scrollToEnd({ animated: false })}
+        refreshControl={<RefreshControl refreshing={uppdaterar} onRefresh={() => { setUppdaterar(true); hämta(); }} />}
         ListEmptyComponent={<Text style={styles.tom}>Inga meddelanden ännu. Säg hej!</Text>}
         ListFooterComponent={
           tidrapport ? (
