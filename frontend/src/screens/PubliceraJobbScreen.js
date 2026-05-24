@@ -89,7 +89,7 @@ export default function PubliceraJobbScreen({ navigation }) {
             return timlön > 0 ? (
               <View style={styles.prisKalkyl}>
                 <Text style={styles.prisRad}>Timlön för personen: <Text style={styles.prisFet}>{Math.round(timlön)} kr/h</Text></Text>
-                <Text style={styles.prisRad}>Ni faktureras: <Text style={styles.prisFetBlå}>{faktureringspris} kr/h</Text> (ex moms)</Text>
+                <Text style={styles.prisRad}>Ni faktureras: <Text style={styles.prisFetBlå}>{faktureringspris} kr/h</Text> (exkl. moms)</Text>
               </View>
             ) : null;
           })() : null}
