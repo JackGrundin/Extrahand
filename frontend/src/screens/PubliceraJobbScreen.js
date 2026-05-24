@@ -85,7 +85,7 @@ export default function PubliceraJobbScreen({ navigation }) {
           <TextInput style={styles.input} placeholder="t.ex. 160" value={lon} onChangeText={setLon} keyboardType="numeric" />
           {lon ? (() => {
             const timlön = parseFloat(lon) || 0;
-            const faktureringspris = Math.round((timlön * 1.38) * 1.40);
+            const faktureringspris = Math.round(timlön * 1.32 * 1.06 * 1.40);
             return timlön > 0 ? (
               <View style={styles.prisKalkyl}>
                 <Text style={styles.prisRad}>Timlön för personen: <Text style={styles.prisFet}>{Math.round(timlön)} kr/h</Text></Text>
