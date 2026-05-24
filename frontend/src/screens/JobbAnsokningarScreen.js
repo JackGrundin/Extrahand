@@ -3,12 +3,6 @@ import { View, Text, FlatList, TouchableOpacity, StyleSheet, ActivityIndicator, 
 import { useFocusEffect } from '@react-navigation/native';
 import { api } from '../api/klient';
 
-const STATUSFÄRGER = {
-  godkänd: { bg: '#dcfce7', text: '#16a34a' },
-  avvisad: { bg: '#fee2e2', text: '#dc2626' },
-  väntande: { bg: '#f3f4f6', text: '#6b7280' },
-};
-
 function StatusKnappar({ item, onUppdaterad, onAvsluta, navigation }) {
   const [sparar, setSparar] = useState(false);
 
@@ -84,7 +78,9 @@ function StatusKnappar({ item, onUppdaterad, onAvsluta, navigation }) {
 export default function JobbAnsokningarScreen({ route, navigation }) {
   const { jobbId } = route.params;
   const [ansökningar, setAnsökningar] = useState([]);
+  const [avslutadeIds, setAvslutadeIds] = useState(new Set());
   const [jobb, setJobb] = useState(null);
+  const [aktivFlik, setAktivFlik] = useState('aktiva');
   const [laddar, setLaddar] = useState(true);
   const [uppdaterar, setUppdaterar] = useState(false);
   const [modalSynlig, setModalSynlig] = useState(false);
@@ -100,6 +96,11 @@ export default function JobbAnsokningarScreen({ route, navigation }) {
       ]);
       setAnsökningar(ansökningarData);
       setJobb(jobbData);
+
+      const godkända = ansökningarData.filter(a => a.status === 'godkänd');
+      const rapporter = await Promise.all(godkända.map(a => api.hämtaTidrapport(a.id).catch(() => null)));
+      const avslutade = new Set(godkända.filter((_, i) => rapporter[i] != null).map(a => a.id));
+      setAvslutadeIds(avslutade);
     } catch (fel) {
       console.error(fel);
     } finally {
@@ -126,6 +127,7 @@ export default function JobbAnsokningarScreen({ route, navigation }) {
     try {
       await api.skapaRapport({ ansokan_id: valtAnsokningId, timmar });
       setModalSynlig(false);
+      setAvslutadeIds(prev => new Set([...prev, valtAnsokningId]));
       Alert.alert('Skickat!', 'Tidrapporten har skickats till arbetstagaren för godkännande.');
     } catch (fel) {
       Alert.alert('Fel', fel.message);
@@ -138,44 +140,85 @@ export default function JobbAnsokningarScreen({ route, navigation }) {
 
   const timlön = jobb?.Lon ?? 0;
   const timmar = parseFloat(timmarText.replace(',', '.')) || 0;
+  const aktivaAnsökningar = ansökningar.filter(a => !avslutadeIds.has(a.id));
+  const tidigareAnsökningar = ansökningar.filter(a => avslutadeIds.has(a.id));
+  const visadeAnsökningar = aktivFlik === 'aktiva' ? aktivaAnsökningar : tidigareAnsökningar;
 
   return (
     <>
+      <View style={styles.flikar}>
+        <TouchableOpacity
+          style={[styles.flik, aktivFlik === 'aktiva' && styles.flikAktiv]}
+          onPress={() => setAktivFlik('aktiva')}
+        >
+          <Text style={[styles.flikText, aktivFlik === 'aktiva' && styles.flikTextAktiv]}>
+            Aktiva ({aktivaAnsökningar.length})
+          </Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.flik, aktivFlik === 'tidigare' && styles.flikAktiv]}
+          onPress={() => setAktivFlik('tidigare')}
+        >
+          <Text style={[styles.flikText, aktivFlik === 'tidigare' && styles.flikTextAktiv]}>
+            Tidigare pass ({tidigareAnsökningar.length})
+          </Text>
+        </TouchableOpacity>
+      </View>
+
       <FlatList
         style={styles.lista}
-        data={ansökningar}
+        data={visadeAnsökningar}
         keyExtractor={(item) => item.id}
         refreshControl={<RefreshControl refreshing={uppdaterar} onRefresh={() => { setUppdaterar(true); hämta(); }} />}
-        ListHeaderComponent={
-          <Text style={styles.rubrik}>{ansökningar.length} ansökning{ansökningar.length !== 1 ? 'ar' : ''}</Text>
+        ListEmptyComponent={
+          <Text style={styles.tom}>
+            {aktivFlik === 'aktiva' ? 'Inga aktiva ansökningar' : 'Inga avslutade pass ännu'}
+          </Text>
         }
-        ListEmptyComponent={<Text style={styles.tom}>Inga ansökningar ännu</Text>}
         renderItem={({ item }) => (
-          <TouchableOpacity
-            style={styles.kort}
-            onPress={() => navigation.navigate('SökanadeProfil', { sokandeId: item.sokande_id, ansokningId: item.id })}
-          >
-            <View style={styles.kortHuvud}>
-              <View style={styles.avatar}>
-                <Text style={styles.avatarText}>
-                  {(item.sökandeNamn ?? '?').charAt(0).toUpperCase()}
-                </Text>
+          aktivFlik === 'tidigare' ? (
+            <View style={styles.kort}>
+              <View style={styles.kortHuvud}>
+                <View style={styles.avatar}>
+                  <Text style={styles.avatarText}>{(item.sökandeNamn ?? '?').charAt(0).toUpperCase()}</Text>
+                </View>
+                <View style={styles.info}>
+                  <Text style={styles.sökandeTitel}>{item.sökandeNamn ?? 'Okänd sökande'}</Text>
+                  <Text style={styles.datum}>{new Date(item.created_at).toLocaleDateString('sv-SE')}</Text>
+                </View>
+                <View style={styles.avslutatBricka}>
+                  <Text style={styles.avslutatText}>Avslutat</Text>
+                </View>
               </View>
-              <View style={styles.info}>
-                <Text style={styles.sökandeTitel}>{item.sökandeNamn ?? 'Okänd sökande'}</Text>
-                <Text style={styles.datum}>{new Date(item.created_at).toLocaleDateString('sv-SE')}</Text>
-              </View>
+              <TouchableOpacity onPress={() => navigation.navigate('Chatt', { ansokningId: item.id })}>
+                <Text style={styles.öppnaChattText}>Öppna chatt →</Text>
+              </TouchableOpacity>
             </View>
-            {item.meddelande ? (
-              <Text style={styles.meddelande} numberOfLines={3}>{item.meddelande}</Text>
-            ) : (
-              <Text style={styles.ingetMeddelande}>Ingen ansökningstext</Text>
-            )}
-            <TouchableOpacity onPress={() => navigation.navigate('SökanadeProfil', { sokandeId: item.sokande_id, ansokningId: item.id })} style={styles.profilLänkRad}>
-              <Text style={styles.chattLänk}>Visa profil →</Text>
+          ) : (
+            <TouchableOpacity
+              style={styles.kort}
+              onPress={() => navigation.navigate('SökanadeProfil', { sokandeId: item.sokande_id, ansokningId: item.id })}
+            >
+              <View style={styles.kortHuvud}>
+                <View style={styles.avatar}>
+                  <Text style={styles.avatarText}>{(item.sökandeNamn ?? '?').charAt(0).toUpperCase()}</Text>
+                </View>
+                <View style={styles.info}>
+                  <Text style={styles.sökandeTitel}>{item.sökandeNamn ?? 'Okänd sökande'}</Text>
+                  <Text style={styles.datum}>{new Date(item.created_at).toLocaleDateString('sv-SE')}</Text>
+                </View>
+              </View>
+              {item.meddelande ? (
+                <Text style={styles.meddelande} numberOfLines={3}>{item.meddelande}</Text>
+              ) : (
+                <Text style={styles.ingetMeddelande}>Ingen ansökningstext</Text>
+              )}
+              <TouchableOpacity onPress={() => navigation.navigate('SökanadeProfil', { sokandeId: item.sokande_id, ansokningId: item.id })} style={styles.profilLänkRad}>
+                <Text style={styles.chattLänk}>Visa profil →</Text>
+              </TouchableOpacity>
+              <StatusKnappar item={item} onUppdaterad={hämta} onAvsluta={öppnaAvsluta} navigation={navigation} />
             </TouchableOpacity>
-            <StatusKnappar item={item} onUppdaterad={hämta} onAvsluta={öppnaAvsluta} navigation={navigation} />
-          </TouchableOpacity>
+          )
         )}
       />
 
@@ -224,8 +267,12 @@ export default function JobbAnsokningarScreen({ route, navigation }) {
 }
 
 const styles = StyleSheet.create({
+  flikar: { flexDirection: 'row', backgroundColor: '#fff', borderBottomWidth: 1, borderBottomColor: '#eee' },
+  flik: { flex: 1, paddingVertical: 14, alignItems: 'center' },
+  flikAktiv: { borderBottomWidth: 2, borderBottomColor: '#2563eb' },
+  flikText: { fontSize: 14, fontWeight: '600', color: '#999' },
+  flikTextAktiv: { color: '#2563eb' },
   lista: { flex: 1, backgroundColor: '#f5f5f5', padding: 16 },
-  rubrik: { fontSize: 14, fontWeight: '600', color: '#666', marginBottom: 12 },
   kort: { backgroundColor: '#fff', borderRadius: 12, padding: 16, marginBottom: 12, shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 4, elevation: 2 },
   kortHuvud: { flexDirection: 'row', alignItems: 'center', marginBottom: 10 },
   avatar: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#eff6ff', justifyContent: 'center', alignItems: 'center', marginRight: 12 },
@@ -233,6 +280,8 @@ const styles = StyleSheet.create({
   info: { flex: 1 },
   sökandeTitel: { fontSize: 15, fontWeight: '600', color: '#1a1a1a' },
   datum: { fontSize: 13, color: '#999', marginTop: 2 },
+  avslutatBricka: { backgroundColor: '#f3f4f6', borderRadius: 10, paddingHorizontal: 10, paddingVertical: 4 },
+  avslutatText: { fontSize: 12, fontWeight: '600', color: '#6b7280' },
   meddelande: { fontSize: 14, color: '#555', lineHeight: 20, marginBottom: 10 },
   ingetMeddelande: { fontSize: 14, color: '#aaa', fontStyle: 'italic', marginBottom: 10 },
   profilLänkRad: { marginBottom: 12 },
