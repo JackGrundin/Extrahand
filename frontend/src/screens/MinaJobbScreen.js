@@ -50,18 +50,19 @@ export default function MinaJobbScreen({ navigation }) {
 
   async function hämta() {
     try {
-      const [jobbData, rapporterData] = await Promise.all([
-        api.minaJobb(),
-        api.tidrapporterFörFöretag(),
-      ]);
+      const jobbData = await api.minaJobb();
       setJobb(jobbData);
+    } catch (fel) {
+      console.error('Jobb fel:', fel);
+    }
+    try {
+      const rapporterData = await api.tidrapporterFörFöretag();
       setTidigarePass(rapporterData);
     } catch (fel) {
-      console.error(fel);
-    } finally {
-      setLaddar(false);
-      setUppdaterar(false);
+      console.error('Tidrapporter fel:', fel);
     }
+    setLaddar(false);
+    setUppdaterar(false);
   }
 
   useFocusEffect(useCallback(() => { hämta(); }, []));
