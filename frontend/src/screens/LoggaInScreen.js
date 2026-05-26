@@ -25,7 +25,7 @@ export default function LoggaInScreen({ navigation }) {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.rubrik}>Extrahand</Text>
+      <Text style={styles.rubrik}>FastGig</Text>
       <Text style={styles.underrubrik}>Logga in</Text>
 
       <TextInput

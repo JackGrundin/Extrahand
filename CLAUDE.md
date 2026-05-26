@@ -1,9 +1,10 @@
-# Extrahand – App för flexibla jobb och uppdrag
+# FastGig – App för flexibla jobb och uppdrag
 
 ## Vad appen gör
 Plattform som kopplar samman företag och privatpersoner för kortare jobbpass 
 och längre uppdrag. Företag publicerar jobb, privatpersoner ansöker. 
-Inkluderar chatt, betygsättning och privatuppdrag (barnvakt, trädgård m.m.)
+Inkluderar chatt, betygsättning och tidrapportering.
+Admin-vy tillgänglig för info@fastgig.se med översikt över användare och tidrapporter.
 
 ## Tech stack
 - Backend: Node.js med Express, REST API
