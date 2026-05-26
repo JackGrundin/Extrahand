@@ -164,6 +164,8 @@ export default function ProfilScreen({ navigation }) {
       <TouchableOpacity style={styles.loggaUtKnapp} onPress={loggaUt}>
         <Text style={styles.loggaUtText}>Logga ut</Text>
       </TouchableOpacity>
+
+      <Text style={styles.appNamn}>FastGig</Text>
     </ScrollView>
   );
 }
@@ -202,4 +204,5 @@ const styles = StyleSheet.create({
   betygKommentar: { fontSize: 14, color: '#444', lineHeight: 20 },
   loggaUtKnapp: { borderWidth: 1, borderColor: '#ef4444', borderRadius: 10, paddingVertical: 14, paddingHorizontal: 40, marginTop: 8 },
   loggaUtText: { color: '#ef4444', fontWeight: '600', fontSize: 15 },
+  appNamn: { marginTop: 32, fontSize: 13, fontWeight: '700', color: '#d1d5db', letterSpacing: 1 },
 });
