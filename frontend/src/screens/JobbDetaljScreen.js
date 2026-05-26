@@ -29,6 +29,7 @@ export default function JobbDetaljScreen({ route, navigation }) {
   }
 
   return (
+    <>
     <ScrollView style={styles.container}>
       {jobb.foretagNamn && <Text style={styles.foretagNamn}>{jobb.foretagNamn}</Text>}
       <Text style={styles.titel}>{jobb.Titel}</Text>
@@ -104,6 +105,7 @@ export default function JobbDetaljScreen({ route, navigation }) {
           </View>
         </View>
       </Modal>
+    </>
   );
 }
 
