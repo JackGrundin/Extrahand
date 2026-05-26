@@ -23,6 +23,7 @@ import RedigeraProfilScreen from '../screens/RedigeraProfilScreen';
 import MinaPassScreen from '../screens/MinaPassScreen';
 import FöretagsProfilScreen from '../screens/FöretagsProfilScreen';
 import RapporterScreen from '../screens/RapporterScreen';
+import JobbDetaljScreen from '../screens/JobbDetaljScreen';
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -147,6 +148,9 @@ function RapporterNavigator() {
   return (
     <Stack.Navigator>
       <Stack.Screen name="RapporterHuvud" component={RapporterScreen} options={{ title: 'Tidrapporter' }} />
+      <Stack.Screen name="SökanadeProfil" component={SökandeProfilScreen} options={{ title: 'Sökandes profil' }} />
+      <Stack.Screen name="FöretagsProfil" component={FöretagsProfilScreen} options={{ title: 'Företagsprofil' }} />
+      <Stack.Screen name="JobbDetalj" component={JobbDetaljScreen} options={{ title: 'Jobbdetaljer' }} />
     </Stack.Navigator>
   );
 }

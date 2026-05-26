@@ -4,7 +4,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { api } from '../api/klient';
 
-export default function RapporterScreen() {
+export default function RapporterScreen({ navigation }) {
   const [aktivFlik, setAktivFlik] = useState('rapporter');
   const [rapporter, setRapporter] = useState([]);
   const [privatpersoner, setPrivatpersoner] = useState([]);
@@ -189,7 +189,9 @@ export default function RapporterScreen() {
             <View style={styles.kort}>
               <View style={styles.kortHuvudFöretag}>
                 <View style={{ flex: 1 }}>
-                  <Text style={styles.namn}>{item.Namn ?? '–'}</Text>
+                  <TouchableOpacity onPress={() => navigation.navigate('FöretagsProfil', { foretagId: item.id })}>
+                    <Text style={[styles.namn, styles.klickbart]}>{item.Namn ?? '–'}</Text>
+                  </TouchableOpacity>
                   <Text style={styles.email}>{item.Email ?? '–'}</Text>
                   {item.telefonnummer ? <Text style={styles.telefon}>{item.telefonnummer}</Text> : null}
                 </View>
@@ -219,7 +221,9 @@ export default function RapporterScreen() {
             <View style={styles.kort}>
               <View style={styles.kortHuvud}>
                 <View style={{ flex: 1 }}>
-                  <Text style={styles.namn}>{item.Namn ?? '–'}</Text>
+                  <TouchableOpacity onPress={() => navigation.navigate('SökanadeProfil', { sokandeId: item.id, ansokningId: null })}>
+                    <Text style={[styles.namn, styles.klickbart]}>{item.Namn ?? '–'}</Text>
+                  </TouchableOpacity>
                   <Text style={styles.email}>{item.Email ?? '–'}</Text>
                   {item.telefonnummer ? <Text style={styles.telefon}>{item.telefonnummer}</Text> : null}
                   {item.created_at ? (() => {
@@ -271,6 +275,7 @@ const styles = StyleSheet.create({
   kort: { backgroundColor: '#fff', borderRadius: 12, padding: 16, marginBottom: 10, shadowColor: '#000', shadowOpacity: 0.04, shadowRadius: 4, elevation: 1 },
   kortHuvud: { flexDirection: 'row', alignItems: 'center', marginBottom: 12 },
   namn: { fontSize: 15, fontWeight: '600', color: '#1a1a1a' },
+  klickbart: { color: '#2563eb', textDecorationLine: 'underline' },
   email: { fontSize: 13, color: '#888', marginTop: 2 },
   telefon: { fontSize: 13, color: '#888', marginTop: 1 },
   skapad: { fontSize: 12, color: '#aaa', marginTop: 3 },
