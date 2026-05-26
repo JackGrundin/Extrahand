@@ -54,11 +54,22 @@ async function hämtaAnsökningarFörSökande(sokande_id) {
 }
 
 async function hämtaTotalTimmar(sokande_id) {
+  const { data: ansokningar } = await supabase
+    .from('ansokningar')
+    .select('id')
+    .eq('sokande_id', sokande_id)
+    .eq('status', 'godkänd');
+
+  if (!ansokningar || !ansokningar.length) return 0;
+
+  const ansokanIds = ansokningar.map(a => a.id);
   const { data } = await supabase
     .from('tidrapporter')
     .select('timmar')
     .eq('anvandare_id', sokande_id)
-    .eq('status', 'godkänd');
+    .eq('status', 'godkänd')
+    .in('ansokan_id', ansokanIds);
+
   return (data || []).reduce((sum, r) => sum + (r.timmar || 0), 0);
 }
 
