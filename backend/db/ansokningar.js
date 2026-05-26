@@ -55,10 +55,11 @@ async function hämtaAnsökningarFörSökande(sokande_id) {
 
 async function hämtaTotalTimmar(sokande_id) {
   const { data } = await supabase
-    .from('ansokningar')
+    .from('tidrapporter')
     .select('timmar')
-    .eq('sokande_id', sokande_id);
-  return (data || []).reduce((sum, a) => sum + (a.timmar || 0), 0);
+    .eq('anvandare_id', sokande_id)
+    .eq('status', 'godkänd');
+  return (data || []).reduce((sum, r) => sum + (r.timmar || 0), 0);
 }
 
 
