@@ -16,19 +16,18 @@ export default function RapporterScreen() {
   async function hämta() {
     setLaddar(true);
     try {
-      const [rapporterData, privatpersonerData, företagData] = await Promise.all([
-        api.allaRapporter('', ''),
-        api.hämtaAllaPrivatpersoner(),
-        api.hämtaAllaFöretag(),
-      ]);
-      setRapporter(rapporterData);
-      setPrivatpersoner(privatpersonerData);
-      setFöretag(företagData);
-    } catch (fel) {
-      console.error(fel);
-    } finally {
-      setLaddar(false);
-    }
+      const data = await api.allaRapporter('', '');
+      setRapporter(data);
+    } catch (fel) { console.error('Rapporter:', fel); }
+    try {
+      const data = await api.hämtaAllaPrivatpersoner();
+      setPrivatpersoner(data);
+    } catch (fel) { console.error('Privatpersoner:', fel); }
+    try {
+      const data = await api.hämtaAllaFöretag();
+      setFöretag(data);
+    } catch (fel) { console.error('Företag:', fel); }
+    setLaddar(false);
   }
 
   async function taBortRapport(id) {
