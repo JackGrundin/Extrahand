@@ -17,6 +17,21 @@ function formatDagDatum(isoStr) {
   return new Date(isoStr + 'T12:00:00').toLocaleDateString('sv-SE', { day: 'numeric', month: 'short' });
 }
 
+function formatBricka(allaDatum) {
+  if (!allaDatum || allaDatum.length === 0) return null;
+  if (allaDatum.length === 1) {
+    const d = new Date(allaDatum[0] + 'T12:00:00');
+    return { rader: [String(d.getDate()), d.toLocaleDateString('sv-SE', { month: 'short' })], stor: true };
+  }
+  const start = new Date(allaDatum[0] + 'T12:00:00');
+  const slut = new Date(allaDatum[allaDatum.length - 1] + 'T12:00:00');
+  const samMånad = start.getMonth() === slut.getMonth() && start.getFullYear() === slut.getFullYear();
+  if (samMånad) {
+    return { rader: [`${start.getDate()}–${slut.getDate()}`, start.toLocaleDateString('sv-SE', { month: 'short' })], stor: true };
+  }
+  return { rader: allaDatum.slice(0, 3).map(d => formatDagDatum(d)), stor: false };
+}
+
 function grupperaPerMånad(pass) {
   const grupper = {};
   pass.forEach(p => {
@@ -107,10 +122,10 @@ export default function MinaPassScreen({ navigation }) {
         }
         renderItem={({ item }) => {
           const schema = parsaArbetstider(item.arbetstider);
-          const datum = schema?.[0]?.datum
-            ? new Date(schema[0].datum + 'T12:00:00')
-            : new Date(item.created_at);
           const allaDatum = schema ? schema.map(d => d.datum).filter(Boolean) : [];
+          const bricka = allaDatum.length > 0
+            ? formatBricka(allaDatum)
+            : (() => { const d = new Date(item.created_at); return { rader: [String(d.getDate()), d.toLocaleDateString('sv-SE', { month: 'short' })], stor: true }; })();
           const visaDatum = allaDatum.slice(0, 3);
           const fler = allaDatum.length > 3 ? allaDatum.length - 3 : 0;
           return (
@@ -121,8 +136,9 @@ export default function MinaPassScreen({ navigation }) {
             >
               <View style={styles.datumRad}>
                 <View style={styles.datumBricka}>
-                  <Text style={styles.datumDag}>{datum.getDate()}</Text>
-                  <Text style={styles.datumMån}>{datum.toLocaleDateString('sv-SE', { month: 'short' })}</Text>
+                  {bricka.rader.map((rad, i) => (
+                    <Text key={i} style={i === 0 && bricka.stor ? styles.datumDag : styles.datumMån}>{rad}</Text>
+                  ))}
                 </View>
                 <View style={styles.passInfo}>
                   <Text style={styles.passTitel} numberOfLines={1}>{item.jobbTitel ?? 'Jobb'}</Text>
@@ -162,7 +178,7 @@ const styles = StyleSheet.create({
 
   kort: { backgroundColor: '#fff', borderRadius: 12, padding: 14, marginBottom: 10, shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 4, elevation: 2 },
   datumRad: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 8 },
-  datumBricka: { width: 44, height: 44, borderRadius: 10, backgroundColor: '#eff6ff', alignItems: 'center', justifyContent: 'center' },
+  datumBricka: { minWidth: 44, paddingHorizontal: 10, paddingVertical: 8, borderRadius: 10, backgroundColor: '#eff6ff', alignItems: 'center', justifyContent: 'center' },
   datumDag: { fontSize: 18, fontWeight: '700', color: '#2563eb', lineHeight: 22 },
   datumMån: { fontSize: 10, color: '#2563eb', fontWeight: '600', textTransform: 'uppercase' },
   passInfo: { flex: 1 },
