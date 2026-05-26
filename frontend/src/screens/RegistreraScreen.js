@@ -20,7 +20,7 @@ export default function RegistreraScreen({ navigation }) {
       Alert.alert('Fel', 'Fyll i namn, email och lösenord');
       return;
     }
-    if (typ === 'privatperson' && !telefonnummer.trim()) {
+    if (!telefonnummer.trim()) {
       Alert.alert('Fel', 'Telefonnummer krävs');
       return;
     }
@@ -59,15 +59,13 @@ export default function RegistreraScreen({ navigation }) {
           secureTextEntry
         />
 
-        {typ === 'privatperson' && (
-          <TextInput
-            style={styles.input}
-            placeholder="Telefonnummer *"
-            value={telefonnummer}
-            onChangeText={setTelefonnummer}
-            keyboardType="phone-pad"
-          />
-        )}
+        <TextInput
+          style={styles.input}
+          placeholder="Telefonnummer *"
+          value={telefonnummer}
+          onChangeText={setTelefonnummer}
+          keyboardType="phone-pad"
+        />
 
         <Text style={styles.label}>Kontotyp</Text>
         <View style={styles.typVäljare}>

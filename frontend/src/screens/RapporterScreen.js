@@ -8,6 +8,7 @@ export default function RapporterScreen() {
   const [aktivFlik, setAktivFlik] = useState('rapporter');
   const [rapporter, setRapporter] = useState([]);
   const [privatpersoner, setPrivatpersoner] = useState([]);
+  const [företag, setFöretag] = useState([]);
   const [laddar, setLaddar] = useState(true);
   const [fromDate, setFromDate] = useState('');
   const [toDate, setToDate] = useState('');
@@ -15,12 +16,14 @@ export default function RapporterScreen() {
   async function hämta() {
     setLaddar(true);
     try {
-      const [rapporterData, privatpersonerData] = await Promise.all([
+      const [rapporterData, privatpersonerData, företagData] = await Promise.all([
         api.allaRapporter('', ''),
         api.hämtaAllaPrivatpersoner(),
+        api.hämtaAllaFöretag(),
       ]);
       setRapporter(rapporterData);
       setPrivatpersoner(privatpersonerData);
+      setFöretag(företagData);
     } catch (fel) {
       console.error(fel);
     } finally {
@@ -87,6 +90,14 @@ export default function RapporterScreen() {
         >
           <Text style={[styles.flikText, aktivFlik === 'avtal' && styles.flikTextAktiv]}>
             Avtal ({privatpersoner.filter(p => !p.avtal_godkant).length} väntande)
+          </Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.flik, aktivFlik === 'företag' && styles.flikAktiv]}
+          onPress={() => setAktivFlik('företag')}
+        >
+          <Text style={[styles.flikText, aktivFlik === 'företag' && styles.flikTextAktiv]}>
+            Företag ({företag.length})
           </Text>
         </TouchableOpacity>
       </View>
@@ -169,6 +180,28 @@ export default function RapporterScreen() {
             )}
           />
         </>
+      ) : aktivFlik === 'företag' ? (
+        <FlatList
+          data={företag}
+          keyExtractor={(item) => item.id.toString()}
+          contentContainerStyle={styles.lista}
+          ListEmptyComponent={<Text style={styles.tom}>Inga företag registrerade</Text>}
+          renderItem={({ item }) => (
+            <View style={styles.kort}>
+              <Text style={styles.namn}>{item.Namn ?? '–'}</Text>
+              <Text style={styles.email}>{item.Email ?? '–'}</Text>
+              {item.telefonnummer ? <Text style={styles.telefon}>{item.telefonnummer}</Text> : null}
+              {item.created_at ? (() => {
+                const skapad = new Date(item.created_at);
+                const dag = String(skapad.getDate()).padStart(2, '0');
+                const mån = String(skapad.getMonth() + 1).padStart(2, '0');
+                const år = skapad.getFullYear();
+                const dagarSedan = Math.floor((Date.now() - skapad.getTime()) / (1000 * 60 * 60 * 24));
+                return <Text style={styles.skapad}>{dag}/{mån}/{år} ({dagarSedan} {dagarSedan === 1 ? 'dag' : 'dagar'} sedan)</Text>;
+              })() : null}
+            </View>
+          )}
+        />
       ) : (
         <FlatList
           data={privatpersoner}

@@ -68,6 +68,7 @@ export const api = {
   tidrapporterFörFöretag: () => anrop('GET', '/tidrapporter/foretag'),
   taBortTidrapport: (id) => anrop('DELETE', `/tidrapporter/${id}`),
   hämtaAllaPrivatpersoner: () => anrop('GET', '/users/admin/privatpersoner'),
+  hämtaAllaFöretag: () => anrop('GET', '/users/admin/foretag'),
   godkännAvtal: (id) => anrop('PATCH', `/users/admin/${id}/avtal`),
 
   // Betyg

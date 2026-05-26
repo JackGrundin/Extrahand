@@ -70,6 +70,16 @@ async function hämtaPushToken(id) {
   return data?.push_token || null;
 }
 
+async function hämtaAllaFöretag() {
+  const { data, error } = await supabase
+    .from('användare')
+    .select('id, Namn, Email, telefonnummer, created_at')
+    .eq('Typ', 'företag')
+    .order('created_at', { ascending: false });
+  if (error) throw error;
+  return data || [];
+}
+
 async function hämtaAllaPrivatpersoner() {
   const { data, error } = await supabase
     .from('användare')
@@ -88,4 +98,4 @@ async function godkännAvtal(id) {
   if (error) throw error;
 }
 
-module.exports = { skapaAnvändare, hämtaAnvändareViaEmail, hämtaAnvändareViaId, uppdateraProfil, uppdateraProfilBild, sparaPushToken, hämtaPushToken, hämtaAllaPrivatpersoner, godkännAvtal };
+module.exports = { skapaAnvändare, hämtaAnvändareViaEmail, hämtaAnvändareViaId, uppdateraProfil, uppdateraProfilBild, sparaPushToken, hämtaPushToken, hämtaAllaPrivatpersoner, godkännAvtal, hämtaAllaFöretag };

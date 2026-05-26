@@ -2,7 +2,7 @@ const express = require('express');
 const { createClient } = require('@supabase/supabase-js');
 const ws = require('ws');
 const { kräverInloggning } = require('../middleware/auth');
-const { hämtaAnvändareViaEmail, hämtaAnvändareViaId, uppdateraProfil, uppdateraProfilBild, sparaPushToken, hämtaPushToken, hämtaAllaPrivatpersoner, godkännAvtal } = require('../db/användare');
+const { hämtaAnvändareViaEmail, hämtaAnvändareViaId, uppdateraProfil, uppdateraProfilBild, sparaPushToken, hämtaPushToken, hämtaAllaPrivatpersoner, godkännAvtal, hämtaAllaFöretag } = require('../db/användare');
 const { hämtaTotalTimmar } = require('../db/ansokningar');
 const { hämtaJobbFörFöretag } = require('../db/jobb');
 
@@ -176,6 +176,18 @@ router.get('/admin/privatpersoner', kräverInloggning, async (req, res) => {
     res.json(privatpersoner);
   } catch (fel) {
     console.error('Admin privatpersoner fel:', fel);
+    res.status(500).json({ fel: 'Serverfel' });
+  }
+});
+
+// GET /api/users/admin/foretag — admin: lista alla företagskonton
+router.get('/admin/foretag', kräverInloggning, async (req, res) => {
+  if (req.användare.email !== ADMIN_EMAIL) return res.status(403).json({ fel: 'Åtkomst nekad' });
+  try {
+    const företag = await hämtaAllaFöretag();
+    res.json(företag);
+  } catch (fel) {
+    console.error('Admin företag fel:', fel);
     res.status(500).json({ fel: 'Serverfel' });
   }
 });
