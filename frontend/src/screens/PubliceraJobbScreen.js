@@ -45,6 +45,16 @@ export default function PubliceraJobbScreen({ navigation }) {
     });
   }
 
+  function lösUtDatum(mmdd) {
+    if (!mmdd || !mmdd.includes('/')) return mmdd;
+    const [mm, dd] = mmdd.split('/');
+    const idag = new Date();
+    const år = idag.getFullYear();
+    const kandidat = new Date(år, parseInt(mm) - 1, parseInt(dd));
+    const slutDatum = kandidat < idag ? new Date(år + 1, parseInt(mm) - 1, parseInt(dd)) : kandidat;
+    return slutDatum.toISOString().split('T')[0];
+  }
+
   function toggleSammaTider() {
     const nästa = !sammaTider;
     setSammaTider(nästa);
@@ -66,7 +76,7 @@ export default function PubliceraJobbScreen({ navigation }) {
     setLaddar(true);
     try {
       const arbetstider = dagScheman.length > 0
-        ? JSON.stringify(dagScheman)
+        ? JSON.stringify(dagScheman.map(dag => ({ ...dag, datum: lösUtDatum(dag.datum) })))
         : undefined;
       await api.publicera({
         titel: titel.trim(),
@@ -146,7 +156,7 @@ export default function PubliceraJobbScreen({ navigation }) {
                   <View style={styles.dagFält}>
                     <TextInput
                       style={[styles.input, styles.datumInput]}
-                      placeholder="ÅÅÅÅ-MM-DD"
+                      placeholder="MM/DD"
                       value={dag.datum}
                       onChangeText={v => uppdateraDag(i, 'datum', v)}
                     />
