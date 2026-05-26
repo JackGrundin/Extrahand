@@ -161,6 +161,16 @@ export default function RapporterScreen() {
                   <Text style={styles.namn}>{item.Namn ?? '–'}</Text>
                   <Text style={styles.email}>{item.Email ?? '–'}</Text>
                   {item.telefonnummer ? <Text style={styles.telefon}>{item.telefonnummer}</Text> : null}
+                  {item.created_at ? (() => {
+                    const skapad = new Date(item.created_at);
+                    const dag = String(skapad.getDate()).padStart(2, '0');
+                    const mån = String(skapad.getMonth() + 1).padStart(2, '0');
+                    const år = skapad.getFullYear();
+                    const dagarSedan = Math.floor((Date.now() - skapad.getTime()) / (1000 * 60 * 60 * 24));
+                    return (
+                      <Text style={styles.skapad}>{dag}/{mån}/{år} ({dagarSedan} {dagarSedan === 1 ? 'dag' : 'dagar'} sedan)</Text>
+                    );
+                  })() : null}
                 </View>
                 {item.avtal_godkant ? (
                   <Ionicons name="checkmark-circle" size={26} color="#16a34a" />
@@ -202,6 +212,7 @@ const styles = StyleSheet.create({
   namn: { fontSize: 15, fontWeight: '600', color: '#1a1a1a' },
   email: { fontSize: 13, color: '#888', marginTop: 2 },
   telefon: { fontSize: 13, color: '#888', marginTop: 1 },
+  skapad: { fontSize: 12, color: '#aaa', marginTop: 3 },
   datum: { fontSize: 13, color: '#999' },
   kortDetaljer: { flexDirection: 'row', gap: 8, marginBottom: 8 },
   detalj: { flex: 1, backgroundColor: '#f9fafb', borderRadius: 8, padding: 10, alignItems: 'center' },
