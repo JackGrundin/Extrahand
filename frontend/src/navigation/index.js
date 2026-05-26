@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { ActivityIndicator, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
 import { useAuth } from '../context/AuthContext';
@@ -210,8 +210,9 @@ function HuvudNavigator() {
 }
 
 const laddningsStyles = StyleSheet.create({
-  container: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#fff', gap: 24 },
-  logotyp: { fontSize: 42, fontWeight: '800', color: '#2563eb', letterSpacing: -1 },
+  container: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#fff', gap: 8 },
+  logotyp: { fontSize: 52, fontWeight: '900', color: '#2563eb', letterSpacing: -2 },
+  tagline: { fontSize: 15, color: '#9ca3af', letterSpacing: 0.5 },
 });
 
 export default function Navigation() {
@@ -227,7 +228,7 @@ export default function Navigation() {
     return (
       <View style={laddningsStyles.container}>
         <Text style={laddningsStyles.logotyp}>FastGig</Text>
-        <ActivityIndicator size="large" color="#2563eb" />
+        <Text style={laddningsStyles.tagline}>Flexibla jobb, enkelt</Text>
       </View>
     );
   }
