@@ -210,9 +210,9 @@ function HuvudNavigator() {
 }
 
 const laddningsStyles = StyleSheet.create({
-  container: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#fff', gap: 8 },
-  logotyp: { fontSize: 52, fontWeight: '900', color: '#2563eb', letterSpacing: -2 },
-  tagline: { fontSize: 15, color: '#9ca3af', letterSpacing: 0.5 },
+  container: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#ffffff' },
+  logotyp: { fontSize: 52, fontWeight: 'bold', color: '#2563eb', letterSpacing: -1, marginBottom: 8 },
+  tagline: { fontSize: 15, color: '#9ca3af' },
 });
 
 export default function Navigation() {
