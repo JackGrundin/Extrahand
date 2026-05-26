@@ -33,7 +33,7 @@ router.post('/registrera', async (req, res) => {
       { expiresIn: '7d' }
     );
 
-    res.status(201).json({ token, användare: { id: användare.id, namn: användare.Namn, email: användare.Email, typ: användare.Typ } });
+    res.status(201).json({ token, användare: { id: användare.id, namn: användare.Namn, email: användare.Email, typ: användare.Typ, avtalGodkant: användare.avtal_godkant ?? false } });
   } catch (fel) {
     console.error('Registreringsfel:', fel);
     res.status(500).json({ fel: 'Serverfel vid registrering' });
@@ -65,7 +65,7 @@ router.post('/logga-in', async (req, res) => {
       { expiresIn: '7d' }
     );
 
-    res.json({ token, användare: { id: användare.id, namn: användare.Namn, email: användare.Email, typ: användare.Typ } });
+    res.json({ token, användare: { id: användare.id, namn: användare.Namn, email: användare.Email, typ: användare.Typ, avtalGodkant: användare.avtal_godkant ?? false } });
   } catch (fel) {
     console.error('Inloggningsfel:', fel);
     res.status(500).json({ fel: 'Serverfel vid inloggning' });

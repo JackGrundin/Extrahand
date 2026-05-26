@@ -2,7 +2,7 @@ const express = require('express');
 const { createClient } = require('@supabase/supabase-js');
 const ws = require('ws');
 const { kräverInloggning } = require('../middleware/auth');
-const { hämtaAnvändareViaEmail, hämtaAnvändareViaId, uppdateraProfil, uppdateraProfilBild, sparaPushToken, hämtaPushToken } = require('../db/användare');
+const { hämtaAnvändareViaEmail, hämtaAnvändareViaId, uppdateraProfil, uppdateraProfilBild, sparaPushToken, hämtaPushToken, hämtaAllaPrivatpersoner, godkännAvtal } = require('../db/användare');
 const { hämtaTotalTimmar } = require('../db/ansokningar');
 const { hämtaJobbFörFöretag } = require('../db/jobb');
 
@@ -42,6 +42,7 @@ router.get('/profil', kräverInloggning, async (req, res) => {
       stad: användare.stad ?? null,
       hemsida: användare.hemsida ?? null,
       totalTimmar,
+      avtalGodkant: användare.avtal_godkant ?? false,
     });
   } catch (fel) {
     console.error('Profilfel:', fel);
@@ -161,6 +162,32 @@ router.put('/push-token', kräverInloggning, async (req, res) => {
     res.json({ ok: true });
   } catch (fel) {
     console.error('Push-token fel:', fel);
+    res.status(500).json({ fel: 'Serverfel' });
+  }
+});
+
+const ADMIN_EMAIL = 'info@fastgig.se';
+
+// GET /api/users/admin/privatpersoner — admin: lista alla privatpersoner
+router.get('/admin/privatpersoner', kräverInloggning, async (req, res) => {
+  if (req.användare.email !== ADMIN_EMAIL) return res.status(403).json({ fel: 'Åtkomst nekad' });
+  try {
+    const privatpersoner = await hämtaAllaPrivatpersoner();
+    res.json(privatpersoner);
+  } catch (fel) {
+    console.error('Admin privatpersoner fel:', fel);
+    res.status(500).json({ fel: 'Serverfel' });
+  }
+});
+
+// PATCH /api/users/admin/:id/avtal — admin: godkänn avtal för en privatperson
+router.patch('/admin/:id/avtal', kräverInloggning, async (req, res) => {
+  if (req.användare.email !== ADMIN_EMAIL) return res.status(403).json({ fel: 'Åtkomst nekad' });
+  try {
+    await godkännAvtal(req.params.id);
+    res.json({ ok: true });
+  } catch (fel) {
+    console.error('Avtalsgodkännande fel:', fel);
     res.status(500).json({ fel: 'Serverfel' });
   }
 });

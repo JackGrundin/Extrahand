@@ -1,18 +1,37 @@
 import { useCallback, useState } from 'react';
-import { View, Text, FlatList, StyleSheet, ActivityIndicator, TextInput, TouchableOpacity } from 'react-native';
+import { View, Text, FlatList, StyleSheet, ActivityIndicator, TextInput, TouchableOpacity, Alert } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
+import { Ionicons } from '@expo/vector-icons';
 import { api } from '../api/klient';
 
 export default function RapporterScreen() {
+  const [aktivFlik, setAktivFlik] = useState('rapporter');
   const [rapporter, setRapporter] = useState([]);
+  const [privatpersoner, setPrivatpersoner] = useState([]);
   const [laddar, setLaddar] = useState(true);
   const [fromDate, setFromDate] = useState('');
   const [toDate, setToDate] = useState('');
 
-  async function hämta(from, to) {
+  async function hämta() {
     setLaddar(true);
     try {
-      const data = await api.allaRapporter(from || null, to || null);
+      const [rapporterData, privatpersonerData] = await Promise.all([
+        api.allaRapporter('', ''),
+        api.hämtaAllaPrivatpersoner(),
+      ]);
+      setRapporter(rapporterData);
+      setPrivatpersoner(privatpersonerData);
+    } catch (fel) {
+      console.error(fel);
+    } finally {
+      setLaddar(false);
+    }
+  }
+
+  async function filtreraRapporter() {
+    setLaddar(true);
+    try {
+      const data = await api.allaRapporter(fromDate || null, toDate || null);
       setRapporter(data);
     } catch (fel) {
       console.error(fel);
@@ -21,83 +40,141 @@ export default function RapporterScreen() {
     }
   }
 
-  useFocusEffect(useCallback(() => { hämta('', ''); }, []));
+  async function godkännAvtal(id) {
+    try {
+      await api.godkännAvtal(id);
+      setPrivatpersoner(prev => prev.map(p => p.id === id ? { ...p, avtal_godkant: true } : p));
+    } catch (fel) {
+      Alert.alert('Fel', fel.message);
+    }
+  }
+
+  useFocusEffect(useCallback(() => { hämta(); }, []));
 
   const totaltBelopp = rapporter.reduce((sum, r) => sum + (r.totalt_belopp ?? 0), 0);
   const totaltTimmar = rapporter.reduce((sum, r) => sum + (r.timmar ?? 0), 0);
 
   return (
     <View style={styles.container}>
-      <View style={styles.filter}>
-        <TextInput
-          style={styles.datumInput}
-          placeholder="Från (ÅÅÅÅ-MM-DD)"
-          value={fromDate}
-          onChangeText={setFromDate}
-          keyboardType="numeric"
-        />
-        <TextInput
-          style={styles.datumInput}
-          placeholder="Till (ÅÅÅÅ-MM-DD)"
-          value={toDate}
-          onChangeText={setToDate}
-          keyboardType="numeric"
-        />
-        <TouchableOpacity style={styles.filterKnapp} onPress={() => hämta(fromDate, toDate)}>
-          <Text style={styles.filterKnappText}>Filtrera</Text>
+      <View style={styles.flikar}>
+        <TouchableOpacity
+          style={[styles.flik, aktivFlik === 'rapporter' && styles.flikAktiv]}
+          onPress={() => setAktivFlik('rapporter')}
+        >
+          <Text style={[styles.flikText, aktivFlik === 'rapporter' && styles.flikTextAktiv]}>Tidrapporter</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.flik, aktivFlik === 'avtal' && styles.flikAktiv]}
+          onPress={() => setAktivFlik('avtal')}
+        >
+          <Text style={[styles.flikText, aktivFlik === 'avtal' && styles.flikTextAktiv]}>
+            Avtal ({privatpersoner.filter(p => !p.avtal_godkant).length} väntande)
+          </Text>
         </TouchableOpacity>
       </View>
 
       {laddar ? (
         <ActivityIndicator style={{ flex: 1 }} size="large" />
+      ) : aktivFlik === 'rapporter' ? (
+        <>
+          <View style={styles.filter}>
+            <TextInput
+              style={styles.datumInput}
+              placeholder="Från (ÅÅÅÅ-MM-DD)"
+              value={fromDate}
+              onChangeText={setFromDate}
+              keyboardType="numeric"
+            />
+            <TextInput
+              style={styles.datumInput}
+              placeholder="Till (ÅÅÅÅ-MM-DD)"
+              value={toDate}
+              onChangeText={setToDate}
+              keyboardType="numeric"
+            />
+            <TouchableOpacity style={styles.filterKnapp} onPress={filtreraRapporter}>
+              <Text style={styles.filterKnappText}>Filtrera</Text>
+            </TouchableOpacity>
+          </View>
+          <FlatList
+            data={rapporter}
+            keyExtractor={(item) => item.id}
+            contentContainerStyle={styles.lista}
+            ListEmptyComponent={<Text style={styles.tom}>Inga godkända rapporter hittades</Text>}
+            ListFooterComponent={rapporter.length > 0 ? (
+              <View style={styles.summering}>
+                <View style={styles.summeringRad}>
+                  <Text style={styles.summeringEtikett}>Totalt antal rapporter</Text>
+                  <Text style={styles.summeringVärde}>{rapporter.length}</Text>
+                </View>
+                <View style={styles.summeringRad}>
+                  <Text style={styles.summeringEtikett}>Totalt timmar</Text>
+                  <Text style={styles.summeringVärde}>{totaltTimmar} tim</Text>
+                </View>
+                <View style={[styles.summeringRad, styles.totalRad]}>
+                  <Text style={styles.totalEtikett}>Totalt belopp</Text>
+                  <Text style={styles.totalVärde}>{totaltBelopp.toLocaleString('sv-SE')} kr</Text>
+                </View>
+              </View>
+            ) : null}
+            renderItem={({ item }) => (
+              <View style={styles.kort}>
+                <View style={styles.kortHuvud}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.namn}>{item.anvandareNamn ?? '–'}</Text>
+                    <Text style={styles.email}>{item.anvandareEmail ?? '–'}</Text>
+                    {item.anvardareTelefon ? <Text style={styles.telefon}>{item.anvardareTelefon}</Text> : null}
+                  </View>
+                  <Text style={styles.datum}>{new Date(item.datum).toLocaleDateString('sv-SE')}</Text>
+                </View>
+                <View style={styles.kortDetaljer}>
+                  <View style={styles.detalj}>
+                    <Text style={styles.detaljEtikett}>Timmar</Text>
+                    <Text style={styles.detaljVärde}>{item.timmar}</Text>
+                  </View>
+                  <View style={styles.detalj}>
+                    <Text style={styles.detaljEtikett}>Timlön</Text>
+                    <Text style={styles.detaljVärde}>{item.timlon?.toLocaleString('sv-SE')} kr</Text>
+                  </View>
+                  <View style={styles.detalj}>
+                    <Text style={styles.detaljEtikett}>Totalt</Text>
+                    <Text style={[styles.detaljVärde, styles.totalText]}>{item.totalt_belopp?.toLocaleString('sv-SE')} kr</Text>
+                  </View>
+                </View>
+                {item.foretagNamn && (
+                  <Text style={styles.foretag}>Företag: {item.foretagNamn}</Text>
+                )}
+              </View>
+            )}
+          />
+        </>
       ) : (
         <FlatList
-          data={rapporter}
-          keyExtractor={(item) => item.id}
+          data={privatpersoner}
+          keyExtractor={(item) => item.id.toString()}
           contentContainerStyle={styles.lista}
-          ListEmptyComponent={<Text style={styles.tom}>Inga godkända rapporter hittades</Text>}
-          ListFooterComponent={rapporter.length > 0 ? (
-            <View style={styles.summering}>
-              <View style={styles.summeringRad}>
-                <Text style={styles.summeringEtikett}>Totalt antal rapporter</Text>
-                <Text style={styles.summeringVärde}>{rapporter.length}</Text>
-              </View>
-              <View style={styles.summeringRad}>
-                <Text style={styles.summeringEtikett}>Totalt timmar</Text>
-                <Text style={styles.summeringVärde}>{totaltTimmar} tim</Text>
-              </View>
-              <View style={[styles.summeringRad, styles.totalRad]}>
-                <Text style={styles.totalEtikett}>Totalt belopp</Text>
-                <Text style={styles.totalVärde}>{totaltBelopp.toLocaleString('sv-SE')} kr</Text>
-              </View>
-            </View>
-          ) : null}
+          ListEmptyComponent={<Text style={styles.tom}>Inga privatpersoner registrerade</Text>}
           renderItem={({ item }) => (
             <View style={styles.kort}>
               <View style={styles.kortHuvud}>
                 <View style={{ flex: 1 }}>
-                  <Text style={styles.namn}>{item.anvandareNamn ?? '–'}</Text>
-                  <Text style={styles.email}>{item.anvandareEmail ?? '–'}</Text>
-                  {item.anvardareTelefon ? <Text style={styles.telefon}>{item.anvardareTelefon}</Text> : null}
+                  <Text style={styles.namn}>{item.Namn ?? '–'}</Text>
+                  <Text style={styles.email}>{item.Email ?? '–'}</Text>
+                  {item.telefonnummer ? <Text style={styles.telefon}>{item.telefonnummer}</Text> : null}
                 </View>
-                <Text style={styles.datum}>{new Date(item.datum).toLocaleDateString('sv-SE')}</Text>
+                {item.avtal_godkant ? (
+                  <Ionicons name="checkmark-circle" size={26} color="#16a34a" />
+                ) : (
+                  <Ionicons name="close-circle" size={26} color="#ef4444" />
+                )}
               </View>
-              <View style={styles.kortDetaljer}>
-                <View style={styles.detalj}>
-                  <Text style={styles.detaljEtikett}>Timmar</Text>
-                  <Text style={styles.detaljVärde}>{item.timmar}</Text>
-                </View>
-                <View style={styles.detalj}>
-                  <Text style={styles.detaljEtikett}>Timlön</Text>
-                  <Text style={styles.detaljVärde}>{item.timlon?.toLocaleString('sv-SE')} kr</Text>
-                </View>
-                <View style={styles.detalj}>
-                  <Text style={styles.detaljEtikett}>Totalt</Text>
-                  <Text style={[styles.detaljVärde, styles.totalText]}>{item.totalt_belopp?.toLocaleString('sv-SE')} kr</Text>
-                </View>
-              </View>
-              {item.foretagNamn && (
-                <Text style={styles.foretag}>Företag: {item.foretagNamn}</Text>
+              {!item.avtal_godkant && (
+                <TouchableOpacity style={styles.godkännKnapp} onPress={() => godkännAvtal(item.id)}>
+                  <Text style={styles.godkännText}>Markera avtal som godkänt</Text>
+                </TouchableOpacity>
+              )}
+              {item.avtal_godkant && (
+                <Text style={styles.godkäntEtikett}>Avtal godkänt</Text>
               )}
             </View>
           )}
@@ -109,6 +186,11 @@ export default function RapporterScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#f5f5f5' },
+  flikar: { flexDirection: 'row', backgroundColor: '#fff', borderBottomWidth: 1, borderBottomColor: '#eee' },
+  flik: { flex: 1, paddingVertical: 14, alignItems: 'center' },
+  flikAktiv: { borderBottomWidth: 2, borderBottomColor: '#2563eb' },
+  flikText: { fontSize: 13, fontWeight: '600', color: '#999' },
+  flikTextAktiv: { color: '#2563eb' },
   filter: { backgroundColor: '#fff', padding: 12, gap: 8, borderBottomWidth: 1, borderBottomColor: '#eee' },
   datumInput: { borderWidth: 1, borderColor: '#ddd', borderRadius: 8, padding: 10, fontSize: 14, backgroundColor: '#fafafa' },
   filterKnapp: { backgroundColor: '#2563eb', borderRadius: 8, padding: 10, alignItems: 'center' },
@@ -116,7 +198,7 @@ const styles = StyleSheet.create({
   lista: { padding: 16, paddingBottom: 32 },
   tom: { textAlign: 'center', color: '#999', marginTop: 60, fontSize: 15 },
   kort: { backgroundColor: '#fff', borderRadius: 12, padding: 16, marginBottom: 10, shadowColor: '#000', shadowOpacity: 0.04, shadowRadius: 4, elevation: 1 },
-  kortHuvud: { flexDirection: 'row', alignItems: 'flex-start', marginBottom: 12 },
+  kortHuvud: { flexDirection: 'row', alignItems: 'center', marginBottom: 12 },
   namn: { fontSize: 15, fontWeight: '600', color: '#1a1a1a' },
   email: { fontSize: 13, color: '#888', marginTop: 2 },
   telefon: { fontSize: 13, color: '#888', marginTop: 1 },
@@ -134,4 +216,7 @@ const styles = StyleSheet.create({
   totalRad: { borderTopWidth: 1, borderTopColor: '#eee', paddingTop: 10, marginTop: 4 },
   totalEtikett: { fontSize: 16, fontWeight: '700', color: '#1a1a1a' },
   totalVärde: { fontSize: 16, fontWeight: '700', color: '#2563eb' },
+  godkännKnapp: { backgroundColor: '#2563eb', borderRadius: 8, paddingVertical: 10, alignItems: 'center' },
+  godkännText: { color: '#fff', fontWeight: '600', fontSize: 14 },
+  godkäntEtikett: { fontSize: 13, color: '#16a34a', fontWeight: '600', textAlign: 'center' },
 });

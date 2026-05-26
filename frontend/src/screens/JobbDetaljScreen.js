@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Alert, ScrollView, ActivityIndicator, TextInput } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, Alert, ScrollView, ActivityIndicator, TextInput, Modal } from 'react-native';
 import { useAuth } from '../context/AuthContext';
 import { api } from '../api/klient';
 
@@ -9,8 +9,13 @@ export default function JobbDetaljScreen({ route, navigation }) {
   const [laddar, setLaddar] = useState(false);
   const [sökt, setSökt] = useState(false);
   const [meddelande, setMeddelande] = useState('');
+  const [avtalsModalSynlig, setAvtalsModalSynlig] = useState(false);
 
   async function hanteraSökan() {
+    if (!användare?.avtalGodkant) {
+      setAvtalsModalSynlig(true);
+      return;
+    }
     setLaddar(true);
     try {
       await api.sökaJobb(jobb.id, { meddelande: meddelande.trim() || null });
@@ -85,6 +90,20 @@ export default function JobbDetaljScreen({ route, navigation }) {
         </>
       )}
     </ScrollView>
+
+      <Modal visible={avtalsModalSynlig} transparent animationType="fade" onRequestClose={() => setAvtalsModalSynlig(false)}>
+        <View style={styles.modalBakgrund}>
+          <View style={styles.modalKort}>
+            <Text style={styles.modalRubrik}>Avtal krävs</Text>
+            <Text style={styles.modalText}>
+              Du behöver skriva på ett anställningsavtal innan du kan ansöka om jobb. Vi skickar avtalet till din mejl inom kort.
+            </Text>
+            <TouchableOpacity style={styles.modalKnapp} onPress={() => setAvtalsModalSynlig(false)}>
+              <Text style={styles.modalKnappText}>Stäng</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
   );
 }
 
@@ -104,4 +123,10 @@ const styles = StyleSheet.create({
   knappText: { color: '#fff', fontWeight: '600', fontSize: 16 },
   sekundärKnapp: { borderWidth: 1.5, borderColor: '#2563eb', borderRadius: 12, padding: 16, alignItems: 'center', marginBottom: 12 },
   sekundärKnappText: { color: '#2563eb', fontWeight: '600', fontSize: 16 },
+  modalBakgrund: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center', padding: 32 },
+  modalKort: { backgroundColor: '#fff', borderRadius: 16, padding: 24, width: '100%' },
+  modalRubrik: { fontSize: 18, fontWeight: '700', color: '#1a1a1a', marginBottom: 12 },
+  modalText: { fontSize: 15, color: '#555', lineHeight: 22, marginBottom: 24 },
+  modalKnapp: { backgroundColor: '#2563eb', borderRadius: 10, padding: 14, alignItems: 'center' },
+  modalKnappText: { color: '#fff', fontWeight: '600', fontSize: 15 },
 });

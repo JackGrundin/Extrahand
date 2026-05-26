@@ -70,4 +70,22 @@ async function hämtaPushToken(id) {
   return data?.push_token || null;
 }
 
-module.exports = { skapaAnvändare, hämtaAnvändareViaEmail, hämtaAnvändareViaId, uppdateraProfil, uppdateraProfilBild, sparaPushToken, hämtaPushToken };
+async function hämtaAllaPrivatpersoner() {
+  const { data, error } = await supabase
+    .from('användare')
+    .select('id, Namn, Email, telefonnummer, avtal_godkant, created_at')
+    .eq('Typ', 'privatperson')
+    .order('created_at', { ascending: false });
+  if (error) throw error;
+  return data || [];
+}
+
+async function godkännAvtal(id) {
+  const { error } = await supabase
+    .from('användare')
+    .update({ avtal_godkant: true })
+    .eq('id', id);
+  if (error) throw error;
+}
+
+module.exports = { skapaAnvändare, hämtaAnvändareViaEmail, hämtaAnvändareViaId, uppdateraProfil, uppdateraProfilBild, sparaPushToken, hämtaPushToken, hämtaAllaPrivatpersoner, godkännAvtal };

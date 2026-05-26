@@ -1,6 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-const API_URL = 'http://192.168.68.112:3000/api';
+const API_URL = 'http://192.168.1.102:3000/api';
 
 async function anrop(metod, sökväg, kropp) {
   const token = await AsyncStorage.getItem('token');
@@ -66,6 +66,8 @@ export const api = {
   uppdateraTidrapportStatus: (id, status) => anrop('PATCH', `/tidrapporter/${id}/status`, { status }),
   allaRapporter: (fromDate, toDate) => anrop('GET', `/tidrapporter/alla${fromDate || toDate ? `?${fromDate ? 'fromDate=' + fromDate : ''}${fromDate && toDate ? '&' : ''}${toDate ? 'toDate=' + toDate : ''}` : ''}`),
   tidrapporterFörFöretag: () => anrop('GET', '/tidrapporter/foretag'),
+  hämtaAllaPrivatpersoner: () => anrop('GET', '/users/admin/privatpersoner'),
+  godkännAvtal: (id) => anrop('PATCH', `/users/admin/${id}/avtal`),
 
   // Betyg
   sättaBetyg: (ansokningId, kropp) => anrop('POST', `/betyg/${ansokningId}`, kropp),
