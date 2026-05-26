@@ -3,6 +3,20 @@ import { View, Text, SectionList, TouchableOpacity, StyleSheet, ActivityIndicato
 import { useFocusEffect } from '@react-navigation/native';
 import { api } from '../api/klient';
 
+function parsaArbetstider(arbetstider) {
+  if (!arbetstider) return null;
+  try {
+    const parsed = JSON.parse(arbetstider);
+    if (Array.isArray(parsed)) return parsed;
+  } catch {}
+  return null;
+}
+
+function formatDagDatum(isoStr) {
+  if (!isoStr) return null;
+  return new Date(isoStr + 'T12:00:00').toLocaleDateString('sv-SE', { day: 'numeric', month: 'short' });
+}
+
 function grupperaPerMånad(pass) {
   const grupper = {};
   pass.forEach(p => {
@@ -83,8 +97,13 @@ export default function MinaPassScreen({ navigation }) {
           </View>
         }
         renderItem={({ item }) => {
-          const datum = new Date(item.created_at);
-          const dagText = datum.toLocaleDateString('sv-SE', { weekday: 'short', day: 'numeric', month: 'short' });
+          const schema = parsaArbetstider(item.arbetstider);
+          const datum = schema?.[0]?.datum
+            ? new Date(schema[0].datum + 'T12:00:00')
+            : new Date(item.created_at);
+          const allaDatum = schema ? schema.map(d => d.datum).filter(Boolean) : [];
+          const visaDatum = allaDatum.slice(0, 3);
+          const fler = allaDatum.length > 3 ? allaDatum.length - 3 : 0;
           return (
             <TouchableOpacity
               style={styles.kort}
@@ -99,14 +118,18 @@ export default function MinaPassScreen({ navigation }) {
                 <View style={styles.passInfo}>
                   <Text style={styles.passTitel} numberOfLines={1}>{item.jobbTitel ?? 'Jobb'}</Text>
                   <Text style={styles.passForetag} numberOfLines={1}>{item.foretagNamn ?? 'Okänt företag'}</Text>
-                  <View style={styles.passDetaljer}>
-                    {item.antalDagar != null && (
+                  {allaDatum.length > 0 ? (
+                    <View style={styles.passDetaljer}>
+                      {visaDatum.map((d, i) => (
+                        <Text key={i} style={styles.passDetalj}>{formatDagDatum(d)}</Text>
+                      ))}
+                      {fler > 0 && <Text style={styles.passDetalj}>+{fler} till</Text>}
+                    </View>
+                  ) : item.antalDagar != null ? (
+                    <View style={styles.passDetaljer}>
                       <Text style={styles.passDetalj}>{item.antalDagar} dag{item.antalDagar !== 1 ? 'ar' : ''}</Text>
-                    )}
-                    {item.arbetstider ? (
-                      <Text style={styles.passDetalj}>{item.arbetstider}</Text>
-                    ) : null}
-                  </View>
+                    </View>
+                  ) : null}
                 </View>
               </View>
               <Text style={styles.chattLänk}>Öppna chatt →</Text>
