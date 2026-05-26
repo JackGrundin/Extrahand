@@ -8,7 +8,7 @@ const JWT_HEMLIG_NYCKEL = process.env.JWT_SECRET || 'hemlig-nyckel-byt-i-produkt
 
 // POST /api/auth/registrera
 router.post('/registrera', async (req, res) => {
-  const { namn, email, lösenord, typ, beskrivning, bransch, stad, hemsida } = req.body;
+  const { namn, email, lösenord, typ, beskrivning, bransch, stad, hemsida, telefonnummer } = req.body;
 
   if (!namn || !email || !lösenord || !typ) {
     return res.status(400).json({ fel: 'Alla fält krävs: namn, email, lösenord, typ' });
@@ -25,7 +25,7 @@ router.post('/registrera', async (req, res) => {
     }
 
     const hashatLösenord = await bcrypt.hash(lösenord, 10);
-    const användare = await skapaAnvändare({ namn, email, lösenord: hashatLösenord, typ, beskrivning: beskrivning || null, bransch: bransch || null, stad: stad || null, hemsida: hemsida || null });
+    const användare = await skapaAnvändare({ namn, email, lösenord: hashatLösenord, typ, beskrivning: beskrivning || null, bransch: bransch || null, stad: stad || null, hemsida: hemsida || null, telefonnummer: telefonnummer || null });
 
     const token = jwt.sign(
       { id: användare.id, email: användare.Email, typ: användare.Typ },

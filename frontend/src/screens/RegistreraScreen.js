@@ -8,6 +8,7 @@ export default function RegistreraScreen({ navigation }) {
   const [email, setEmail] = useState('');
   const [lösenord, setLösenord] = useState('');
   const [typ, setTyp] = useState('privatperson');
+  const [telefonnummer, setTelefonnummer] = useState('');
   const [beskrivning, setBeskrivning] = useState('');
   const [bransch, setBransch] = useState('');
   const [stad, setStad] = useState('');
@@ -19,12 +20,16 @@ export default function RegistreraScreen({ navigation }) {
       Alert.alert('Fel', 'Fyll i namn, email och lösenord');
       return;
     }
+    if (typ === 'privatperson' && !telefonnummer.trim()) {
+      Alert.alert('Fel', 'Telefonnummer krävs');
+      return;
+    }
     setLaddar(true);
     try {
       const företagsInfo = typ === 'företag'
         ? { beskrivning: beskrivning.trim() || null, bransch: bransch.trim() || null, stad: stad.trim() || null, hemsida: hemsida.trim() || null }
         : {};
-      await registrera(namn, email, lösenord, typ, företagsInfo);
+      await registrera(namn, email, lösenord, typ, { ...företagsInfo, telefonnummer: telefonnummer.trim() || null });
     } catch (fel) {
       Alert.alert('Fel', fel.message);
     } finally {
@@ -53,6 +58,16 @@ export default function RegistreraScreen({ navigation }) {
           onChangeText={setLösenord}
           secureTextEntry
         />
+
+        {typ === 'privatperson' && (
+          <TextInput
+            style={styles.input}
+            placeholder="Telefonnummer *"
+            value={telefonnummer}
+            onChangeText={setTelefonnummer}
+            keyboardType="phone-pad"
+          />
+        )}
 
         <Text style={styles.label}>Kontotyp</Text>
         <View style={styles.typVäljare}>

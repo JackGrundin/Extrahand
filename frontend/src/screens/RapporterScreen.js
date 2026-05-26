@@ -78,6 +78,7 @@ export default function RapporterScreen() {
                 <View style={{ flex: 1 }}>
                   <Text style={styles.namn}>{item.anvandareNamn ?? '–'}</Text>
                   <Text style={styles.email}>{item.anvandareEmail ?? '–'}</Text>
+                  {item.anvardareTelefon ? <Text style={styles.telefon}>{item.anvardareTelefon}</Text> : null}
                 </View>
                 <Text style={styles.datum}>{new Date(item.datum).toLocaleDateString('sv-SE')}</Text>
               </View>
@@ -118,6 +119,7 @@ const styles = StyleSheet.create({
   kortHuvud: { flexDirection: 'row', alignItems: 'flex-start', marginBottom: 12 },
   namn: { fontSize: 15, fontWeight: '600', color: '#1a1a1a' },
   email: { fontSize: 13, color: '#888', marginTop: 2 },
+  telefon: { fontSize: 13, color: '#888', marginTop: 1 },
   datum: { fontSize: 13, color: '#999' },
   kortDetaljer: { flexDirection: 'row', gap: 8, marginBottom: 8 },
   detalj: { flex: 1, backgroundColor: '#f9fafb', borderRadius: 8, padding: 10, alignItems: 'center' },

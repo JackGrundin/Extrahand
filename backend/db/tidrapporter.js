@@ -59,7 +59,7 @@ async function hämtaAllaTidrapporter({ fromDate, toDate } = {}) {
   const foretagIds = [...new Set(rapporter.map(r => r.foretag_id))];
 
   const [{ data: anvandare }, { data: foretag }] = await Promise.all([
-    supabase.from('användare').select('id, Namn, Email').in('id', anvandareIds),
+    supabase.from('användare').select('id, Namn, Email, telefonnummer').in('id', anvandareIds),
     supabase.from('användare').select('id, Namn').in('id', foretagIds),
   ]);
 
@@ -70,6 +70,7 @@ async function hämtaAllaTidrapporter({ fromDate, toDate } = {}) {
     ...r,
     anvandareNamn: anvandareMap[r.anvandare_id]?.Namn ?? null,
     anvandareEmail: anvandareMap[r.anvandare_id]?.Email ?? null,
+    anvardareTelefon: anvandareMap[r.anvandare_id]?.telefonnummer ?? null,
     foretagNamn: foretagMap[r.foretag_id]?.Namn ?? null,
   }));
 }
