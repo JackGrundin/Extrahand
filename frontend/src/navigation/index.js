@@ -23,7 +23,6 @@ import RedigeraProfilScreen from '../screens/RedigeraProfilScreen';
 import MinaPassScreen from '../screens/MinaPassScreen';
 import FöretagsProfilScreen from '../screens/FöretagsProfilScreen';
 import RapporterScreen from '../screens/RapporterScreen';
-import JobbDetaljScreen from '../screens/JobbDetaljScreen';
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
