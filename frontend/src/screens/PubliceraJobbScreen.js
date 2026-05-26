@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, ScrollView, ActivityIndicator, KeyboardAvoidingView, Platform, Modal } from 'react-native';
+import DateTimePicker from '@react-native-community/datetimepicker';
 import { Ionicons } from '@expo/vector-icons';
 import { api } from '../api/klient';
 
@@ -10,6 +11,12 @@ const KATEGORIER = [
   'IT-tekniker', 'Snickare', 'Hantlangare', 'Trädgårdsarbetare', 'Barnvakt',
   'Väktare', 'Chaufför', 'Eventpersonal', 'Handyman', 'Säljare', 'Vakt',
 ];
+
+function formatDatum(isoStr) {
+  if (!isoStr) return null;
+  const d = new Date(isoStr + 'T12:00:00');
+  return d.toLocaleDateString('sv-SE', { month: 'short', day: 'numeric' });
+}
 
 export default function PubliceraJobbScreen({ navigation }) {
   const [titel, setTitel] = useState('');
@@ -24,6 +31,8 @@ export default function PubliceraJobbScreen({ navigation }) {
   const [laddar, setLaddar] = useState(false);
   const [kategoriModalVisas, setKategoriModalVisas] = useState(false);
   const [sokKategori, setSokKategori] = useState('');
+  const [dagPickerIndex, setDagPickerIndex] = useState(null);
+  const [tempDatum, setTempDatum] = useState(new Date());
 
   function hanteraAntalDagar(val) {
     setAntalDagar(val);
@@ -45,14 +54,19 @@ export default function PubliceraJobbScreen({ navigation }) {
     });
   }
 
-  function lösUtDatum(mmdd) {
-    if (!mmdd || !mmdd.includes('/')) return mmdd;
-    const [mm, dd] = mmdd.split('/');
-    const idag = new Date();
-    const år = idag.getFullYear();
-    const kandidat = new Date(år, parseInt(mm) - 1, parseInt(dd));
-    const slutDatum = kandidat < idag ? new Date(år + 1, parseInt(mm) - 1, parseInt(dd)) : kandidat;
-    return slutDatum.toISOString().split('T')[0];
+  function öppnaPicker(index) {
+    const dag = dagScheman[index];
+    setTempDatum(dag.datum ? new Date(dag.datum + 'T12:00:00') : new Date());
+    setDagPickerIndex(index);
+  }
+
+  function sparaDatum(index, date) {
+    uppdateraDag(index, 'datum', date.toISOString().split('T')[0]);
+  }
+
+  function bekräftaDatum() {
+    if (dagPickerIndex !== null) sparaDatum(dagPickerIndex, tempDatum);
+    setDagPickerIndex(null);
   }
 
   function toggleSammaTider() {
@@ -76,7 +90,7 @@ export default function PubliceraJobbScreen({ navigation }) {
     setLaddar(true);
     try {
       const arbetstider = dagScheman.length > 0
-        ? JSON.stringify(dagScheman.map(dag => ({ ...dag, datum: lösUtDatum(dag.datum) })))
+        ? JSON.stringify(dagScheman)
         : undefined;
       await api.publicera({
         titel: titel.trim(),
@@ -154,12 +168,16 @@ export default function PubliceraJobbScreen({ navigation }) {
                 <View key={i} style={styles.dagRad}>
                   <Text style={styles.dagEtikett}>Dag {i + 1}</Text>
                   <View style={styles.dagFält}>
-                    <TextInput
-                      style={[styles.input, styles.datumInput]}
-                      placeholder="MM/DD"
-                      value={dag.datum}
-                      onChangeText={v => uppdateraDag(i, 'datum', v)}
-                    />
+                    <TouchableOpacity
+                      style={[styles.input, styles.datumKnapp]}
+                      onPress={() => öppnaPicker(i)}
+                      activeOpacity={0.7}
+                    >
+                      <Ionicons name="calendar-outline" size={16} color={dag.datum ? '#1a1a1a' : '#aaa'} />
+                      <Text style={[styles.datumText, !dag.datum && styles.datumPlaceholder]}>
+                        {dag.datum ? formatDatum(dag.datum) : 'Datum'}
+                      </Text>
+                    </TouchableOpacity>
                     <TextInput
                       style={[styles.input, styles.tidInput]}
                       placeholder="08:00"
@@ -204,6 +222,46 @@ export default function PubliceraJobbScreen({ navigation }) {
         </ScrollView>
       </KeyboardAvoidingView>
 
+      {/* Datumväljare – Android (native dialog) */}
+      {Platform.OS === 'android' && dagPickerIndex !== null && (
+        <DateTimePicker
+          value={tempDatum}
+          mode="date"
+          display="default"
+          minimumDate={new Date()}
+          onChange={(_, date) => {
+            setDagPickerIndex(null);
+            if (date) sparaDatum(dagPickerIndex, date);
+          }}
+        />
+      )}
+
+      {/* Datumväljare – iOS (modal med spinner) */}
+      <Modal visible={Platform.OS === 'ios' && dagPickerIndex !== null} transparent animationType="slide" statusBarTranslucent>
+        <View style={styles.pickerBackdrop}>
+          <View style={styles.pickerPanel}>
+            <View style={styles.pickerRubrikRad}>
+              <TouchableOpacity onPress={() => setDagPickerIndex(null)}>
+                <Text style={styles.pickerAvbryt}>Avbryt</Text>
+              </TouchableOpacity>
+              <Text style={styles.pickerRubrik}>Välj datum</Text>
+              <TouchableOpacity onPress={bekräftaDatum}>
+                <Text style={styles.pickerKlar}>Klar</Text>
+              </TouchableOpacity>
+            </View>
+            <DateTimePicker
+              value={tempDatum}
+              mode="date"
+              display="spinner"
+              minimumDate={new Date()}
+              onChange={(_, date) => date && setTempDatum(date)}
+              locale="sv-SE"
+            />
+          </View>
+        </View>
+      </Modal>
+
+      {/* Kategoriväljare */}
       <Modal visible={kategoriModalVisas} animationType="slide" transparent statusBarTranslucent>
         <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
           <TouchableOpacity
@@ -276,13 +334,22 @@ const styles = StyleSheet.create({
   dagRad: { marginBottom: 12 },
   dagEtikett: { fontSize: 13, fontWeight: '700', color: '#6b7280', marginBottom: 6 },
   dagFält: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  datumInput: { flex: 2 },
+  datumKnapp: { flex: 2, flexDirection: 'row', alignItems: 'center', gap: 6 },
+  datumText: { fontSize: 15, color: '#1a1a1a' },
+  datumPlaceholder: { color: '#aaa' },
   tidInput: { flex: 1, textAlign: 'center' },
   tidStreck: { fontSize: 16, color: '#9ca3af' },
 
   knapp: { backgroundColor: '#2563eb', borderRadius: 12, padding: 16, alignItems: 'center', marginTop: 28, marginBottom: 40 },
   knappInaktiv: { backgroundColor: '#93c5fd' },
   knappText: { color: '#fff', fontWeight: '600', fontSize: 16 },
+
+  pickerBackdrop: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.4)' },
+  pickerPanel: { backgroundColor: '#fff', borderTopLeftRadius: 20, borderTopRightRadius: 20, paddingBottom: 32 },
+  pickerRubrikRad: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: '#f0f0f0' },
+  pickerRubrik: { fontSize: 16, fontWeight: '700', color: '#1a1a1a' },
+  pickerAvbryt: { fontSize: 16, color: '#9ca3af' },
+  pickerKlar: { fontSize: 16, color: '#2563eb', fontWeight: '600' },
 
   backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)' },
   panel: { backgroundColor: '#fff', borderTopLeftRadius: 20, borderTopRightRadius: 20, paddingHorizontal: 20, paddingTop: 12, paddingBottom: 32, maxHeight: '80%' },
