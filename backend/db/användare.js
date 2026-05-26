@@ -80,7 +80,7 @@ async function hämtaAllaFöretag() {
   if (!data || !data.length) return [];
 
   const { data: jobb } = await supabase
-    .from('jobb')
+    .from('Jobb')
     .select('Foretag_id');
 
   const jobbRäkning = (jobb || []).reduce((acc, j) => {
