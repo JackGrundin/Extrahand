@@ -12,6 +12,8 @@ export default function RapporterScreen({ navigation }) {
   const [laddar, setLaddar] = useState(true);
   const [fromDate, setFromDate] = useState('');
   const [toDate, setToDate] = useState('');
+  const [sökPrivatperson, setSökPrivatperson] = useState('');
+  const [sökFöretag, setSökFöretag] = useState('');
 
   async function hämta() {
     setLaddar(true);
@@ -73,6 +75,14 @@ export default function RapporterScreen({ navigation }) {
 
   const totaltBelopp = rapporter.reduce((sum, r) => sum + (r.totalt_belopp ?? 0), 0);
   const totaltTimmar = rapporter.reduce((sum, r) => sum + (r.timmar ?? 0), 0);
+
+  const filtreradeFöretag = sökFöretag.trim()
+    ? företag.filter(f => f.Email?.toLowerCase().includes(sökFöretag.toLowerCase()))
+    : företag;
+
+  const filtradePrivatpersoner = sökPrivatperson.trim()
+    ? privatpersoner.filter(p => p.Email?.toLowerCase().includes(sökPrivatperson.toLowerCase()))
+    : privatpersoner;
 
   return (
     <View style={styles.container}>
@@ -180,11 +190,23 @@ export default function RapporterScreen({ navigation }) {
           />
         </>
       ) : aktivFlik === 'företag' ? (
-        <FlatList
-          data={företag}
+        <>
+          <View style={styles.sökContainer}>
+            <Ionicons name="search-outline" size={18} color="#aaa" style={styles.sökIkon} />
+            <TextInput
+              style={styles.sökInput}
+              placeholder="Sök på mejladress..."
+              value={sökFöretag}
+              onChangeText={setSökFöretag}
+              autoCapitalize="none"
+              keyboardType="email-address"
+            />
+          </View>
+          <FlatList
+          data={filtreradeFöretag}
           keyExtractor={(item) => item.id.toString()}
           contentContainerStyle={styles.lista}
-          ListEmptyComponent={<Text style={styles.tom}>Inga företag registrerade</Text>}
+          ListEmptyComponent={<Text style={styles.tom}>Inga företag hittades</Text>}
           renderItem={({ item }) => (
             <View style={styles.kort}>
               <View style={styles.kortHuvudFöretag}>
@@ -211,12 +233,25 @@ export default function RapporterScreen({ navigation }) {
             </View>
           )}
         />
+        </>
       ) : (
-        <FlatList
-          data={privatpersoner}
+        <>
+          <View style={styles.sökContainer}>
+            <Ionicons name="search-outline" size={18} color="#aaa" style={styles.sökIkon} />
+            <TextInput
+              style={styles.sökInput}
+              placeholder="Sök på mejladress..."
+              value={sökPrivatperson}
+              onChangeText={setSökPrivatperson}
+              autoCapitalize="none"
+              keyboardType="email-address"
+            />
+          </View>
+          <FlatList
+          data={filtradePrivatpersoner}
           keyExtractor={(item) => item.id.toString()}
           contentContainerStyle={styles.lista}
-          ListEmptyComponent={<Text style={styles.tom}>Inga privatpersoner registrerade</Text>}
+          ListEmptyComponent={<Text style={styles.tom}>Inga privatpersoner hittades</Text>}
           renderItem={({ item }) => (
             <View style={styles.kort}>
               <View style={styles.kortHuvud}>
@@ -254,6 +289,7 @@ export default function RapporterScreen({ navigation }) {
             </View>
           )}
         />
+        </>
       )}
     </View>
   );
@@ -302,4 +338,7 @@ const styles = StyleSheet.create({
   jobbBricka: { backgroundColor: '#eff6ff', borderRadius: 10, paddingHorizontal: 12, paddingVertical: 6, alignItems: 'center', marginLeft: 8 },
   jobbAntal: { fontSize: 18, fontWeight: '700', color: '#2563eb' },
   jobbEtikett: { fontSize: 11, color: '#93c5fd' },
+  sökContainer: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#fff', margin: 12, borderRadius: 10, borderWidth: 1, borderColor: '#e5e7eb', paddingHorizontal: 12 },
+  sökIkon: { marginRight: 8 },
+  sökInput: { flex: 1, paddingVertical: 11, fontSize: 14, color: '#1a1a1a' },
 });
