@@ -1,7 +1,22 @@
 import { useCallback, useState } from 'react';
 import { View, Text, FlatList, TouchableOpacity, StyleSheet, ActivityIndicator, RefreshControl, Alert, ActionSheetIOS, Platform } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
+import { Ionicons } from '@expo/vector-icons';
 import { api } from '../api/klient';
+
+function parsaArbetstider(arbetstider) {
+  if (!arbetstider) return null;
+  try {
+    const parsed = JSON.parse(arbetstider);
+    if (Array.isArray(parsed)) return parsed;
+  } catch {}
+  return null;
+}
+
+function formatDagDatum(isoStr) {
+  if (!isoStr) return null;
+  return new Date(isoStr + 'T12:00:00').toLocaleDateString('sv-SE', { day: 'numeric', month: 'short' });
+}
 
 const statusFärger = {
   väntar: { bg: '#fef9c3', text: '#854d0e', etikett: 'Väntar' },
@@ -104,30 +119,48 @@ export default function MinaJobbScreen({ navigation }) {
               <Text style={styles.tomText}>Du har inte publicerat några jobb ännu</Text>
             </View>
           }
-          renderItem={({ item }) => (
-            <TouchableOpacity
-              style={styles.kort}
-              onPress={() => navigation.navigate('JobbAnsokningar', { jobbId: item.id, titel: item.Titel })}
-            >
-              <View style={styles.kortHuvud}>
+          renderItem={({ item }) => {
+            const schema = parsaArbetstider(item.arbetstider);
+            const datum = schema ? schema.map(d => d.datum).filter(Boolean) : [];
+            const visaDatum = datum.slice(0, 3);
+            const flerDatum = datum.length > 3 ? datum.length - 3 : 0;
+            return (
+              <TouchableOpacity
+                style={styles.kort}
+                onPress={() => navigation.navigate('JobbAnsokningar', { jobbId: item.id, titel: item.Titel })}
+              >
                 <Text style={styles.titel} numberOfLines={1}>{item.Titel}</Text>
-                <Text style={styles.datum}>{new Date(item.created_at).toLocaleDateString('sv-SE')}</Text>
-              </View>
-              <Text style={styles.info}>{item.Plats ? `${item.Plats} · ` : ''}{item.Typ}</Text>
-              {(item.antal_dagar != null || item.arbetstider) && (
-                <View style={styles.extraRad}>
-                  {item.antal_dagar != null && <Text style={styles.extra}>{item.antal_dagar} dagar</Text>}
-                  {item.arbetstider ? <Text style={styles.extra}>{item.arbetstider}</Text> : null}
+
+                <View style={styles.infoRad}>
+                  {item.Plats && <Text style={styles.info}>{item.Plats}</Text>}
+                  {item.Lon != null && (
+                    <Text style={styles.lön}>{item.Lon.toLocaleString('sv-SE')} kr/tim</Text>
+                  )}
                 </View>
-              )}
-              <View style={styles.kortBotten}>
-                <Text style={styles.seAnsokningar}>Se ansökningar →</Text>
-                <TouchableOpacity style={styles.menyKnapp} onPress={() => öppnaÅtgärder(item)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-                  <Text style={styles.menyIkon}>•••</Text>
-                </TouchableOpacity>
-              </View>
-            </TouchableOpacity>
-          )}
+
+                {datum.length > 0 && (
+                  <View style={styles.datumRad}>
+                    <Ionicons name="calendar" size={14} color="#2563eb" />
+                    {visaDatum.map((d, i) => (
+                      <View key={i} style={styles.datumChip}>
+                        <Text style={styles.datumChipText}>{formatDagDatum(d)}</Text>
+                      </View>
+                    ))}
+                    {flerDatum > 0 && (
+                      <Text style={styles.flerDatumText}>+{flerDatum} till</Text>
+                    )}
+                  </View>
+                )}
+
+                <View style={styles.kortBotten}>
+                  <Text style={styles.seAnsokningar}>Se ansökningar →</Text>
+                  <TouchableOpacity style={styles.menyKnapp} onPress={() => öppnaÅtgärder(item)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+                    <Text style={styles.menyIkon}>•••</Text>
+                  </TouchableOpacity>
+                </View>
+              </TouchableOpacity>
+            );
+          }}
         />
       ) : (
         <FlatList
@@ -188,13 +221,15 @@ const styles = StyleSheet.create({
   lista: { flex: 1, padding: 16 },
   // Aktiva jobb
   kort: { backgroundColor: '#fff', borderRadius: 12, padding: 16, marginBottom: 12, shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 4, elevation: 2 },
-  kortHuvud: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 4 },
-  titel: { fontSize: 16, fontWeight: '600', color: '#1a1a1a', flex: 1 },
-  datum: { fontSize: 13, color: '#999', marginLeft: 8 },
-  info: { fontSize: 14, color: '#666', marginBottom: 4 },
-  extraRad: { flexDirection: 'row', gap: 12, marginBottom: 4 },
-  extra: { fontSize: 13, color: '#888' },
-  kortBotten: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 6 },
+  titel: { fontSize: 16, fontWeight: '700', color: '#1a1a1a', marginBottom: 6 },
+  infoRad: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 8 },
+  info: { fontSize: 14, color: '#666' },
+  lön: { fontSize: 14, color: '#2563eb', fontWeight: '600' },
+  datumRad: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 6, marginBottom: 10 },
+  datumChip: { backgroundColor: '#eff6ff', borderRadius: 8, paddingHorizontal: 8, paddingVertical: 4, borderWidth: 1, borderColor: '#bfdbfe' },
+  datumChipText: { fontSize: 13, fontWeight: '700', color: '#2563eb' },
+  flerDatumText: { fontSize: 13, color: '#6b7280', fontWeight: '500' },
+  kortBotten: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 4 },
   seAnsokningar: { fontSize: 13, color: '#2563eb', fontWeight: '500' },
   menyKnapp: { padding: 4 },
   menyIkon: { fontSize: 16, color: '#9ca3af', letterSpacing: 1 },
