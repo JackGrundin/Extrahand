@@ -19,10 +19,40 @@ export default function PubliceraJobbScreen({ navigation }) {
   const [typ, setTyp] = useState('gig');
   const [kategori, setKategori] = useState('');
   const [antalDagar, setAntalDagar] = useState('');
-  const [arbetstider, setArbetstider] = useState('');
+  const [dagScheman, setDagScheman] = useState([]);
+  const [sammaTider, setSammaTider] = useState(false);
   const [laddar, setLaddar] = useState(false);
   const [kategoriModalVisas, setKategoriModalVisas] = useState(false);
   const [sokKategori, setSokKategori] = useState('');
+
+  function hanteraAntalDagar(val) {
+    setAntalDagar(val);
+    const n = parseInt(val) || 0;
+    setDagScheman(prev =>
+      Array.from({ length: n }, (_, i) => prev[i] || { datum: '', start: '', slut: '' })
+    );
+    if (n <= 1) setSammaTider(false);
+  }
+
+  function uppdateraDag(index, fält, värde) {
+    setDagScheman(prev => {
+      if (sammaTider && fält !== 'datum') {
+        return prev.map(dag => ({ ...dag, [fält]: värde }));
+      }
+      const ny = [...prev];
+      ny[index] = { ...ny[index], [fält]: värde };
+      return ny;
+    });
+  }
+
+  function toggleSammaTider() {
+    const nästa = !sammaTider;
+    setSammaTider(nästa);
+    if (nästa && dagScheman.length > 0) {
+      const { start, slut } = dagScheman[0];
+      setDagScheman(prev => prev.map(dag => ({ ...dag, start, slut })));
+    }
+  }
 
   const filtreradeKategorier = KATEGORIER.filter(k =>
     k.toLowerCase().includes(sokKategori.toLowerCase())
@@ -35,6 +65,9 @@ export default function PubliceraJobbScreen({ navigation }) {
     }
     setLaddar(true);
     try {
+      const arbetstider = dagScheman.length > 0
+        ? JSON.stringify(dagScheman)
+        : undefined;
       await api.publicera({
         titel: titel.trim(),
         beskrivning: beskrivning.trim(),
@@ -43,7 +76,7 @@ export default function PubliceraJobbScreen({ navigation }) {
         typ,
         kategori: kategori || undefined,
         antal_dagar: antalDagar ? parseInt(antalDagar) : undefined,
-        arbetstider: arbetstider.trim() || undefined,
+        arbetstider,
       });
       Alert.alert('Klart!', 'Jobbet har publicerats.', [
         { text: 'OK', onPress: () => navigation.goBack() },
@@ -95,10 +128,46 @@ export default function PubliceraJobbScreen({ navigation }) {
           })() : null}
 
           <Text style={styles.label}>Antal dagar</Text>
-          <TextInput style={styles.input} placeholder="t.ex. 5" value={antalDagar} onChangeText={setAntalDagar} keyboardType="numeric" />
+          <TextInput style={styles.input} placeholder="t.ex. 5" value={antalDagar} onChangeText={hanteraAntalDagar} keyboardType="numeric" />
 
-          <Text style={styles.label}>Arbetstider</Text>
-          <TextInput style={styles.input} placeholder="t.ex. 08:00-17:00" value={arbetstider} onChangeText={setArbetstider} />
+          {dagScheman.length > 0 && (
+            <View style={styles.dagSektion}>
+              {dagScheman.length > 1 && (
+                <TouchableOpacity style={styles.kryssRad} onPress={toggleSammaTider} activeOpacity={0.7}>
+                  <View style={[styles.kryssRuta, sammaTider && styles.kryssRutaAktiv]}>
+                    {sammaTider && <Ionicons name="checkmark" size={14} color="#fff" />}
+                  </View>
+                  <Text style={styles.kryssText}>Samma tider varje dag</Text>
+                </TouchableOpacity>
+              )}
+              {dagScheman.map((dag, i) => (
+                <View key={i} style={styles.dagRad}>
+                  <Text style={styles.dagEtikett}>Dag {i + 1}</Text>
+                  <View style={styles.dagFält}>
+                    <TextInput
+                      style={[styles.input, styles.datumInput]}
+                      placeholder="ÅÅÅÅ-MM-DD"
+                      value={dag.datum}
+                      onChangeText={v => uppdateraDag(i, 'datum', v)}
+                    />
+                    <TextInput
+                      style={[styles.input, styles.tidInput]}
+                      placeholder="08:00"
+                      value={dag.start}
+                      onChangeText={v => uppdateraDag(i, 'start', v)}
+                    />
+                    <Text style={styles.tidStreck}>–</Text>
+                    <TextInput
+                      style={[styles.input, styles.tidInput]}
+                      placeholder="17:00"
+                      value={dag.slut}
+                      onChangeText={v => uppdateraDag(i, 'slut', v)}
+                    />
+                  </View>
+                </View>
+              ))}
+            </View>
+          )}
 
           <Text style={styles.label}>Typ *</Text>
           <View style={styles.typVäljare}>
@@ -188,6 +257,18 @@ const styles = StyleSheet.create({
   prisRad: { fontSize: 13, color: '#0369a1' },
   prisFet: { fontWeight: '700', color: '#0369a1' },
   prisFetBlå: { fontWeight: '700', color: '#1d4ed8' },
+
+  dagSektion: { marginTop: 12, borderWidth: 1, borderColor: '#e5e7eb', borderRadius: 12, padding: 14, backgroundColor: '#fafafa' },
+  kryssRad: { flexDirection: 'row', alignItems: 'center', marginBottom: 14 },
+  kryssRuta: { width: 20, height: 20, borderRadius: 5, borderWidth: 2, borderColor: '#2563eb', justifyContent: 'center', alignItems: 'center', marginRight: 10 },
+  kryssRutaAktiv: { backgroundColor: '#2563eb' },
+  kryssText: { fontSize: 14, color: '#374151', fontWeight: '500' },
+  dagRad: { marginBottom: 12 },
+  dagEtikett: { fontSize: 13, fontWeight: '700', color: '#6b7280', marginBottom: 6 },
+  dagFält: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  datumInput: { flex: 2 },
+  tidInput: { flex: 1, textAlign: 'center' },
+  tidStreck: { fontSize: 16, color: '#9ca3af' },
 
   knapp: { backgroundColor: '#2563eb', borderRadius: 12, padding: 16, alignItems: 'center', marginTop: 28, marginBottom: 40 },
   knappInaktiv: { backgroundColor: '#93c5fd' },
