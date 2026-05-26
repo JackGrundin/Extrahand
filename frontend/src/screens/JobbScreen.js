@@ -10,7 +10,33 @@ const KATEGORIER = [
   'IT-tekniker', 'Snickare', 'Hantlangare', 'Trädgårdsarbetare', 'Barnvakt',
   'Väktare', 'Chaufför', 'Eventpersonal', 'Handyman', 'Säljare', 'Vakt',
 ];
-const SORTERING = ['Nyast', 'Högst lön', 'Flest dagar'];
+const SORTERING = ['Närmast datum', 'Nyast', 'Högst lön', 'Flest dagar'];
+
+function parsaArbetstider(arbetstider) {
+  if (!arbetstider) return null;
+  try {
+    const parsed = JSON.parse(arbetstider);
+    if (Array.isArray(parsed)) return parsed;
+  } catch {}
+  return null;
+}
+
+function närmasteDatum(jobb) {
+  const schema = parsaArbetstider(jobb.arbetstider);
+  if (!schema) return null;
+  const datum = schema
+    .map(d => d.datum)
+    .filter(Boolean)
+    .map(d => new Date(d + 'T12:00:00'))
+    .filter(d => !isNaN(d.getTime()))
+    .sort((a, b) => a - b);
+  return datum[0] ?? null;
+}
+
+function formatDagDatum(isoStr) {
+  if (!isoStr) return null;
+  return new Date(isoStr + 'T12:00:00').toLocaleDateString('sv-SE', { day: 'numeric', month: 'short' });
+}
 
 function normalisera(s) {
   return s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
@@ -52,7 +78,7 @@ export default function JobbScreen({ navigation }) {
   const [stadFilter, setStadFilter] = useState('');
   const [minLön, setMinLön] = useState('');
   const [minDagar, setMinDagar] = useState('');
-  const [sortering, setSortering] = useState('Nyast');
+  const [sortering, setSortering] = useState('Närmast datum');
   const [modalVisas, setModalVisas] = useState(false);
   const [aktivSektion, setAktivSektion] = useState(null);
   const [sokKategori, setSokKategori] = useState('');
@@ -76,7 +102,7 @@ export default function JobbScreen({ navigation }) {
     valtaKategorier.length > 0,
     minLön !== '',
     minDagar !== '',
-    sortering !== 'Nyast',
+    sortering !== 'Närmast datum',
   ].filter(Boolean).length;
 
   const filtrerade = jobb
@@ -91,7 +117,13 @@ export default function JobbScreen({ navigation }) {
     .sort((a, b) => {
       if (sortering === 'Högst lön') return (b.Lon ?? 0) - (a.Lon ?? 0);
       if (sortering === 'Flest dagar') return (b.antal_dagar ?? 0) - (a.antal_dagar ?? 0);
-      return new Date(b.created_at) - new Date(a.created_at);
+      if (sortering === 'Nyast') return new Date(b.created_at) - new Date(a.created_at);
+      const dA = närmasteDatum(a);
+      const dB = närmasteDatum(b);
+      if (!dA && !dB) return 0;
+      if (!dA) return 1;
+      if (!dB) return -1;
+      return dA - dB;
     });
 
   function stängModal() {
@@ -105,7 +137,7 @@ export default function JobbScreen({ navigation }) {
     setValtaKategorier([]);
     setMinLön('');
     setMinDagar('');
-    setSortering('Nyast');
+    setSortering('Närmast datum');
   }
 
   function växlaKategori(k) {
@@ -154,21 +186,41 @@ export default function JobbScreen({ navigation }) {
         contentContainerStyle={styles.lista}
         refreshControl={<RefreshControl refreshing={uppdaterar} onRefresh={() => { setUppdaterar(true); hämta(); }} />}
         ListEmptyComponent={<Text style={styles.tom}>Inga jobb matchar filtret</Text>}
-        renderItem={({ item }) => (
-          <TouchableOpacity style={styles.kort} onPress={() => navigation.navigate('JobbDetalj', { jobb: item })}>
-            <View style={styles.kortTopp}>
-              <Text style={styles.titel} numberOfLines={1}>{item.foretagNamn ?? 'Okänt företag'}</Text>
-              {item.Kategori && <Text style={styles.kategoriTag}>{item.Kategori}</Text>}
-            </View>
-            <Text style={styles.jobbTitel} numberOfLines={1}>{item.Titel}</Text>
-            <Text style={styles.info}>{item.Plats} · {item.Typ}</Text>
-            {item.Lon && <Text style={styles.lön}>{item.Lon.toLocaleString('sv-SE')} kr/tim</Text>}
-            <View style={styles.extraRad}>
-              {item.antal_dagar != null && <Text style={styles.extraInfo}>{item.antal_dagar} dagar</Text>}
-              {item.arbetstider ? <Text style={styles.extraInfo}>{item.arbetstider}</Text> : null}
-            </View>
-          </TouchableOpacity>
-        )}
+        renderItem={({ item }) => {
+          const schema = parsaArbetstider(item.arbetstider);
+          const datum = schema ? schema.map(d => d.datum).filter(Boolean) : [];
+          const visaDatum = datum.slice(0, 3);
+          const flerDatum = datum.length > 3 ? datum.length - 3 : 0;
+          return (
+            <TouchableOpacity style={styles.kort} onPress={() => navigation.navigate('JobbDetalj', { jobb: item })}>
+              <View style={styles.kortTopp}>
+                <Text style={styles.titel} numberOfLines={1}>{item.foretagNamn ?? 'Okänt företag'}</Text>
+                {item.Kategori && <Text style={styles.kategoriTag}>{item.Kategori}</Text>}
+              </View>
+              <Text style={styles.jobbTitel} numberOfLines={1}>{item.Titel}</Text>
+
+              {datum.length > 0 && (
+                <View style={styles.datumRad}>
+                  <Ionicons name="calendar" size={14} color="#2563eb" />
+                  {visaDatum.map((d, i) => (
+                    <View key={i} style={styles.datumChip}>
+                      <Text style={styles.datumChipText}>{formatDagDatum(d)}</Text>
+                    </View>
+                  ))}
+                  {flerDatum > 0 && (
+                    <Text style={styles.flerDatumText}>+{flerDatum} till</Text>
+                  )}
+                </View>
+              )}
+
+              <Text style={styles.info}>{item.Plats} · {item.Typ}</Text>
+              <View style={styles.extraRad}>
+                {item.Lon && <Text style={styles.lön}>{item.Lon.toLocaleString('sv-SE')} kr/tim</Text>}
+                {item.antal_dagar != null && <Text style={styles.extraInfo}>{item.antal_dagar} dagar</Text>}
+              </View>
+            </TouchableOpacity>
+          );
+        }}
       />
 
       <Modal visible={modalVisas} animationType="slide" transparent statusBarTranslucent>
@@ -335,6 +387,10 @@ const styles = StyleSheet.create({
   kategoriTag: { fontSize: 12, color: '#2563eb', backgroundColor: '#eff6ff', borderRadius: 10, paddingHorizontal: 8, paddingVertical: 3, marginLeft: 8 },
   info: { fontSize: 14, color: '#666', marginBottom: 4 },
   lön: { fontSize: 14, color: '#2563eb', fontWeight: '500' },
+  datumRad: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 6, marginBottom: 8, marginTop: 6 },
+  datumChip: { backgroundColor: '#eff6ff', borderRadius: 8, paddingHorizontal: 8, paddingVertical: 4, borderWidth: 1, borderColor: '#bfdbfe' },
+  datumChipText: { fontSize: 13, fontWeight: '700', color: '#2563eb' },
+  flerDatumText: { fontSize: 13, color: '#6b7280', fontWeight: '500' },
   extraRad: { flexDirection: 'row', gap: 12, marginTop: 4 },
   extraInfo: { fontSize: 13, color: '#888' },
   tom: { textAlign: 'center', color: '#999', marginTop: 60, fontSize: 16 },

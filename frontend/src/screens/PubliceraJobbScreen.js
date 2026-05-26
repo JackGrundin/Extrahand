@@ -87,6 +87,10 @@ export default function PubliceraJobbScreen({ navigation }) {
       Alert.alert('Fel', 'Titel och beskrivning krävs');
       return;
     }
+    if (dagScheman.length === 0 || !dagScheman.some(d => d.datum)) {
+      Alert.alert('Fel', 'Du måste ange datum för passet');
+      return;
+    }
     setLaddar(true);
     try {
       const arbetstider = dagScheman.length > 0
