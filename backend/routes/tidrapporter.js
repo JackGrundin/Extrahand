@@ -1,6 +1,6 @@
 const express = require('express');
 const { kräverInloggning, kräverTyp } = require('../middleware/auth');
-const { skapaTidrapport, hämtaTidrapportFörAnsökan, uppdateraTidrapportStatus, hämtaAllaTidrapporter, hämtaTidrapporterFörFöretag } = require('../db/tidrapporter');
+const { skapaTidrapport, hämtaTidrapportFörAnsökan, uppdateraTidrapportStatus, hämtaAllaTidrapporter, hämtaTidrapporterFörFöretag, taBortTidrapport } = require('../db/tidrapporter');
 const { hämtaAnsökanViaId } = require('../db/ansokningar');
 const { hämtaJobbViaId } = require('../db/jobb');
 const { hämtaAnvändareViaEmail } = require('../db/användare');
@@ -92,6 +92,20 @@ router.get('/alla', kräverInloggning, async (req, res) => {
     res.json(rapporter);
   } catch (fel) {
     console.error('Alla rapporter fel:', fel);
+    res.status(500).json({ fel: 'Serverfel' });
+  }
+});
+
+// DELETE /api/tidrapporter/:id — admin: ta bort tidrapport (markera som betald)
+router.delete('/:id', kräverInloggning, async (req, res) => {
+  if (req.användare.email !== ADMIN_EMAIL) {
+    return res.status(403).json({ fel: 'Åtkomst nekad' });
+  }
+  try {
+    await taBortTidrapport(req.params.id);
+    res.json({ ok: true });
+  } catch (fel) {
+    console.error('Ta bort tidrapport fel:', fel);
     res.status(500).json({ fel: 'Serverfel' });
   }
 });

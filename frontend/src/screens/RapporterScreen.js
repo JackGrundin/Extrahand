@@ -28,6 +28,24 @@ export default function RapporterScreen() {
     }
   }
 
+  async function taBortRapport(id) {
+    Alert.alert(
+      'Bekräfta',
+      'Är du säker på att du vill markera denna rapport som betald och ta bort den?',
+      [
+        { text: 'Avbryt', style: 'cancel' },
+        { text: 'Bekräfta', style: 'destructive', onPress: async () => {
+          try {
+            await api.taBortTidrapport(id);
+            setRapporter(prev => prev.filter(r => r.id !== id));
+          } catch (fel) {
+            Alert.alert('Fel', fel.message);
+          }
+        }},
+      ]
+    );
+  }
+
   async function filtreraRapporter() {
     setLaddar(true);
     try {
@@ -144,6 +162,9 @@ export default function RapporterScreen() {
                 {item.foretagNamn && (
                   <Text style={styles.foretag}>Företag: {item.foretagNamn}</Text>
                 )}
+                <TouchableOpacity style={styles.betaldKnapp} onPress={() => taBortRapport(item.id)}>
+                  <Text style={styles.betaldText}>Markera som betald och ta bort</Text>
+                </TouchableOpacity>
               </View>
             )}
           />
@@ -230,4 +251,6 @@ const styles = StyleSheet.create({
   godkännKnapp: { backgroundColor: '#2563eb', borderRadius: 8, paddingVertical: 10, alignItems: 'center' },
   godkännText: { color: '#fff', fontWeight: '600', fontSize: 14 },
   godkäntEtikett: { fontSize: 13, color: '#16a34a', fontWeight: '600', textAlign: 'center' },
+  betaldKnapp: { marginTop: 10, borderWidth: 1, borderColor: '#dc2626', borderRadius: 8, paddingVertical: 9, alignItems: 'center' },
+  betaldText: { color: '#dc2626', fontWeight: '600', fontSize: 13 },
 });

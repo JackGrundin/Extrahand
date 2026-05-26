@@ -111,4 +111,12 @@ async function hämtaTidrapporterFörFöretag(foretagId) {
   });
 }
 
-module.exports = { skapaTidrapport, hämtaTidrapportFörAnsökan, uppdateraTidrapportStatus, hämtaAllaTidrapporter, hämtaTidrapporterFörFöretag };
+async function taBortTidrapport(id) {
+  const { error } = await supabase
+    .from('tidrapporter')
+    .delete()
+    .eq('id', id);
+  if (error) throw error;
+}
+
+module.exports = { skapaTidrapport, hämtaTidrapportFörAnsökan, uppdateraTidrapportStatus, hämtaAllaTidrapporter, hämtaTidrapporterFörFöretag, taBortTidrapport };
