@@ -77,7 +77,20 @@ async function hämtaAllaFöretag() {
     .eq('Typ', 'företag')
     .order('created_at', { ascending: false });
   if (error) throw error;
-  return data || [];
+  if (!data || !data.length) return [];
+
+  const foretagIds = data.map(f => f.id);
+  const { data: jobb } = await supabase
+    .from('jobb')
+    .select('Foretag_id')
+    .in('Foretag_id', foretagIds);
+
+  const jobbRäkning = (jobb || []).reduce((acc, j) => {
+    acc[j.Foretag_id] = (acc[j.Foretag_id] || 0) + 1;
+    return acc;
+  }, {});
+
+  return data.map(f => ({ ...f, antalJobb: jobbRäkning[f.id] ?? 0 }));
 }
 
 async function hämtaAllaPrivatpersoner() {

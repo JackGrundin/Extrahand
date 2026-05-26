@@ -187,9 +187,17 @@ export default function RapporterScreen() {
           ListEmptyComponent={<Text style={styles.tom}>Inga företag registrerade</Text>}
           renderItem={({ item }) => (
             <View style={styles.kort}>
-              <Text style={styles.namn}>{item.Namn ?? '–'}</Text>
-              <Text style={styles.email}>{item.Email ?? '–'}</Text>
-              {item.telefonnummer ? <Text style={styles.telefon}>{item.telefonnummer}</Text> : null}
+              <View style={styles.kortHuvudFöretag}>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.namn}>{item.Namn ?? '–'}</Text>
+                  <Text style={styles.email}>{item.Email ?? '–'}</Text>
+                  {item.telefonnummer ? <Text style={styles.telefon}>{item.telefonnummer}</Text> : null}
+                </View>
+                <View style={styles.jobbBricka}>
+                  <Text style={styles.jobbAntal}>{item.antalJobb}</Text>
+                  <Text style={styles.jobbEtikett}>annonser</Text>
+                </View>
+              </View>
               {item.created_at ? (() => {
                 const skapad = new Date(item.created_at);
                 const dag = String(skapad.getDate()).padStart(2, '0');
@@ -285,4 +293,8 @@ const styles = StyleSheet.create({
   godkäntEtikett: { fontSize: 13, color: '#16a34a', fontWeight: '600', textAlign: 'center' },
   betaldKnapp: { marginTop: 10, borderWidth: 1, borderColor: '#dc2626', borderRadius: 8, paddingVertical: 9, alignItems: 'center' },
   betaldText: { color: '#dc2626', fontWeight: '600', fontSize: 13 },
+  kortHuvudFöretag: { flexDirection: 'row', alignItems: 'center', marginBottom: 4 },
+  jobbBricka: { backgroundColor: '#eff6ff', borderRadius: 10, paddingHorizontal: 12, paddingVertical: 6, alignItems: 'center', marginLeft: 8 },
+  jobbAntal: { fontSize: 18, fontWeight: '700', color: '#2563eb' },
+  jobbEtikett: { fontSize: 11, color: '#93c5fd' },
 });
