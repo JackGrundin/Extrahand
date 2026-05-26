@@ -79,14 +79,13 @@ async function hämtaAllaFöretag() {
   if (error) throw error;
   if (!data || !data.length) return [];
 
-  const foretagIds = data.map(f => f.id);
   const { data: jobb } = await supabase
     .from('jobb')
-    .select('Foretag_id')
-    .in('Foretag_id', foretagIds);
+    .select('Foretag_id');
 
   const jobbRäkning = (jobb || []).reduce((acc, j) => {
-    acc[j.Foretag_id] = (acc[j.Foretag_id] || 0) + 1;
+    const fid = j.Foretag_id;
+    if (fid != null) acc[fid] = (acc[fid] || 0) + 1;
     return acc;
   }, {});
 
