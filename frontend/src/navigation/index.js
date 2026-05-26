@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
@@ -215,8 +216,14 @@ const laddningsStyles = StyleSheet.create({
 
 export default function Navigation() {
   const { användare, laddar } = useAuth();
+  const [visaSplash, setVisaSplash] = useState(true);
 
-  if (laddar) {
+  useEffect(() => {
+    const timer = setTimeout(() => setVisaSplash(false), 1500);
+    return () => clearTimeout(timer);
+  }, []);
+
+  if (laddar || visaSplash) {
     return (
       <View style={laddningsStyles.container}>
         <Text style={laddningsStyles.logotyp}>FastGig</Text>
