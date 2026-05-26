@@ -1,7 +1,22 @@
 import { useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Alert, ScrollView, ActivityIndicator, TextInput, Modal } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../context/AuthContext';
 import { api } from '../api/klient';
+
+function parsaArbetstider(arbetstider) {
+  if (!arbetstider) return null;
+  try {
+    const parsed = JSON.parse(arbetstider);
+    if (Array.isArray(parsed)) return parsed;
+  } catch {}
+  return null;
+}
+
+function formatDagDatum(isoStr) {
+  if (!isoStr) return null;
+  return new Date(isoStr + 'T12:00:00').toLocaleDateString('sv-SE', { day: 'numeric', month: 'short' });
+}
 
 export default function JobbDetaljScreen({ route, navigation }) {
   const { jobb } = route.params;
@@ -35,10 +50,37 @@ export default function JobbDetaljScreen({ route, navigation }) {
       <Text style={styles.titel}>{jobb.Titel}</Text>
       <Text style={styles.info}>{jobb.Plats} · {jobb.Typ}</Text>
       {jobb.Lon && <Text style={styles.lön}>{jobb.Lon.toLocaleString('sv-SE')} kr/tim</Text>}
-      <View style={styles.detaljerRad}>
-        {jobb.antal_dagar != null && <Text style={styles.detalj}>{jobb.antal_dagar} dagar</Text>}
-        {jobb.arbetstider ? <Text style={styles.detalj}>{jobb.arbetstider}</Text> : null}
-      </View>
+      {(() => {
+        const schema = parsaArbetstider(jobb.arbetstider);
+        if (schema && schema.length > 0) {
+          return (
+            <View style={styles.dagSchema}>
+              <View style={styles.dagSchemaRubrikRad}>
+                <Ionicons name="calendar" size={15} color="#2563eb" />
+                <Text style={styles.dagSchemaRubrik}>
+                  {schema.length} {schema.length === 1 ? 'dag' : 'dagar'}
+                  {jobb.antal_dagar != null && jobb.antal_dagar !== schema.length ? ` · ${jobb.antal_dagar} planerade` : ''}
+                </Text>
+              </View>
+              {schema.map((dag, i) => (
+                <View key={i} style={styles.dagRad}>
+                  <View style={styles.datumChip}>
+                    <Text style={styles.datumChipText}>{formatDagDatum(dag.datum) ?? '–'}</Text>
+                  </View>
+                  {(dag.start || dag.slut) && (
+                    <Text style={styles.dagTid}>{dag.start ?? '–'} – {dag.slut ?? '–'}</Text>
+                  )}
+                </View>
+              ))}
+            </View>
+          );
+        }
+        return jobb.antal_dagar != null ? (
+          <View style={styles.detaljerRad}>
+            <Text style={styles.detalj}>{jobb.antal_dagar} dagar</Text>
+          </View>
+        ) : null;
+      })()}
 
       <Text style={styles.sektionsRubrik}>Beskrivning</Text>
       <Text style={styles.beskrivning}>{jobb.Beskrivning}</Text>
@@ -117,6 +159,13 @@ const styles = StyleSheet.create({
   lön: { fontSize: 16, color: '#2563eb', fontWeight: '600', marginBottom: 8 },
   detaljerRad: { flexDirection: 'row', gap: 16, marginBottom: 20 },
   detalj: { fontSize: 14, color: '#666' },
+  dagSchema: { backgroundColor: '#f8faff', borderRadius: 12, padding: 14, marginBottom: 20, borderWidth: 1, borderColor: '#bfdbfe' },
+  dagSchemaRubrikRad: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 10 },
+  dagSchemaRubrik: { fontSize: 14, fontWeight: '700', color: '#2563eb' },
+  dagRad: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 6 },
+  datumChip: { backgroundColor: '#eff6ff', borderRadius: 8, paddingHorizontal: 10, paddingVertical: 5, borderWidth: 1, borderColor: '#bfdbfe' },
+  datumChipText: { fontSize: 14, fontWeight: '700', color: '#2563eb' },
+  dagTid: { fontSize: 14, color: '#374151' },
   sektionsRubrik: { fontSize: 16, fontWeight: '600', color: '#1a1a1a', marginBottom: 8 },
   beskrivning: { fontSize: 15, color: '#444', lineHeight: 22, marginBottom: 32 },
   textArea: { borderWidth: 1, borderColor: '#ddd', borderRadius: 10, padding: 14, fontSize: 15, backgroundColor: '#fafafa', minHeight: 110, marginBottom: 16 },
