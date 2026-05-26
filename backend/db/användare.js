@@ -84,12 +84,12 @@ async function hämtaAllaFöretag() {
     .select('Foretag_id');
 
   const jobbRäkning = (jobb || []).reduce((acc, j) => {
-    const fid = j.Foretag_id;
-    if (fid != null) acc[fid] = (acc[fid] || 0) + 1;
+    const fid = String(j.Foretag_id);
+    if (j.Foretag_id != null) acc[fid] = (acc[fid] || 0) + 1;
     return acc;
   }, {});
 
-  return data.map(f => ({ ...f, antalJobb: jobbRäkning[f.id] ?? 0 }));
+  return data.map(f => ({ ...f, antalJobb: jobbRäkning[String(f.id)] ?? 0 }));
 }
 
 async function hämtaAllaPrivatpersoner() {
