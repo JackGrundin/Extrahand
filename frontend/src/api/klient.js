@@ -1,6 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-const API_URL = 'http://192.168.1.102:3000/api';
+const API_URL = 'https://extrahand-production-4816.up.railway.app/api';
 
 async function anrop(metod, sökväg, kropp) {
   const token = await AsyncStorage.getItem('token');
