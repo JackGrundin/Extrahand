@@ -1,6 +1,6 @@
 const express = require('express');
 const { kräverInloggning, kräverTyp } = require('../middleware/auth');
-const { skapaAnsökan, hämtaAnsökningarFörSökande, hämtaAnsökningarFörJobb, finnsDubblettAnsökan, uppdateraStatus, hämtaAnsökanViaId, avvisaAllaUtomEn, återställAllaFörJobb, hämtaAllaKonversationerFörFöretag, ångraAnsökan } = require('../db/ansokningar');
+const { skapaAnsökan, hämtaAnsökningarFörSökande, hämtaAnsökningarFörJobb, finnsDubblettAnsökan, uppdateraStatus, hämtaAnsökanViaId, avvisaAllaUtomEn, återställAllaFörJobb, hämtaAllaKonversationerFörFöretag, ångraAnsökan, hämtaAnsökanMedJobbInfo } = require('../db/ansokningar');
 const { hämtaPushToken, hämtaAnvändareViaId } = require('../db/användare');
 const { hämtaJobbViaId } = require('../db/jobb');
 const { skickaNotifikation } = require('../utils/pushNotifikation');
@@ -108,6 +108,22 @@ router.patch('/:id/status', kräverInloggning, kräverTyp('företag'), async (re
     }
   } catch (fel) {
     console.error('Status fel:', fel);
+    res.status(500).json({ fel: 'Serverfel' });
+  }
+});
+
+// GET /api/ansokningar/:id/detaljer — hämtar ansökan med jobbinfo (tillgänglig för båda parter)
+router.get('/:id/detaljer', kräverInloggning, async (req, res) => {
+  try {
+    const ansökan = await hämtaAnsökanMedJobbInfo(req.params.id);
+    if (!ansökan) return res.status(404).json({ fel: 'Ansökan hittades inte' });
+
+    const harTillgång = req.användare.id === ansökan.sokande_id || req.användare.id === ansökan.foretagId;
+    if (!harTillgång) return res.status(403).json({ fel: 'Åtkomst nekad' });
+
+    res.json(ansökan);
+  } catch (fel) {
+    console.error('Ansökan detaljer fel:', fel);
     res.status(500).json({ fel: 'Serverfel' });
   }
 });

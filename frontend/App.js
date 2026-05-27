@@ -1,6 +1,7 @@
 import { StatusBar } from 'expo-status-bar';
 import * as Notifications from 'expo-notifications';
 import { AuthProvider } from './src/context/AuthContext';
+import { NotifikationsProvider } from './src/context/NotifikationsContext';
 import Navigation from './src/navigation';
 
 Notifications.setNotificationHandler({
@@ -14,8 +15,10 @@ Notifications.setNotificationHandler({
 export default function App() {
   return (
     <AuthProvider>
-      <StatusBar style="auto" />
-      <Navigation />
+      <NotifikationsProvider>
+        <StatusBar style="auto" />
+        <Navigation />
+      </NotifikationsProvider>
     </AuthProvider>
   );
 }

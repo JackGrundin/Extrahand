@@ -1,10 +1,12 @@
 import { useEffect, useState, useRef, useCallback } from 'react';
-import { View, Text, FlatList, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform, ActivityIndicator, Alert, RefreshControl } from 'react-native';
+import { View, Text, FlatList, ScrollView, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform, ActivityIndicator, Alert, RefreshControl } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { api } from '../api/klient';
 import { useAuth } from '../context/AuthContext';
+import { useNotifikationer } from '../context/NotifikationsContext';
 import { STATUSFÄRGER_TIDRAPPORT } from '../utils/konstanter';
+import { parsaArbetstider, formatDagDatum } from '../utils/datumHelper';
 
 function TidrapportKort({ rapport, ärPrivatperson, onUppdaterad }) {
   const [sparar, setSparar] = useState(false);
@@ -91,9 +93,11 @@ export default function ChattScreen({ route, navigation }) {
   }, [navigation, ansokningId]);
 
   const { användare } = useAuth();
+  const { markeraLäst } = useNotifikationer();
   const ärPrivatperson = användare?.typ === 'privatperson';
   const [meddelanden, setMeddelanden] = useState([]);
   const [tidrapport, setTidrapport] = useState(null);
+  const [passInfo, setPassInfo] = useState(null);
   const [text, setText] = useState('');
   const [laddar, setLaddar] = useState(true);
   const [uppdaterar, setUppdaterar] = useState(false);
@@ -101,23 +105,22 @@ export default function ChattScreen({ route, navigation }) {
   const listRef = useRef(null);
 
   async function hämta() {
-    try {
-      const data = await api.hämtaMeddelanden(ansokningId);
-      setMeddelanden(data);
-    } catch (fel) {
-      console.error('Meddelanden fel:', fel);
-    }
-    try {
-      const rapport = await api.hämtaTidrapport(ansokningId);
-      setTidrapport(rapport);
-    } catch (fel) {
-      console.error('Tidrapport fel:', fel);
-    }
+    const [msgResult, rapportResult, passResult] = await Promise.allSettled([
+      api.hämtaMeddelanden(ansokningId),
+      api.hämtaTidrapport(ansokningId),
+      api.hämtaAnsökanDetaljer(ansokningId),
+    ]);
+    if (msgResult.status === 'fulfilled') setMeddelanden(msgResult.value);
+    if (rapportResult.status === 'fulfilled') setTidrapport(rapportResult.value);
+    if (passResult.status === 'fulfilled') setPassInfo(passResult.value);
     setLaddar(false);
     setUppdaterar(false);
   }
 
-  useFocusEffect(useCallback(() => { hämta(); }, []));
+  useFocusEffect(useCallback(() => {
+    hämta();
+    markeraLäst(ansokningId);
+  }, []));
 
   async function skicka() {
     if (!text.trim() || skickar) return;
@@ -136,8 +139,36 @@ export default function ChattScreen({ route, navigation }) {
 
   if (laddar) return <ActivityIndicator style={{ flex: 1 }} size="large" />;
 
+  const dagScheman = parsaArbetstider(passInfo?.arbetstider);
+  const allaDatum = dagScheman ? dagScheman.map(d => d.datum).filter(Boolean) : [];
+
   return (
     <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === 'ios' ? 'padding' : undefined} keyboardVerticalOffset={90}>
+      {(passInfo?.jobbTitel || allaDatum.length > 0) && (
+        <View style={styles.passStrip}>
+          {passInfo?.jobbTitel && (
+            <Text style={styles.passTitel} numberOfLines={1}>{passInfo.jobbTitel}</Text>
+          )}
+          {allaDatum.length > 0 && (
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.datumRad} contentContainerStyle={{ gap: 6, alignItems: 'center' }}>
+              <Ionicons name="calendar" size={14} color="#2563eb" style={{ marginRight: 2 }} />
+              {allaDatum.map((d, i) => (
+                <View key={i} style={styles.datumChip}>
+                  <Text style={styles.datumChipText}>{formatDagDatum(d)}</Text>
+                </View>
+              ))}
+            </ScrollView>
+          )}
+          {allaDatum.length === 0 && passInfo?.antalDagar != null && (
+            <View style={styles.datumRad}>
+              <View style={styles.datumChip}>
+                <Text style={styles.datumChipText}>{passInfo.antalDagar} dag{passInfo.antalDagar !== 1 ? 'ar' : ''}</Text>
+              </View>
+            </View>
+          )}
+        </View>
+      )}
+
       <FlatList
         ref={listRef}
         data={meddelanden}
@@ -186,6 +217,11 @@ export default function ChattScreen({ route, navigation }) {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#f5f5f5' },
+  passStrip: { backgroundColor: '#fff', paddingHorizontal: 16, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: '#e5e7eb' },
+  passTitel: { fontSize: 13, fontWeight: '700', color: '#2563eb', marginBottom: 6 },
+  datumRad: { flexDirection: 'row' },
+  datumChip: { backgroundColor: '#eff6ff', borderRadius: 8, paddingHorizontal: 8, paddingVertical: 4, borderWidth: 1, borderColor: '#bfdbfe' },
+  datumChipText: { fontSize: 13, fontWeight: '700', color: '#2563eb' },
   meddelandeLista: { padding: 16, gap: 8 },
   bubbla: { maxWidth: '75%', padding: 12, borderRadius: 16, backgroundColor: '#fff', alignSelf: 'flex-start', borderBottomLeftRadius: 4 },
   mittBubbla: { alignSelf: 'flex-end', backgroundColor: '#2563eb', borderBottomLeftRadius: 16, borderBottomRightRadius: 4 },

@@ -46,6 +46,7 @@ export const api = {
   ångraAnsökan: (id) => anrop('DELETE', `/ansokningar/${id}`),
   ansökningarFörJobb: (jobbId) => anrop('GET', `/ansokningar/jobb/${jobbId}`),
   företagsKonversationer: () => anrop('GET', '/ansokningar/foretag'),
+  hämtaAnsökanDetaljer: (id) => anrop('GET', `/ansokningar/${id}/detaljer`),
 
   // Meddelanden
   hämtaMeddelanden: (ansokningId) => anrop('GET', `/meddelanden/${ansokningId}`),

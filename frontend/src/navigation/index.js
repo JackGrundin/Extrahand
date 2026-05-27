@@ -6,6 +6,7 @@ import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
 import { useAuth } from '../context/AuthContext';
+import { useNotifikationer } from '../context/NotifikationsContext';
 import LoggaInScreen from '../screens/LoggaInScreen';
 import RegistreraScreen from '../screens/RegistreraScreen';
 import JobbScreen from '../screens/JobbScreen';
@@ -29,12 +30,22 @@ const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
 
 function ChatKnapp({ navigation }) {
+  const { totalOlästa } = useNotifikationer();
   return (
     <TouchableOpacity
       onPress={() => navigation.getParent()?.navigate('ChattTab')}
       style={{ marginRight: 16 }}
     >
-      <Ionicons name="chatbubbles-outline" size={24} color="#2563eb" />
+      <View>
+        <Ionicons name="chatbubbles-outline" size={24} color="#2563eb" />
+        {totalOlästa > 0 && (
+          <View style={badgeStyles.badge}>
+            <Text style={badgeStyles.badgeText}>
+              {totalOlästa > 9 ? '9+' : String(totalOlästa)}
+            </Text>
+          </View>
+        )}
+      </View>
     </TouchableOpacity>
   );
 }
@@ -208,6 +219,22 @@ function HuvudNavigator() {
     </Tab.Navigator>
   );
 }
+
+const badgeStyles = StyleSheet.create({
+  badge: {
+    position: 'absolute',
+    top: -4,
+    right: -6,
+    minWidth: 16,
+    height: 16,
+    borderRadius: 8,
+    backgroundColor: '#ef4444',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 3,
+  },
+  badgeText: { color: '#fff', fontSize: 9, fontWeight: '700' },
+});
 
 const laddningsStyles = StyleSheet.create({
   container: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#ffffff' },
