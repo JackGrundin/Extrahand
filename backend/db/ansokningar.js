@@ -29,9 +29,15 @@ async function hämtaAnsökningarFörSökande(sokande_id) {
   if (!ansökningar.length) return [];
 
   const jobbIds = [...new Set(ansökningar.map(a => a.jobb_id))];
-  const { data: jobb } = await supabase.from('Jobb').select('*').in('id', jobbIds);
+  const ansökningsIds = ansökningar.map(a => a.id);
+
+  const [{ data: jobb }, { data: tidrapporter }] = await Promise.all([
+    supabase.from('Jobb').select('*').in('id', jobbIds),
+    supabase.from('tidrapporter').select('ansokan_id, status').in('ansokan_id', ansökningsIds),
+  ]);
 
   const jobbMap = Object.fromEntries((jobb || []).map(j => [j.id, j]));
+  const rapportMap = Object.fromEntries((tidrapporter || []).map(r => [r.ansokan_id, r.status]));
 
   const foretagIds = [...new Set(
     (jobb || []).map(j => j.Foretag_id ?? j.foretag_id).filter(id => id != null)
@@ -45,6 +51,7 @@ async function hämtaAnsökningarFörSökande(sokande_id) {
     jobbTitel: jobbMap[a.jobb_id]?.Titel ?? null,
     arbetstider: jobbMap[a.jobb_id]?.arbetstider ?? null,
     antalDagar: jobbMap[a.jobb_id]?.antal_dagar ?? null,
+    rapportStatus: rapportMap[a.id] ?? null,
     foretagNamn: (() => {
       const j = jobbMap[a.jobb_id];
       const fid = j?.Foretag_id ?? j?.foretag_id;

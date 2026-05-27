@@ -37,8 +37,9 @@ export default function MinaPassScreen({ navigation }) {
   useFocusEffect(useCallback(() => { hämta(); }, []));
 
   const godkända = ansökningar.filter(a => a.status === 'godkänd');
+  const genomförda = godkända.filter(a => a.rapportStatus === 'godkänd');
   const kommande = godkända
-    .filter(a => !(a.timmar > 0))
+    .filter(a => a.rapportStatus !== 'godkänd')
     .sort((a, b) => {
       const datumA = parsaArbetstider(a.arbetstider)?.[0]?.datum;
       const datumB = parsaArbetstider(b.arbetstider)?.[0]?.datum;
@@ -47,7 +48,6 @@ export default function MinaPassScreen({ navigation }) {
       if (!datumB) return -1;
       return new Date(datumA) - new Date(datumB);
     });
-  const genomförda = godkända.filter(a => a.timmar > 0);
 
   const sektioner = grupperaPerMånad(aktivFlik === 'kommande' ? kommande : genomförda);
 
