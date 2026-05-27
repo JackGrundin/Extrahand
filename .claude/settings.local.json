@@ -36,7 +36,11 @@
       "Bash(node --check routes/användare.js)",
       "Bash(node --check db/ansokningar.js)",
       "Bash(node --check routes/ansokningar.js)",
-      "Bash(node index.js)"
+      "Bash(node index.js)",
+      "Bash(sed -n '/const STATUSFÄRGER = {/,/^  }/p' /Users/jackgrundin/extrahand/frontend/src/screens/ChattListaScreen.js)",
+      "Bash(sed -n '/^const STATUSFÄRGER = {/,/^}/p' /Users/jackgrundin/extrahand/frontend/src/screens/MinaAnsokningarScreen.js)",
+      "Bash(sed -n '/^const statusFärger = {/,/^}/p' /Users/jackgrundin/extrahand/frontend/src/screens/MinaJobbScreen.js)",
+      "Bash(sed -n '/const statusFärger = {/,/^  }/p' /Users/jackgrundin/extrahand/frontend/src/screens/ChattScreen.js)"
     ]
   }
 }
