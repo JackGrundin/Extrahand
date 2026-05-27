@@ -3,6 +3,7 @@ import { View, Text, FlatList, TouchableOpacity, StyleSheet, ActivityIndicator, 
 import { useFocusEffect } from '@react-navigation/native';
 import { useAuth } from '../context/AuthContext';
 import { api } from '../api/klient';
+import { STATUSFÄRGER_ANSÖKAN as STATUSFÄRGER } from '../utils/konstanter';
 
 export default function ChattListaScreen({ navigation }) {
   const { användare } = useAuth();
@@ -28,11 +29,6 @@ export default function ChattListaScreen({ navigation }) {
 
   useFocusEffect(useCallback(() => { hämta(); }, []));
 
-  const STATUSFÄRGER = {
-    godkänd: { bg: '#dcfce7', text: '#16a34a' },
-    avvisad: { bg: '#fee2e2', text: '#dc2626' },
-    väntande: { bg: '#f3f4f6', text: '#6b7280' },
-  };
 
   if (laddar) return <ActivityIndicator style={{ flex: 1 }} size="large" />;
 

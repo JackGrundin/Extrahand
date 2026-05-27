@@ -91,7 +91,7 @@ export default function JobbAnsokningarScreen({ route, navigation }) {
     try {
       const [ansökningarData, jobbData] = await Promise.all([
         api.ansökningarFörJobb(jobbId),
-        api.hämtaJobb_id(jobbId),
+        api.hämtaJobbId(jobbId),
       ]);
       setAnsökningar(ansökningarData);
       setJobb(jobbData);

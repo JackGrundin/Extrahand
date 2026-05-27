@@ -4,6 +4,7 @@ const ws = require('ws');
 const { kräverInloggning } = require('../middleware/auth');
 const { hämtaAnvändareViaEmail, hämtaAnvändareViaId, uppdateraProfil, uppdateraProfilBild, sparaPushToken, hämtaPushToken, hämtaAllaPrivatpersoner, godkännAvtal, hämtaAllaFöretag } = require('../db/användare');
 const { hämtaTotalTimmar } = require('../db/ansokningar');
+const { skickaNotifikation } = require('../utils/pushNotifikation');
 const { hämtaJobbFörFöretag } = require('../db/jobb');
 
 const router = express.Router();
@@ -140,13 +141,8 @@ router.post('/testa-notifikation', kräverInloggning, async (req, res) => {
     if (!pushToken) {
       return res.status(400).json({ fel: 'Ingen push-token sparad. Logga in i appen på en riktig enhet först.' });
     }
-    const svar = await fetch('https://exp.host/--/api/v2/push/send', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ to: pushToken, title: 'Testnotifikation', body: 'Push-notifikationer fungerar!', sound: 'default' }),
-    });
-    const data = await svar.json();
-    res.json({ ok: true, expoSvar: data });
+    await skickaNotifikation(pushToken, 'Testnotifikation', 'Push-notifikationer fungerar!');
+    res.json({ ok: true });
   } catch (fel) {
     console.error('Testnotifikation fel:', fel);
     res.status(500).json({ fel: 'Serverfel' });

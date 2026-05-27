@@ -3,26 +3,8 @@ import { View, Text, FlatList, TouchableOpacity, StyleSheet, ActivityIndicator, 
 import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { api } from '../api/klient';
-
-function parsaArbetstider(arbetstider) {
-  if (!arbetstider) return null;
-  try {
-    const parsed = JSON.parse(arbetstider);
-    if (Array.isArray(parsed)) return parsed;
-  } catch {}
-  return null;
-}
-
-function formatDagDatum(isoStr) {
-  if (!isoStr) return null;
-  return new Date(isoStr + 'T12:00:00').toLocaleDateString('sv-SE', { day: 'numeric', month: 'short' });
-}
-
-const statusFärger = {
-  väntar: { bg: '#fef9c3', text: '#854d0e', etikett: 'Väntar' },
-  godkänd: { bg: '#dcfce7', text: '#16a34a', etikett: 'Godkänd' },
-  bestridd: { bg: '#fee2e2', text: '#dc2626', etikett: 'Bestridd' },
-};
+import { parsaArbetstider, formatDagDatum } from '../utils/datumHelper';
+import { STATUSFÄRGER_TIDRAPPORT as statusFärger } from '../utils/konstanter';
 
 export default function MinaJobbScreen({ navigation }) {
   const [jobb, setJobb] = useState([]);

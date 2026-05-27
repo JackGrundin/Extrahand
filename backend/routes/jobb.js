@@ -4,6 +4,7 @@ const { skapaJobb, hämtaAllaJobb, hämtaJobbViaId, hämtaJobbFörFöretag, uppd
 const { hämtaGodkändaFörJobb } = require('../db/ansokningar');
 const { skickaMeddelande } = require('../db/meddelanden');
 const { hämtaPushToken } = require('../db/användare');
+const { skickaNotifikation } = require('../utils/pushNotifikation');
 
 const router = express.Router();
 
@@ -121,18 +122,7 @@ router.delete('/:id', kräverInloggning, kräverTyp('företag'), async (req, res
           innehall: 'Passet har tagits bort av företaget.',
         });
         const pushToken = await hämtaPushToken(a.sokande_id);
-        if (pushToken) {
-          await fetch('https://exp.host/--/api/v2/push/send', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              to: pushToken,
-              title: 'Pass inställt',
-              body: 'Ett pass du var godkänd för har tagits bort av företaget.',
-              sound: 'default',
-            }),
-          });
-        }
+        await skickaNotifikation(pushToken, 'Pass inställt', 'Ett pass du var godkänd för har tagits bort av företaget.');
       } catch (notisfel) {
         console.error('Notifikationsfel vid borttagning av jobb:', notisfel);
       }

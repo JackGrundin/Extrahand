@@ -4,6 +4,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { api } from '../api/klient';
 import { useAuth } from '../context/AuthContext';
+import { STATUSFÄRGER_TIDRAPPORT } from '../utils/konstanter';
 
 function TidrapportKort({ rapport, ärPrivatperson, onUppdaterad }) {
   const [sparar, setSparar] = useState(false);
@@ -20,12 +21,7 @@ function TidrapportKort({ rapport, ärPrivatperson, onUppdaterad }) {
     }
   }
 
-  const statusFärger = {
-    väntar: { bg: '#fef9c3', text: '#854d0e', etikett: 'Väntar på godkännande' },
-    godkänd: { bg: '#dcfce7', text: '#16a34a', etikett: 'Godkänd' },
-    bestridd: { bg: '#fee2e2', text: '#dc2626', etikett: 'Bestridd' },
-  };
-  const färg = statusFärger[rapport.status] ?? statusFärger.väntar;
+  const färg = STATUSFÄRGER_TIDRAPPORT[rapport.status] ?? STATUSFÄRGER_TIDRAPPORT.väntar;
 
   return (
     <View style={styles.rapportKort}>

@@ -3,23 +3,10 @@ import { View, Text, FlatList, TouchableOpacity, StyleSheet, ActivityIndicator, 
 import { Ionicons } from '@expo/vector-icons';
 import { api } from '../api/klient';
 
-const TYPER = ['Alla', 'gig', 'sommarjobb'];
-const KATEGORIER = [
-  'Servitör', 'Kock', 'Diskare', 'Barista', 'Butiksbiträde', 'Kassör',
-  'Lagerarbetare', 'Paketerare', 'Städare', 'Receptionist', 'Kontorsassistent',
-  'IT-tekniker', 'Snickare', 'Hantlangare', 'Trädgårdsarbetare', 'Barnvakt',
-  'Väktare', 'Chaufför', 'Eventpersonal', 'Handyman', 'Säljare', 'Vakt',
-];
-const SORTERING = ['Närmast datum', 'Nyast', 'Högst lön', 'Flest dagar'];
+import { TYPER_FILTER as TYPER, KATEGORIER } from '../utils/konstanter';
+import { parsaArbetstider, formatDagDatum } from '../utils/datumHelper';
 
-function parsaArbetstider(arbetstider) {
-  if (!arbetstider) return null;
-  try {
-    const parsed = JSON.parse(arbetstider);
-    if (Array.isArray(parsed)) return parsed;
-  } catch {}
-  return null;
-}
+const SORTERING = ['Närmast datum', 'Nyast', 'Högst lön', 'Flest dagar'];
 
 function närmasteDatum(jobb) {
   const schema = parsaArbetstider(jobb.arbetstider);
@@ -31,11 +18,6 @@ function närmasteDatum(jobb) {
     .filter(d => !isNaN(d.getTime()))
     .sort((a, b) => a - b);
   return datum[0] ?? null;
-}
-
-function formatDagDatum(isoStr) {
-  if (!isoStr) return null;
-  return new Date(isoStr + 'T12:00:00').toLocaleDateString('sv-SE', { day: 'numeric', month: 'short' });
 }
 
 function normalisera(s) {

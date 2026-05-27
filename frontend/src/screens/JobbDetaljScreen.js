@@ -3,20 +3,7 @@ import { View, Text, TouchableOpacity, StyleSheet, Alert, ScrollView, ActivityIn
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../context/AuthContext';
 import { api } from '../api/klient';
-
-function parsaArbetstider(arbetstider) {
-  if (!arbetstider) return null;
-  try {
-    const parsed = JSON.parse(arbetstider);
-    if (Array.isArray(parsed)) return parsed;
-  } catch {}
-  return null;
-}
-
-function formatDagDatum(isoStr) {
-  if (!isoStr) return null;
-  return new Date(isoStr + 'T12:00:00').toLocaleDateString('sv-SE', { day: 'numeric', month: 'short' });
-}
+import { parsaArbetstider, formatDagDatum } from '../utils/datumHelper';
 
 export default function JobbDetaljScreen({ route, navigation }) {
   const { jobb } = route.params;

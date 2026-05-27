@@ -1,13 +1,8 @@
 import { useCallback, useState } from 'react';
 import { View, Text, FlatList, TouchableOpacity, StyleSheet, ActivityIndicator, RefreshControl, Alert } from 'react-native';
-
-const STATUSFÄRGER = {
-  godkänd: { bg: '#dcfce7', text: '#16a34a' },
-  avvisad: { bg: '#fee2e2', text: '#dc2626' },
-  väntande: { bg: '#f3f4f6', text: '#6b7280' },
-};
 import { useFocusEffect } from '@react-navigation/native';
 import { api } from '../api/klient';
+import { STATUSFÄRGER_ANSÖKAN as STATUSFÄRGER } from '../utils/konstanter';
 
 export default function MinaAnsokningarScreen({ navigation }) {
   const [ansökningar, setAnsökningar] = useState([]);

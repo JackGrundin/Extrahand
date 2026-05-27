@@ -3,6 +3,7 @@ const { kräverInloggning, kräverTyp } = require('../middleware/auth');
 const { skapaAnsökan, hämtaAnsökningarFörSökande, hämtaAnsökningarFörJobb, finnsDubblettAnsökan, uppdateraStatus, hämtaAnsökanViaId, avvisaAllaUtomEn, återställAllaFörJobb, hämtaAllaKonversationerFörFöretag, ångraAnsökan } = require('../db/ansokningar');
 const { hämtaPushToken, hämtaAnvändareViaId } = require('../db/användare');
 const { hämtaJobbViaId } = require('../db/jobb');
+const { skickaNotifikation } = require('../utils/pushNotifikation');
 
 const router = express.Router();
 
@@ -32,18 +33,7 @@ router.post('/:jobbId', kräverInloggning, kräverTyp('privatperson'), async (re
       ]);
       const foretagId = jobb?.Foretag_id ?? jobb?.foretag_id;
       const pushToken = await hämtaPushToken(foretagId);
-      if (pushToken) {
-        await fetch('https://exp.host/--/api/v2/push/send', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            to: pushToken,
-            title: 'Ny ansökan!',
-            body: `${sökande?.Namn ?? 'Någon'} har sökt "${jobb?.Titel ?? 'ditt jobb'}"`,
-            sound: 'default',
-          }),
-        });
-      }
+      await skickaNotifikation(pushToken, 'Ny ansökan!', `${sökande?.Namn ?? 'Någon'} har sökt "${jobb?.Titel ?? 'ditt jobb'}"`)
     } catch (notisfel) {
       console.error('Push-notifikation fel:', notisfel);
     }
@@ -110,19 +100,8 @@ router.patch('/:id/status', kräverInloggning, kräverTyp('företag'), async (re
           hämtaPushToken(ansökan.sokande_id),
           hämtaJobbViaId(ansökan.jobb_id),
         ]);
-        if (pushToken) {
-          const jobbTitel = jobb?.Titel ?? 'jobbet';
-          await fetch('https://exp.host/--/api/v2/push/send', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              to: pushToken,
-              title: 'Grattis!',
-              body: `Din ansökan till "${jobbTitel}" har godkänts!`,
-              sound: 'default',
-            }),
-          });
-        }
+        const jobbTitel = jobb?.Titel ?? 'jobbet';
+        await skickaNotifikation(pushToken, 'Grattis!', `Din ansökan till "${jobbTitel}" har godkänts!`);
       } catch (notisfel) {
         console.error('Push-notifikation fel:', notisfel);
       }

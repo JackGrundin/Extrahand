@@ -3,34 +3,7 @@ import { View, Text, SectionList, TouchableOpacity, StyleSheet, ActivityIndicato
 import { useFocusEffect } from '@react-navigation/native';
 import { api } from '../api/klient';
 
-function parsaArbetstider(arbetstider) {
-  if (!arbetstider) return null;
-  try {
-    const parsed = JSON.parse(arbetstider);
-    if (Array.isArray(parsed)) return parsed;
-  } catch {}
-  return null;
-}
-
-function formatDagDatum(isoStr) {
-  if (!isoStr) return null;
-  return new Date(isoStr + 'T12:00:00').toLocaleDateString('sv-SE', { day: 'numeric', month: 'short' });
-}
-
-function formatBricka(allaDatum) {
-  if (!allaDatum || allaDatum.length === 0) return null;
-  if (allaDatum.length === 1) {
-    const d = new Date(allaDatum[0] + 'T12:00:00');
-    return { rader: [String(d.getDate()), d.toLocaleDateString('sv-SE', { month: 'short' })], stor: true };
-  }
-  const start = new Date(allaDatum[0] + 'T12:00:00');
-  const slut = new Date(allaDatum[allaDatum.length - 1] + 'T12:00:00');
-  const samMånad = start.getMonth() === slut.getMonth() && start.getFullYear() === slut.getFullYear();
-  if (samMånad) {
-    return { rader: [`${start.getDate()}–${slut.getDate()}`, start.toLocaleDateString('sv-SE', { month: 'short' })], stor: true };
-  }
-  return { rader: allaDatum.slice(0, 3).map(d => formatDagDatum(d)), stor: false };
-}
+import { parsaArbetstider, formatDagDatum, formatBricka } from '../utils/datumHelper';
 
 function grupperaPerMånad(pass) {
   const grupper = {};

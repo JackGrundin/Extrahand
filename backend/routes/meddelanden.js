@@ -2,6 +2,7 @@ const express = require('express');
 const { kräverInloggning } = require('../middleware/auth');
 const { skickaMeddelande, hämtaMeddelanden } = require('../db/meddelanden');
 const { hämtaAnvändareViaId, hämtaPushToken } = require('../db/användare');
+const { skickaNotifikation: skickaRåNotifikation } = require('../utils/pushNotifikation');
 const { createClient } = require('@supabase/supabase-js');
 const ws = require('ws');
 
@@ -37,23 +38,9 @@ async function hämtaOchVerifieraAnsökan(ansokningId, användarId) {
 }
 
 async function skickaNotifikation(mottagarId, avsändarNamn, text) {
-  try {
-    const token = await hämtaPushToken(mottagarId);
-    if (!token || !token.startsWith('ExponentPushToken')) return;
-
-    await fetch('https://exp.host/--/api/v2/push/send', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        to: token,
-        title: `Nytt meddelande från ${avsändarNamn}`,
-        body: text.length > 100 ? text.substring(0, 97) + '...' : text,
-        sound: 'default',
-      }),
-    });
-  } catch (fel) {
-    console.error('Push-notifikation misslyckades:', fel);
-  }
+  const token = await hämtaPushToken(mottagarId);
+  const kortText = text.length > 100 ? text.substring(0, 97) + '...' : text;
+  await skickaRåNotifikation(token, `Nytt meddelande från ${avsändarNamn}`, kortText);
 }
 
 // GET /api/meddelanden/:ansokningId — hämta konversation
