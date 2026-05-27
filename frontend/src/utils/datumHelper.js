@@ -1,5 +1,8 @@
 export function parsaArbetstider(arbetstider) {
   if (!arbetstider) return null;
+  // Supabase kan returnera JSONB som redan parsat JS-objekt
+  if (Array.isArray(arbetstider)) return arbetstider;
+  if (typeof arbetstider !== 'string') return null;
   try {
     const parsed = JSON.parse(arbetstider);
     if (Array.isArray(parsed)) return parsed;

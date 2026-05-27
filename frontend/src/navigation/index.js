@@ -7,6 +7,7 @@ import { Ionicons } from '@expo/vector-icons';
 
 import { useAuth } from '../context/AuthContext';
 import { useNotifikationer } from '../context/NotifikationsContext';
+import { api } from '../api/klient';
 import LoggaInScreen from '../screens/LoggaInScreen';
 import RegistreraScreen from '../screens/RegistreraScreen';
 import JobbScreen from '../screens/JobbScreen';
@@ -168,9 +169,23 @@ function RapporterNavigator() {
 
 function HuvudNavigator() {
   const { användare } = useAuth();
+  const { uppdateraOlästa } = useNotifikationer();
   const ärPrivatperson = användare?.typ === 'privatperson';
   const ärFöretag = användare?.typ === 'företag';
   const ärAdmin = användare?.email === 'info@fastgig.se';
+
+  // Initialisera badge-räknaren direkt vid inloggning, innan chattlistan öppnats
+  useEffect(() => {
+    async function initOlästa() {
+      try {
+        const data = ärFöretag
+          ? await api.företagsKonversationer()
+          : await api.minaAnsökningar();
+        uppdateraOlästa(data, användare?.id);
+      } catch {}
+    }
+    if (användare?.id) initOlästa();
+  }, [användare?.id]);
 
   return (
     <Tab.Navigator
