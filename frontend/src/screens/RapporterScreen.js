@@ -10,6 +10,7 @@ export default function RapporterScreen({ navigation }) {
   const [privatpersoner, setPrivatpersoner] = useState([]);
   const [företag, setFöretag] = useState([]);
   const [faktureringsunderlag, setFaktureringsunderlag] = useState([]);
+  const [faktureringFel, setFaktureringFel] = useState(null);
   const [laddar, setLaddar] = useState(true);
   const [fromDate, setFromDate] = useState('');
   const [toDate, setToDate] = useState('');
@@ -33,7 +34,8 @@ export default function RapporterScreen({ navigation }) {
     try {
       const data = await api.hämtaFaktureringsunderlag();
       setFaktureringsunderlag(data);
-    } catch (fel) { console.warn('Fakturering:', fel); }
+      setFaktureringFel(null);
+    } catch (fel) { setFaktureringFel(fel.message); }
     setLaddar(false);
   }
 
@@ -225,7 +227,11 @@ export default function RapporterScreen({ navigation }) {
           data={faktureringsunderlag}
           keyExtractor={(item) => item.id.toString()}
           contentContainerStyle={styles.lista}
-          ListEmptyComponent={<Text style={styles.tom}>Inga ej fakturerade underlag</Text>}
+          ListEmptyComponent={
+            faktureringFel
+              ? <Text style={styles.felText}>Fel: {faktureringFel}</Text>
+              : <Text style={styles.tom}>Inga ej fakturerade underlag</Text>
+          }
           renderItem={({ item }) => (
             <View style={styles.kort}>
               <View style={styles.fakturaHuvud}>
@@ -413,6 +419,7 @@ const styles = StyleSheet.create({
   fakturaHuvud: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 },
   fakturaDatum: { fontSize: 13, color: '#999' },
   fakturaRad: { fontSize: 12, color: '#555', marginBottom: 2 },
+  felText: { textAlign: 'center', color: '#ef4444', marginTop: 60, fontSize: 14, paddingHorizontal: 16 },
   faktureradKnapp: { marginTop: 10, backgroundColor: '#16a34a', borderRadius: 8, paddingVertical: 10, alignItems: 'center' },
   faktureradText: { color: '#fff', fontWeight: '600', fontSize: 13 },
   sökContainer: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#fff', margin: 12, borderRadius: 10, borderWidth: 1, borderColor: '#e5e7eb', paddingHorizontal: 12 },
