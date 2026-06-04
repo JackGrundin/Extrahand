@@ -7,10 +7,10 @@ const supabase = createClient(
   { realtime: { transport: ws } }
 );
 
-async function skapaAnvändare({ namn, email, lösenord, typ, beskrivning, bransch, stad, hemsida, telefonnummer }) {
+async function skapaAnvändare({ namn, email, lösenord, typ, beskrivning, bransch, stad, hemsida, telefonnummer, organisationsnummer, fakturaadress, postnummer, ort, fakturamail, referensperson }) {
   const { data, error } = await supabase
     .from('användare')
-    .insert([{ Namn: namn, Email: email, Lösenord: lösenord, Typ: typ, beskrivning, bransch, stad, hemsida, telefonnummer }])
+    .insert([{ Namn: namn, Email: email, Lösenord: lösenord, Typ: typ, beskrivning, bransch, stad, hemsida, telefonnummer, organisationsnummer, fakturaadress, postnummer, ort, fakturamail, referensperson }])
     .select()
     .single();
 
@@ -73,7 +73,7 @@ async function hämtaPushToken(id) {
 async function hämtaAllaFöretag() {
   const { data, error } = await supabase
     .from('användare')
-    .select('id, Namn, Email, telefonnummer, created_at')
+    .select('id, Namn, Email, telefonnummer, organisationsnummer, fakturaadress, postnummer, ort, fakturamail, referensperson, created_at')
     .eq('Typ', 'företag')
     .order('created_at', { ascending: false });
   if (error) throw error;

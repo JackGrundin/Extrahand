@@ -222,6 +222,10 @@ export default function RapporterScreen({ navigation }) {
                   <Text style={styles.jobbEtikett}>annonser</Text>
                 </View>
               </View>
+              {item.organisationsnummer ? <Text style={styles.företagsDetalj}>Org.nr: {item.organisationsnummer}</Text> : null}
+              {item.fakturaadress ? <Text style={styles.företagsDetalj}>{item.fakturaadress}{item.postnummer ? `, ${item.postnummer}` : ''}{item.ort ? ` ${item.ort}` : ''}</Text> : null}
+              {item.fakturamail ? <Text style={styles.företagsDetalj}>Fakturamail: {item.fakturamail}</Text> : null}
+              {item.referensperson ? <Text style={styles.företagsDetalj}>Ref: {item.referensperson}</Text> : null}
               {item.created_at ? (() => {
                 const skapad = new Date(item.created_at);
                 const dag = String(skapad.getDate()).padStart(2, '0');
@@ -338,6 +342,7 @@ const styles = StyleSheet.create({
   jobbBricka: { backgroundColor: '#eff6ff', borderRadius: 10, paddingHorizontal: 12, paddingVertical: 6, alignItems: 'center', marginLeft: 8 },
   jobbAntal: { fontSize: 18, fontWeight: '700', color: '#2563eb' },
   jobbEtikett: { fontSize: 11, color: '#93c5fd' },
+  företagsDetalj: { fontSize: 12, color: '#555', marginTop: 2 },
   sökContainer: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#fff', margin: 12, borderRadius: 10, borderWidth: 1, borderColor: '#e5e7eb', paddingHorizontal: 12 },
   sökIkon: { marginRight: 8 },
   sökInput: { flex: 1, paddingVertical: 11, fontSize: 14, color: '#1a1a1a' },

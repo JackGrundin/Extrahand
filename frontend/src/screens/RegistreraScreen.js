@@ -13,6 +13,12 @@ export default function RegistreraScreen({ navigation }) {
   const [bransch, setBransch] = useState('');
   const [stad, setStad] = useState('');
   const [hemsida, setHemsida] = useState('');
+  const [organisationsnummer, setOrganisationsnummer] = useState('');
+  const [fakturaadress, setFakturaadress] = useState('');
+  const [postnummer, setPostnummer] = useState('');
+  const [ort, setOrt] = useState('');
+  const [fakturamail, setFakturamail] = useState('');
+  const [referensperson, setReferensperson] = useState('');
   const [laddar, setLaddar] = useState(false);
 
   async function hanteraRegistrering() {
@@ -24,10 +30,31 @@ export default function RegistreraScreen({ navigation }) {
       Alert.alert('Fel', 'Telefonnummer krävs');
       return;
     }
+    if (typ === 'företag') {
+      if (!organisationsnummer.trim() || !fakturaadress.trim() || !postnummer.trim() || !ort.trim() || !fakturamail.trim() || !referensperson.trim()) {
+        Alert.alert('Fel', 'Alla fält för företag är obligatoriska');
+        return;
+      }
+      if (!/^\d{6}-\d{4}$/.test(organisationsnummer.trim())) {
+        Alert.alert('Fel', 'Organisationsnummer måste ha format XXXXXX-XXXX');
+        return;
+      }
+    }
     setLaddar(true);
     try {
       const företagsInfo = typ === 'företag'
-        ? { beskrivning: beskrivning.trim() || null, bransch: bransch.trim() || null, stad: stad.trim() || null, hemsida: hemsida.trim() || null }
+        ? {
+            beskrivning: beskrivning.trim() || null,
+            bransch: bransch.trim() || null,
+            stad: stad.trim() || null,
+            hemsida: hemsida.trim() || null,
+            organisationsnummer: organisationsnummer.trim(),
+            fakturaadress: fakturaadress.trim(),
+            postnummer: postnummer.trim(),
+            ort: ort.trim(),
+            fakturamail: fakturamail.trim(),
+            referensperson: referensperson.trim(),
+          }
         : {};
       await registrera(namn, email, lösenord, typ, { ...företagsInfo, telefonnummer: telefonnummer.trim() || null });
     } catch (fel) {
@@ -42,7 +69,9 @@ export default function RegistreraScreen({ navigation }) {
       <ScrollView style={styles.container} contentContainerStyle={styles.innehåll} keyboardShouldPersistTaps="handled">
         <Text style={styles.rubrik}>Skapa konto</Text>
 
-        <TextInput style={styles.input} placeholder="Namn" value={namn} onChangeText={setNamn} />
+        {typ === 'privatperson' && (
+          <TextInput style={styles.input} placeholder="Namn" value={namn} onChangeText={setNamn} />
+        )}
         <TextInput
           style={styles.input}
           placeholder="Email"
@@ -59,13 +88,15 @@ export default function RegistreraScreen({ navigation }) {
           secureTextEntry
         />
 
-        <TextInput
-          style={styles.input}
-          placeholder="Telefonnummer *"
-          value={telefonnummer}
-          onChangeText={setTelefonnummer}
-          keyboardType="phone-pad"
-        />
+        {typ === 'privatperson' && (
+          <TextInput
+            style={styles.input}
+            placeholder="Telefonnummer *"
+            value={telefonnummer}
+            onChangeText={setTelefonnummer}
+            keyboardType="phone-pad"
+          />
+        )}
 
         <Text style={styles.label}>Kontotyp</Text>
         <View style={styles.typVäljare}>
@@ -84,6 +115,63 @@ export default function RegistreraScreen({ navigation }) {
 
         {typ === 'företag' && (
           <>
+            <Text style={styles.sektionsRubrik}>Företagsuppgifter *</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="Företagsnamn *"
+              value={namn}
+              onChangeText={setNamn}
+            />
+            <TextInput
+              style={styles.input}
+              placeholder="Telefonnummer *"
+              value={telefonnummer}
+              onChangeText={setTelefonnummer}
+              keyboardType="phone-pad"
+            />
+            <TextInput
+              style={styles.input}
+              placeholder="Organisationsnummer (XXXXXX-XXXX) *"
+              value={organisationsnummer}
+              onChangeText={setOrganisationsnummer}
+              keyboardType="numbers-and-punctuation"
+              autoCapitalize="none"
+            />
+            <TextInput
+              style={styles.input}
+              placeholder="Fakturaadress (gatuadress) *"
+              value={fakturaadress}
+              onChangeText={setFakturaadress}
+            />
+            <View style={styles.rad}>
+              <TextInput
+                style={[styles.input, styles.radFältLitet]}
+                placeholder="Postnummer *"
+                value={postnummer}
+                onChangeText={setPostnummer}
+                keyboardType="numeric"
+              />
+              <TextInput
+                style={[styles.input, styles.radFältStort]}
+                placeholder="Ort *"
+                value={ort}
+                onChangeText={setOrt}
+              />
+            </View>
+            <TextInput
+              style={styles.input}
+              placeholder="Fakturamail *"
+              value={fakturamail}
+              onChangeText={setFakturamail}
+              autoCapitalize="none"
+              keyboardType="email-address"
+            />
+            <TextInput
+              style={styles.input}
+              placeholder="Referensperson (kontaktperson) *"
+              value={referensperson}
+              onChangeText={setReferensperson}
+            />
             <Text style={styles.sektionsRubrik}>Om företaget</Text>
             <TextInput
               style={styles.input}
@@ -134,6 +222,9 @@ const styles = StyleSheet.create({
   rubrik: { fontSize: 28, fontWeight: 'bold', textAlign: 'center', marginBottom: 28, color: '#1a1a1a' },
   input: { borderWidth: 1, borderColor: '#ddd', borderRadius: 10, padding: 14, marginBottom: 12, fontSize: 16, backgroundColor: '#fafafa' },
   textArea: { height: 110, textAlignVertical: 'top' },
+  rad: { flexDirection: 'row', gap: 10 },
+  radFältLitet: { flex: 2 },
+  radFältStort: { flex: 3 },
   label: { fontSize: 15, color: '#444', marginBottom: 8 },
   sektionsRubrik: { fontSize: 15, fontWeight: '600', color: '#1a1a1a', marginBottom: 10, marginTop: 4 },
   typVäljare: { flexDirection: 'row', gap: 10, marginBottom: 20 },

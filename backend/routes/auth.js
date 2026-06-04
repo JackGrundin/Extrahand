@@ -8,7 +8,7 @@ const JWT_HEMLIG_NYCKEL = process.env.JWT_SECRET || 'hemlig-nyckel-byt-i-produkt
 
 // POST /api/auth/registrera
 router.post('/registrera', async (req, res) => {
-  const { namn, email, lösenord, typ, beskrivning, bransch, stad, hemsida, telefonnummer } = req.body;
+  const { namn, email, lösenord, typ, beskrivning, bransch, stad, hemsida, telefonnummer, organisationsnummer, fakturaadress, postnummer, ort, fakturamail, referensperson } = req.body;
 
   if (!namn || !email || !lösenord || !typ) {
     return res.status(400).json({ fel: 'Alla fält krävs: namn, email, lösenord, typ' });
@@ -25,7 +25,30 @@ router.post('/registrera', async (req, res) => {
     }
 
     const hashatLösenord = await bcrypt.hash(lösenord, 10);
-    const användare = await skapaAnvändare({ namn, email, lösenord: hashatLösenord, typ, beskrivning: beskrivning || null, bransch: bransch || null, stad: stad || null, hemsida: hemsida || null, telefonnummer: telefonnummer || null });
+    if (typ === 'företag') {
+      const orgNrFormat = /^\d{6}-\d{4}$/;
+      if (!organisationsnummer || !fakturaadress || !postnummer || !ort || !fakturamail || !referensperson) {
+        return res.status(400).json({ fel: 'Alla obligatoriska fält för företag krävs' });
+      }
+      if (!orgNrFormat.test(organisationsnummer)) {
+        return res.status(400).json({ fel: 'Organisationsnummer måste ha format XXXXXX-XXXX' });
+      }
+    }
+
+    const användare = await skapaAnvändare({
+      namn, email, lösenord: hashatLösenord, typ,
+      beskrivning: beskrivning || null,
+      bransch: bransch || null,
+      stad: stad || null,
+      hemsida: hemsida || null,
+      telefonnummer: telefonnummer || null,
+      organisationsnummer: organisationsnummer || null,
+      fakturaadress: fakturaadress || null,
+      postnummer: postnummer || null,
+      ort: ort || null,
+      fakturamail: fakturamail || null,
+      referensperson: referensperson || null,
+    });
 
     const token = jwt.sign(
       { id: användare.id, email: användare.Email, typ: användare.Typ },
