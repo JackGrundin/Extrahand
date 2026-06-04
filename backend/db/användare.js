@@ -32,7 +32,7 @@ async function hämtaAnvändareViaEmail(email) {
 async function hämtaAnvändareViaId(id) {
   const { data, error } = await supabase
     .from('användare')
-    .select('id, Namn, Typ, created_at, cv, erfarenheter, kompetenser, intressen, profil_bild, beskrivning, bransch, stad, hemsida, telefonnummer')
+    .select('id, Namn, Typ, created_at, cv, erfarenheter, kompetenser, intressen, profil_bild, beskrivning, bransch, stad, hemsida, telefonnummer, organisationsnummer, fakturaadress, postnummer, ort, fakturamail, referensperson')
     .eq('id', id)
     .single();
 

@@ -33,7 +33,7 @@ export default function RapporterScreen({ navigation }) {
     try {
       const data = await api.hämtaFaktureringsunderlag();
       setFaktureringsunderlag(data);
-    } catch (fel) { console.error('Fakturering:', fel); }
+    } catch (fel) { console.warn('Fakturering:', fel); }
     setLaddar(false);
   }
 
