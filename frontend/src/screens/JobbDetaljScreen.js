@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Alert, ScrollView, ActivityIndicator, TextInput, Modal } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, Alert, ScrollView, ActivityIndicator, TextInput, Modal, Linking, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../context/AuthContext';
 import { api } from '../api/klient';
@@ -12,6 +12,14 @@ export default function JobbDetaljScreen({ route, navigation }) {
   const [sökt, setSökt] = useState(false);
   const [meddelande, setMeddelande] = useState('');
   const [avtalsModalSynlig, setAvtalsModalSynlig] = useState(false);
+
+  function öppnaKarta() {
+    const q = encodeURIComponent(jobb.adress);
+    const url = Platform.OS === 'ios'
+      ? `maps://maps.apple.com/?q=${q}`
+      : `geo:0,0?q=${q}`;
+    Linking.openURL(url);
+  }
 
   async function hanteraSökan() {
     if (!användare?.avtalGodkant) {
@@ -68,6 +76,19 @@ export default function JobbDetaljScreen({ route, navigation }) {
           </View>
         ) : null;
       })()}
+
+      {jobb.adress && (
+        <View style={styles.adressKort}>
+          <View style={styles.adressRad}>
+            <Ionicons name="location-outline" size={16} color="#2563eb" />
+            <Text style={styles.adressText}>{jobb.adress}</Text>
+          </View>
+          <TouchableOpacity style={styles.kartaKnapp} onPress={öppnaKarta}>
+            <Ionicons name="map-outline" size={15} color="#2563eb" />
+            <Text style={styles.kartaKnappText}>Visa på karta</Text>
+          </TouchableOpacity>
+        </View>
+      )}
 
       <Text style={styles.sektionsRubrik}>Beskrivning</Text>
       <Text style={styles.beskrivning}>{jobb.Beskrivning}</Text>
@@ -153,6 +174,11 @@ const styles = StyleSheet.create({
   datumChip: { backgroundColor: '#eff6ff', borderRadius: 8, paddingHorizontal: 10, paddingVertical: 5, borderWidth: 1, borderColor: '#bfdbfe' },
   datumChipText: { fontSize: 14, fontWeight: '700', color: '#2563eb' },
   dagTid: { fontSize: 14, color: '#374151' },
+  adressKort: { backgroundColor: '#f8faff', borderRadius: 12, padding: 14, marginBottom: 16, borderWidth: 1, borderColor: '#bfdbfe' },
+  adressRad: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 10 },
+  adressText: { fontSize: 15, color: '#1a1a1a', flex: 1 },
+  kartaKnapp: { flexDirection: 'row', alignItems: 'center', gap: 6, alignSelf: 'flex-start', borderWidth: 1, borderColor: '#2563eb', borderRadius: 8, paddingHorizontal: 12, paddingVertical: 7 },
+  kartaKnappText: { fontSize: 14, color: '#2563eb', fontWeight: '600' },
   sektionsRubrik: { fontSize: 16, fontWeight: '600', color: '#1a1a1a', marginBottom: 8 },
   beskrivning: { fontSize: 15, color: '#444', lineHeight: 22, marginBottom: 32 },
   textArea: { borderWidth: 1, borderColor: '#ddd', borderRadius: 10, padding: 14, fontSize: 15, backgroundColor: '#fafafa', minHeight: 110, marginBottom: 16 },

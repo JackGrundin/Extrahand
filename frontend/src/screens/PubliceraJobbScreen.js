@@ -16,6 +16,7 @@ export default function PubliceraJobbScreen({ navigation }) {
   const [titel, setTitel] = useState('');
   const [beskrivning, setBeskrivning] = useState('');
   const [plats, setPlats] = useState('');
+  const [adress, setAdress] = useState('');
   const [lon, setLon] = useState('');
   const [typ, setTyp] = useState('gig');
   const [kategori, setKategori] = useState('');
@@ -99,6 +100,10 @@ export default function PubliceraJobbScreen({ navigation }) {
       Alert.alert('Fel', 'Titel och beskrivning krävs');
       return;
     }
+    if (!adress.trim()) {
+      Alert.alert('Fel', 'Adress till arbetsplatsen krävs');
+      return;
+    }
     if (dagScheman.length === 0 || !dagScheman.some(d => d.datum)) {
       Alert.alert('Fel', 'Du måste ange datum för passet');
       return;
@@ -112,6 +117,7 @@ export default function PubliceraJobbScreen({ navigation }) {
         titel: titel.trim(),
         beskrivning: beskrivning.trim(),
         plats: plats.trim() || undefined,
+        adress: adress.trim(),
         lon: lon ? parseInt(lon) : undefined,
         typ,
         kategori: kategori || undefined,
@@ -159,6 +165,15 @@ export default function PubliceraJobbScreen({ navigation }) {
             onChangeText={hanteraPlatsInput}
             autoCorrect={false}
           />
+          <Text style={styles.label}>Adress till arbetsplatsen *</Text>
+          <TextInput
+            style={styles.input}
+            placeholder="t.ex. Storgatan 12, Stockholm"
+            value={adress}
+            onChangeText={setAdress}
+            autoCorrect={false}
+          />
+
           {ortsForslag.length > 0 && (
             <View style={styles.ortDropdown}>
               {ortsForslag.map(ort => (

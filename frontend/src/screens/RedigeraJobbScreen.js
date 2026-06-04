@@ -10,6 +10,7 @@ export default function RedigeraJobbScreen({ route, navigation }) {
   const [titel, setTitel] = useState(jobb.Titel ?? '');
   const [beskrivning, setBeskrivning] = useState(jobb.Beskrivning ?? '');
   const [plats, setPlats] = useState(jobb.Plats ?? '');
+  const [adress, setAdress] = useState(jobb.adress ?? '');
   const [lon, setLon] = useState(jobb.Lon ? String(jobb.Lon) : '');
   const [typ, setTyp] = useState(jobb.Typ ?? 'gig');
   const [kategori, setKategori] = useState(jobb.Kategori ?? '');
@@ -28,12 +29,17 @@ export default function RedigeraJobbScreen({ route, navigation }) {
       Alert.alert('Fel', 'Titel och beskrivning krävs');
       return;
     }
+    if (!adress.trim()) {
+      Alert.alert('Fel', 'Adress till arbetsplatsen krävs');
+      return;
+    }
     setLaddar(true);
     try {
       await api.uppdateraJobb(jobb.id, {
         titel: titel.trim(),
         beskrivning: beskrivning.trim(),
         plats: plats.trim() || undefined,
+        adress: adress.trim(),
         lon: lon ? parseInt(lon) : undefined,
         typ,
         kategori: kategori || undefined,
@@ -69,6 +75,15 @@ export default function RedigeraJobbScreen({ route, navigation }) {
 
           <Text style={styles.label}>Plats</Text>
           <TextInput style={styles.input} value={plats} onChangeText={setPlats} />
+
+          <Text style={styles.label}>Adress till arbetsplatsen *</Text>
+          <TextInput
+            style={styles.input}
+            placeholder="t.ex. Storgatan 12, Stockholm"
+            value={adress}
+            onChangeText={setAdress}
+            autoCorrect={false}
+          />
 
           <Text style={styles.label}>Timlön (kr/tim)</Text>
           <TextInput style={styles.input} value={lon} onChangeText={setLon} keyboardType="numeric" />

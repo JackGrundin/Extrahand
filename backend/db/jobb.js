@@ -7,10 +7,10 @@ const supabase = createClient(
   { realtime: { transport: ws } }
 );
 
-async function skapaJobb({ titel, beskrivning, plats, lon, typ, kategori, antal_dagar, arbetstider, foretag_id }) {
+async function skapaJobb({ titel, beskrivning, plats, adress, lon, typ, kategori, antal_dagar, arbetstider, foretag_id }) {
   const { data, error } = await supabase
     .from('Jobb')
-    .insert([{ Titel: titel, Beskrivning: beskrivning, Plats: plats, Lon: lon, Typ: typ, Kategori: kategori, antal_dagar, arbetstider, Foretag_id: foretag_id }])
+    .insert([{ Titel: titel, Beskrivning: beskrivning, Plats: plats, adress, Lon: lon, Typ: typ, Kategori: kategori, antal_dagar, arbetstider, Foretag_id: foretag_id }])
     .select()
     .single();
 
@@ -64,10 +64,10 @@ async function hämtaJobbFörFöretag(foretag_id) {
   return data || [];
 }
 
-async function uppdateraJobb(id, foretag_id, { titel, beskrivning, plats, lon, typ, kategori, antal_dagar, arbetstider }) {
+async function uppdateraJobb(id, foretag_id, { titel, beskrivning, plats, adress, lon, typ, kategori, antal_dagar, arbetstider }) {
   const { data, error } = await supabase
     .from('Jobb')
-    .update({ Titel: titel, Beskrivning: beskrivning, Plats: plats, Lon: lon, Typ: typ, Kategori: kategori, antal_dagar, arbetstider })
+    .update({ Titel: titel, Beskrivning: beskrivning, Plats: plats, adress, Lon: lon, Typ: typ, Kategori: kategori, antal_dagar, arbetstider })
     .eq('id', id)
     .eq('Foretag_id', foretag_id)
     .select()
