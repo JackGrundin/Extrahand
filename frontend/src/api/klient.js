@@ -72,6 +72,10 @@ export const api = {
   hämtaAllaFöretag: () => anrop('GET', '/users/admin/foretag'),
   godkännAvtal: (id) => anrop('PATCH', `/users/admin/${id}/avtal`),
 
+  // Fakturering
+  hämtaFaktureringsunderlag: () => anrop('GET', '/fakturering'),
+  markeraFakturerad: (id) => anrop('PATCH', `/fakturering/${id}/fakturerad`, {}),
+
   // Betyg
   sättaBetyg: (ansokningId, kropp) => anrop('POST', `/betyg/${ansokningId}`, kropp),
   hämtaBetyg: (anvandareId) => anrop('GET', `/betyg/anvandare/${anvandareId}`),

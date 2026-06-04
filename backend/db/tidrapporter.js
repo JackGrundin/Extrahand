@@ -111,6 +111,16 @@ async function hämtaTidrapporterFörFöretag(foretagId) {
   });
 }
 
+async function hämtaTidrapportViaId(id) {
+  const { data, error } = await supabase
+    .from('tidrapporter')
+    .select('*')
+    .eq('id', id)
+    .maybeSingle();
+  if (error) throw error;
+  return data;
+}
+
 async function taBortTidrapport(id) {
   const { error } = await supabase
     .from('tidrapporter')
@@ -119,4 +129,4 @@ async function taBortTidrapport(id) {
   if (error) throw error;
 }
 
-module.exports = { skapaTidrapport, hämtaTidrapportFörAnsökan, uppdateraTidrapportStatus, hämtaAllaTidrapporter, hämtaTidrapporterFörFöretag, taBortTidrapport };
+module.exports = { skapaTidrapport, hämtaTidrapportFörAnsökan, hämtaTidrapportViaId, uppdateraTidrapportStatus, hämtaAllaTidrapporter, hämtaTidrapporterFörFöretag, taBortTidrapport };

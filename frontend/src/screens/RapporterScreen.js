@@ -9,6 +9,7 @@ export default function RapporterScreen({ navigation }) {
   const [rapporter, setRapporter] = useState([]);
   const [privatpersoner, setPrivatpersoner] = useState([]);
   const [företag, setFöretag] = useState([]);
+  const [faktureringsunderlag, setFaktureringsunderlag] = useState([]);
   const [laddar, setLaddar] = useState(true);
   const [fromDate, setFromDate] = useState('');
   const [toDate, setToDate] = useState('');
@@ -29,6 +30,10 @@ export default function RapporterScreen({ navigation }) {
       const data = await api.hämtaAllaFöretag();
       setFöretag(data);
     } catch (fel) { console.error('Företag:', fel); }
+    try {
+      const data = await api.hämtaFaktureringsunderlag();
+      setFaktureringsunderlag(data);
+    } catch (fel) { console.error('Fakturering:', fel); }
     setLaddar(false);
   }
 
@@ -60,6 +65,24 @@ export default function RapporterScreen({ navigation }) {
     } finally {
       setLaddar(false);
     }
+  }
+
+  async function markeraFakturerad(id) {
+    Alert.alert(
+      'Bekräfta',
+      'Markera detta underlag som fakturerat och klart?',
+      [
+        { text: 'Avbryt', style: 'cancel' },
+        { text: 'Bekräfta', onPress: async () => {
+          try {
+            await api.markeraFakturerad(id);
+            setFaktureringsunderlag(prev => prev.filter(f => f.id !== id));
+          } catch (fel) {
+            Alert.alert('Fel', fel.message);
+          }
+        }},
+      ]
+    );
   }
 
   async function godkännAvtal(id) {
@@ -107,6 +130,14 @@ export default function RapporterScreen({ navigation }) {
         >
           <Text style={[styles.flikText, aktivFlik === 'företag' && styles.flikTextAktiv]}>
             Företag ({företag.length})
+          </Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.flik, aktivFlik === 'fakturering' && styles.flikAktiv]}
+          onPress={() => setAktivFlik('fakturering')}
+        >
+          <Text style={[styles.flikText, aktivFlik === 'fakturering' && styles.flikTextAktiv]}>
+            Fakturering ({faktureringsunderlag.length})
           </Text>
         </TouchableOpacity>
       </View>
@@ -189,6 +220,42 @@ export default function RapporterScreen({ navigation }) {
             )}
           />
         </>
+      ) : aktivFlik === 'fakturering' ? (
+        <FlatList
+          data={faktureringsunderlag}
+          keyExtractor={(item) => item.id.toString()}
+          contentContainerStyle={styles.lista}
+          ListEmptyComponent={<Text style={styles.tom}>Inga ej fakturerade underlag</Text>}
+          renderItem={({ item }) => (
+            <View style={styles.kort}>
+              <View style={styles.fakturaHuvud}>
+                <Text style={styles.namn}>{item.foretagsnamn ?? '–'}</Text>
+                <Text style={styles.fakturaDatum}>{item.datum ? new Date(item.datum).toLocaleDateString('sv-SE') : '–'}</Text>
+              </View>
+              {item.organisationsnummer ? <Text style={styles.fakturaRad}>Org.nr: {item.organisationsnummer}</Text> : null}
+              {item.fakturaadress ? <Text style={styles.fakturaRad}>{item.fakturaadress}{item.postnummer ? `, ${item.postnummer}` : ''}{item.ort ? ` ${item.ort}` : ''}</Text> : null}
+              {item.fakturamail ? <Text style={styles.fakturaRad}>Fakturamail: {item.fakturamail}</Text> : null}
+              {item.referensperson ? <Text style={styles.fakturaRad}>Ref: {item.referensperson}</Text> : null}
+              <View style={styles.kortDetaljer}>
+                <View style={styles.detalj}>
+                  <Text style={styles.detaljEtikett}>Timmar</Text>
+                  <Text style={styles.detaljVärde}>{item.timmar}</Text>
+                </View>
+                <View style={styles.detalj}>
+                  <Text style={styles.detaljEtikett}>Timlön</Text>
+                  <Text style={styles.detaljVärde}>{item.timlon?.toLocaleString('sv-SE')} kr</Text>
+                </View>
+                <View style={styles.detalj}>
+                  <Text style={styles.detaljEtikett}>Fakturabelopp</Text>
+                  <Text style={[styles.detaljVärde, styles.totalText]}>{item.faktureringsbelopp?.toLocaleString('sv-SE')} kr</Text>
+                </View>
+              </View>
+              <TouchableOpacity style={styles.faktureradKnapp} onPress={() => markeraFakturerad(item.id)}>
+                <Text style={styles.faktureradText}>Markera som fakturerad och klar</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+        />
       ) : aktivFlik === 'företag' ? (
         <>
           <View style={styles.sökContainer}>
@@ -343,6 +410,11 @@ const styles = StyleSheet.create({
   jobbAntal: { fontSize: 18, fontWeight: '700', color: '#2563eb' },
   jobbEtikett: { fontSize: 11, color: '#93c5fd' },
   företagsDetalj: { fontSize: 12, color: '#555', marginTop: 2 },
+  fakturaHuvud: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 },
+  fakturaDatum: { fontSize: 13, color: '#999' },
+  fakturaRad: { fontSize: 12, color: '#555', marginBottom: 2 },
+  faktureradKnapp: { marginTop: 10, backgroundColor: '#16a34a', borderRadius: 8, paddingVertical: 10, alignItems: 'center' },
+  faktureradText: { color: '#fff', fontWeight: '600', fontSize: 13 },
   sökContainer: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#fff', margin: 12, borderRadius: 10, borderWidth: 1, borderColor: '#e5e7eb', paddingHorizontal: 12 },
   sökIkon: { marginRight: 8 },
   sökInput: { flex: 1, paddingVertical: 11, fontSize: 14, color: '#1a1a1a' },

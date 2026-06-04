@@ -1,9 +1,10 @@
 const express = require('express');
 const { kräverInloggning, kräverTyp } = require('../middleware/auth');
-const { skapaTidrapport, hämtaTidrapportFörAnsökan, uppdateraTidrapportStatus, hämtaAllaTidrapporter, hämtaTidrapporterFörFöretag, taBortTidrapport } = require('../db/tidrapporter');
+const { skapaTidrapport, hämtaTidrapportFörAnsökan, hämtaTidrapportViaId, uppdateraTidrapportStatus, hämtaAllaTidrapporter, hämtaTidrapporterFörFöretag, taBortTidrapport } = require('../db/tidrapporter');
 const { hämtaAnsökanViaId } = require('../db/ansokningar');
 const { hämtaJobbViaId } = require('../db/jobb');
-const { hämtaAnvändareViaEmail } = require('../db/användare');
+const { hämtaAnvändareViaEmail, hämtaAnvändareViaId } = require('../db/användare');
+const { skapaFaktureringsunderlag } = require('../db/fakturering');
 
 const router = express.Router();
 
@@ -62,7 +63,34 @@ router.patch('/:id/status', kräverInloggning, kräverTyp('privatperson'), async
     return res.status(400).json({ fel: 'Status måste vara godkänd eller bestridd' });
   }
   try {
+    const rapport = await hämtaTidrapportViaId(req.params.id).catch(() => null);
     await uppdateraTidrapportStatus(req.params.id, status);
+
+    if (status === 'godkänd' && rapport) {
+      try {
+        const företag = await hämtaAnvändareViaId(rapport.foretag_id);
+        const faktureringsbelopp = (rapport.timlon + rapport.timlon * 0.32 + rapport.timlon * 0.06) * 1.40 * rapport.timmar;
+        await skapaFaktureringsunderlag({
+          tidrapport_id: rapport.id,
+          foretag_id: rapport.foretag_id,
+          anvandare_id: rapport.anvandare_id,
+          foretagsnamn: företag?.Namn ?? null,
+          organisationsnummer: företag?.organisationsnummer ?? null,
+          fakturaadress: företag?.fakturaadress ?? null,
+          postnummer: företag?.postnummer ?? null,
+          ort: företag?.ort ?? null,
+          fakturamail: företag?.fakturamail ?? null,
+          referensperson: företag?.referensperson ?? null,
+          timmar: rapport.timmar,
+          timlon: rapport.timlon,
+          faktureringsbelopp: Math.round(faktureringsbelopp * 100) / 100,
+          datum: rapport.datum,
+        });
+      } catch (faktureringFel) {
+        console.error('Kunde inte skapa faktureringsunderlag:', faktureringFel);
+      }
+    }
+
     res.json({ ok: true });
   } catch (fel) {
     console.error('Status fel:', fel);
