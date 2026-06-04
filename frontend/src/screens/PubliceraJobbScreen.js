@@ -1,9 +1,10 @@
 import { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, ScrollView, ActivityIndicator, KeyboardAvoidingView, Platform, Modal } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, ScrollView, ActivityIndicator, KeyboardAvoidingView, Platform, Modal, FlatList } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { Ionicons } from '@expo/vector-icons';
 import { api } from '../api/klient';
 import { TYPER, KATEGORIER } from '../utils/konstanter';
+import { SVENSKA_ORTER } from '../utils/svenskaOrter';
 
 function formatDatum(isoStr) {
   if (!isoStr) return null;
@@ -22,6 +23,7 @@ export default function PubliceraJobbScreen({ navigation }) {
   const [dagScheman, setDagScheman] = useState([]);
   const [sammaTider, setSammaTider] = useState(false);
   const [laddar, setLaddar] = useState(false);
+  const [ortsForslag, setOrtsForslag] = useState([]);
   const [kategoriModalVisas, setKategoriModalVisas] = useState(false);
   const [sokKategori, setSokKategori] = useState('');
   const [dagPickerIndex, setDagPickerIndex] = useState(null);
@@ -69,6 +71,23 @@ export default function PubliceraJobbScreen({ navigation }) {
       const { start, slut } = dagScheman[0];
       setDagScheman(prev => prev.map(dag => ({ ...dag, start, slut })));
     }
+  }
+
+  function hanteraPlatsInput(text) {
+    setPlats(text);
+    if (text.length >= 2) {
+      const träffar = SVENSKA_ORTER.filter(o =>
+        o.toLowerCase().startsWith(text.toLowerCase())
+      ).slice(0, 8);
+      setOrtsForslag(träffar);
+    } else {
+      setOrtsForslag([]);
+    }
+  }
+
+  function väljaOrt(ort) {
+    setPlats(ort);
+    setOrtsForslag([]);
   }
 
   const filtreradeKategorier = KATEGORIER.filter(k =>
@@ -133,7 +152,28 @@ export default function PubliceraJobbScreen({ navigation }) {
           />
 
           <Text style={styles.label}>Plats</Text>
-          <TextInput style={styles.input} placeholder="t.ex. Stockholm" value={plats} onChangeText={setPlats} />
+          <TextInput
+            style={styles.input}
+            placeholder="t.ex. Stockholm"
+            value={plats}
+            onChangeText={hanteraPlatsInput}
+            autoCorrect={false}
+          />
+          {ortsForslag.length > 0 && (
+            <View style={styles.ortDropdown}>
+              {ortsForslag.map(ort => (
+                <TouchableOpacity
+                  key={ort}
+                  style={styles.ortRad}
+                  onPress={() => väljaOrt(ort)}
+                  activeOpacity={0.7}
+                >
+                  <Ionicons name="location-outline" size={14} color="#6b7280" style={{ marginRight: 8 }} />
+                  <Text style={styles.ortText}>{ort}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          )}
 
           <Text style={styles.label}>Timlön (kr/tim)</Text>
           <TextInput style={styles.input} placeholder="t.ex. 160" value={lon} onChangeText={setLon} keyboardType="numeric" />
@@ -318,6 +358,9 @@ const styles = StyleSheet.create({
   typText: { color: '#555', fontWeight: '500', fontSize: 14 },
   typTextAktiv: { color: '#fff' },
 
+  ortDropdown: { borderWidth: 1, borderColor: '#ddd', borderRadius: 10, backgroundColor: '#fff', marginTop: -8, marginBottom: 4, overflow: 'hidden', shadowColor: '#000', shadowOpacity: 0.06, shadowRadius: 4, elevation: 3 },
+  ortRad: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#f3f4f6' },
+  ortText: { fontSize: 15, color: '#1a1a1a' },
   prisKalkyl: { backgroundColor: '#f0f9ff', borderRadius: 10, padding: 12, marginTop: 8, gap: 4, borderWidth: 1, borderColor: '#bae6fd' },
   prisRad: { fontSize: 13, color: '#0369a1' },
   prisFet: { fontWeight: '700', color: '#0369a1' },
