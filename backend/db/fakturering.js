@@ -28,7 +28,7 @@ async function hämtaFaktureringsunderlag() {
 
   return rapporter.map(r => {
     const f = företagMap[r.foretag_id] || {};
-    const faktureringsbelopp = Math.round((r.timlon + r.timlon * 0.32 + r.timlon * 0.06) * 1.40 * r.timmar * 100) / 100;
+    const faktureringsbelopp = Math.round(r.timlon * 1.32 * 1.06 * 1.40 * r.timmar * 100) / 100;
     return {
       id: r.id,
       datum: r.datum,

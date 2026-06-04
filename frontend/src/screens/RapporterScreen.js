@@ -238,10 +238,10 @@ export default function RapporterScreen({ navigation }) {
                 <Text style={styles.namn}>{item.foretagsnamn ?? '–'}</Text>
                 <Text style={styles.fakturaDatum}>{item.datum ? new Date(item.datum).toLocaleDateString('sv-SE') : '–'}</Text>
               </View>
-              {item.organisationsnummer ? <Text style={styles.fakturaRad}>Org.nr: {item.organisationsnummer}</Text> : null}
-              {item.fakturaadress ? <Text style={styles.fakturaRad}>{item.fakturaadress}{item.postnummer ? `, ${item.postnummer}` : ''}{item.ort ? ` ${item.ort}` : ''}</Text> : null}
-              {item.fakturamail ? <Text style={styles.fakturaRad}>Fakturamail: {item.fakturamail}</Text> : null}
-              {item.referensperson ? <Text style={styles.fakturaRad}>Ref: {item.referensperson}</Text> : null}
+              <Text style={styles.fakturaRad}>Org.nr: {item.organisationsnummer ?? '–'}</Text>
+              <Text style={styles.fakturaRad}>{item.fakturaadress ?? '–'}{item.postnummer ? `, ${item.postnummer}` : ''}{item.ort ? ` ${item.ort}` : ''}</Text>
+              <Text style={styles.fakturaRad}>Fakturamail: {item.fakturamail ?? '–'}</Text>
+              <Text style={styles.fakturaRad}>Ref: {item.referensperson ?? '–'}</Text>
               <View style={styles.kortDetaljer}>
                 <View style={styles.detalj}>
                   <Text style={styles.detaljEtikett}>Timmar</Text>
