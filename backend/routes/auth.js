@@ -2,7 +2,7 @@ const express = require('express');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const { skapaAnvändare, hämtaAnvändareViaEmail, sparaVerifieringskod, markeraEmailVerifierad } = require('../db/användare');
-const { skickaVerifieringsMail } = require('../utils/email');
+const { skickaVerifieringsMail, testaSmtp } = require('../utils/email');
 
 const router = express.Router();
 const JWT_HEMLIG_NYCKEL = process.env.JWT_SECRET || 'hemlig-nyckel-byt-i-produktion';
@@ -180,6 +180,14 @@ router.post('/skicka-verifieringsmail', async (req, res) => {
     console.error('Resend-fel:', fel);
     res.status(500).json({ fel: 'Kunde inte skicka verifieringsmail' });
   }
+});
+
+// GET /api/auth/test-smtp?email=din@email.com — diagnostik
+router.get('/test-smtp', async (req, res) => {
+  const { email } = req.query;
+  if (!email) return res.status(400).json({ fel: 'Ange ?email=din@email.com' });
+  const resultat = await testaSmtp(email);
+  res.json(resultat);
 });
 
 module.exports = router;
