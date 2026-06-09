@@ -17,7 +17,8 @@ const supabaseAdmin = createClient(
 // Anon-klient för auth-operationer (signUp, resend)
 const supabaseAnon = createClient(
   process.env.SUPABASE_URL,
-  process.env.SUPABASE_PUBLISHABLE_KEY
+  process.env.SUPABASE_PUBLISHABLE_KEY,
+  { realtime: { transport: ws } }
 );
 
 // POST /api/auth/registrera
