@@ -60,7 +60,7 @@ export function AuthProvider({ children }) {
   }
 
   return (
-    <AuthContext.Provider value={{ användare, laddar, loggaIn, registrera, loggaUt }}>
+    <AuthContext.Provider value={{ användare, laddar, loggaIn, registrera, loggaUt, sättAnvändare: setAnvändare }}>
       {children}
     </AuthContext.Provider>
   );

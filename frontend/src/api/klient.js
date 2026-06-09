@@ -30,6 +30,7 @@ export const api = {
   registrera: (kropp) => anrop('POST', '/auth/registrera', kropp),
   loggaIn: (kropp) => anrop('POST', '/auth/logga-in', kropp),
   skickaVerifieringsmail: (email) => anrop('POST', '/auth/skicka-verifieringsmail', { email }),
+  verifieraKod: (email, kod) => anrop('POST', '/auth/verifiera-kod', { email, kod }),
 
   // Användare
   hämtaProfil: () => anrop('GET', '/users/profil'),

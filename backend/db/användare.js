@@ -110,4 +110,20 @@ async function godkännAvtal(id) {
   if (error) throw error;
 }
 
-module.exports = { skapaAnvändare, hämtaAnvändareViaEmail, hämtaAnvändareViaId, uppdateraProfil, uppdateraProfilBild, sparaPushToken, hämtaPushToken, hämtaAllaPrivatpersoner, godkännAvtal, hämtaAllaFöretag };
+async function sparaVerifieringskod(id, kod, expiresAt) {
+  const { error } = await supabase
+    .from('användare')
+    .update({ verifieringskod: kod, kod_expires_at: expiresAt })
+    .eq('id', id);
+  if (error) throw error;
+}
+
+async function markeraEmailVerifierad(id) {
+  const { error } = await supabase
+    .from('användare')
+    .update({ email_verifierad: true, verifieringskod: null, kod_expires_at: null })
+    .eq('id', id);
+  if (error) throw error;
+}
+
+module.exports = { skapaAnvändare, hämtaAnvändareViaEmail, hämtaAnvändareViaId, uppdateraProfil, uppdateraProfilBild, sparaPushToken, hämtaPushToken, hämtaAllaPrivatpersoner, godkännAvtal, hämtaAllaFöretag, sparaVerifieringskod, markeraEmailVerifierad };
