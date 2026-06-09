@@ -11,6 +11,9 @@ const transporter = nodemailer.createTransport({
 });
 
 async function skickaVerifieringsMail(email, kod) {
+  if (!process.env.SMTP_HOST || !process.env.SMTP_USER || !process.env.SMTP_PASS) {
+    throw new Error('SMTP inte konfigurerat. Sätt SMTP_HOST, SMTP_USER och SMTP_PASS i miljövariablerna.');
+  }
   await transporter.sendMail({
     from: process.env.EMAIL_FROM || 'FastGig <noreply@fastgig.se>',
     to: email,

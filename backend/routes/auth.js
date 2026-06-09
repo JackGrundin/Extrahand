@@ -65,8 +65,19 @@ router.post('/registrera', async (req, res) => {
 
     const kod = genereraKod();
     const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
-    await sparaVerifieringskod(användare.id, kod, expiresAt);
-    await skickaVerifieringsMail(email, kod);
+
+    try {
+      await sparaVerifieringskod(användare.id, kod, expiresAt);
+    } catch (dbFel) {
+      console.error('DB-fel vid lagring av verifieringskod:', dbFel);
+      return res.status(500).json({ fel: 'Databasfel: Kör SQL-migrering för e-postverifiering.' });
+    }
+
+    try {
+      await skickaVerifieringsMail(email, kod);
+    } catch (mailFel) {
+      console.error('Mailfelet är icke-kritiskt, koden finns sparad:', mailFel.message);
+    }
 
     res.status(201).json({ väntarVerifiering: true });
   } catch (fel) {
