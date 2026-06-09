@@ -18,16 +18,9 @@ async function skapaJobb({ titel, beskrivning, plats, adress, lon, typ, kategori
   return data;
 }
 
-async function hämtaAllaJobb() {
-  const { data: jobb, error } = await supabase
-    .from('Jobb')
-    .select('*')
-    .order('created_at', { ascending: false });
-
-  if (error) throw error;
+async function filtreraAktivaJobb(jobb) {
   if (!jobb.length) return [];
 
-  // Hämta jobb-id:n som har en godkänd tidrapport
   const jobbIds = jobb.map(j => j.id);
   const { data: ansokningar } = await supabase
     .from('ansokningar')
@@ -52,7 +45,7 @@ async function hämtaAllaJobb() {
   const idag = new Date();
   idag.setHours(0, 0, 0, 0);
 
-  const aktivaJobb = jobb.filter(j => {
+  return jobb.filter(j => {
     if (godkändaJobbIds.has(j.id)) return false;
 
     const schema = Array.isArray(j.arbetstider)
@@ -71,6 +64,18 @@ async function hämtaAllaJobb() {
 
     return true;
   });
+}
+
+async function hämtaAllaJobb() {
+  const { data: jobb, error } = await supabase
+    .from('Jobb')
+    .select('*')
+    .order('created_at', { ascending: false });
+
+  if (error) throw error;
+  if (!jobb.length) return [];
+
+  const aktivaJobb = await filtreraAktivaJobb(jobb);
 
   const foretagIds = [...new Set(
     aktivaJobb.map(j => j.Foretag_id ?? j.foretag_id).filter(id => id != null)
@@ -98,7 +103,7 @@ async function hämtaJobbViaId(id) {
   return data;
 }
 
-async function hämtaJobbFörFöretag(foretag_id) {
+async function hämtaJobbFörFöretag(foretag_id, { endastAktiva = false } = {}) {
   const { data, error } = await supabase
     .from('Jobb')
     .select('*')
@@ -106,7 +111,9 @@ async function hämtaJobbFörFöretag(foretag_id) {
     .order('created_at', { ascending: false });
 
   if (error) throw error;
-  return data || [];
+  if (!data || !data.length) return [];
+  if (endastAktiva) return filtreraAktivaJobb(data);
+  return data;
 }
 
 async function uppdateraJobb(id, foretag_id, { titel, beskrivning, plats, adress, lon, typ, kategori, antal_dagar, arbetstider }) {

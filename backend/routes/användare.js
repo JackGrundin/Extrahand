@@ -62,7 +62,7 @@ router.get('/:id/profil', kräverInloggning, async (req, res) => {
 
     const [totalTimmar, aktivaJobb] = await Promise.all([
       hämtaTotalTimmar(req.params.id),
-      användare.Typ === 'företag' ? hämtaJobbFörFöretag(req.params.id) : Promise.resolve([]),
+      användare.Typ === 'företag' ? hämtaJobbFörFöretag(req.params.id, { endastAktiva: true }) : Promise.resolve([]),
     ]);
 
     res.json({
