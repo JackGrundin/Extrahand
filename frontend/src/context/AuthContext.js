@@ -46,9 +46,12 @@ export function AuthProvider({ children }) {
 
   async function registrera(namn, email, lösenord, typ, företagsInfo = {}) {
     const svar = await api.registrera({ namn, email, lösenord, typ, ...företagsInfo });
+    // Inväntar e-postverifiering – logga inte in ännu
+    if (svar.väntarVerifiering) return svar;
     await AsyncStorage.setItem('token', svar.token);
     setAnvändare(svar.användare);
     registreraPushToken();
+    return svar;
   }
 
   async function loggaUt() {

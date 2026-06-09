@@ -1,25 +1,45 @@
 import { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, ActivityIndicator } from 'react-native';
 import { useAuth } from '../context/AuthContext';
+import { api } from '../api/klient';
 
 export default function LoggaInScreen({ navigation }) {
   const { loggaIn } = useAuth();
   const [email, setEmail] = useState('');
   const [lösenord, setLösenord] = useState('');
   const [laddar, setLaddar] = useState(false);
+  const [ejVerifierad, setEjVerifierad] = useState(false);
+  const [skickarMail, setSkickarMail] = useState(false);
 
   async function hanteraInloggning() {
     if (!email || !lösenord) {
       Alert.alert('Fel', 'Fyll i email och lösenord');
       return;
     }
+    setEjVerifierad(false);
     setLaddar(true);
     try {
       await loggaIn(email, lösenord);
     } catch (fel) {
-      Alert.alert('Fel', fel.message);
+      if (fel.kod === 'EMAIL_EJ_VERIFIERAD') {
+        setEjVerifierad(true);
+      } else {
+        Alert.alert('Fel', fel.message);
+      }
     } finally {
       setLaddar(false);
+    }
+  }
+
+  async function skickaVerifieringsmail() {
+    setSkickarMail(true);
+    try {
+      await api.skickaVerifieringsmail(email);
+      Alert.alert('Klart', 'Ett nytt verifieringsmail har skickats till ' + email);
+    } catch {
+      Alert.alert('Fel', 'Kunde inte skicka verifieringsmail. Försök igen.');
+    } finally {
+      setSkickarMail(false);
     }
   }
 
@@ -32,7 +52,7 @@ export default function LoggaInScreen({ navigation }) {
         style={styles.input}
         placeholder="Email"
         value={email}
-        onChangeText={setEmail}
+        onChangeText={(v) => { setEmail(v); setEjVerifierad(false); }}
         autoCapitalize="none"
         keyboardType="email-address"
       />
@@ -43,6 +63,24 @@ export default function LoggaInScreen({ navigation }) {
         onChangeText={setLösenord}
         secureTextEntry
       />
+
+      {ejVerifierad && (
+        <View style={styles.verifieringsRuta}>
+          <Text style={styles.verifieringsText}>
+            Verifiera din e-postadress först. Kolla din inkorg.
+          </Text>
+          <TouchableOpacity
+            style={styles.resendKnapp}
+            onPress={skickaVerifieringsmail}
+            disabled={skickarMail}
+          >
+            {skickarMail
+              ? <ActivityIndicator color="#2563eb" size="small" />
+              : <Text style={styles.resendText}>Skicka nytt verifieringsmail</Text>
+            }
+          </TouchableOpacity>
+        </View>
+      )}
 
       <TouchableOpacity style={styles.knapp} onPress={hanteraInloggning} disabled={laddar}>
         {laddar ? <ActivityIndicator color="#fff" /> : <Text style={styles.knappText}>Logga in</Text>}
@@ -63,4 +101,8 @@ const styles = StyleSheet.create({
   knapp: { backgroundColor: '#2563eb', borderRadius: 10, padding: 16, alignItems: 'center', marginBottom: 16 },
   knappText: { color: '#fff', fontWeight: '600', fontSize: 16 },
   länk: { textAlign: 'center', color: '#2563eb', fontSize: 15 },
+  verifieringsRuta: { backgroundColor: '#fef9c3', borderRadius: 10, padding: 14, marginBottom: 14, borderWidth: 1, borderColor: '#fde68a' },
+  verifieringsText: { fontSize: 14, color: '#92400e', marginBottom: 10, lineHeight: 20 },
+  resendKnapp: { alignSelf: 'flex-start' },
+  resendText: { fontSize: 14, color: '#2563eb', fontWeight: '600' },
 });

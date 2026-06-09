@@ -26,6 +26,7 @@ import RedigeraProfilScreen from '../screens/RedigeraProfilScreen';
 import MinaPassScreen from '../screens/MinaPassScreen';
 import FöretagsProfilScreen from '../screens/FöretagsProfilScreen';
 import RapporterScreen from '../screens/RapporterScreen';
+import VerifieraEmailScreen from '../screens/VerifieraEmailScreen';
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -56,6 +57,7 @@ function AuthNavigator() {
     <Stack.Navigator screenOptions={{ headerShown: false }}>
       <Stack.Screen name="LoggaIn" component={LoggaInScreen} />
       <Stack.Screen name="Registrera" component={RegistreraScreen} />
+      <Stack.Screen name="VerifieraEmail" component={VerifieraEmailScreen} />
     </Stack.Navigator>
   );
 }

@@ -56,7 +56,10 @@ export default function RegistreraScreen({ navigation }) {
             referensperson: referensperson.trim(),
           }
         : {};
-      await registrera(namn, email, lösenord, typ, { ...företagsInfo, telefonnummer: telefonnummer.trim() || null });
+      const svar = await registrera(namn, email, lösenord, typ, { ...företagsInfo, telefonnummer: telefonnummer.trim() || null });
+      if (svar?.väntarVerifiering) {
+        navigation.replace('VerifieraEmail', { email });
+      }
     } catch (fel) {
       Alert.alert('Fel', fel.message);
     } finally {

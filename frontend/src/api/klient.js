@@ -17,7 +17,9 @@ async function anrop(metod, sökväg, kropp) {
   const data = await svar.json();
 
   if (!svar.ok) {
-    throw new Error(data.fel || 'Något gick fel');
+    const err = new Error(data.fel || 'Något gick fel');
+    if (data.kod) err.kod = data.kod;
+    throw err;
   }
 
   return data;
@@ -27,6 +29,7 @@ export const api = {
   // Auth
   registrera: (kropp) => anrop('POST', '/auth/registrera', kropp),
   loggaIn: (kropp) => anrop('POST', '/auth/logga-in', kropp),
+  skickaVerifieringsmail: (email) => anrop('POST', '/auth/skicka-verifieringsmail', { email }),
 
   // Användare
   hämtaProfil: () => anrop('GET', '/users/profil'),
