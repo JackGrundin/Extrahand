@@ -49,7 +49,10 @@ export default function JobbDetaljScreen({ route, navigation }) {
         const ob = parsaObTillagg(jobb.ob_tillagg);
         if (!ob.length || !jobb.Lon) return null;
         const timlön = jobb.Lon;
-        const totalOb = beräknaObBelopp(ob, timlön);
+        const totalObBrutto = beräknaObBelopp(ob, timlön);
+        const erFöretag = användare?.typ === 'företag';
+        const fakturaFaktor = (1 + 0.32 + 0.06) * 1.40;
+        const totalVisat = erFöretag ? totalObBrutto * fakturaFaktor : totalObBrutto;
         return (
           <View style={styles.obSektion}>
             <View style={styles.obRubrikRad}>
@@ -60,20 +63,24 @@ export default function JobbDetaljScreen({ route, navigation }) {
               const [sh = 0, sm = 0] = o.start.split(':').map(Number);
               const [eh = 0, em = 0] = o.slut.split(':').map(Number);
               const h = (eh * 60 + em - (sh * 60 + sm)) / 60;
-              const belopp = o.typ === 'procent' ? h * timlön * (o.värde / 100) : h * o.värde;
+              const brutto = o.typ === 'procent' ? h * timlön * (o.värde / 100) : h * o.värde;
+              const visat = erFöretag ? brutto * fakturaFaktor : brutto;
               return (
                 <View key={i} style={styles.obRad}>
                   <Text style={styles.obIntervall}>{o.start}–{o.slut}</Text>
                   <Text style={styles.obTillägg}>
                     {o.typ === 'procent' ? `${o.värde}%` : `${o.värde} kr/h`}
-                    {' '}= <Text style={styles.obBelopp}>+{belopp.toLocaleString('sv-SE', { maximumFractionDigits: 0 })} kr</Text>
+                    {' '}= <Text style={styles.obBelopp}>+{visat.toLocaleString('sv-SE', { maximumFractionDigits: 0 })} kr</Text>
                   </Text>
                 </View>
               );
             })}
-            {totalOb > 0 && (
+            {totalVisat > 0 && (
               <View style={styles.obTotalRad}>
-                <Text style={styles.obTotalText}>Totalt OB per pass: <Text style={styles.obTotalBelopp}>+{totalOb.toLocaleString('sv-SE', { maximumFractionDigits: 0 })} kr</Text></Text>
+                <Text style={styles.obTotalText}>
+                  {erFöretag ? 'OB-kostnad för er: ' : 'OB i bruttolön: '}
+                  <Text style={styles.obTotalBelopp}>+{totalVisat.toLocaleString('sv-SE', { maximumFractionDigits: 0 })} kr</Text>
+                </Text>
               </View>
             )}
           </View>

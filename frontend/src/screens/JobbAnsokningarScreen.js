@@ -141,7 +141,9 @@ export default function JobbAnsokningarScreen({ route, navigation }) {
   const timlön = jobb?.Lon ?? 0;
   const timmar = parseFloat(timmarText.replace(',', '.')) || 0;
   const obTillagg = parsaObTillagg(jobb?.ob_tillagg);
-  const obBelopp = beräknaObBelopp(obTillagg, timlön);
+  const obBrutto = beräknaObBelopp(obTillagg, timlön);
+  const fakturaFaktor = (1 + 0.32 + 0.06) * 1.40;
+  const obKostnad = obBrutto * fakturaFaktor;
   const aktivaAnsökningar = ansökningar.filter(a => !avslutadeIds.has(a.id));
 
   return (
@@ -203,16 +205,17 @@ export default function JobbAnsokningarScreen({ route, navigation }) {
 
             {obTillagg.length > 0 && (
               <View style={styles.obSektion}>
-                <Text style={styles.obRubrik}>OB-tillägg</Text>
+                <Text style={styles.obRubrik}>OB-kostnad för er</Text>
                 {obTillagg.map((ob, i) => {
                   const [sh = 0, sm = 0] = ob.start.split(':').map(Number);
                   const [eh = 0, em = 0] = ob.slut.split(':').map(Number);
                   const h = (eh * 60 + em - (sh * 60 + sm)) / 60;
-                  const belopp = ob.typ === 'procent' ? h * timlön * (ob.värde / 100) : h * ob.värde;
+                  const brutto = ob.typ === 'procent' ? h * timlön * (ob.värde / 100) : h * ob.värde;
+                  const kostnad = brutto * fakturaFaktor;
                   return (
                     <View key={i} style={styles.obRad}>
                       <Text style={styles.obIntervall}>{ob.start}–{ob.slut} ({ob.typ === 'procent' ? `${ob.värde}%` : `${ob.värde} kr/h`})</Text>
-                      <Text style={styles.obBelopp}>+{belopp.toLocaleString('sv-SE', { maximumFractionDigits: 0 })} kr</Text>
+                      <Text style={styles.obBelopp}>+{kostnad.toLocaleString('sv-SE', { maximumFractionDigits: 0 })} kr</Text>
                     </View>
                   );
                 })}
@@ -221,8 +224,8 @@ export default function JobbAnsokningarScreen({ route, navigation }) {
 
             {timmar > 0 && timlön > 0 && (
               <View style={styles.totalRad}>
-                <Text style={styles.totalEtikett}>Totalt belopp{obBelopp > 0 ? ' (inkl. OB)' : ''}</Text>
-                <Text style={styles.totalVärde}>{(timmar * timlön + obBelopp).toLocaleString('sv-SE')} kr</Text>
+                <Text style={styles.totalEtikett}>Er totalkostnad{obKostnad > 0 ? ' (inkl. OB)' : ''}</Text>
+                <Text style={styles.totalVärde}>{(timmar * timlön * fakturaFaktor + obKostnad).toLocaleString('sv-SE', { maximumFractionDigits: 0 })} kr</Text>
               </View>
             )}
 
