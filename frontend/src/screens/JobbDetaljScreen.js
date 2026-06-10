@@ -70,7 +70,7 @@ export default function JobbDetaljScreen({ route, navigation }) {
                   <Text style={styles.obIntervall}>{o.start}–{o.slut}</Text>
                   <Text style={styles.obTillägg}>
                     {o.typ === 'procent' ? `${o.värde}%` : `${o.värde} kr/h`}
-                    {' '}= <Text style={styles.obBelopp}>+{visat.toLocaleString('sv-SE', { maximumFractionDigits: 0 })} kr</Text>
+                    {' '}= <Text style={styles.obBelopp}>+{visat.toLocaleString('sv-SE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} kr</Text>
                   </Text>
                 </View>
               );
@@ -79,7 +79,7 @@ export default function JobbDetaljScreen({ route, navigation }) {
               <View style={styles.obTotalRad}>
                 <Text style={styles.obTotalText}>
                   {erFöretag ? 'OB-kostnad för er: ' : 'OB i bruttolön: '}
-                  <Text style={styles.obTotalBelopp}>+{totalVisat.toLocaleString('sv-SE', { maximumFractionDigits: 0 })} kr</Text>
+                  <Text style={styles.obTotalBelopp}>+{totalVisat.toLocaleString('sv-SE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} kr</Text>
                 </Text>
               </View>
             )}

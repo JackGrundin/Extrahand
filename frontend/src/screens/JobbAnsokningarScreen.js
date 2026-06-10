@@ -215,7 +215,7 @@ export default function JobbAnsokningarScreen({ route, navigation }) {
                   return (
                     <View key={i} style={styles.obRad}>
                       <Text style={styles.obIntervall}>{ob.start}–{ob.slut} ({ob.typ === 'procent' ? `${ob.värde}%` : `${ob.värde} kr/h`})</Text>
-                      <Text style={styles.obBelopp}>+{kostnad.toLocaleString('sv-SE', { maximumFractionDigits: 0 })} kr</Text>
+                      <Text style={styles.obBelopp}>+{kostnad.toLocaleString('sv-SE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} kr</Text>
                     </View>
                   );
                 })}
@@ -225,7 +225,7 @@ export default function JobbAnsokningarScreen({ route, navigation }) {
             {timmar > 0 && timlön > 0 && (
               <View style={styles.totalRad}>
                 <Text style={styles.totalEtikett}>Er totalkostnad{obKostnad > 0 ? ' (inkl. OB)' : ''}</Text>
-                <Text style={styles.totalVärde}>{(timmar * timlön * fakturaFaktor + obKostnad).toLocaleString('sv-SE', { maximumFractionDigits: 0 })} kr</Text>
+                <Text style={styles.totalVärde}>{(timmar * timlön * fakturaFaktor + obKostnad).toLocaleString('sv-SE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} kr</Text>
               </View>
             )}
 
