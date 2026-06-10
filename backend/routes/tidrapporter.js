@@ -22,7 +22,7 @@ function beräknaObBelopp(obTillagg, timlön) {
 
 // POST /api/tidrapporter — företag avslutar pass och rapporterar timmar
 router.post('/', kräverInloggning, kräverTyp('företag'), async (req, res) => {
-  const { ansokan_id, timmar } = req.body;
+  const { ansokan_id, timmar, ob_tillagg: obTillaggOverride } = req.body;
   if (!ansokan_id || !timmar || timmar <= 0) {
     return res.status(400).json({ fel: 'ansokan_id och timmar krävs' });
   }
@@ -34,7 +34,9 @@ router.post('/', kräverInloggning, kräverTyp('företag'), async (req, res) => 
 
     const jobb = await hämtaJobbViaId(ansökan.jobb_id);
     const timlon = jobb?.Lon ?? 0;
-    const obTillagg = Array.isArray(jobb?.ob_tillagg) ? jobb.ob_tillagg : [];
+    const obTillagg = Array.isArray(obTillaggOverride)
+      ? obTillaggOverride
+      : (Array.isArray(jobb?.ob_tillagg) ? jobb.ob_tillagg : []);
     const ob_belopp = beräknaObBelopp(obTillagg, timlon);
     const totalt_belopp = timmar * timlon + ob_belopp;
     const datum = new Date().toISOString().split('T')[0];
