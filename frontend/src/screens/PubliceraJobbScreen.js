@@ -283,8 +283,9 @@ export default function PubliceraJobbScreen({ navigation }) {
                   const [eh = 0, em = 0] = ob.slut.split(':').map(Number);
                   const h = (eh * 60 + em - (sh * 60 + sm)) / 60;
                   const timlön = parseFloat(lon) || 0;
-                  const belopp = ob.typ === 'procent' ? h * timlön * (ob.värde / 100) : h * ob.värde;
-                  return belopp > 0 ? ` = +${belopp.toLocaleString('sv-SE', { maximumFractionDigits: 0 })} kr` : '';
+                  const brutto = ob.typ === 'procent' ? h * timlön * (ob.värde / 100) : h * ob.värde;
+                  const kostnad = brutto * (1 + 0.32 + 0.06) * 1.40;
+                  return kostnad > 0 ? ` = +${kostnad.toLocaleString('sv-SE', { maximumFractionDigits: 0 })} kr (er kostnad)` : '';
                 })() : ''}
               </Text>
               <TouchableOpacity onPress={() => setObTillagg(prev => prev.filter((_, j) => j !== i))}>

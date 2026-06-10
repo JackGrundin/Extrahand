@@ -124,6 +124,15 @@ export default function RedigeraJobbScreen({ route, navigation }) {
             <View key={i} style={styles.obRad}>
               <Text style={styles.obRadText}>
                 {ob.start}–{ob.slut}: {ob.värde}{ob.typ === 'procent' ? '%' : ' kr/h'}
+                {lon ? (() => {
+                  const [sh = 0, sm = 0] = ob.start.split(':').map(Number);
+                  const [eh = 0, em = 0] = ob.slut.split(':').map(Number);
+                  const h = (eh * 60 + em - (sh * 60 + sm)) / 60;
+                  const timlön = parseFloat(lon) || 0;
+                  const brutto = ob.typ === 'procent' ? h * timlön * (ob.värde / 100) : h * ob.värde;
+                  const kostnad = brutto * (1 + 0.32 + 0.06) * 1.40;
+                  return kostnad > 0 ? ` = +${kostnad.toLocaleString('sv-SE', { maximumFractionDigits: 0 })} kr (er kostnad)` : '';
+                })() : ''}
               </Text>
               <TouchableOpacity onPress={() => setObTillagg(prev => prev.filter((_, j) => j !== i))}>
                 <Ionicons name="close-circle" size={20} color="#ef4444" />
