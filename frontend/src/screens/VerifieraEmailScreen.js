@@ -1,5 +1,5 @@
 import { useState, useRef } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, ActivityIndicator } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, ActivityIndicator, TouchableWithoutFeedback, Keyboard } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAuth } from '../context/AuthContext';
 import { api } from '../api/klient';
@@ -43,6 +43,7 @@ export default function VerifieraEmailScreen({ route, navigation }) {
   }
 
   return (
+    <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
     <View style={styles.container}>
       <View style={styles.ikon}>
         <Text style={styles.ikonText}>📧</Text>
@@ -87,6 +88,7 @@ export default function VerifieraEmailScreen({ route, navigation }) {
         <Text style={styles.länk}>Gå till inloggning</Text>
       </TouchableOpacity>
     </View>
+    </TouchableWithoutFeedback>
   );
 }
 
