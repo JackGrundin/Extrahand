@@ -150,6 +150,8 @@ export default function JobbScreen({ navigation }) {
           value={stadFilter}
           onChangeText={setStadFilter}
           clearButtonMode="while-editing"
+          autoCorrect={false}
+          autoCapitalize="none"
         />
         <TouchableOpacity style={styles.filterKnapp} onPress={() => setModalVisas(true)} activeOpacity={0.8}>
           <Ionicons name="options-outline" size={16} color="#2563eb" />
@@ -355,7 +357,7 @@ export default function JobbScreen({ navigation }) {
 
 const styles = StyleSheet.create({
   headerContainer: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: '#fff', paddingHorizontal: 16, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: '#eee' },
-  stadInput: { flex: 1, borderWidth: 1, borderColor: '#ddd', borderRadius: 10, paddingHorizontal: 14, paddingVertical: 9, fontSize: 15, backgroundColor: '#fafafa' },
+  stadInput: { flex: 1, borderWidth: 1, borderColor: '#ddd', borderRadius: 10, paddingHorizontal: 14, paddingVertical: 9, fontSize: 15, backgroundColor: '#fafafa', color: '#1a1a1a' },
   filterKnapp: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 12, paddingVertical: 9, borderRadius: 10, borderWidth: 1, borderColor: '#2563eb', backgroundColor: '#eff6ff' },
   filterKnappText: { fontSize: 14, fontWeight: '600', color: '#2563eb' },
   badge: { backgroundColor: '#2563eb', borderRadius: 10, minWidth: 18, height: 18, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 4 },

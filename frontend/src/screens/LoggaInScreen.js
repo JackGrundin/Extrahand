@@ -97,7 +97,7 @@ const styles = StyleSheet.create({
   container: { flex: 1, justifyContent: 'center', padding: 24, backgroundColor: '#fff' },
   rubrik: { fontSize: 32, fontWeight: 'bold', textAlign: 'center', marginBottom: 4, color: '#2563eb' },
   underrubrik: { fontSize: 18, textAlign: 'center', marginBottom: 32, color: '#666' },
-  input: { borderWidth: 1, borderColor: '#ddd', borderRadius: 10, padding: 14, marginBottom: 12, fontSize: 16 },
+  input: { borderWidth: 1, borderColor: '#ddd', borderRadius: 10, padding: 14, marginBottom: 12, fontSize: 16, color: '#1a1a1a' },
   knapp: { backgroundColor: '#2563eb', borderRadius: 10, padding: 16, alignItems: 'center', marginBottom: 16 },
   knappText: { color: '#fff', fontWeight: '600', fontSize: 16 },
   länk: { textAlign: 'center', color: '#2563eb', fontSize: 15 },
