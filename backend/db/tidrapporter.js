@@ -7,13 +7,13 @@ const supabase = createClient(
   { realtime: { transport: ws } }
 );
 
-async function skapaTidrapport({ ansokan_id, foretag_id, anvandare_id, datum, timmar, timlon, ob_belopp, totalt_belopp }) {
+async function skapaTidrapport({ ansokan_id, foretag_id, anvandare_id, datum, timmar, timlon, ob_belopp, ob_tillagg, totalt_belopp }) {
   const befintlig = await hämtaTidrapportFörAnsökan(ansokan_id);
   if (befintlig) throw Object.assign(new Error('En tidrapport finns redan för denna ansökan'), { kod: 409 });
 
   const { data, error } = await supabase
     .from('tidrapporter')
-    .insert([{ ansokan_id, foretag_id, anvandare_id, datum, timmar, timlon, ob_belopp: ob_belopp || 0, totalt_belopp, status: 'väntar' }])
+    .insert([{ ansokan_id, foretag_id, anvandare_id, datum, timmar, timlon, ob_belopp: ob_belopp || 0, ob_tillagg: ob_tillagg || [], totalt_belopp, status: 'väntar' }])
     .select()
     .single();
 

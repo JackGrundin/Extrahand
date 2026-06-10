@@ -49,6 +49,7 @@ router.post('/', kräverInloggning, kräverTyp('företag'), async (req, res) => 
       timmar,
       timlon,
       ob_belopp,
+      ob_tillagg: obTillagg,
       totalt_belopp,
     });
 

@@ -6,7 +6,7 @@ import { api } from '../api/klient';
 import { useAuth } from '../context/AuthContext';
 import { useNotifikationer } from '../context/NotifikationsContext';
 import { STATUSFÄRGER_TIDRAPPORT } from '../utils/konstanter';
-import { parsaArbetstider, formatDagDatum } from '../utils/datumHelper';
+import { parsaArbetstider, formatDagDatum, parsaObTillagg } from '../utils/datumHelper';
 
 function TidrapportKort({ rapport, ärPrivatperson, onUppdaterad }) {
   const [sparar, setSparar] = useState(false);
@@ -48,6 +48,31 @@ function TidrapportKort({ rapport, ärPrivatperson, onUppdaterad }) {
           <Text style={styles.rapportEtikett}>Timlön</Text>
           <Text style={styles.rapportVärde}>{rapport.timlon?.toLocaleString('sv-SE')} kr/tim</Text>
         </View>
+        {(() => {
+          const ob = parsaObTillagg(rapport.ob_tillagg);
+          if (!ob.length || !rapport.timlon) return null;
+          return (
+            <View style={styles.obSektion}>
+              <Text style={styles.obRubrik}>OB-tillägg</Text>
+              {ob.map((o, i) => {
+                const [sh = 0, sm = 0] = o.start.split(':').map(Number);
+                const [eh = 0, em = 0] = o.slut.split(':').map(Number);
+                const h = (eh * 60 + em - (sh * 60 + sm)) / 60;
+                const belopp = o.typ === 'procent'
+                  ? h * rapport.timlon * (o.värde / 100)
+                  : h * o.värde;
+                return (
+                  <View key={i} style={styles.obRad}>
+                    <Text style={styles.obIntervall}>
+                      {o.start}–{o.slut} · {h} tim · {o.typ === 'procent' ? `${o.värde}%` : `${o.värde} kr/h`}
+                    </Text>
+                    <Text style={styles.obBelopp}>+{belopp.toLocaleString('sv-SE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} kr</Text>
+                  </View>
+                );
+              })}
+            </View>
+          );
+        })()}
         <View style={[styles.rapportRad, styles.totalRad]}>
           <Text style={styles.totalEtikett}>Totalt</Text>
           <Text style={styles.totalVärde}>{rapport.totalt_belopp?.toLocaleString('sv-SE')} kr</Text>
@@ -253,4 +278,9 @@ const styles = StyleSheet.create({
   bestridText: { color: '#ef4444', fontWeight: '600', fontSize: 14 },
   godkännKnapp: { flex: 1, backgroundColor: '#16a34a', borderRadius: 10, paddingVertical: 10, alignItems: 'center' },
   godkännText: { color: '#fff', fontWeight: '600', fontSize: 14 },
+  obSektion: { backgroundColor: '#fff7ed', borderRadius: 8, padding: 10, marginVertical: 4, borderWidth: 1, borderColor: '#fed7aa' },
+  obRubrik: { fontSize: 12, fontWeight: '700', color: '#9a3412', marginBottom: 6 },
+  obRad: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 2 },
+  obIntervall: { fontSize: 13, color: '#7c2d12', flex: 1 },
+  obBelopp: { fontSize: 13, fontWeight: '700', color: '#c2410c' },
 });
