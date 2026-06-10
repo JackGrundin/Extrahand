@@ -1,23 +1,15 @@
-const nodemailer = require('nodemailer');
+const { Resend } = require('resend');
 
-function skapaTransporter() {
-  return nodemailer.createTransport({
-    host: process.env.SMTP_HOST,
-    port: parseInt(process.env.SMTP_PORT || '587'),
-    secure: process.env.SMTP_PORT === '465',
-    auth: {
-      user: process.env.SMTP_USER,
-      pass: process.env.SMTP_PASS,
-    },
-  });
+function skapaResend() {
+  return new Resend(process.env.RESEND_API_KEY);
 }
 
 async function skickaVerifieringsMail(email, kod) {
-  if (!process.env.SMTP_HOST || !process.env.SMTP_USER || !process.env.SMTP_PASS) {
-    throw new Error('SMTP inte konfigurerat. Sätt SMTP_HOST, SMTP_USER och SMTP_PASS i miljövariablerna.');
+  if (!process.env.RESEND_API_KEY) {
+    throw new Error('RESEND_API_KEY saknas i miljövariablerna.');
   }
-  const transporter = skapaTransporter();
-  await transporter.sendMail({
+  const resend = skapaResend();
+  const { error } = await resend.emails.send({
     from: process.env.EMAIL_FROM || 'FastGig <noreply@fastgig.se>',
     to: email,
     subject: 'Din verifieringskod – FastGig',
@@ -33,39 +25,22 @@ async function skickaVerifieringsMail(email, kod) {
       </div>
     `,
   });
+  if (error) throw new Error(error.message);
 }
 
 async function testaSmtp(tillEmail) {
-  const konfig = {
-    SMTP_HOST: process.env.SMTP_HOST || '(saknas)',
-    SMTP_PORT: process.env.SMTP_PORT || '587 (standard)',
-    SMTP_USER: process.env.SMTP_USER || '(saknas)',
-    SMTP_PASS: process.env.SMTP_PASS ? '(finns)' : '(saknas)',
-    EMAIL_FROM: process.env.EMAIL_FROM || '(saknas)',
-  };
-
-  if (!process.env.SMTP_HOST || !process.env.SMTP_USER || !process.env.SMTP_PASS) {
-    return { ok: false, fel: 'SMTP-variabler saknas', konfig };
+  if (!process.env.RESEND_API_KEY) {
+    return { ok: false, fel: 'RESEND_API_KEY saknas i miljövariablerna.' };
   }
-
-  const transporter = skapaTransporter();
-  try {
-    await transporter.verify();
-  } catch (e) {
-    return { ok: false, fel: 'Anslutning misslyckades: ' + e.message, konfig };
-  }
-
-  try {
-    await transporter.sendMail({
-      from: process.env.EMAIL_FROM || 'FastGig <noreply@fastgig.se>',
-      to: tillEmail,
-      subject: 'SMTP-test – FastGig',
-      text: 'Om du ser detta fungerar SMTP-konfigurationen.',
-    });
-    return { ok: true, konfig };
-  } catch (e) {
-    return { ok: false, fel: 'Skickning misslyckades: ' + e.message, konfig };
-  }
+  const resend = skapaResend();
+  const { error } = await resend.emails.send({
+    from: process.env.EMAIL_FROM || 'FastGig <noreply@fastgig.se>',
+    to: tillEmail,
+    subject: 'E-posttest – FastGig',
+    text: 'Om du ser detta fungerar e-postkonfigurationen.',
+  });
+  if (error) return { ok: false, fel: error.message };
+  return { ok: true };
 }
 
 module.exports = { skickaVerifieringsMail, testaSmtp };
