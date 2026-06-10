@@ -142,7 +142,7 @@ export default function JobbAnsokningarScreen({ route, navigation }) {
   const timmar = parseFloat(timmarText.replace(',', '.')) || 0;
   const obTillagg = parsaObTillagg(jobb?.ob_tillagg);
   const obBrutto = beräknaObBelopp(obTillagg, timlön);
-  const fakturaFaktor = (1 + 0.32 + 0.06) * 1.40;
+  const fakturaFaktor = 1.32 * 1.06 * 1.40;
   const obKostnad = obBrutto * fakturaFaktor;
   const aktivaAnsökningar = ansökningar.filter(a => !avslutadeIds.has(a.id));
 

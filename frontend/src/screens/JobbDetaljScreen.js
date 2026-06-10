@@ -51,7 +51,7 @@ export default function JobbDetaljScreen({ route, navigation }) {
         const timlön = jobb.Lon;
         const totalObBrutto = beräknaObBelopp(ob, timlön);
         const erFöretag = användare?.typ === 'företag';
-        const fakturaFaktor = (1 + 0.32 + 0.06) * 1.40;
+        const fakturaFaktor = 1.32 * 1.06 * 1.40;
         const totalVisat = erFöretag ? totalObBrutto * fakturaFaktor : totalObBrutto;
         return (
           <View style={styles.obSektion}>

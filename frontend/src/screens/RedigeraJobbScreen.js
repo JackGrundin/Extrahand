@@ -130,7 +130,7 @@ export default function RedigeraJobbScreen({ route, navigation }) {
                   const h = (eh * 60 + em - (sh * 60 + sm)) / 60;
                   const timlön = parseFloat(lon) || 0;
                   const brutto = ob.typ === 'procent' ? h * timlön * (ob.värde / 100) : h * ob.värde;
-                  const kostnad = brutto * (1 + 0.32 + 0.06) * 1.40;
+                  const kostnad = brutto * 1.32 * 1.06 * 1.40;
                   return kostnad > 0 ? ` = +${kostnad.toLocaleString('sv-SE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} kr (er kostnad)` : '';
                 })() : ''}
               </Text>
