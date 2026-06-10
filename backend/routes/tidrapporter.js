@@ -9,6 +9,17 @@ const router = express.Router();
 
 const ADMIN_EMAIL = 'info@fastgig.se';
 
+function beräknaObBelopp(obTillagg, timlön) {
+  if (!Array.isArray(obTillagg) || !obTillagg.length || !timlön) return 0;
+  return obTillagg.reduce((sum, ob) => {
+    const [startH = 0, startM = 0] = ob.start.split(':').map(Number);
+    const [slutH = 0, slutM = 0] = ob.slut.split(':').map(Number);
+    const timmar = (slutH * 60 + slutM - (startH * 60 + startM)) / 60;
+    if (timmar <= 0) return sum;
+    return sum + (ob.typ === 'procent' ? timmar * timlön * (ob.värde / 100) : timmar * ob.värde);
+  }, 0);
+}
+
 // POST /api/tidrapporter — företag avslutar pass och rapporterar timmar
 router.post('/', kräverInloggning, kräverTyp('företag'), async (req, res) => {
   const { ansokan_id, timmar } = req.body;
@@ -23,7 +34,9 @@ router.post('/', kräverInloggning, kräverTyp('företag'), async (req, res) => 
 
     const jobb = await hämtaJobbViaId(ansökan.jobb_id);
     const timlon = jobb?.Lon ?? 0;
-    const totalt_belopp = timmar * timlon;
+    const obTillagg = Array.isArray(jobb?.ob_tillagg) ? jobb.ob_tillagg : [];
+    const ob_belopp = beräknaObBelopp(obTillagg, timlon);
+    const totalt_belopp = timmar * timlon + ob_belopp;
     const datum = new Date().toISOString().split('T')[0];
 
     const rapport = await skapaTidrapport({
@@ -33,6 +46,7 @@ router.post('/', kräverInloggning, kräverTyp('företag'), async (req, res) => 
       datum,
       timmar,
       timlon,
+      ob_belopp,
       totalt_belopp,
     });
 

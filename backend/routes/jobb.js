@@ -46,7 +46,7 @@ router.get('/:id', async (req, res) => {
 
 // POST /api/jobb — kräver inloggning som företag
 router.post('/', kräverInloggning, kräverTyp('företag'), async (req, res) => {
-  const { titel, beskrivning, plats, adress, lon, typ, kategori, antal_dagar, arbetstider } = req.body;
+  const { titel, beskrivning, plats, adress, lon, typ, kategori, antal_dagar, arbetstider, ob_tillagg } = req.body;
 
   if (!titel || !beskrivning || !typ) {
     return res.status(400).json({ fel: 'Fälten titel, beskrivning och typ krävs' });
@@ -71,6 +71,7 @@ router.post('/', kräverInloggning, kräverTyp('företag'), async (req, res) => 
       kategori: kategori || null,
       antal_dagar: antal_dagar || null,
       arbetstider: arbetstider?.trim() || null,
+      ob_tillagg: Array.isArray(ob_tillagg) ? ob_tillagg : [],
       foretag_id: req.användare.id,
     });
     res.status(201).json(jobb);
@@ -82,7 +83,7 @@ router.post('/', kräverInloggning, kräverTyp('företag'), async (req, res) => 
 
 // PUT /api/jobb/:id — företag uppdaterar sitt jobb
 router.put('/:id', kräverInloggning, kräverTyp('företag'), async (req, res) => {
-  const { titel, beskrivning, plats, adress, lon, typ, kategori, antal_dagar, arbetstider } = req.body;
+  const { titel, beskrivning, plats, adress, lon, typ, kategori, antal_dagar, arbetstider, ob_tillagg } = req.body;
 
   if (!titel || !beskrivning || !typ) {
     return res.status(400).json({ fel: 'Fälten titel, beskrivning och typ krävs' });
@@ -101,6 +102,7 @@ router.put('/:id', kräverInloggning, kräverTyp('företag'), async (req, res) =
       kategori: kategori || null,
       antal_dagar: antal_dagar || null,
       arbetstider: arbetstider?.trim() || null,
+      ob_tillagg: Array.isArray(ob_tillagg) ? ob_tillagg : [],
     });
 
     if (!jobb) {

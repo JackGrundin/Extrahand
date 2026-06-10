@@ -2,6 +2,7 @@ import { useCallback, useState } from 'react';
 import { View, Text, FlatList, TouchableOpacity, StyleSheet, ActivityIndicator, RefreshControl, Alert, Modal, TextInput, KeyboardAvoidingView, Platform } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { api } from '../api/klient';
+import { parsaObTillagg, beräknaObBelopp } from '../utils/datumHelper';
 
 function StatusKnappar({ item, onUppdaterad, onAvsluta, navigation }) {
   const [sparar, setSparar] = useState(false);
@@ -139,6 +140,8 @@ export default function JobbAnsokningarScreen({ route, navigation }) {
 
   const timlön = jobb?.Lon ?? 0;
   const timmar = parseFloat(timmarText.replace(',', '.')) || 0;
+  const obTillagg = parsaObTillagg(jobb?.ob_tillagg);
+  const obBelopp = beräknaObBelopp(obTillagg, timlön);
   const aktivaAnsökningar = ansökningar.filter(a => !avslutadeIds.has(a.id));
 
   return (
@@ -198,10 +201,28 @@ export default function JobbAnsokningarScreen({ route, navigation }) {
               autoFocus
             />
 
+            {obTillagg.length > 0 && (
+              <View style={styles.obSektion}>
+                <Text style={styles.obRubrik}>OB-tillägg</Text>
+                {obTillagg.map((ob, i) => {
+                  const [sh = 0, sm = 0] = ob.start.split(':').map(Number);
+                  const [eh = 0, em = 0] = ob.slut.split(':').map(Number);
+                  const h = (eh * 60 + em - (sh * 60 + sm)) / 60;
+                  const belopp = ob.typ === 'procent' ? h * timlön * (ob.värde / 100) : h * ob.värde;
+                  return (
+                    <View key={i} style={styles.obRad}>
+                      <Text style={styles.obIntervall}>{ob.start}–{ob.slut} ({ob.typ === 'procent' ? `${ob.värde}%` : `${ob.värde} kr/h`})</Text>
+                      <Text style={styles.obBelopp}>+{belopp.toLocaleString('sv-SE', { maximumFractionDigits: 0 })} kr</Text>
+                    </View>
+                  );
+                })}
+              </View>
+            )}
+
             {timmar > 0 && timlön > 0 && (
               <View style={styles.totalRad}>
-                <Text style={styles.totalEtikett}>Totalt belopp</Text>
-                <Text style={styles.totalVärde}>{(timmar * timlön).toLocaleString('sv-SE')} kr</Text>
+                <Text style={styles.totalEtikett}>Totalt belopp{obBelopp > 0 ? ' (inkl. OB)' : ''}</Text>
+                <Text style={styles.totalVärde}>{(timmar * timlön + obBelopp).toLocaleString('sv-SE')} kr</Text>
               </View>
             )}
 
@@ -264,4 +285,9 @@ const styles = StyleSheet.create({
   avbrytText: { fontSize: 15, color: '#666', fontWeight: '600' },
   skickaKnapp: { flex: 1, backgroundColor: '#2563eb', borderRadius: 10, padding: 14, alignItems: 'center' },
   skickaText: { fontSize: 15, color: '#fff', fontWeight: '600' },
+  obSektion: { backgroundColor: '#fff7ed', borderRadius: 10, padding: 12, marginBottom: 12, borderWidth: 1, borderColor: '#fed7aa' },
+  obRubrik: { fontSize: 13, fontWeight: '700', color: '#9a3412', marginBottom: 6 },
+  obRad: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 2 },
+  obIntervall: { fontSize: 13, color: '#7c2d12' },
+  obBelopp: { fontSize: 13, fontWeight: '700', color: '#c2410c' },
 });

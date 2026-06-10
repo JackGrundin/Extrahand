@@ -29,6 +29,12 @@ export default function PubliceraJobbScreen({ navigation }) {
   const [sokKategori, setSokKategori] = useState('');
   const [dagPickerIndex, setDagPickerIndex] = useState(null);
   const [tempDatum, setTempDatum] = useState(new Date());
+  const [obTillagg, setObTillagg] = useState([]);
+  const [obFormVisas, setObFormVisas] = useState(false);
+  const [obStart, setObStart] = useState('');
+  const [obSlut, setObSlut] = useState('');
+  const [obTyp, setObTyp] = useState('procent');
+  const [obVärde, setObVärde] = useState('');
 
   function hanteraAntalDagar(val) {
     setAntalDagar(val);
@@ -86,6 +92,23 @@ export default function PubliceraJobbScreen({ navigation }) {
     }
   }
 
+  function läggTillOb() {
+    if (!obStart.trim() || !obSlut.trim() || !obVärde.trim()) {
+      Alert.alert('Fel', 'Fyll i alla OB-fält');
+      return;
+    }
+    const värde = parseFloat(obVärde);
+    if (!värde || värde <= 0) {
+      Alert.alert('Fel', 'Ange ett giltigt OB-värde');
+      return;
+    }
+    setObTillagg(prev => [...prev, { start: obStart.trim(), slut: obSlut.trim(), typ: obTyp, värde }]);
+    setObStart('');
+    setObSlut('');
+    setObVärde('');
+    setObFormVisas(false);
+  }
+
   function väljaOrt(ort) {
     setPlats(ort);
     setOrtsForslag([]);
@@ -123,6 +146,7 @@ export default function PubliceraJobbScreen({ navigation }) {
         kategori: kategori || undefined,
         antal_dagar: antalDagar ? parseInt(antalDagar) : undefined,
         arbetstider,
+        ob_tillagg: obTillagg,
       });
       Alert.alert('Klart!', 'Jobbet har publicerats.', [
         { text: 'OK', onPress: () => navigation.goBack() },
@@ -247,6 +271,76 @@ export default function PubliceraJobbScreen({ navigation }) {
                 </View>
               ))}
             </View>
+          )}
+
+          <Text style={styles.label}>OB-tillägg (obekväm arbetstid)</Text>
+          {obTillagg.map((ob, i) => (
+            <View key={i} style={styles.obRad}>
+              <Text style={styles.obRadText}>
+                {ob.start}–{ob.slut}: {ob.värde}{ob.typ === 'procent' ? '%' : ' kr/h'}
+                {lon ? (() => {
+                  const [sh = 0, sm = 0] = ob.start.split(':').map(Number);
+                  const [eh = 0, em = 0] = ob.slut.split(':').map(Number);
+                  const h = (eh * 60 + em - (sh * 60 + sm)) / 60;
+                  const timlön = parseFloat(lon) || 0;
+                  const belopp = ob.typ === 'procent' ? h * timlön * (ob.värde / 100) : h * ob.värde;
+                  return belopp > 0 ? ` = +${belopp.toLocaleString('sv-SE', { maximumFractionDigits: 0 })} kr` : '';
+                })() : ''}
+              </Text>
+              <TouchableOpacity onPress={() => setObTillagg(prev => prev.filter((_, j) => j !== i))}>
+                <Ionicons name="close-circle" size={20} color="#ef4444" />
+              </TouchableOpacity>
+            </View>
+          ))}
+          {obFormVisas ? (
+            <View style={styles.obForm}>
+              <View style={styles.obFormTider}>
+                <TextInput
+                  style={[styles.input, { flex: 1, textAlign: 'center' }]}
+                  placeholder="18:00"
+                  value={obStart}
+                  onChangeText={setObStart}
+                  keyboardType="numbers-and-punctuation"
+                />
+                <Text style={styles.tidStreck}>–</Text>
+                <TextInput
+                  style={[styles.input, { flex: 1, textAlign: 'center' }]}
+                  placeholder="20:00"
+                  value={obSlut}
+                  onChangeText={setObSlut}
+                  keyboardType="numbers-and-punctuation"
+                />
+              </View>
+              <View style={styles.typVäljare}>
+                {['procent', 'fast'].map(t => (
+                  <TouchableOpacity key={t} style={[styles.typKnapp, obTyp === t && styles.typKnappAktiv]} onPress={() => setObTyp(t)}>
+                    <Text style={[styles.typText, obTyp === t && styles.typTextAktiv]}>
+                      {t === 'procent' ? 'Procent (%)' : 'Fast kr/h'}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+              <TextInput
+                style={styles.input}
+                placeholder={obTyp === 'procent' ? 'OB-procent (t.ex. 50)' : 'Extra kr/h (t.ex. 25)'}
+                value={obVärde}
+                onChangeText={setObVärde}
+                keyboardType="numeric"
+              />
+              <View style={styles.obFormKnappar}>
+                <TouchableOpacity style={styles.obAvbryt} onPress={() => { setObFormVisas(false); setObStart(''); setObSlut(''); setObVärde(''); }}>
+                  <Text style={styles.obAvbrytText}>Avbryt</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.obLäggTillKnapp} onPress={läggTillOb}>
+                  <Text style={styles.obLäggTillText}>Lägg till</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          ) : (
+            <TouchableOpacity style={styles.obAddKnapp} onPress={() => setObFormVisas(true)} activeOpacity={0.7}>
+              <Ionicons name="add-circle-outline" size={18} color="#ea580c" />
+              <Text style={styles.obAddText}>Lägg till OB-intervall</Text>
+            </TouchableOpacity>
           )}
 
           <Text style={styles.label}>Typ *</Text>
@@ -414,4 +508,15 @@ const styles = StyleSheet.create({
   kategoriRad: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: '#f0f0f0' },
   kategoriRadText: { fontSize: 16, color: '#1a1a1a' },
   ingaResultat: { fontSize: 15, color: '#999', textAlign: 'center', marginTop: 24 },
+  obRad: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: '#fff7ed', borderRadius: 10, padding: 12, marginBottom: 8, borderWidth: 1, borderColor: '#fed7aa' },
+  obRadText: { fontSize: 14, color: '#9a3412', flex: 1 },
+  obForm: { backgroundColor: '#fff7ed', borderRadius: 12, padding: 14, marginBottom: 8, borderWidth: 1, borderColor: '#fed7aa' },
+  obFormTider: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 10 },
+  obFormKnappar: { flexDirection: 'row', gap: 10, marginTop: 8 },
+  obAvbryt: { flex: 1, borderWidth: 1, borderColor: '#d1d5db', borderRadius: 10, padding: 12, alignItems: 'center' },
+  obAvbrytText: { fontSize: 14, color: '#666', fontWeight: '600' },
+  obLäggTillKnapp: { flex: 1, backgroundColor: '#ea580c', borderRadius: 10, padding: 12, alignItems: 'center' },
+  obLäggTillText: { fontSize: 14, color: '#fff', fontWeight: '600' },
+  obAddKnapp: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 10, paddingHorizontal: 4, marginBottom: 4 },
+  obAddText: { fontSize: 14, color: '#ea580c', fontWeight: '600' },
 });

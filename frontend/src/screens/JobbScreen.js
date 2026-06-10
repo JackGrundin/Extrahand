@@ -4,7 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { api } from '../api/klient';
 
 import { TYPER_FILTER as TYPER, KATEGORIER } from '../utils/konstanter';
-import { parsaArbetstider, formatDagDatum } from '../utils/datumHelper';
+import { parsaArbetstider, formatDagDatum, parsaObTillagg } from '../utils/datumHelper';
 
 const SORTERING = ['Närmast datum', 'Nyast', 'Högst lön', 'Flest dagar'];
 
@@ -200,6 +200,9 @@ export default function JobbScreen({ navigation }) {
               <Text style={styles.info}>{item.Plats} · {item.Typ}</Text>
               <View style={styles.extraRad}>
                 {item.Lon && <Text style={styles.lön}>{item.Lon.toLocaleString('sv-SE')} kr/tim</Text>}
+                {parsaObTillagg(item.ob_tillagg).length > 0 && (
+                  <View style={styles.obBadge}><Text style={styles.obBadgeText}>OB</Text></View>
+                )}
                 {item.antal_dagar != null && <Text style={styles.extraInfo}>{item.antal_dagar} dagar</Text>}
               </View>
             </TouchableOpacity>
@@ -375,8 +378,10 @@ const styles = StyleSheet.create({
   datumChip: { backgroundColor: '#eff6ff', borderRadius: 8, paddingHorizontal: 8, paddingVertical: 4, borderWidth: 1, borderColor: '#bfdbfe' },
   datumChipText: { fontSize: 13, fontWeight: '700', color: '#2563eb' },
   flerDatumText: { fontSize: 13, color: '#6b7280', fontWeight: '500' },
-  extraRad: { flexDirection: 'row', gap: 12, marginTop: 4 },
+  extraRad: { flexDirection: 'row', gap: 12, marginTop: 4, alignItems: 'center' },
   extraInfo: { fontSize: 13, color: '#888' },
+  obBadge: { backgroundColor: '#fff7ed', borderRadius: 6, paddingHorizontal: 6, paddingVertical: 2, borderWidth: 1, borderColor: '#fed7aa' },
+  obBadgeText: { fontSize: 11, fontWeight: '700', color: '#ea580c' },
   tom: { textAlign: 'center', color: '#999', marginTop: 60, fontSize: 16 },
 
   modalBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)' },

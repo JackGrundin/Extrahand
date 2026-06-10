@@ -3,7 +3,7 @@ import { View, Text, TouchableOpacity, StyleSheet, Alert, ScrollView, ActivityIn
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../context/AuthContext';
 import { api } from '../api/klient';
-import { parsaArbetstider, formatDagDatum } from '../utils/datumHelper';
+import { parsaArbetstider, formatDagDatum, parsaObTillagg, beräknaObBelopp } from '../utils/datumHelper';
 
 export default function JobbDetaljScreen({ route, navigation }) {
   const { jobb } = route.params;
@@ -45,6 +45,40 @@ export default function JobbDetaljScreen({ route, navigation }) {
       <Text style={styles.titel}>{jobb.Titel}</Text>
       <Text style={styles.info}>{jobb.Plats} · {jobb.Typ}</Text>
       {jobb.Lon && <Text style={styles.lön}>{jobb.Lon.toLocaleString('sv-SE')} kr/tim</Text>}
+      {(() => {
+        const ob = parsaObTillagg(jobb.ob_tillagg);
+        if (!ob.length || !jobb.Lon) return null;
+        const timlön = jobb.Lon;
+        const totalOb = beräknaObBelopp(ob, timlön);
+        return (
+          <View style={styles.obSektion}>
+            <View style={styles.obRubrikRad}>
+              <View style={styles.obBadge}><Text style={styles.obBadgeText}>OB</Text></View>
+              <Text style={styles.obRubrik}>Obekväm arbetstid</Text>
+            </View>
+            {ob.map((o, i) => {
+              const [sh = 0, sm = 0] = o.start.split(':').map(Number);
+              const [eh = 0, em = 0] = o.slut.split(':').map(Number);
+              const h = (eh * 60 + em - (sh * 60 + sm)) / 60;
+              const belopp = o.typ === 'procent' ? h * timlön * (o.värde / 100) : h * o.värde;
+              return (
+                <View key={i} style={styles.obRad}>
+                  <Text style={styles.obIntervall}>{o.start}–{o.slut}</Text>
+                  <Text style={styles.obTillägg}>
+                    {o.typ === 'procent' ? `${o.värde}%` : `${o.värde} kr/h`}
+                    {' '}= <Text style={styles.obBelopp}>+{belopp.toLocaleString('sv-SE', { maximumFractionDigits: 0 })} kr</Text>
+                  </Text>
+                </View>
+              );
+            })}
+            {totalOb > 0 && (
+              <View style={styles.obTotalRad}>
+                <Text style={styles.obTotalText}>Totalt OB per pass: <Text style={styles.obTotalBelopp}>+{totalOb.toLocaleString('sv-SE', { maximumFractionDigits: 0 })} kr</Text></Text>
+              </View>
+            )}
+          </View>
+        );
+      })()}
       {(() => {
         const schema = parsaArbetstider(jobb.arbetstider);
         if (schema && schema.length > 0) {
@@ -193,4 +227,16 @@ const styles = StyleSheet.create({
   modalText: { fontSize: 15, color: '#555', lineHeight: 22, marginBottom: 24 },
   modalKnapp: { backgroundColor: '#2563eb', borderRadius: 10, padding: 14, alignItems: 'center' },
   modalKnappText: { color: '#fff', fontWeight: '600', fontSize: 15 },
+  obSektion: { backgroundColor: '#fff7ed', borderRadius: 12, padding: 14, marginBottom: 16, borderWidth: 1, borderColor: '#fed7aa' },
+  obRubrikRad: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 10 },
+  obBadge: { backgroundColor: '#ea580c', borderRadius: 6, paddingHorizontal: 8, paddingVertical: 2 },
+  obBadgeText: { fontSize: 12, fontWeight: '700', color: '#fff' },
+  obRubrik: { fontSize: 14, fontWeight: '700', color: '#9a3412' },
+  obRad: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 4 },
+  obIntervall: { fontSize: 14, color: '#7c2d12', fontWeight: '600' },
+  obTillägg: { fontSize: 14, color: '#9a3412' },
+  obBelopp: { fontWeight: '700', color: '#c2410c' },
+  obTotalRad: { borderTopWidth: 1, borderTopColor: '#fed7aa', marginTop: 8, paddingTop: 8 },
+  obTotalText: { fontSize: 14, color: '#9a3412' },
+  obTotalBelopp: { fontWeight: '700', color: '#c2410c' },
 });

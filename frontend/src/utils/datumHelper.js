@@ -15,6 +15,23 @@ export function formatDagDatum(isoStr) {
   return new Date(isoStr + 'T12:00:00').toLocaleDateString('sv-SE', { day: 'numeric', month: 'short' });
 }
 
+export function parsaObTillagg(ob) {
+  if (!ob) return [];
+  if (Array.isArray(ob)) return ob;
+  try { return JSON.parse(ob); } catch { return []; }
+}
+
+export function beräknaObBelopp(obTillagg, timlön) {
+  if (!obTillagg || !obTillagg.length || !timlön) return 0;
+  return obTillagg.reduce((sum, ob) => {
+    const [startH = 0, startM = 0] = ob.start.split(':').map(Number);
+    const [slutH = 0, slutM = 0] = ob.slut.split(':').map(Number);
+    const timmar = (slutH * 60 + slutM - (startH * 60 + startM)) / 60;
+    if (timmar <= 0) return sum;
+    return sum + (ob.typ === 'procent' ? timmar * timlön * (ob.värde / 100) : timmar * ob.värde);
+  }, 0);
+}
+
 export function formatBricka(allaDatum) {
   if (!allaDatum || allaDatum.length === 0) return null;
   if (allaDatum.length === 1) {

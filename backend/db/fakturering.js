@@ -28,12 +28,13 @@ async function hämtaFaktureringsunderlag() {
 
   return rapporter.map(r => {
     const f = företagMap[r.foretag_id] || {};
-    const faktureringsbelopp = r.timlon * 1.32 * 1.06 * 1.40 * r.timmar;
+    const faktureringsbelopp = (r.timmar * r.timlon + (r.ob_belopp || 0)) * 1.32 * 1.06 * 1.40;
     return {
       id: r.id,
       datum: r.datum,
       timmar: r.timmar,
       timlon: r.timlon,
+      ob_belopp: r.ob_belopp || 0,
       faktureringsbelopp,
       foretagsnamn: f.Namn ?? null,
       organisationsnummer: f.organisationsnummer ?? null,
