@@ -13,7 +13,7 @@ async function hämtaFaktureringsunderlag() {
     .from('tidrapporter')
     .select('*')
     .eq('status', 'godkänd')
-    .eq('fakturerad', false)
+    .neq('fakturerad', true)
     .order('datum', { ascending: true });
   if (error) throw error;
   if (!rapporter || !rapporter.length) return [];
