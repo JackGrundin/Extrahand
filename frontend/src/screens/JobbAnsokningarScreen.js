@@ -255,7 +255,7 @@ const styles = StyleSheet.create({
   timlönEtikett: { fontSize: 14, color: '#065f46' },
   timlönVärde: { fontSize: 14, fontWeight: '700', color: '#065f46' },
   modalLabel: { fontSize: 14, fontWeight: '600', color: '#444', marginBottom: 8 },
-  modalInput: { borderWidth: 1, borderColor: '#ddd', borderRadius: 10, padding: 14, fontSize: 18, backgroundColor: '#fafafa', marginBottom: 16, textAlign: 'center' },
+  modalInput: { borderWidth: 1, borderColor: '#ddd', borderRadius: 10, padding: 14, fontSize: 18, backgroundColor: '#fafafa', marginBottom: 16, textAlign: 'center', letterSpacing: 0 },
   totalRad: { flexDirection: 'row', justifyContent: 'space-between', backgroundColor: '#eff6ff', borderRadius: 10, padding: 12, marginBottom: 20 },
   totalEtikett: { fontSize: 14, color: '#1e40af' },
   totalVärde: { fontSize: 16, fontWeight: '700', color: '#1e40af' },

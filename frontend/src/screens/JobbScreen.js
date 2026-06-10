@@ -357,7 +357,7 @@ export default function JobbScreen({ navigation }) {
 
 const styles = StyleSheet.create({
   headerContainer: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: '#fff', paddingHorizontal: 16, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: '#eee' },
-  stadInput: { flex: 1, borderWidth: 1, borderColor: '#ddd', borderRadius: 10, paddingHorizontal: 14, paddingVertical: 9, fontSize: 15, backgroundColor: '#fafafa', color: '#1a1a1a' },
+  stadInput: { flex: 1, borderWidth: 1, borderColor: '#ddd', borderRadius: 10, paddingHorizontal: 14, paddingVertical: 9, fontSize: 15, backgroundColor: '#fafafa', color: '#1a1a1a', letterSpacing: 0 },
   filterKnapp: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 12, paddingVertical: 9, borderRadius: 10, borderWidth: 1, borderColor: '#2563eb', backgroundColor: '#eff6ff' },
   filterKnappText: { fontSize: 14, fontWeight: '600', color: '#2563eb' },
   badge: { backgroundColor: '#2563eb', borderRadius: 10, minWidth: 18, height: 18, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 4 },
@@ -392,7 +392,7 @@ const styles = StyleSheet.create({
   tillbakaKnapp: { flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: 14 },
   tillbakaText: { fontSize: 17, fontWeight: '600', color: '#2563eb' },
 
-  sokInput: { borderWidth: 1, borderColor: '#ddd', borderRadius: 10, paddingHorizontal: 14, paddingVertical: 9, fontSize: 15, backgroundColor: '#fafafa', marginBottom: 10 },
+  sokInput: { borderWidth: 1, borderColor: '#ddd', borderRadius: 10, paddingHorizontal: 14, paddingVertical: 9, fontSize: 15, backgroundColor: '#fafafa', marginBottom: 10, letterSpacing: 0 },
 
   filterVal: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: '#f0f0f0' },
   filterValText: { fontSize: 16, color: '#1a1a1a' },
@@ -404,7 +404,7 @@ const styles = StyleSheet.create({
   ingaResultat: { fontSize: 15, color: '#999', textAlign: 'center', marginTop: 24 },
 
   inputEtikett: { fontSize: 14, fontWeight: '600', color: '#374151', marginBottom: 6, marginTop: 12 },
-  modalInput: { borderWidth: 1, borderColor: '#ddd', borderRadius: 10, paddingHorizontal: 14, paddingVertical: 10, fontSize: 15, backgroundColor: '#fafafa', marginBottom: 4 },
+  modalInput: { borderWidth: 1, borderColor: '#ddd', borderRadius: 10, paddingHorizontal: 14, paddingVertical: 10, fontSize: 15, backgroundColor: '#fafafa', marginBottom: 4, letterSpacing: 0 },
 
   modalKnappar: { flexDirection: 'row', gap: 12, marginTop: 20 },
   återställKnapp: { flex: 1, paddingVertical: 13, borderRadius: 12, borderWidth: 1, borderColor: '#d1d5db', alignItems: 'center' },

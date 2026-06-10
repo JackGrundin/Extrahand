@@ -223,7 +223,7 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#fff' },
   innehåll: { padding: 24, paddingBottom: 48 },
   rubrik: { fontSize: 28, fontWeight: 'bold', textAlign: 'center', marginBottom: 28, color: '#1a1a1a' },
-  input: { borderWidth: 1, borderColor: '#ddd', borderRadius: 10, padding: 14, marginBottom: 12, fontSize: 16, backgroundColor: '#fafafa' },
+  input: { borderWidth: 1, borderColor: '#ddd', borderRadius: 10, padding: 14, marginBottom: 12, fontSize: 16, backgroundColor: '#fafafa', letterSpacing: 0 },
   textArea: { height: 110, textAlignVertical: 'top' },
   rad: { flexDirection: 'row', gap: 10 },
   radFältLitet: { flex: 2 },

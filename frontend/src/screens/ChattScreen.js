@@ -232,7 +232,7 @@ const styles = StyleSheet.create({
   mittTid: { color: 'rgba(255,255,255,0.7)', textAlign: 'right' },
   tom: { textAlign: 'center', color: '#999', marginTop: 40 },
   inmatning: { flexDirection: 'row', padding: 12, backgroundColor: '#fff', borderTopWidth: 1, borderTopColor: '#eee', gap: 8 },
-  input: { flex: 1, borderWidth: 1, borderColor: '#ddd', borderRadius: 20, paddingHorizontal: 16, paddingVertical: 8, fontSize: 15, maxHeight: 100 },
+  input: { flex: 1, borderWidth: 1, borderColor: '#ddd', borderRadius: 20, paddingHorizontal: 16, paddingVertical: 8, fontSize: 15, maxHeight: 100, letterSpacing: 0 },
   skickaKnapp: { backgroundColor: '#2563eb', borderRadius: 20, paddingHorizontal: 18, justifyContent: 'center' },
   inaktiv: { backgroundColor: '#c7d2fe' },
   skickaText: { color: '#fff', fontWeight: '600' },
