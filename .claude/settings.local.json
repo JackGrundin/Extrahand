@@ -40,7 +40,11 @@
       "Bash(sed -n '/const STATUSFÄRGER = {/,/^  }/p' /Users/jackgrundin/extrahand/frontend/src/screens/ChattListaScreen.js)",
       "Bash(sed -n '/^const STATUSFÄRGER = {/,/^}/p' /Users/jackgrundin/extrahand/frontend/src/screens/MinaAnsokningarScreen.js)",
       "Bash(sed -n '/^const statusFärger = {/,/^}/p' /Users/jackgrundin/extrahand/frontend/src/screens/MinaJobbScreen.js)",
-      "Bash(sed -n '/const statusFärger = {/,/^  }/p' /Users/jackgrundin/extrahand/frontend/src/screens/ChattScreen.js)"
+      "Bash(sed -n '/const statusFärger = {/,/^  }/p' /Users/jackgrundin/extrahand/frontend/src/screens/ChattScreen.js)",
+      "Bash(pkill -f \"node.*server.js\")",
+      "Bash(echo \"PID: $!\")",
+      "Bash(grep -E \"\\([0-9]{1,2}:[0-9]{2}|tid|tid|hour|minute|time\\)\")",
+      "Bash(node *)"
     ]
   }
 }

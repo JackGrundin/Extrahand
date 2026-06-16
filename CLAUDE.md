@@ -1,13 +1,15 @@
 # FastGig – App för flexibla jobb och uppdrag
 
 ## Vad appen gör
-Plattform som kopplar samman företag och privatpersoner för kortare jobbpass och längre uppdrag. Företag publicerar jobb med datum, tider, adress och timlön. Privatpersoner ansöker, chattar med företag och får betyg efter avslutat pass.
+Plattform som kopplar samman företag och privatpersoner för kortare jobbpass och längre uppdrag. Företag publicerar jobb med datum, tider, adress, timlön och OB-tillägg. Privatpersoner ansöker, chattar med företag och får betyg efter avslutat pass.
 
 ## Viktiga detaljer
 - Admin-vy tillgänglig för info@fastgig.se med flikar: Tidrapporter, Avtal, Företag, Fakturering
 - Faktureringspris beräknas: (timlön + timlön*0.32 + timlön*0.06) * 1.40
+- OB-fakturering: (ob_belopp + ob_belopp*0.32 + ob_belopp*0.06) * 1.40
 - Privatpersoner blockeras från att ansöka tills avtal är godkänt (avtal_godkant = true)
-- Backend körs på Railway: https://extrahand-production-4816.up.railway.app
+- E-postverifiering via Resend (noreply@fastgig.se) krävs vid registrering
+- Backend körs på Railway via api.fastgig.se
 - Supabase-tabeller: användare, Jobb, ansokningar, meddelanden, betyg, tidrapporter, faktureringsunderlag
 
 ## Tech stack
@@ -15,7 +17,8 @@ Plattform som kopplar samman företag och privatpersoner för kortare jobbpass o
 - Databas: PostgreSQL via Supabase
 - Frontend: React Native med Expo (mobilapp)
 - Auth: JWT-tokens
-- Hosting: Railway (backend), Supabase (databas)
+- Hosting: Railway (backend via api.fastgig.se), Supabase (databas)
+- Mejl: Resend (noreply@fastgig.se)
 
 ## Kodstil
 - Använd async/await, inte callbacks
