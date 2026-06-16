@@ -83,4 +83,10 @@ export const api = {
   // Betyg
   sättaBetyg: (ansokningId, kropp) => anrop('POST', `/betyg/${ansokningId}`, kropp),
   hämtaBetyg: (anvandareId) => anrop('GET', `/betyg/anvandare/${anvandareId}`),
+
+  // Jobbförfrågningar (erbjud pass via chatten)
+  skapaJobbforfragan: (kropp) => anrop('POST', '/jobbforfragan', kropp),
+  hämtaJobbforfragningar: (medAnvandareId) => anrop('GET', `/jobbforfragan/konversation/${medAnvandareId}`),
+  accepteraJobbforfragan: (id) => anrop('PATCH', `/jobbforfragan/${id}/acceptera`, {}),
+  avbojJobbforfragan: (id) => anrop('PATCH', `/jobbforfragan/${id}/avboj`, {}),
 };

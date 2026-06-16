@@ -1,5 +1,5 @@
 import { useCallback, useState } from 'react';
-import { View, Text, SectionList, TouchableOpacity, StyleSheet, ActivityIndicator, RefreshControl } from 'react-native';
+import { View, Text, SectionList, TouchableOpacity, StyleSheet, ActivityIndicator, RefreshControl, TextInput } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../context/AuthContext';
@@ -33,6 +33,7 @@ export default function ChattListaScreen({ navigation }) {
   const [poster, setPoster] = useState([]);
   const [laddar, setLaddar] = useState(true);
   const [uppdaterar, setUppdaterar] = useState(false);
+  const [söktext, setSöktext] = useState('');
 
   async function hämta() {
     try {
@@ -53,12 +54,40 @@ export default function ChattListaScreen({ navigation }) {
 
   if (laddar) return <ActivityIndicator style={{ flex: 1 }} size="large" />;
 
-  const sektioner = byggSektioner(poster, ärFöretag);
+  const q = söktext.trim().toLowerCase();
+  const filtrerade = q
+    ? poster.filter((p) => {
+        const namn = (ärFöretag ? p.sökandeNamn : p.foretagNamn) ?? '';
+        const titel = p.jobbTitel ?? '';
+        return namn.toLowerCase().includes(q) || titel.toLowerCase().includes(q);
+      })
+    : poster;
+
+  const sektioner = byggSektioner(filtrerade, ärFöretag);
 
   return (
-    <SectionList
-      style={styles.lista}
-      sections={sektioner}
+    <View style={styles.container}>
+      <View style={styles.sökRad}>
+        <Ionicons name="search" size={18} color="#9ca3af" />
+        <TextInput
+          style={styles.sökInput}
+          placeholder={ärFöretag ? 'Sök medarbetare eller jobbtitel' : 'Sök företag eller jobbtitel'}
+          value={söktext}
+          onChangeText={setSöktext}
+          autoCorrect={false}
+          autoCapitalize="none"
+          clearButtonMode="while-editing"
+        />
+        {söktext.length > 0 && (
+          <TouchableOpacity onPress={() => setSöktext('')}>
+            <Ionicons name="close-circle" size={18} color="#9ca3af" />
+          </TouchableOpacity>
+        )}
+      </View>
+
+      <SectionList
+        style={styles.lista}
+        sections={sektioner}
       keyExtractor={(item) => item.id}
       contentContainerStyle={styles.listaInnehåll}
       refreshControl={<RefreshControl refreshing={uppdaterar} onRefresh={() => { setUppdaterar(true); hämta(); }} />}
@@ -140,11 +169,15 @@ export default function ChattListaScreen({ navigation }) {
           </TouchableOpacity>
         );
       }}
-    />
+      />
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
+  container: { flex: 1, backgroundColor: '#f5f5f5' },
+  sökRad: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: '#fff', marginHorizontal: 16, marginTop: 12, paddingHorizontal: 12, paddingVertical: 10, borderRadius: 10, borderWidth: 1, borderColor: '#e5e7eb' },
+  sökInput: { flex: 1, fontSize: 15, color: '#1a1a1a', padding: 0, letterSpacing: 0 },
   lista: { flex: 1, backgroundColor: '#f5f5f5' },
   listaInnehåll: { padding: 16, paddingBottom: 32 },
 

@@ -10,6 +10,7 @@ const meddelandenRoutes = require('./routes/meddelanden');
 const betygRoutes = require('./routes/betyg');
 const tidrapporterRoutes = require('./routes/tidrapporter');
 const faktureringRoutes = require('./routes/fakturering');
+const jobbforfraganRoutes = require('./routes/jobbforfragan');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -30,6 +31,7 @@ app.use('/api/meddelanden', meddelandenRoutes);
 app.use('/api/betyg', betygRoutes);
 app.use('/api/tidrapporter', tidrapporterRoutes);
 app.use('/api/fakturering', faktureringRoutes);
+app.use('/api/jobbforfragan', jobbforfraganRoutes);
 
 process.on('uncaughtException', (err) => {
   console.error('Ohanterat undantag:', err);

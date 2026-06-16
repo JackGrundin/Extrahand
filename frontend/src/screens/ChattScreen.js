@@ -7,6 +7,8 @@ import { useAuth } from '../context/AuthContext';
 import { useNotifikationer } from '../context/NotifikationsContext';
 import { STATUSFÄRGER_TIDRAPPORT } from '../utils/konstanter';
 import { parsaArbetstider, formatDagDatum, parsaObTillagg } from '../utils/datumHelper';
+import ErbjudPassModal from '../components/ErbjudPassModal';
+import JobbforfraganKort from '../components/JobbforfraganKort';
 
 function TidrapportKort({ rapport, ärPrivatperson, onUppdaterad }) {
   const [sparar, setSparar] = useState(false);
@@ -123,6 +125,9 @@ export default function ChattScreen({ route, navigation }) {
   const [meddelanden, setMeddelanden] = useState([]);
   const [tidrapport, setTidrapport] = useState(null);
   const [passInfo, setPassInfo] = useState(null);
+  const [förfrågningar, setFörfrågningar] = useState([]);
+  const [erbjudVisas, setErbjudVisas] = useState(false);
+  const [skickarFörfrågan, setSkickarFörfrågan] = useState(false);
   const [text, setText] = useState('');
   const [laddar, setLaddar] = useState(true);
   const [uppdaterar, setUppdaterar] = useState(false);
@@ -137,9 +142,39 @@ export default function ChattScreen({ route, navigation }) {
     ]);
     if (msgResult.status === 'fulfilled') setMeddelanden(msgResult.value);
     if (rapportResult.status === 'fulfilled') setTidrapport(rapportResult.value);
-    if (passResult.status === 'fulfilled') setPassInfo(passResult.value);
+
+    // Hämta jobbförfrågningar mellan parterna när vi vet vem motparten är
+    if (passResult.status === 'fulfilled') {
+      const pass = passResult.value;
+      setPassInfo(pass);
+      const motpartId = ärPrivatperson ? pass?.foretagId : pass?.sokande_id;
+      if (motpartId != null) {
+        try {
+          setFörfrågningar(await api.hämtaJobbforfragningar(motpartId));
+        } catch (fel) {
+          console.error('Kunde inte hämta jobbförfrågningar:', fel);
+        }
+      }
+    }
     setLaddar(false);
     setUppdaterar(false);
+  }
+
+  async function skickaFörfrågan(data) {
+    if (!passInfo?.sokande_id) {
+      Alert.alert('Fel', 'Kunde inte avgöra mottagare');
+      return;
+    }
+    setSkickarFörfrågan(true);
+    try {
+      await api.skapaJobbforfragan({ till_anvandare_id: passInfo.sokande_id, ...data });
+      setErbjudVisas(false);
+      hämta();
+    } catch (fel) {
+      Alert.alert('Fel', fel.message);
+    } finally {
+      setSkickarFörfrågan(false);
+    }
   }
 
   useFocusEffect(useCallback(() => {
@@ -194,6 +229,13 @@ export default function ChattScreen({ route, navigation }) {
         </View>
       )}
 
+      {!ärPrivatperson && (
+        <TouchableOpacity style={styles.erbjudKnapp} onPress={() => setErbjudVisas(true)} activeOpacity={0.85}>
+          <Ionicons name="add-circle-outline" size={18} color="#2563eb" />
+          <Text style={styles.erbjudText}>Erbjud pass</Text>
+        </TouchableOpacity>
+      )}
+
       <FlatList
         ref={listRef}
         data={meddelanden}
@@ -203,13 +245,23 @@ export default function ChattScreen({ route, navigation }) {
         refreshControl={<RefreshControl refreshing={uppdaterar} onRefresh={() => { setUppdaterar(true); hämta(); }} />}
         ListEmptyComponent={<Text style={styles.tom}>Inga meddelanden ännu. Säg hej!</Text>}
         ListFooterComponent={
-          tidrapport ? (
-            <TidrapportKort
-              rapport={tidrapport}
-              ärPrivatperson={ärPrivatperson}
-              onUppdaterad={hämta}
-            />
-          ) : null
+          <>
+            {förfrågningar.map((f) => (
+              <JobbforfraganKort
+                key={f.id}
+                förfrågan={f}
+                ärPrivatperson={ärPrivatperson}
+                onUppdaterad={hämta}
+              />
+            ))}
+            {tidrapport ? (
+              <TidrapportKort
+                rapport={tidrapport}
+                ärPrivatperson={ärPrivatperson}
+                onUppdaterad={hämta}
+              />
+            ) : null}
+          </>
         }
         renderItem={({ item }) => {
           const ärMitt = item.avsandare_id === användare?.id;
@@ -236,6 +288,13 @@ export default function ChattScreen({ route, navigation }) {
           <Text style={styles.skickaText}>Skicka</Text>
         </TouchableOpacity>
       </View>
+
+      <ErbjudPassModal
+        visible={erbjudVisas}
+        onClose={() => setErbjudVisas(false)}
+        onSkicka={skickaFörfrågan}
+        skickar={skickarFörfrågan}
+      />
     </KeyboardAvoidingView>
   );
 }
@@ -247,6 +306,8 @@ const styles = StyleSheet.create({
   datumRad: { flexDirection: 'row' },
   datumChip: { backgroundColor: '#eff6ff', borderRadius: 8, paddingHorizontal: 8, paddingVertical: 4, borderWidth: 1, borderColor: '#bfdbfe' },
   datumChipText: { fontSize: 13, fontWeight: '700', color: '#2563eb' },
+  erbjudKnapp: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, backgroundColor: '#eff6ff', paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: '#dbeafe' },
+  erbjudText: { fontSize: 14, fontWeight: '600', color: '#2563eb' },
   meddelandeLista: { padding: 16, gap: 8 },
   bubbla: { maxWidth: '75%', padding: 12, borderRadius: 16, backgroundColor: '#fff', alignSelf: 'flex-start', borderBottomLeftRadius: 4 },
   mittBubbla: { alignSelf: 'flex-end', backgroundColor: '#2563eb', borderBottomLeftRadius: 16, borderBottomRightRadius: 4 },
