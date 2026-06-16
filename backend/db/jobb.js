@@ -52,6 +52,7 @@ async function filtreraAktivaJobb(jobb) {
       ? j.arbetstider
       : (() => { try { return JSON.parse(j.arbetstider); } catch { return null; } })();
 
+
     if (schema && schema.length > 0) {
       const datum = schema.map(d => d.datum).filter(Boolean);
       if (datum.length > 0) {
@@ -59,7 +60,15 @@ async function filtreraAktivaJobb(jobb) {
           .map(d => new Date(d + 'T12:00:00'))
           .sort((a, b) => b - a)[0];
         if (sistaDate < idag) return false;
+      } else {
+        // Schema finns men saknar datum – behandla som gammalt jobb
+        const skapad = new Date(j.created_at);
+        if (idag - skapad > 30 * 24 * 60 * 60 * 1000) return false;
       }
+    } else {
+      // Inget schema alls – filtrera ut om jobbet är äldre än 30 dagar
+      const skapad = new Date(j.created_at);
+      if (idag - skapad > 30 * 24 * 60 * 60 * 1000) return false;
     }
 
     return true;
