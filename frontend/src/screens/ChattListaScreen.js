@@ -9,15 +9,18 @@ import { STATUSFÄRGER_ANSÖKAN as STATUSFÄRGER } from '../utils/konstanter';
 import { parsaArbetstider, formatDagDatum } from '../utils/datumHelper';
 
 function byggSektioner(poster, ärFöretag) {
-  const attGodkänna = poster.filter(p => p.rapportStatus === 'väntar');
-  const avslutade = poster.filter(p => p.rapportStatus === 'godkänd' || p.status === 'avvisad');
-  const aktiva = poster.filter(p =>
+  const medFörfrågan = poster.filter(p => p.harFörfrågan);
+  const övriga = poster.filter(p => !p.harFörfrågan);
+  const attGodkänna = övriga.filter(p => p.rapportStatus === 'väntar');
+  const avslutade = övriga.filter(p => p.rapportStatus === 'godkänd' || p.status === 'avvisad');
+  const aktiva = övriga.filter(p =>
     p.rapportStatus !== 'väntar' && p.rapportStatus !== 'godkänd' && p.status !== 'avvisad'
   );
 
   const sektioner = [];
   const brådskandeTitel = ärFöretag ? 'Väntar på godkännande' : 'Att godkänna';
 
+  if (medFörfrågan.length) sektioner.push({ titel: 'Jobbförfrågan', data: medFörfrågan, brådskande: true });
   if (attGodkänna.length) sektioner.push({ titel: brådskandeTitel, data: attGodkänna, brådskande: true });
   if (aktiva.length) sektioner.push({ titel: 'Aktiva pass', data: aktiva, brådskande: false });
   if (avslutade.length) sektioner.push({ titel: 'Avslutade', data: avslutade, brådskande: false });
@@ -31,16 +34,19 @@ export default function ChattListaScreen({ navigation }) {
   const ärFöretag = användare?.typ === 'företag';
 
   const [poster, setPoster] = useState([]);
+  const [väntandeFörfrågan, setVäntandeFörfrågan] = useState([]);
   const [laddar, setLaddar] = useState(true);
   const [uppdaterar, setUppdaterar] = useState(false);
   const [söktext, setSöktext] = useState('');
 
   async function hämta() {
     try {
-      const data = ärFöretag
-        ? await api.företagsKonversationer()
-        : await api.minaAnsökningar();
+      const [data, väntande] = await Promise.all([
+        ärFöretag ? api.företagsKonversationer() : api.minaAnsökningar(),
+        api.väntandeJobbforfragningar().catch(() => []),
+      ]);
       setPoster(data);
+      setVäntandeFörfrågan(väntande);
       uppdateraOlästa(data, användare?.id);
     } catch (fel) {
       console.error(fel);
@@ -54,14 +60,27 @@ export default function ChattListaScreen({ navigation }) {
 
   if (laddar) return <ActivityIndicator style={{ flex: 1 }} size="large" />;
 
+  // Markera konversationer där det finns en väntande jobbförfrågan med motparten
+  const minId = String(användare?.id);
+  const förfråganParter = new Set(
+    väntandeFörfrågan.map((f) => {
+      const annan = String(f.fran_anvandare_id) === minId ? f.till_anvandare_id : f.fran_anvandare_id;
+      return String(annan);
+    })
+  );
+  const markerade = poster.map((p) => ({
+    ...p,
+    harFörfrågan: förfråganParter.has(String(ärFöretag ? p.sokande_id : p.foretagId)),
+  }));
+
   const q = söktext.trim().toLowerCase();
   const filtrerade = q
-    ? poster.filter((p) => {
+    ? markerade.filter((p) => {
         const namn = (ärFöretag ? p.sökandeNamn : p.foretagNamn) ?? '';
         const titel = p.jobbTitel ?? '';
         return namn.toLowerCase().includes(q) || titel.toLowerCase().includes(q);
       })
-    : poster;
+    : markerade;
 
   const sektioner = byggSektioner(filtrerade, ärFöretag);
 

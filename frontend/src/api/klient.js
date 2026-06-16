@@ -87,6 +87,7 @@ export const api = {
   // Jobbförfrågningar (erbjud pass via chatten)
   skapaJobbforfragan: (kropp) => anrop('POST', '/jobbforfragan', kropp),
   hämtaJobbforfragningar: (medAnvandareId) => anrop('GET', `/jobbforfragan/konversation/${medAnvandareId}`),
+  väntandeJobbforfragningar: () => anrop('GET', '/jobbforfragan/mina-vantande'),
   accepteraJobbforfragan: (id) => anrop('PATCH', `/jobbforfragan/${id}/acceptera`, {}),
   avbojJobbforfragan: (id) => anrop('PATCH', `/jobbforfragan/${id}/avboj`, {}),
 };

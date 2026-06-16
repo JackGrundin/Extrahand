@@ -58,6 +58,10 @@ async function hämtaAnsökningarFörSökande(sokande_id) {
     antalDagar: jobbMap[a.jobb_id]?.antal_dagar ?? null,
     rapportStatus: rapportMap[a.id] ?? null,
     senasteMeddelande: senasteMap[a.id] ?? null,
+    foretagId: (() => {
+      const j = jobbMap[a.jobb_id];
+      return j?.Foretag_id ?? j?.foretag_id ?? null;
+    })(),
     foretagNamn: (() => {
       const j = jobbMap[a.jobb_id];
       const fid = j?.Foretag_id ?? j?.foretag_id;
