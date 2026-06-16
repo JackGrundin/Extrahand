@@ -3,6 +3,7 @@ const { kräverInloggning, kräverTyp } = require('../middleware/auth');
 const {
   skapaJobbforfragan,
   hämtaJobbforfraganMellan,
+  hämtaVäntandeFörAnvändare,
   hämtaJobbforfraganViaId,
   uppdateraJobbforfraganStatus,
 } = require('../db/jobbforfragan');
@@ -15,16 +16,17 @@ const router = express.Router();
 
 // POST /api/jobbforfragan — företag erbjuder ett pass till en privatperson
 router.post('/', kräverInloggning, kräverTyp('företag'), async (req, res) => {
-  const { till_anvandare_id, datum, starttid, sluttid, timlon, ob_tillagg } = req.body;
+  const { till_anvandare_id, titel, datum, starttid, sluttid, timlon, ob_tillagg } = req.body;
 
-  if (!till_anvandare_id || !datum || !starttid || !sluttid || timlon == null) {
-    return res.status(400).json({ fel: 'Mottagare, datum, tider och timlön krävs' });
+  if (!till_anvandare_id || !titel || !titel.trim() || !datum || !starttid || !sluttid || timlon == null) {
+    return res.status(400).json({ fel: 'Mottagare, jobbtitel, datum, tider och timlön krävs' });
   }
 
   try {
     const förfrågan = await skapaJobbforfragan({
       fran_anvandare_id: req.användare.id,
       till_anvandare_id,
+      titel: titel.trim(),
       datum,
       starttid,
       sluttid,
@@ -51,6 +53,17 @@ router.post('/', kräverInloggning, kräverTyp('företag'), async (req, res) => 
   } catch (fel) {
     console.error('Fel vid skapande av jobbförfrågan:', fel);
     res.status(500).json({ fel: 'Serverfel vid skapande av jobbförfrågan' });
+  }
+});
+
+// GET /api/jobbforfragan/mina-vantande — väntande förfrågningar som rör inloggad användare
+router.get('/mina-vantande', kräverInloggning, async (req, res) => {
+  try {
+    const väntande = await hämtaVäntandeFörAnvändare(req.användare.id);
+    res.json(väntande);
+  } catch (fel) {
+    console.error('Fel vid hämtning av väntande jobbförfrågningar:', fel);
+    res.status(500).json({ fel: 'Serverfel vid hämtning av väntande jobbförfrågningar' });
   }
 });
 
@@ -83,7 +96,7 @@ router.patch('/:id/acceptera', kräverInloggning, kräverTyp('privatperson'), as
     ]);
 
     const jobb = await skapaJobb({
-      titel: `Pass ${förfrågan.datum}`,
+      titel: förfrågan.titel || `Pass ${förfrågan.datum}`,
       beskrivning: 'Pass erbjudet direkt via chatten.',
       plats: null,
       adress: 'Enligt överenskommelse',

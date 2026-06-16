@@ -44,6 +44,12 @@ export default function JobbforfraganKort({ förfrågan, ärPrivatperson, onUppd
       </View>
 
       <View style={styles.rader}>
+        {förfrågan.titel ? (
+          <View style={styles.rad}>
+            <Text style={styles.etikett}>Pass</Text>
+            <Text style={styles.värde}>{förfrågan.titel}</Text>
+          </View>
+        ) : null}
         <View style={styles.rad}>
           <Text style={styles.etikett}>Datum</Text>
           <Text style={styles.värde}>{datum}</Text>

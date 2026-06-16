@@ -12,6 +12,7 @@ function formatDatum(date) {
 const FAKTURAFAKTOR = 1.32 * 1.06 * 1.40;
 
 export default function ErbjudPassModal({ visible, onClose, onSkicka, skickar }) {
+  const [titel, setTitel] = useState('');
   const [datum, setDatum] = useState(null);
   const [datumPickerVisas, setDatumPickerVisas] = useState(false);
   const [tempDatum, setTempDatum] = useState(new Date());
@@ -28,6 +29,7 @@ export default function ErbjudPassModal({ visible, onClose, onSkicka, skickar })
   // Nollställ formuläret varje gång modalen stängs
   useEffect(() => {
     if (!visible) {
+      setTitel('');
       setDatum(null);
       setStarttid('');
       setSluttid('');
@@ -68,11 +70,13 @@ export default function ErbjudPassModal({ visible, onClose, onSkicka, skickar })
   }
 
   function skicka() {
+    if (!titel.trim()) { Alert.alert('Fel', 'Ange vad passet gäller'); return; }
     if (!datum) { Alert.alert('Fel', 'Välj ett datum'); return; }
     if (!starttid || !sluttid) { Alert.alert('Fel', 'Ange start- och sluttid'); return; }
     const lön = parseFloat(timlon);
     if (!lön || lön <= 0) { Alert.alert('Fel', 'Ange en giltig timlön'); return; }
     onSkicka({
+      titel: titel.trim(),
       datum,
       starttid,
       sluttid,
@@ -90,6 +94,14 @@ export default function ErbjudPassModal({ visible, onClose, onSkicka, skickar })
           <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
             <View style={styles.handtag} />
             <Text style={styles.rubrik}>Erbjud pass</Text>
+
+            <Text style={styles.label}>Vad gäller passet?</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="t.ex. Servitör eller Lageransvarig"
+              value={titel}
+              onChangeText={setTitel}
+            />
 
             <Text style={styles.label}>Datum</Text>
             <TouchableOpacity style={styles.datumKnapp} onPress={öppnaDatum} activeOpacity={0.7}>

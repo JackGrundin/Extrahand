@@ -6,6 +6,7 @@ create table if not exists jobbforfragan (
   id uuid primary key default gen_random_uuid(),
   fran_anvandare_id bigint not null references "användare"(id) on delete cascade,
   till_anvandare_id bigint not null references "användare"(id) on delete cascade,
+  titel text,
   datum date not null,
   starttid text not null,
   sluttid text not null,
@@ -18,3 +19,6 @@ create table if not exists jobbforfragan (
 -- Snabbare uppslag per konversation (företag <-> privatperson)
 create index if not exists jobbforfragan_fran_idx on jobbforfragan (fran_anvandare_id);
 create index if not exists jobbforfragan_till_idx on jobbforfragan (till_anvandare_id);
+
+-- Om tabellen redan finns sedan tidigare: lägg till titel-kolumnen
+alter table jobbforfragan add column if not exists titel text;
