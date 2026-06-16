@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, ScrollView, ActivityIndicator, KeyboardAvoidingView, Platform, Modal, FlatList } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { Ionicons } from '@expo/vector-icons';
+import TidVäljare from '../components/TidVäljare';
 import { api } from '../api/klient';
 import { TYPER, KATEGORIER } from '../utils/konstanter';
 import { SVENSKA_ORTER } from '../utils/svenskaOrter';
@@ -254,18 +255,18 @@ export default function PubliceraJobbScreen({ navigation }) {
                         {dag.datum ? formatDatum(dag.datum) : 'Datum'}
                       </Text>
                     </TouchableOpacity>
-                    <TextInput
-                      style={[styles.input, styles.tidInput]}
+                    <TidVäljare
+                      style={{ flex: 1 }}
                       placeholder="08:00"
                       value={dag.start}
-                      onChangeText={v => uppdateraDag(i, 'start', v)}
+                      onChange={v => uppdateraDag(i, 'start', v)}
                     />
                     <Text style={styles.tidStreck}>–</Text>
-                    <TextInput
-                      style={[styles.input, styles.tidInput]}
+                    <TidVäljare
+                      style={{ flex: 1 }}
                       placeholder="17:00"
                       value={dag.slut}
-                      onChangeText={v => uppdateraDag(i, 'slut', v)}
+                      onChange={v => uppdateraDag(i, 'slut', v)}
                     />
                   </View>
                 </View>
@@ -296,20 +297,18 @@ export default function PubliceraJobbScreen({ navigation }) {
           {obFormVisas ? (
             <View style={styles.obForm}>
               <View style={styles.obFormTider}>
-                <TextInput
-                  style={[styles.input, { flex: 1, textAlign: 'center' }]}
+                <TidVäljare
+                  style={{ flex: 1 }}
                   placeholder="18:00"
                   value={obStart}
-                  onChangeText={setObStart}
-                  keyboardType="numbers-and-punctuation"
+                  onChange={setObStart}
                 />
                 <Text style={styles.tidStreck}>–</Text>
-                <TextInput
-                  style={[styles.input, { flex: 1, textAlign: 'center' }]}
+                <TidVäljare
+                  style={{ flex: 1 }}
                   placeholder="20:00"
                   value={obSlut}
-                  onChangeText={setObSlut}
-                  keyboardType="numbers-and-punctuation"
+                  onChange={setObSlut}
                 />
               </View>
               <View style={styles.typVäljare}>

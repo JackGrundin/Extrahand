@@ -4,6 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import { api } from '../api/klient';
 import { parsaObTillagg, beräknaObBelopp } from '../utils/datumHelper';
+import TidVäljare from '../components/TidVäljare';
 
 function StatusKnappar({ item, onUppdaterad, onAvsluta, navigation }) {
   const [sparar, setSparar] = useState(false);
@@ -248,9 +249,19 @@ export default function JobbAnsokningarScreen({ route, navigation }) {
               {obFormVisas ? (
                 <View style={styles.obForm}>
                   <View style={styles.obFormTider}>
-                    <TextInput style={[styles.obTidInput]} placeholder="18:00" value={obStart} onChangeText={setObStart} keyboardType="numbers-and-punctuation" />
+                    <TidVäljare
+                      style={{ flex: 1, borderColor: '#fed7aa', borderRadius: 8, padding: 8, backgroundColor: '#fff' }}
+                      placeholder="18:00"
+                      value={obStart}
+                      onChange={setObStart}
+                    />
                     <Text style={styles.obStreck}>–</Text>
-                    <TextInput style={[styles.obTidInput]} placeholder="20:00" value={obSlut} onChangeText={setObSlut} keyboardType="numbers-and-punctuation" />
+                    <TidVäljare
+                      style={{ flex: 1, borderColor: '#fed7aa', borderRadius: 8, padding: 8, backgroundColor: '#fff' }}
+                      placeholder="20:00"
+                      value={obSlut}
+                      onChange={setObSlut}
+                    />
                   </View>
                   <View style={styles.obTypRad}>
                     {['procent', 'fast'].map(t => (

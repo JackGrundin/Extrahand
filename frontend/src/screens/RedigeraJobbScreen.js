@@ -4,6 +4,18 @@ import { Ionicons } from '@expo/vector-icons';
 import { api } from '../api/klient';
 import { TYPER, KATEGORIER } from '../utils/konstanter';
 import { parsaObTillagg } from '../utils/datumHelper';
+import TidVäljare from '../components/TidVäljare';
+
+function parsaArbetstiderTider(arbetstider) {
+  if (!arbetstider) return { start: '', slut: '' };
+  try {
+    const arr = Array.isArray(arbetstider) ? arbetstider : JSON.parse(arbetstider);
+    if (Array.isArray(arr) && arr[0]?.start) return { start: arr[0].start || '', slut: arr[0].slut || '' };
+  } catch {}
+  const match = String(arbetstider).match(/(\d{1,2}:\d{2})\s*[-–]\s*(\d{1,2}:\d{2})/);
+  if (match) return { start: match[1], slut: match[2] };
+  return { start: '', slut: '' };
+}
 
 export default function RedigeraJobbScreen({ route, navigation }) {
   const { jobb } = route.params;
@@ -16,7 +28,8 @@ export default function RedigeraJobbScreen({ route, navigation }) {
   const [typ, setTyp] = useState(jobb.Typ ?? 'gig');
   const [kategori, setKategori] = useState(jobb.Kategori ?? '');
   const [antalDagar, setAntalDagar] = useState(jobb.antal_dagar ? String(jobb.antal_dagar) : '');
-  const [arbetstider, setArbetstider] = useState(jobb.arbetstider ?? '');
+  const [arbetstiderStart, setArbetstiderStart] = useState(() => parsaArbetstiderTider(jobb.arbetstider).start);
+  const [arbetstiderSlut, setArbetstiderSlut] = useState(() => parsaArbetstiderTider(jobb.arbetstider).slut);
   const [laddar, setLaddar] = useState(false);
   const [kategoriModalVisas, setKategoriModalVisas] = useState(false);
   const [sokKategori, setSokKategori] = useState('');
@@ -68,7 +81,7 @@ export default function RedigeraJobbScreen({ route, navigation }) {
         typ,
         kategori: kategori || undefined,
         antal_dagar: antalDagar ? parseInt(antalDagar) : undefined,
-        arbetstider: arbetstider.trim() || undefined,
+        arbetstider: arbetstiderStart && arbetstiderSlut ? `${arbetstiderStart}-${arbetstiderSlut}` : undefined,
         ob_tillagg: obTillagg,
       });
       Alert.alert('Sparat!', 'Annonsen har uppdaterats.', [
@@ -117,7 +130,11 @@ export default function RedigeraJobbScreen({ route, navigation }) {
           <TextInput style={styles.input} value={antalDagar} onChangeText={setAntalDagar} keyboardType="numeric" />
 
           <Text style={styles.label}>Arbetstider</Text>
-          <TextInput style={styles.input} placeholder="t.ex. 08:00-17:00" value={arbetstider} onChangeText={setArbetstider} />
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+            <TidVäljare style={{ flex: 1 }} placeholder="08:00" value={arbetstiderStart} onChange={setArbetstiderStart} />
+            <Text style={{ fontSize: 16, color: '#9ca3af' }}>–</Text>
+            <TidVäljare style={{ flex: 1 }} placeholder="17:00" value={arbetstiderSlut} onChange={setArbetstiderSlut} />
+          </View>
 
           <Text style={styles.label}>OB-tillägg (obekväm arbetstid)</Text>
           {obTillagg.map((ob, i) => (
@@ -142,21 +159,9 @@ export default function RedigeraJobbScreen({ route, navigation }) {
           {obFormVisas ? (
             <View style={styles.obForm}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 10 }}>
-                <TextInput
-                  style={[styles.input, { flex: 1, textAlign: 'center' }]}
-                  placeholder="18:00"
-                  value={obStart}
-                  onChangeText={setObStart}
-                  keyboardType="numbers-and-punctuation"
-                />
+                <TidVäljare style={{ flex: 1 }} placeholder="18:00" value={obStart} onChange={setObStart} />
                 <Text style={{ color: '#9ca3af', fontSize: 16 }}>–</Text>
-                <TextInput
-                  style={[styles.input, { flex: 1, textAlign: 'center' }]}
-                  placeholder="20:00"
-                  value={obSlut}
-                  onChangeText={setObSlut}
-                  keyboardType="numbers-and-punctuation"
-                />
+                <TidVäljare style={{ flex: 1 }} placeholder="20:00" value={obSlut} onChange={setObSlut} />
               </View>
               <View style={styles.typVäljare}>
                 {['procent', 'fast'].map(t => (
