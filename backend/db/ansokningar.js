@@ -1,5 +1,6 @@
 const { createClient } = require('@supabase/supabase-js');
 const ws = require('ws');
+const { hämtaVäntandeFörAnvändare } = require('./jobbforfragan');
 
 const supabase = createClient(
   process.env.SUPABASE_URL,
@@ -34,7 +35,7 @@ async function hämtaAnsökningarFörSökande(sokande_id) {
   const [{ data: jobb }, { data: tidrapporter }, { data: meddelanden }] = await Promise.all([
     supabase.from('Jobb').select('*').in('id', jobbIds),
     supabase.from('tidrapporter').select('ansokan_id, status').in('ansokan_id', ansökningsIds),
-    supabase.from('meddelanden').select('ansokan_id, avsandare_id, created_at').in('ansokan_id', ansökningsIds).order('created_at', { ascending: false }),
+    supabase.from('meddelanden').select('ansokan_id, avsandare_id, created_at, innehall').in('ansokan_id', ansökningsIds).order('created_at', { ascending: false }),
   ]);
 
   const jobbMap = Object.fromEntries((jobb || []).map(j => [j.id, j]));
@@ -167,7 +168,7 @@ async function hämtaAllaKonversationerFörFöretag(foretag_id) {
   const [{ data: sökande }, { data: tidrapporter }, { data: meddelanden }] = await Promise.all([
     supabase.from('användare').select('id, Namn').in('id', sokandeIds),
     supabase.from('tidrapporter').select('ansokan_id, status').in('ansokan_id', ansökningsIds),
-    supabase.from('meddelanden').select('ansokan_id, avsandare_id, created_at').in('ansokan_id', ansökningsIds).order('created_at', { ascending: false }),
+    supabase.from('meddelanden').select('ansokan_id, avsandare_id, created_at, innehall').in('ansokan_id', ansökningsIds).order('created_at', { ascending: false }),
   ]);
 
   const sökandeMap = Object.fromEntries((sökande || []).map(s => [s.id, s]));
@@ -248,4 +249,120 @@ async function hämtaAnsökanMedJobbInfo(id) {
   };
 }
 
-module.exports = { skapaAnsökan, hämtaAnsökningarFörSökande, hämtaAnsökningarFörJobb, finnsDubblettAnsökan, hämtaTotalTimmar, uppdateraStatus, hämtaAnsökanViaId, avvisaAllaUtomEn, återställAllaFörJobb, hämtaAllaKonversationerFörFöretag, hämtaGodkändaFörJobb, ångraAnsökan, hämtaAnsökanMedJobbInfo };
+// Hämtar all chattinformation mellan ett företag och en privatperson:
+// alla pass (ansökningar) med jobbinfo + tidrapport, alla meddelanden, samt aktiv ansökan att posta till.
+async function hämtaKonversationMellan(företagId, privatpersonId, motpartId) {
+  const { data: jobb } = await supabase
+    .from('Jobb')
+    .select('id, Titel, arbetstider')
+    .eq('Foretag_id', företagId);
+
+  const jobbIds = (jobb || []).map(j => j.id);
+  const jobbMap = Object.fromEntries((jobb || []).map(j => [j.id, j]));
+
+  let ansökningar = [];
+  if (jobbIds.length) {
+    const { data } = await supabase
+      .from('ansokningar')
+      .select('*')
+      .eq('sokande_id', privatpersonId)
+      .in('jobb_id', jobbIds)
+      .order('created_at', { ascending: true });
+    ansökningar = data || [];
+  }
+
+  const ansokanIds = ansökningar.map(a => a.id);
+  let meddelanden = [];
+  let tidrapporter = [];
+  if (ansokanIds.length) {
+    const [{ data: m }, { data: t }] = await Promise.all([
+      supabase.from('meddelanden').select('*').in('ansokan_id', ansokanIds).order('created_at', { ascending: true }),
+      supabase.from('tidrapporter').select('*').in('ansokan_id', ansokanIds),
+    ]);
+    meddelanden = m || [];
+    tidrapporter = t || [];
+  }
+
+  const tidrapportMap = Object.fromEntries(tidrapporter.map(r => [r.ansokan_id, r]));
+
+  // Aktiv ansökan = den med senast aktivitet (senaste meddelandet, annars senast skapad)
+  let aktivAnsokanId = ansökningar.length ? ansökningar[ansökningar.length - 1].id : null;
+  if (meddelanden.length) aktivAnsokanId = meddelanden[meddelanden.length - 1].ansokan_id;
+
+  const { data: motpart } = await supabase
+    .from('användare')
+    .select('Namn')
+    .eq('id', motpartId)
+    .maybeSingle();
+
+  const pass = ansökningar.map(a => ({
+    id: a.id,
+    status: a.status,
+    jobbTitel: jobbMap[a.jobb_id]?.Titel ?? null,
+    arbetstider: jobbMap[a.jobb_id]?.arbetstider ?? null,
+    tidrapport: tidrapportMap[a.id] ?? null,
+  }));
+
+  return { motpartNamn: motpart?.Namn ?? null, aktivAnsokanId, meddelanden, pass };
+}
+
+// Listar konversationer grupperade per motpart (ett kort per företag/privatperson)
+async function hämtaGrupperadeKonversationer(userId, ärFöretag) {
+  const konversationer = ärFöretag
+    ? await hämtaAllaKonversationerFörFöretag(userId)
+    : await hämtaAnsökningarFörSökande(userId);
+
+  const väntande = await hämtaVäntandeFörAnvändare(userId);
+  const väntandeMotparter = new Set(
+    väntande.map(f =>
+      String(String(f.fran_anvandare_id) === String(userId) ? f.till_anvandare_id : f.fran_anvandare_id)
+    )
+  );
+
+  const grupper = {};
+  for (const k of konversationer) {
+    const motpartId = ärFöretag ? k.sokande_id : k.foretagId;
+    if (motpartId == null) continue;
+    const nyckel = String(motpartId);
+    if (!grupper[nyckel]) {
+      grupper[nyckel] = {
+        id: nyckel,
+        motpartId,
+        motpartNamn: ärFöretag ? k.sökandeNamn : k.foretagNamn,
+        items: [],
+      };
+    }
+    grupper[nyckel].items.push(k);
+  }
+
+  return Object.values(grupper).map(g => {
+    let senasteMeddelande = null;
+    for (const k of g.items) {
+      const sm = k.senasteMeddelande;
+      if (sm && (!senasteMeddelande || new Date(sm.created_at) > new Date(senasteMeddelande.created_at))) {
+        senasteMeddelande = sm;
+      }
+    }
+
+    const aktiv = g.items.slice().sort((a, b) => {
+      const ta = a.senasteMeddelande ? new Date(a.senasteMeddelande.created_at) : new Date(a.created_at);
+      const tb = b.senasteMeddelande ? new Date(b.senasteMeddelande.created_at) : new Date(b.created_at);
+      return tb - ta;
+    })[0];
+
+    return {
+      id: g.id,
+      motpartId: g.motpartId,
+      motpartNamn: g.motpartNamn,
+      aktivAnsokanId: aktiv?.id ?? null,
+      jobbTitlar: [...new Set(g.items.map(k => k.jobbTitel).filter(Boolean))],
+      senasteMeddelande,
+      harVäntandeFörfragan: väntandeMotparter.has(String(g.motpartId)),
+      harVäntandeTidrapport: g.items.some(k => k.rapportStatus === 'väntar'),
+      harAktivtPass: g.items.some(k => k.status === 'godkänd' && k.rapportStatus !== 'godkänd'),
+      harAvslutat: g.items.some(k => k.rapportStatus === 'godkänd' || k.status === 'avvisad'),
+    };
+  });
+}
+
+module.exports = { skapaAnsökan, hämtaAnsökningarFörSökande, hämtaAnsökningarFörJobb, finnsDubblettAnsökan, hämtaTotalTimmar, uppdateraStatus, hämtaAnsökanViaId, avvisaAllaUtomEn, återställAllaFörJobb, hämtaAllaKonversationerFörFöretag, hämtaGodkändaFörJobb, ångraAnsökan, hämtaAnsökanMedJobbInfo, hämtaKonversationMellan, hämtaGrupperadeKonversationer };

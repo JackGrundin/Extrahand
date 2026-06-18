@@ -180,9 +180,7 @@ function HuvudNavigator() {
   useEffect(() => {
     async function initOlästa() {
       try {
-        const data = ärFöretag
-          ? await api.företagsKonversationer()
-          : await api.minaAnsökningar();
+        const data = await api.hämtaKonversationer();
         uppdateraOlästa(data, användare?.id);
       } catch {}
     }

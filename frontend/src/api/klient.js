@@ -14,11 +14,20 @@ async function anrop(metod, sökväg, kropp) {
     ...(kropp ? { body: JSON.stringify(kropp) } : {}),
   });
 
-  const data = await svar.json();
+  // Läs som text först så vi inte kraschar på icke-JSON-svar (t.ex. 404/502 HTML)
+  const rå = await svar.text();
+  let data = null;
+  if (rå) {
+    try {
+      data = JSON.parse(rå);
+    } catch {
+      throw new Error(`Servern svarade oväntat (${svar.status})`);
+    }
+  }
 
   if (!svar.ok) {
-    const err = new Error(data.fel || 'Något gick fel');
-    if (data.kod) err.kod = data.kod;
+    const err = new Error((data && data.fel) || `Något gick fel (${svar.status})`);
+    if (data && data.kod) err.kod = data.kod;
     throw err;
   }
 
@@ -51,6 +60,8 @@ export const api = {
   ansökningarFörJobb: (jobbId) => anrop('GET', `/ansokningar/jobb/${jobbId}`),
   företagsKonversationer: () => anrop('GET', '/ansokningar/foretag'),
   hämtaAnsökanDetaljer: (id) => anrop('GET', `/ansokningar/${id}/detaljer`),
+  hämtaKonversationer: () => anrop('GET', '/ansokningar/konversationer'),
+  hämtaKonversation: (medAnvandareId) => anrop('GET', `/ansokningar/konversation/${medAnvandareId}`),
 
   // Meddelanden
   hämtaMeddelanden: (ansokningId) => anrop('GET', `/meddelanden/${ansokningId}`),

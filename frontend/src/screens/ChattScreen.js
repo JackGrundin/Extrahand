@@ -9,6 +9,7 @@ import { STATUSFÄRGER_TIDRAPPORT } from '../utils/konstanter';
 import { parsaArbetstider, formatDagDatum, parsaObTillagg } from '../utils/datumHelper';
 import ErbjudPassModal from '../components/ErbjudPassModal';
 import JobbforfraganKort from '../components/JobbforfraganKort';
+import PassKort from '../components/PassKort';
 
 function TidrapportKort({ rapport, ärPrivatperson, onUppdaterad }) {
   const [sparar, setSparar] = useState(false);
@@ -104,27 +105,15 @@ function TidrapportKort({ rapport, ärPrivatperson, onUppdaterad }) {
 }
 
 export default function ChattScreen({ route, navigation }) {
-  const { ansokningId } = route.params;
-
-  useEffect(() => {
-    navigation.setOptions({
-      headerRight: () => (
-        <TouchableOpacity
-          onPress={() => navigation.navigate('Betygsatt', { ansokningId })}
-          style={{ marginRight: 16 }}
-        >
-          <Ionicons name="star-outline" size={22} color="#f59e0b" />
-        </TouchableOpacity>
-      ),
-    });
-  }, [navigation, ansokningId]);
-
   const { användare } = useAuth();
   const { markeraLäst } = useNotifikationer();
   const ärPrivatperson = användare?.typ === 'privatperson';
+
+  const [motpartId, setMotpartId] = useState(route.params?.medAnvandareId ?? null);
+  const [motpartNamn, setMotpartNamn] = useState(route.params?.motpartNamn ?? null);
+  const [aktivAnsokanId, setAktivAnsokanId] = useState(route.params?.ansokningId ?? null);
   const [meddelanden, setMeddelanden] = useState([]);
-  const [tidrapport, setTidrapport] = useState(null);
-  const [passInfo, setPassInfo] = useState(null);
+  const [pass, setPass] = useState([]);
   const [förfrågningar, setFörfrågningar] = useState([]);
   const [erbjudVisas, setErbjudVisas] = useState(false);
   const [skickarFörfrågan, setSkickarFörfrågan] = useState(false);
@@ -134,40 +123,69 @@ export default function ChattScreen({ route, navigation }) {
   const [skickar, setSkickar] = useState(false);
   const listRef = useRef(null);
 
-  async function hämta() {
-    const [msgResult, rapportResult, passResult] = await Promise.allSettled([
-      api.hämtaMeddelanden(ansokningId),
-      api.hämtaTidrapport(ansokningId),
-      api.hämtaAnsökanDetaljer(ansokningId),
-    ]);
-    if (msgResult.status === 'fulfilled') setMeddelanden(msgResult.value);
-    if (rapportResult.status === 'fulfilled') setTidrapport(rapportResult.value);
+  // Knapp för betygsättning i headern (riktar mot aktiv ansökan)
+  useEffect(() => {
+    navigation.setOptions({
+      headerRight: () => (
+        aktivAnsokanId ? (
+          <TouchableOpacity
+            onPress={() => navigation.navigate('Betygsatt', { ansokningId: aktivAnsokanId })}
+            style={{ marginRight: 16 }}
+          >
+            <Ionicons name="star-outline" size={22} color="#f59e0b" />
+          </TouchableOpacity>
+        ) : null
+      ),
+    });
+  }, [navigation, aktivAnsokanId]);
 
-    // Hämta jobbförfrågningar mellan parterna när vi vet vem motparten är
-    if (passResult.status === 'fulfilled') {
-      const pass = passResult.value;
-      setPassInfo(pass);
-      const motpartId = ärPrivatperson ? pass?.foretagId : pass?.sokande_id;
-      if (motpartId != null) {
-        try {
-          setFörfrågningar(await api.hämtaJobbforfragningar(motpartId));
-        } catch (fel) {
-          console.error('Kunde inte hämta jobbförfrågningar:', fel);
-        }
+  // Tar reda på motpartens id – antingen direkt från params eller via en ansökan
+  async function bestämMotpart() {
+    if (route.params?.medAnvandareId != null) return route.params.medAnvandareId;
+    if (motpartId != null) return motpartId;
+    if (route.params?.ansokningId != null) {
+      try {
+        const detaljer = await api.hämtaAnsökanDetaljer(route.params.ansokningId);
+        return ärPrivatperson ? detaljer?.foretagId : detaljer?.sokande_id;
+      } catch (fel) {
+        console.error('Kunde inte avgöra motpart:', fel);
       }
     }
+    return null;
+  }
+
+  async function hämta() {
+    const id = await bestämMotpart();
+    if (id == null) { setLaddar(false); setUppdaterar(false); return; }
+    setMotpartId(id);
+
+    const [konvResult, förfrResult] = await Promise.allSettled([
+      api.hämtaKonversation(id),
+      api.hämtaJobbforfragningar(id),
+    ]);
+
+    if (konvResult.status === 'fulfilled') {
+      const k = konvResult.value;
+      setMeddelanden(k.meddelanden ?? []);
+      setPass(k.pass ?? []);
+      setMotpartNamn(k.motpartNamn ?? null);
+      if (k.aktivAnsokanId) setAktivAnsokanId(k.aktivAnsokanId);
+    }
+    if (förfrResult.status === 'fulfilled') setFörfrågningar(förfrResult.value);
+
+    markeraLäst(String(id));
     setLaddar(false);
     setUppdaterar(false);
   }
 
   async function skickaFörfrågan(data) {
-    if (!passInfo?.sokande_id) {
+    if (motpartId == null) {
       Alert.alert('Fel', 'Kunde inte avgöra mottagare');
       return;
     }
     setSkickarFörfrågan(true);
     try {
-      await api.skapaJobbforfragan({ till_anvandare_id: passInfo.sokande_id, ...data });
+      await api.skapaJobbforfragan({ till_anvandare_id: motpartId, ...data });
       setErbjudVisas(false);
       hämta();
     } catch (fel) {
@@ -177,16 +195,13 @@ export default function ChattScreen({ route, navigation }) {
     }
   }
 
-  useFocusEffect(useCallback(() => {
-    hämta();
-    markeraLäst(ansokningId);
-  }, []));
+  useFocusEffect(useCallback(() => { hämta(); }, []));
 
   async function skicka() {
-    if (!text.trim() || skickar) return;
+    if (!text.trim() || skickar || !aktivAnsokanId) return;
     setSkickar(true);
     try {
-      const nytt = await api.skicka(ansokningId, { innehall: text.trim() });
+      const nytt = await api.skicka(aktivAnsokanId, { innehall: text.trim() });
       setMeddelanden((prev) => [...prev, nytt]);
       setText('');
       setTimeout(() => listRef.current?.scrollToEnd({ animated: true }), 100);
@@ -199,33 +214,11 @@ export default function ChattScreen({ route, navigation }) {
 
   if (laddar) return <ActivityIndicator style={{ flex: 1 }} size="large" />;
 
-  const dagScheman = parsaArbetstider(passInfo?.arbetstider);
-  const allaDatum = dagScheman ? dagScheman.map(d => d.datum).filter(Boolean) : [];
-
   return (
     <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === 'ios' ? 'padding' : undefined} keyboardVerticalOffset={90}>
-      {(passInfo?.jobbTitel || allaDatum.length > 0) && (
+      {motpartNamn && (
         <View style={styles.passStrip}>
-          {passInfo?.jobbTitel && (
-            <Text style={styles.passTitel} numberOfLines={1}>{passInfo.jobbTitel}</Text>
-          )}
-          {allaDatum.length > 0 && (
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.datumRad} contentContainerStyle={{ gap: 6, alignItems: 'center' }}>
-              <Ionicons name="calendar" size={14} color="#2563eb" style={{ marginRight: 2 }} />
-              {allaDatum.map((d, i) => (
-                <View key={i} style={styles.datumChip}>
-                  <Text style={styles.datumChipText}>{formatDagDatum(d)}</Text>
-                </View>
-              ))}
-            </ScrollView>
-          )}
-          {allaDatum.length === 0 && passInfo?.antalDagar != null && (
-            <View style={styles.datumRad}>
-              <View style={styles.datumChip}>
-                <Text style={styles.datumChipText}>{passInfo.antalDagar} dag{passInfo.antalDagar !== 1 ? 'ar' : ''}</Text>
-              </View>
-            </View>
-          )}
+          <Text style={styles.passTitel} numberOfLines={1}>{motpartNamn}</Text>
         </View>
       )}
 
@@ -254,13 +247,18 @@ export default function ChattScreen({ route, navigation }) {
                 onUppdaterad={hämta}
               />
             ))}
-            {tidrapport ? (
-              <TidrapportKort
-                rapport={tidrapport}
-                ärPrivatperson={ärPrivatperson}
-                onUppdaterad={hämta}
-              />
-            ) : null}
+            {pass.map((p) => (
+              p.tidrapport ? (
+                <TidrapportKort
+                  key={p.id}
+                  rapport={p.tidrapport}
+                  ärPrivatperson={ärPrivatperson}
+                  onUppdaterad={hämta}
+                />
+              ) : (
+                <PassKort key={p.id} pass={p} />
+              )
+            ))}
           </>
         }
         renderItem={({ item }) => {

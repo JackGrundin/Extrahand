@@ -1,6 +1,6 @@
 const express = require('express');
 const { kräverInloggning, kräverTyp } = require('../middleware/auth');
-const { skapaAnsökan, hämtaAnsökningarFörSökande, hämtaAnsökningarFörJobb, finnsDubblettAnsökan, uppdateraStatus, hämtaAnsökanViaId, avvisaAllaUtomEn, återställAllaFörJobb, hämtaAllaKonversationerFörFöretag, ångraAnsökan, hämtaAnsökanMedJobbInfo } = require('../db/ansokningar');
+const { skapaAnsökan, hämtaAnsökningarFörSökande, hämtaAnsökningarFörJobb, finnsDubblettAnsökan, uppdateraStatus, hämtaAnsökanViaId, avvisaAllaUtomEn, återställAllaFörJobb, hämtaAllaKonversationerFörFöretag, ångraAnsökan, hämtaAnsökanMedJobbInfo, hämtaKonversationMellan, hämtaGrupperadeKonversationer } = require('../db/ansokningar');
 const { hämtaPushToken, hämtaAnvändareViaId } = require('../db/användare');
 const { hämtaJobbViaId } = require('../db/jobb');
 const { skickaNotifikation } = require('../utils/pushNotifikation');
@@ -62,6 +62,33 @@ router.get('/foretag', kräverInloggning, kräverTyp('företag'), async (req, re
   } catch (fel) {
     console.error('Fel vid hämtning av konversationer:', fel);
     res.status(500).json({ fel: 'Serverfel' });
+  }
+});
+
+// GET /api/ansokningar/konversationer — konversationer grupperade per motpart (företag eller privatperson)
+router.get('/konversationer', kräverInloggning, async (req, res) => {
+  try {
+    const ärFöretag = req.användare.typ === 'företag';
+    const konversationer = await hämtaGrupperadeKonversationer(req.användare.id, ärFöretag);
+    res.json(konversationer);
+  } catch (fel) {
+    console.error('Fel vid hämtning av grupperade konversationer:', fel);
+    res.status(500).json({ fel: 'Serverfel vid hämtning av konversationer' });
+  }
+});
+
+// GET /api/ansokningar/konversation/:medAnvandareId — all chattinfo mellan inloggad och motpart
+router.get('/konversation/:medAnvandareId', kräverInloggning, async (req, res) => {
+  try {
+    const ärFöretag = req.användare.typ === 'företag';
+    const motpartId = Number(req.params.medAnvandareId);
+    const företagId = ärFöretag ? req.användare.id : motpartId;
+    const privatpersonId = ärFöretag ? motpartId : req.användare.id;
+    const data = await hämtaKonversationMellan(företagId, privatpersonId, motpartId);
+    res.json(data);
+  } catch (fel) {
+    console.error('Fel vid hämtning av konversation:', fel);
+    res.status(500).json({ fel: 'Serverfel vid hämtning av konversation' });
   }
 });
 
