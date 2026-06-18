@@ -14,6 +14,7 @@ async function hämtaFaktureringsunderlag() {
     .select('*')
     .eq('status', 'godkänd')
     .neq('fakturerad', true)
+    .eq('betald', false)
     .order('datum', { ascending: true });
   if (error) throw error;
   if (!rapporter || !rapporter.length) return [];

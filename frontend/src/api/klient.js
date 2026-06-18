@@ -82,7 +82,7 @@ export const api = {
   uppdateraTidrapportStatus: (id, status) => anrop('PATCH', `/tidrapporter/${id}/status`, { status }),
   allaRapporter: (fromDate, toDate) => anrop('GET', `/tidrapporter/alla${fromDate || toDate ? `?${fromDate ? 'fromDate=' + fromDate : ''}${fromDate && toDate ? '&' : ''}${toDate ? 'toDate=' + toDate : ''}` : ''}`),
   tidrapporterFörFöretag: () => anrop('GET', '/tidrapporter/foretag'),
-  taBortTidrapport: (id) => anrop('DELETE', `/tidrapporter/${id}`),
+  markeraTidrapportBetald: (id) => anrop('PATCH', `/tidrapporter/${id}/betald`, {}),
   hämtaAllaPrivatpersoner: () => anrop('GET', '/users/admin/privatpersoner'),
   hämtaAllaFöretag: () => anrop('GET', '/users/admin/foretag'),
   godkännAvtal: (id) => anrop('PATCH', `/users/admin/${id}/avtal`),

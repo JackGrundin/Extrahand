@@ -39,15 +39,15 @@ export default function RapporterScreen({ navigation }) {
     setLaddar(false);
   }
 
-  async function taBortRapport(id) {
+  async function markeraRapportBetald(id) {
     Alert.alert(
       'Bekräfta',
-      'Är du säker på att du vill markera denna rapport som betald och ta bort den?',
+      'Markera denna rapport som betald? Rapporten finns kvar i företagets och personens historik.',
       [
         { text: 'Avbryt', style: 'cancel' },
-        { text: 'Bekräfta', style: 'destructive', onPress: async () => {
+        { text: 'Bekräfta', onPress: async () => {
           try {
-            await api.taBortTidrapport(id);
+            await api.markeraTidrapportBetald(id);
             setRapporter(prev => prev.filter(r => r.id !== id));
           } catch (fel) {
             Alert.alert('Fel', fel.message);
@@ -215,8 +215,8 @@ export default function RapporterScreen({ navigation }) {
                 {item.foretagNamn && (
                   <Text style={styles.foretag}>Företag: {item.foretagNamn}</Text>
                 )}
-                <TouchableOpacity style={styles.betaldKnapp} onPress={() => taBortRapport(item.id)}>
-                  <Text style={styles.betaldText}>Markera som betald och ta bort</Text>
+                <TouchableOpacity style={styles.betaldKnapp} onPress={() => markeraRapportBetald(item.id)}>
+                  <Text style={styles.betaldText}>Markera som betald</Text>
                 </TouchableOpacity>
               </View>
             )}
@@ -409,8 +409,8 @@ const styles = StyleSheet.create({
   godkännKnapp: { backgroundColor: '#2563eb', borderRadius: 8, paddingVertical: 10, alignItems: 'center' },
   godkännText: { color: '#fff', fontWeight: '600', fontSize: 14 },
   godkäntEtikett: { fontSize: 13, color: '#16a34a', fontWeight: '600', textAlign: 'center' },
-  betaldKnapp: { marginTop: 10, borderWidth: 1, borderColor: '#dc2626', borderRadius: 8, paddingVertical: 9, alignItems: 'center' },
-  betaldText: { color: '#dc2626', fontWeight: '600', fontSize: 13 },
+  betaldKnapp: { marginTop: 10, borderWidth: 1, borderColor: '#16a34a', borderRadius: 8, paddingVertical: 9, alignItems: 'center' },
+  betaldText: { color: '#16a34a', fontWeight: '600', fontSize: 13 },
   kortHuvudFöretag: { flexDirection: 'row', alignItems: 'center', marginBottom: 4 },
   jobbBricka: { backgroundColor: '#eff6ff', borderRadius: 10, paddingHorizontal: 12, paddingVertical: 6, alignItems: 'center', marginLeft: 8 },
   jobbAntal: { fontSize: 18, fontWeight: '700', color: '#2563eb' },

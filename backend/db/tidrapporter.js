@@ -46,6 +46,7 @@ async function hämtaAllaTidrapporter({ fromDate, toDate } = {}) {
     .from('tidrapporter')
     .select('*')
     .eq('status', 'godkänd')
+    .eq('betald', false)
     .order('datum', { ascending: false });
 
   if (fromDate) query = query.gte('datum', fromDate);
@@ -94,7 +95,7 @@ async function hämtaTidrapporterFörFöretag(foretagId) {
   ]);
 
   const jobbIds = [...new Set((ansokningar || []).map(a => a.jobb_id))];
-  const { data: jobb } = await supabase.from('jobb').select('id, Titel').in('id', jobbIds);
+  const { data: jobb } = await supabase.from('Jobb').select('id, Titel').in('id', jobbIds);
 
   const ansokanMap = Object.fromEntries((ansokningar || []).map(a => [a.id, a]));
   const anvandareMap = Object.fromEntries((anvandare || []).map(a => [a.id, a]));
@@ -121,12 +122,13 @@ async function hämtaTidrapportViaId(id) {
   return data;
 }
 
-async function taBortTidrapport(id) {
+// Markerar en tidrapport som betald (mjuk markering – raden behålls för historiken)
+async function markeraTidrapportBetald(id) {
   const { error } = await supabase
     .from('tidrapporter')
-    .delete()
+    .update({ betald: true })
     .eq('id', id);
   if (error) throw error;
 }
 
-module.exports = { skapaTidrapport, hämtaTidrapportFörAnsökan, hämtaTidrapportViaId, uppdateraTidrapportStatus, hämtaAllaTidrapporter, hämtaTidrapporterFörFöretag, taBortTidrapport };
+module.exports = { skapaTidrapport, hämtaTidrapportFörAnsökan, hämtaTidrapportViaId, uppdateraTidrapportStatus, hämtaAllaTidrapporter, hämtaTidrapporterFörFöretag, markeraTidrapportBetald };
