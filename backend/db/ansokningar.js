@@ -312,11 +312,13 @@ async function hämtaGrupperadeKonversationer(userId, ärFöretag) {
     ? await hämtaAllaKonversationerFörFöretag(userId)
     : await hämtaAnsökningarFörSökande(userId);
 
+  // Markering ska bara visas för mottagaren av förfrågan (privatpersonen),
+  // inte för företaget som skickade den. Företaget är alltid avsändare (fran).
   const väntande = await hämtaVäntandeFörAnvändare(userId);
   const väntandeMotparter = new Set(
-    väntande.map(f =>
-      String(String(f.fran_anvandare_id) === String(userId) ? f.till_anvandare_id : f.fran_anvandare_id)
-    )
+    väntande
+      .filter(f => String(f.till_anvandare_id) === String(userId))
+      .map(f => String(f.fran_anvandare_id))
   );
 
   const grupper = {};
