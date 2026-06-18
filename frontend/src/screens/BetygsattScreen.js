@@ -2,9 +2,13 @@ import { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { api } from '../api/klient';
+import { useAuth } from '../context/AuthContext';
 
 export default function BetygsattScreen({ route, navigation }) {
   const { ansokningId } = route.params;
+  const { användare } = useAuth();
+  // Företag betygsätter en person, privatperson betygsätter ett uppdrag
+  const ärFöretag = användare?.typ === 'företag';
   const [stjarnor, setStjarnor] = useState(0);
   const [kommentar, setKommentar] = useState('');
   const [laddar, setLaddar] = useState(false);
@@ -30,7 +34,7 @@ export default function BetygsattScreen({ route, navigation }) {
   return (
     <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <ScrollView style={styles.container} keyboardShouldPersistTaps="handled">
-        <Text style={styles.rubrik}>Betygsätt uppdraget</Text>
+        <Text style={styles.rubrik}>{ärFöretag ? 'Betygsätt personen' : 'Betygsätt uppdraget'}</Text>
         <Text style={styles.beskrivning}>Hur upplevde du samarbetet?</Text>
 
         <View style={styles.stjärnRad}>
