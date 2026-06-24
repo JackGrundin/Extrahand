@@ -36,10 +36,14 @@ function ChatKnapp({ navigation }) {
   return (
     <TouchableOpacity
       onPress={() => navigation.getParent()?.navigate('ChattTab')}
-      style={{ marginRight: 16 }}
+      style={badgeStyles.knapp}
+      hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+      activeOpacity={0.6}
+      accessibilityRole="button"
+      accessibilityLabel="Öppna chattar"
     >
-      <View>
-        <Ionicons name="chatbubbles-outline" size={24} color="#2563eb" />
+      <View style={badgeStyles.ikonYta}>
+        <Ionicons name="chatbubbles-outline" size={26} color="#2563eb" />
         {totalOlästa > 0 && (
           <View style={badgeStyles.badge}>
             <Text style={badgeStyles.badgeText}>
@@ -236,19 +240,34 @@ function HuvudNavigator() {
 }
 
 const badgeStyles = StyleSheet.create({
+  // Padding + hitSlop ger en stor, förlåtande tryckyta runt ikonen
+  knapp: {
+    marginRight: 12,
+    paddingVertical: 6,
+    paddingHorizontal: 8,
+  },
+  // Centrerar ikonen helt – ingen inramning/bakgrund
+  ikonYta: {
+    width: 30,
+    height: 30,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   badge: {
     position: 'absolute',
-    top: -4,
-    right: -6,
-    minWidth: 16,
-    height: 16,
-    borderRadius: 8,
+    top: -3,
+    right: -5,
+    minWidth: 17,
+    height: 17,
+    borderRadius: 8.5,
     backgroundColor: '#ef4444',
     justifyContent: 'center',
     alignItems: 'center',
-    paddingHorizontal: 3,
+    paddingHorizontal: 4,
+    borderWidth: 2,
+    borderColor: '#fff',
   },
-  badgeText: { color: '#fff', fontSize: 9, fontWeight: '700' },
+  badgeText: { color: '#fff', fontSize: 10, fontWeight: '700' },
 });
 
 const laddningsStyles = StyleSheet.create({
