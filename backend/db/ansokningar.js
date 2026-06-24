@@ -298,6 +298,7 @@ async function hämtaKonversationMellan(företagId, privatpersonId, motpartId) {
   const pass = ansökningar.map(a => ({
     id: a.id,
     status: a.status,
+    created_at: a.created_at,
     jobbTitel: jobbMap[a.jobb_id]?.Titel ?? null,
     arbetstider: jobbMap[a.jobb_id]?.arbetstider ?? null,
     tidrapport: tidrapportMap[a.id] ?? null,

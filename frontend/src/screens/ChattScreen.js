@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef, useCallback } from 'react';
+import { useEffect, useState, useRef, useCallback, useMemo } from 'react';
 import { View, Text, FlatList, ScrollView, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform, ActivityIndicator, Alert, RefreshControl } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
@@ -212,6 +212,22 @@ export default function ChattScreen({ route, navigation }) {
     }
   }
 
+  // Slår ihop meddelanden, jobbförfrågningar och pass/tidrapporter till en
+  // gemensam tidslinje sorterad kronologiskt (äldst överst, nyast nederst).
+  const tidslinje = useMemo(() => {
+    const tidVärde = (v) => {
+      const t = new Date(v).getTime();
+      return Number.isNaN(t) ? 0 : t;
+    };
+    const poster = [
+      ...meddelanden.map((m) => ({ typ: 'meddelande', tid: tidVärde(m.created_at), data: m, key: `m-${m.id}` })),
+      ...förfrågningar.map((f) => ({ typ: 'förfrågan', tid: tidVärde(f.skapad_datum), data: f, key: `f-${f.id}` })),
+      ...pass.map((p) => ({ typ: 'pass', tid: tidVärde(p.tidrapport?.created_at ?? p.created_at), data: p, key: `p-${p.id}` })),
+    ];
+    poster.sort((a, b) => a.tid - b.tid);
+    return poster;
+  }, [meddelanden, förfrågningar, pass]);
+
   if (laddar) return <ActivityIndicator style={{ flex: 1 }} size="large" />;
 
   return (
@@ -231,43 +247,40 @@ export default function ChattScreen({ route, navigation }) {
 
       <FlatList
         ref={listRef}
-        data={meddelanden}
-        keyExtractor={(item) => item.id}
+        data={tidslinje}
+        keyExtractor={(item) => item.key}
         contentContainerStyle={styles.meddelandeLista}
         onContentSizeChange={() => listRef.current?.scrollToEnd({ animated: false })}
         refreshControl={<RefreshControl refreshing={uppdaterar} onRefresh={() => { setUppdaterar(true); hämta(); }} />}
         ListEmptyComponent={<Text style={styles.tom}>Inga meddelanden ännu. Säg hej!</Text>}
-        ListFooterComponent={
-          <>
-            {förfrågningar.map((f) => (
+        renderItem={({ item }) => {
+          if (item.typ === 'förfrågan') {
+            return (
               <JobbforfraganKort
-                key={f.id}
-                förfrågan={f}
+                förfrågan={item.data}
                 ärPrivatperson={ärPrivatperson}
                 onUppdaterad={hämta}
               />
-            ))}
-            {pass.map((p) => (
-              p.tidrapport ? (
-                <TidrapportKort
-                  key={p.id}
-                  rapport={p.tidrapport}
-                  ärPrivatperson={ärPrivatperson}
-                  onUppdaterad={hämta}
-                />
-              ) : (
-                <PassKort key={p.id} pass={p} />
-              )
-            ))}
-          </>
-        }
-        renderItem={({ item }) => {
-          const ärMitt = item.avsandare_id === användare?.id;
+            );
+          }
+          if (item.typ === 'pass') {
+            return item.data.tidrapport ? (
+              <TidrapportKort
+                rapport={item.data.tidrapport}
+                ärPrivatperson={ärPrivatperson}
+                onUppdaterad={hämta}
+              />
+            ) : (
+              <PassKort pass={item.data} />
+            );
+          }
+          const m = item.data;
+          const ärMitt = m.avsandare_id === användare?.id;
           return (
             <View style={[styles.bubbla, ärMitt ? styles.mittBubbla : styles.deras]}>
-              <Text style={[styles.bubblaText, ärMitt && styles.mittText]}>{item.innehall}</Text>
+              <Text style={[styles.bubblaText, ärMitt && styles.mittText]}>{m.innehall}</Text>
               <Text style={[styles.tid, ärMitt && styles.mittTid]}>
-                {new Date(item.created_at).toLocaleTimeString('sv-SE', { hour: '2-digit', minute: '2-digit' })}
+                {new Date(m.created_at).toLocaleTimeString('sv-SE', { hour: '2-digit', minute: '2-digit' })}
               </Text>
             </View>
           );
