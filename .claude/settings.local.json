@@ -44,7 +44,9 @@
       "Bash(pkill -f \"node.*server.js\")",
       "Bash(echo \"PID: $!\")",
       "Bash(grep -E \"\\([0-9]{1,2}:[0-9]{2}|tid|tid|hour|minute|time\\)\")",
-      "Bash(node *)"
+      "Bash(node *)",
+      "Bash(node -e \"require\\('@babel/core'\\)||0\")",
+      "Bash(npx --no-install babel src/context/AuthContext.js src/screens/RedigeraProfilScreen.js --presets babel-preset-expo)"
     ]
   }
 }

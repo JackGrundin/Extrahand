@@ -5,7 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 import TidVäljare from '../components/TidVäljare';
 import { api } from '../api/klient';
 import { TYPER, KATEGORIER } from '../utils/konstanter';
-import { SVENSKA_ORTER } from '../utils/svenskaOrter';
+import StadInput, { ärGiltigStad } from '../components/StadInput';
 
 function formatDatum(isoStr) {
   if (!isoStr) return null;
@@ -25,7 +25,7 @@ export default function PubliceraJobbScreen({ navigation }) {
   const [dagScheman, setDagScheman] = useState([]);
   const [sammaTider, setSammaTider] = useState(false);
   const [laddar, setLaddar] = useState(false);
-  const [ortsForslag, setOrtsForslag] = useState([]);
+  const [platsFel, setPlatsFel] = useState(false);
   const [kategoriModalVisas, setKategoriModalVisas] = useState(false);
   const [sokKategori, setSokKategori] = useState('');
   const [dagPickerIndex, setDagPickerIndex] = useState(null);
@@ -81,16 +81,10 @@ export default function PubliceraJobbScreen({ navigation }) {
     }
   }
 
+  // Uppdaterar platsfältet och rensar felmarkering
   function hanteraPlatsInput(text) {
     setPlats(text);
-    if (text.length >= 2) {
-      const träffar = SVENSKA_ORTER.filter(o =>
-        o.toLowerCase().startsWith(text.toLowerCase())
-      ).slice(0, 8);
-      setOrtsForslag(träffar);
-    } else {
-      setOrtsForslag([]);
-    }
+    if (platsFel) setPlatsFel(false);
   }
 
   function läggTillOb() {
@@ -110,11 +104,6 @@ export default function PubliceraJobbScreen({ navigation }) {
     setObFormVisas(false);
   }
 
-  function väljaOrt(ort) {
-    setPlats(ort);
-    setOrtsForslag([]);
-  }
-
   const filtreradeKategorier = KATEGORIER.filter(k =>
     k.toLowerCase().includes(sokKategori.toLowerCase())
   );
@@ -122,6 +111,11 @@ export default function PubliceraJobbScreen({ navigation }) {
   async function hanteraPublicering() {
     if (!titel.trim() || !beskrivning.trim()) {
       Alert.alert('Fel', 'Titel och beskrivning krävs');
+      return;
+    }
+    if (!plats.trim() || !ärGiltigStad(plats)) {
+      setPlatsFel(true);
+      Alert.alert('Fel', 'Välj en stad från listan');
       return;
     }
     if (!adress.trim()) {
@@ -182,14 +176,15 @@ export default function PubliceraJobbScreen({ navigation }) {
             textAlignVertical="top"
           />
 
-          <Text style={styles.label}>Plats</Text>
-          <TextInput
-            style={styles.input}
+          <Text style={styles.label}>Plats *</Text>
+          <StadInput
+            värde={plats}
+            onÄndra={hanteraPlatsInput}
             placeholder="t.ex. Stockholm"
-            value={plats}
-            onChangeText={hanteraPlatsInput}
-            autoCorrect={false}
+            fel={platsFel}
           />
+          {platsFel && <Text style={styles.felText}>Välj en stad från listan</Text>}
+
           <Text style={styles.label}>Adress till arbetsplatsen *</Text>
           <TextInput
             style={styles.input}
@@ -198,22 +193,6 @@ export default function PubliceraJobbScreen({ navigation }) {
             onChangeText={setAdress}
             autoCorrect={false}
           />
-
-          {ortsForslag.length > 0 && (
-            <View style={styles.ortDropdown}>
-              {ortsForslag.map(ort => (
-                <TouchableOpacity
-                  key={ort}
-                  style={styles.ortRad}
-                  onPress={() => väljaOrt(ort)}
-                  activeOpacity={0.7}
-                >
-                  <Ionicons name="location-outline" size={14} color="#6b7280" style={{ marginRight: 8 }} />
-                  <Text style={styles.ortText}>{ort}</Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          )}
 
           <Text style={styles.label}>Timlön (kr/tim)</Text>
           <TextInput style={styles.input} placeholder="t.ex. 160" value={lon} onChangeText={setLon} keyboardType="numeric" />
@@ -467,9 +446,7 @@ const styles = StyleSheet.create({
   typText: { color: '#555', fontWeight: '500', fontSize: 14 },
   typTextAktiv: { color: '#fff' },
 
-  ortDropdown: { borderWidth: 1, borderColor: '#ddd', borderRadius: 10, backgroundColor: '#fff', marginTop: -8, marginBottom: 4, overflow: 'hidden', shadowColor: '#000', shadowOpacity: 0.06, shadowRadius: 4, elevation: 3 },
-  ortRad: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#f3f4f6' },
-  ortText: { fontSize: 15, color: '#1a1a1a' },
+  felText: { color: '#dc2626', fontSize: 13, marginTop: 6, fontWeight: '500' },
   prisKalkyl: { backgroundColor: '#f0f9ff', borderRadius: 10, padding: 12, marginTop: 8, gap: 4, borderWidth: 1, borderColor: '#bae6fd' },
   prisRad: { fontSize: 13, color: '#0369a1' },
   prisFet: { fontWeight: '700', color: '#0369a1' },

@@ -5,6 +5,7 @@ import { api } from '../api/klient';
 
 import { TYPER_FILTER as TYPER, KATEGORIER } from '../utils/konstanter';
 import { parsaArbetstider, formatDagDatum, parsaObTillagg } from '../utils/datumHelper';
+import StadInput from '../components/StadInput';
 
 const SORTERING = ['Närmast datum', 'Nyast', 'Högst lön', 'Flest dagar'];
 
@@ -144,13 +145,13 @@ export default function JobbScreen({ navigation }) {
   return (
     <View style={{ flex: 1, backgroundColor: '#f5f5f5' }}>
       <View style={styles.headerContainer}>
-        <TextInput
-          style={styles.stadInput}
+        <StadInput
+          värde={stadFilter}
+          onÄndra={setStadFilter}
           placeholder="Sök på stad..."
-          value={stadFilter}
-          onChangeText={setStadFilter}
-          clearButtonMode="while-editing"
-          autoCorrect={false}
+          inputStyle={styles.stadInput}
+          containerStyle={styles.stadInputWrapper}
+          absolutLista
           autoCapitalize="none"
         />
         <TouchableOpacity style={styles.filterKnapp} onPress={() => setModalVisas(true)} activeOpacity={0.8}>
@@ -359,8 +360,9 @@ export default function JobbScreen({ navigation }) {
 }
 
 const styles = StyleSheet.create({
-  headerContainer: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: '#fff', paddingHorizontal: 16, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: '#eee' },
-  stadInput: { flex: 1, borderWidth: 1, borderColor: '#ddd', borderRadius: 10, paddingHorizontal: 14, paddingVertical: 9, fontSize: 15, backgroundColor: '#fafafa', color: '#1a1a1a', letterSpacing: 0 },
+  headerContainer: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: '#fff', paddingHorizontal: 16, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: '#eee', zIndex: 30 },
+  stadInputWrapper: { flex: 1, zIndex: 30 },
+  stadInput: { borderWidth: 1, borderColor: '#ddd', borderRadius: 10, paddingHorizontal: 14, paddingVertical: 9, fontSize: 15, backgroundColor: '#fafafa', color: '#1a1a1a', letterSpacing: 0 },
   filterKnapp: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 12, paddingVertical: 9, borderRadius: 10, borderWidth: 1, borderColor: '#2563eb', backgroundColor: '#eff6ff' },
   filterKnappText: { fontSize: 14, fontWeight: '600', color: '#2563eb' },
   badge: { backgroundColor: '#2563eb', borderRadius: 10, minWidth: 18, height: 18, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 4 },
