@@ -50,6 +50,7 @@ export const api = {
   hämtaJobbId: (id) => anrop('GET', `/jobb/${id}`),
   publicera: (kropp) => anrop('POST', '/jobb', kropp),
   minaJobb: () => anrop('GET', '/jobb/mina'),
+  minaTidigareJobb: () => anrop('GET', '/jobb/mina/tidigare'),
   uppdateraJobb: (id, kropp) => anrop('PUT', `/jobb/${id}`, kropp),
   taBortJobb: (id) => anrop('DELETE', `/jobb/${id}`),
 

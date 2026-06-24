@@ -8,6 +8,7 @@ import { STATUSFÄRGER_TIDRAPPORT as statusFärger } from '../utils/konstanter';
 
 export default function MinaJobbScreen({ navigation }) {
   const [jobb, setJobb] = useState([]);
+  const [tidigareJobb, setTidigareJobb] = useState([]);
   const [tidigarePass, setTidigarePass] = useState([]);
   const [aktivFlik, setAktivFlik] = useState('aktiva');
   const [laddar, setLaddar] = useState(true);
@@ -53,6 +54,12 @@ export default function MinaJobbScreen({ navigation }) {
       console.error('Jobb fel:', fel);
     }
     try {
+      const tidigareJobbData = await api.minaTidigareJobb();
+      setTidigareJobb(tidigareJobbData);
+    } catch (fel) {
+      console.error('Tidigare jobb fel:', fel);
+    }
+    try {
       const rapporterData = await api.tidrapporterFörFöretag();
       setTidigarePass(rapporterData);
     } catch (fel) {
@@ -66,8 +73,17 @@ export default function MinaJobbScreen({ navigation }) {
 
   if (laddar) return <ActivityIndicator style={{ flex: 1 }} size="large" />;
 
+  // Jobb som redan har en tidrapport räknas som avslutade via tidrapporten.
   const avslutadeJobbIds = new Set(tidigarePass.map(p => p.jobbId).filter(Boolean));
+  // Backend levererar jobb med passerade datum separat. De som saknar tidrapport visas
+  // som tidigare pass (precis som i MinaPassScreen för privatpersoner).
+  const passeradeJobbUtanRapport = tidigareJobb.filter(j => !avslutadeJobbIds.has(j.id));
   const aktivaJobb = jobb.filter(j => !avslutadeJobbIds.has(j.id));
+  // Tidigare pass = tidrapporter + passerade jobb utan tidrapport. _typ skiljer korttyperna.
+  const tidigareLista = [
+    ...tidigarePass.map(p => ({ _typ: 'rapport', ...p })),
+    ...passeradeJobbUtanRapport.map(j => ({ _typ: 'jobb', ...j })),
+  ];
 
   return (
     <View style={{ flex: 1, backgroundColor: '#f5f5f5' }}>
@@ -85,7 +101,7 @@ export default function MinaJobbScreen({ navigation }) {
           onPress={() => setAktivFlik('tidigare')}
         >
           <Text style={[styles.flikText, aktivFlik === 'tidigare' && styles.flikTextAktiv]}>
-            Tidigare pass ({tidigarePass.length})
+            Tidigare pass ({tidigareLista.length})
           </Text>
         </TouchableOpacity>
       </View>
@@ -147,8 +163,8 @@ export default function MinaJobbScreen({ navigation }) {
       ) : (
         <FlatList
           style={styles.lista}
-          data={tidigarePass}
-          keyExtractor={(item) => item.id.toString()}
+          data={tidigareLista}
+          keyExtractor={(item) => `${item._typ}-${item.id}`}
           refreshControl={<RefreshControl refreshing={uppdaterar} onRefresh={() => { setUppdaterar(true); hämta(); }} />}
           ListEmptyComponent={
             <View style={styles.tomContainer}>
@@ -156,6 +172,39 @@ export default function MinaJobbScreen({ navigation }) {
             </View>
           }
           renderItem={({ item }) => {
+            // Passerat jobb utan tidrapport: enklare kort som leder till ansökningar.
+            if (item._typ === 'jobb') {
+              const datum = (parsaArbetstider(item.arbetstider)?.map(d => d.datum).filter(Boolean) ?? []).sort();
+              // Saknas arbetsdatum (gammalt jobb): visa när jobbet publicerades istället.
+              const sista = datum.length > 0
+                ? formatDagDatum(datum[datum.length - 1])
+                : (item.created_at ? new Date(item.created_at).toLocaleDateString('sv-SE') : null);
+              return (
+                <TouchableOpacity
+                  style={styles.passKort}
+                  onPress={() => navigation.navigate('JobbAnsokningar', { jobbId: item.id, titel: item.Titel })}
+                >
+                  <View style={styles.passKortHuvud}>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.passTitel}>{item.Titel ?? '–'}</Text>
+                      {item.Plats && <Text style={styles.passNamn}>{item.Plats}</Text>}
+                    </View>
+                    <View style={[styles.statusBricka, { backgroundColor: statusFärger.väntar.bg }]}>
+                      <Text style={[styles.statusText, { color: statusFärger.väntar.text }]}>Tidrapport saknas</Text>
+                    </View>
+                  </View>
+                  {sista && (
+                    <View style={styles.datumRad}>
+                      <Ionicons name="calendar" size={14} color="#2563eb" />
+                      <View style={styles.datumChip}>
+                        <Text style={styles.datumChipText}>{sista}</Text>
+                      </View>
+                    </View>
+                  )}
+                  <Text style={styles.seAnsokningar}>Se ansökningar →</Text>
+                </TouchableOpacity>
+              );
+            }
             const färg = statusFärger[item.status] ?? statusFärger.väntar;
             return (
               <View style={styles.passKort}>

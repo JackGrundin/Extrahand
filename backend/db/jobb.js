@@ -125,6 +125,43 @@ async function hämtaJobbFörFöretag(foretag_id, { endastAktiva = false } = {})
   return data;
 }
 
+// Hämtar företagets tidigare pass: jobb vars sista arbetsdatum redan passerat, samt
+// gamla jobb (äldre än 30 dagar) som saknar datum. Detta är den exakta inversen av
+// datumlogiken i filtreraAktivaJobb.
+async function hämtaTidigareJobbFörFöretag(foretag_id) {
+  const { data, error } = await supabase
+    .from('Jobb')
+    .select('*')
+    .eq('Foretag_id', foretag_id)
+    .order('created_at', { ascending: false });
+
+  if (error) throw error;
+  if (!data || !data.length) return [];
+
+  const idag = new Date();
+  idag.setHours(0, 0, 0, 0);
+  const trettioDagar = 30 * 24 * 60 * 60 * 1000;
+
+  return data.filter(j => {
+    const schema = Array.isArray(j.arbetstider)
+      ? j.arbetstider
+      : (() => { try { return JSON.parse(j.arbetstider); } catch { return null; } })();
+
+    const datum = (schema || []).map(d => d.datum).filter(Boolean);
+
+    if (datum.length > 0) {
+      // Har datum: tidigare när sista arbetsdatum passerat.
+      const sistaDate = datum
+        .map(d => new Date(d + 'T12:00:00'))
+        .sort((a, b) => b - a)[0];
+      return sistaDate < idag;
+    }
+
+    // Saknar datum (med eller utan schema): tidigare när jobbet är äldre än 30 dagar.
+    return idag - new Date(j.created_at) > trettioDagar;
+  });
+}
+
 async function uppdateraJobb(id, foretag_id, { titel, beskrivning, plats, adress, lon, typ, kategori, antal_dagar, arbetstider, ob_tillagg }) {
   const { data, error } = await supabase
     .from('Jobb')
@@ -147,4 +184,4 @@ async function taBortJobb(id, foretag_id) {
   if (error) throw error;
 }
 
-module.exports = { skapaJobb, hämtaAllaJobb, hämtaJobbViaId, hämtaJobbFörFöretag, uppdateraJobb, taBortJobb };
+module.exports = { skapaJobb, hämtaAllaJobb, hämtaJobbViaId, hämtaJobbFörFöretag, hämtaTidigareJobbFörFöretag, uppdateraJobb, taBortJobb };

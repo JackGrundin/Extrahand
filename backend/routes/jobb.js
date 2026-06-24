@@ -1,6 +1,6 @@
 const express = require('express');
 const { kräverInloggning, kräverTyp } = require('../middleware/auth');
-const { skapaJobb, hämtaAllaJobb, hämtaJobbViaId, hämtaJobbFörFöretag, uppdateraJobb, taBortJobb } = require('../db/jobb');
+const { skapaJobb, hämtaAllaJobb, hämtaJobbViaId, hämtaJobbFörFöretag, hämtaTidigareJobbFörFöretag, uppdateraJobb, taBortJobb } = require('../db/jobb');
 const { hämtaGodkändaFörJobb } = require('../db/ansokningar');
 const { skickaMeddelande } = require('../db/meddelanden');
 const { hämtaPushToken } = require('../db/användare');
@@ -27,6 +27,17 @@ router.get('/mina', kräverInloggning, kräverTyp('företag'), async (req, res) 
   } catch (fel) {
     console.error('Fel vid hämtning av egna jobb:', fel);
     res.status(500).json({ fel: 'Serverfel vid hämtning av egna jobb' });
+  }
+});
+
+// GET /api/jobb/mina/tidigare — inloggat företags tidigare pass (jobb med passerade datum)
+router.get('/mina/tidigare', kräverInloggning, kräverTyp('företag'), async (req, res) => {
+  try {
+    const jobb = await hämtaTidigareJobbFörFöretag(req.användare.id);
+    res.json(jobb);
+  } catch (fel) {
+    console.error('Fel vid hämtning av tidigare jobb:', fel);
+    res.status(500).json({ fel: 'Serverfel vid hämtning av tidigare jobb' });
   }
 });
 
