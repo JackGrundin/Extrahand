@@ -70,6 +70,7 @@ export const api = {
 
   // Profil
   uppdateraProfil: (kropp) => anrop('PUT', '/users/profil', kropp),
+  uppdateraStad: (stad) => anrop('PUT', '/users/stad', { stad }),
   laddaUppProfilBild: (bild) => anrop('POST', '/users/profil-bild', { bild }),
   uppdateraStatus: (ansokningId, status) => anrop('PATCH', `/ansokningar/${ansokningId}/status`, { status }),
 

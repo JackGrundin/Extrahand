@@ -53,6 +53,30 @@ async function uppdateraProfil(id, { cv, erfarenheter, kompetenser, intressen, b
   if (error) throw error;
 }
 
+// Uppdaterar enbart användarens stad (utan att röra övriga profilfält). Används
+// av GPS-flödet och det manuella stadsfältet i profilen.
+async function uppdateraStad(id, stad) {
+  const { error } = await supabase
+    .from('användare')
+    .update({ stad })
+    .eq('id', id);
+  if (error) throw error;
+}
+
+// Hämtar push-tokens för privatpersoner i en viss stad (skiftlägesokänslig
+// matchning). Används för att notifiera om nya jobb i närheten.
+async function hämtaPrivatpersonerIStad(stad) {
+  if (!stad) return [];
+  const { data, error } = await supabase
+    .from('användare')
+    .select('id, push_token')
+    .eq('Typ', 'privatperson')
+    .ilike('stad', stad.trim())
+    .not('push_token', 'is', null);
+  if (error) throw error;
+  return data || [];
+}
+
 async function sparaPushToken(id, token) {
   const { error } = await supabase
     .from('användare')
@@ -126,4 +150,4 @@ async function markeraEmailVerifierad(id) {
   if (error) throw error;
 }
 
-module.exports = { skapaAnvändare, hämtaAnvändareViaEmail, hämtaAnvändareViaId, uppdateraProfil, uppdateraProfilBild, sparaPushToken, hämtaPushToken, hämtaAllaPrivatpersoner, godkännAvtal, hämtaAllaFöretag, sparaVerifieringskod, markeraEmailVerifierad };
+module.exports = { skapaAnvändare, hämtaAnvändareViaEmail, hämtaAnvändareViaId, uppdateraProfil, uppdateraProfilBild, uppdateraStad, hämtaPrivatpersonerIStad, sparaPushToken, hämtaPushToken, hämtaAllaPrivatpersoner, godkännAvtal, hämtaAllaFöretag, sparaVerifieringskod, markeraEmailVerifierad };

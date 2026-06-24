@@ -26,7 +26,13 @@
       "favicon": "./assets/favicon.png"
     },
     "plugins": [
-      "@react-native-community/datetimepicker"
+      "@react-native-community/datetimepicker",
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "FastGig använder din plats för att hitta din stad och meddela dig om nya jobb i närheten."
+        }
+      ]
     ]
   }
 }

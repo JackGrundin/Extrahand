@@ -3,7 +3,7 @@ const { kräverInloggning, kräverTyp } = require('../middleware/auth');
 const { skapaJobb, hämtaAllaJobb, hämtaJobbViaId, hämtaJobbFörFöretag, hämtaTidigareJobbFörFöretag, uppdateraJobb, taBortJobb } = require('../db/jobb');
 const { hämtaGodkändaFörJobb } = require('../db/ansokningar');
 const { skickaMeddelande } = require('../db/meddelanden');
-const { hämtaPushToken } = require('../db/användare');
+const { hämtaPushToken, hämtaPrivatpersonerIStad } = require('../db/användare');
 const { skickaNotifikation } = require('../utils/pushNotifikation');
 
 const router = express.Router();
@@ -86,11 +86,30 @@ router.post('/', kräverInloggning, kräverTyp('företag'), async (req, res) => 
       foretag_id: req.användare.id,
     });
     res.status(201).json(jobb);
+
+    // Notifiera privatpersoner i samma stad om det nya jobbet (blockerar inte svaret)
+    notifieraPrivatpersonerIStad(jobb).catch((notisfel) =>
+      console.error('Notisfel vid nytt jobb:', notisfel)
+    );
   } catch (fel) {
     console.error('Fel vid skapande av jobb:', fel);
     res.status(500).json({ fel: 'Serverfel vid skapande av jobb' });
   }
 });
+
+// Skickar push-notis till alla privatpersoner i jobbets stad: "Nytt jobb nära dig"
+async function notifieraPrivatpersonerIStad(jobb) {
+  const stad = jobb?.Plats;
+  if (!stad) return;
+  const mottagare = await hämtaPrivatpersonerIStad(stad);
+  for (const person of mottagare) {
+    await skickaNotifikation(
+      person.push_token,
+      'Nytt jobb nära dig',
+      `${jobb.Titel} i ${stad}`
+    );
+  }
+}
 
 // PUT /api/jobb/:id — företag uppdaterar sitt jobb
 router.put('/:id', kräverInloggning, kräverTyp('företag'), async (req, res) => {

@@ -2,7 +2,7 @@ const express = require('express');
 const { createClient } = require('@supabase/supabase-js');
 const ws = require('ws');
 const { kräverInloggning } = require('../middleware/auth');
-const { hämtaAnvändareViaEmail, hämtaAnvändareViaId, uppdateraProfil, uppdateraProfilBild, sparaPushToken, hämtaPushToken, hämtaAllaPrivatpersoner, godkännAvtal, hämtaAllaFöretag } = require('../db/användare');
+const { hämtaAnvändareViaEmail, hämtaAnvändareViaId, uppdateraProfil, uppdateraProfilBild, uppdateraStad, sparaPushToken, hämtaPushToken, hämtaAllaPrivatpersoner, godkännAvtal, hämtaAllaFöretag } = require('../db/användare');
 const { hämtaTotalTimmar } = require('../db/ansokningar');
 const { skickaNotifikation } = require('../utils/pushNotifikation');
 const { hämtaJobbFörFöretag } = require('../db/jobb');
@@ -104,6 +104,18 @@ router.put('/profil', kräverInloggning, async (req, res) => {
     res.json({ ok: true });
   } catch (fel) {
     console.error('Profiluppdatering fel:', fel);
+    res.status(500).json({ fel: 'Serverfel' });
+  }
+});
+
+// PUT /api/users/stad — uppdaterar enbart användarens stad (från GPS eller manuell inmatning)
+router.put('/stad', kräverInloggning, async (req, res) => {
+  const { stad } = req.body;
+  try {
+    await uppdateraStad(req.användare.id, stad?.trim() || null);
+    res.json({ ok: true });
+  } catch (fel) {
+    console.error('Stadsuppdatering fel:', fel);
     res.status(500).json({ fel: 'Serverfel' });
   }
 });

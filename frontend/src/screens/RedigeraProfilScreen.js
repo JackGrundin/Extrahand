@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, Alert, ActivityIndicator, KeyboardAvoidingView, Platform } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { api } from '../api/klient';
+import { SVENSKA_ORTER } from '../utils/svenskaOrter';
 
 export default function RedigeraProfilScreen({ route, navigation }) {
   const profil = route.params?.profil ?? {};
@@ -14,7 +16,25 @@ export default function RedigeraProfilScreen({ route, navigation }) {
   const [bransch, setBransch] = useState(profil.bransch ?? '');
   const [stad, setStad] = useState(profil.stad ?? '');
   const [hemsida, setHemsida] = useState(profil.hemsida ?? '');
+  const [ortsForslag, setOrtsForslag] = useState([]);
   const [laddar, setLaddar] = useState(false);
+
+  function hanteraStadInput(text) {
+    setStad(text);
+    if (text.length >= 2) {
+      const träffar = SVENSKA_ORTER.filter(o =>
+        o.toLowerCase().startsWith(text.toLowerCase())
+      ).slice(0, 8);
+      setOrtsForslag(träffar);
+    } else {
+      setOrtsForslag([]);
+    }
+  }
+
+  function väljaOrt(ort) {
+    setStad(ort);
+    setOrtsForslag([]);
+  }
 
   async function spara() {
     setLaddar(true);
@@ -112,6 +132,32 @@ export default function RedigeraProfilScreen({ route, navigation }) {
               value={intressen}
               onChangeText={setIntressen}
             />
+            <Text style={styles.label}>Stad</Text>
+            <Text style={styles.hjälptext}>
+              Ange din stad för att få notiser om nya jobb nära dig.
+            </Text>
+            <TextInput
+              style={styles.input}
+              placeholder="t.ex. Stockholm"
+              value={stad}
+              onChangeText={hanteraStadInput}
+              autoCapitalize="words"
+            />
+            {ortsForslag.length > 0 && (
+              <View style={styles.ortDropdown}>
+                {ortsForslag.map(ort => (
+                  <TouchableOpacity
+                    key={ort}
+                    style={styles.ortRad}
+                    onPress={() => väljaOrt(ort)}
+                    activeOpacity={0.7}
+                  >
+                    <Ionicons name="location-outline" size={14} color="#6b7280" style={{ marginRight: 8 }} />
+                    <Text style={styles.ortText}>{ort}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            )}
           </>
         )}
 
@@ -133,7 +179,11 @@ export default function RedigeraProfilScreen({ route, navigation }) {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#fff', padding: 20 },
   label: { fontSize: 14, fontWeight: '600', color: '#444', marginBottom: 6, marginTop: 16 },
+  hjälptext: { fontSize: 12, color: '#6b7280', marginBottom: 8, marginTop: -2 },
   input: { borderWidth: 1, borderColor: '#ddd', borderRadius: 10, padding: 14, fontSize: 15, backgroundColor: '#fafafa', letterSpacing: 0 },
+  ortDropdown: { borderWidth: 1, borderColor: '#ddd', borderRadius: 10, backgroundColor: '#fff', marginTop: 4, overflow: 'hidden', shadowColor: '#000', shadowOpacity: 0.06, shadowRadius: 4, elevation: 3 },
+  ortRad: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#f3f4f6' },
+  ortText: { fontSize: 15, color: '#1a1a1a' },
   textArea: { height: 110 },
   knapp: { backgroundColor: '#2563eb', borderRadius: 12, padding: 16, alignItems: 'center', marginTop: 28, marginBottom: 40 },
   knappInaktiv: { backgroundColor: '#93c5fd' },
