@@ -368,4 +368,44 @@ async function hämtaGrupperadeKonversationer(userId, ärFöretag) {
   });
 }
 
-module.exports = { skapaAnsökan, hämtaAnsökningarFörSökande, hämtaAnsökningarFörJobb, finnsDubblettAnsökan, hämtaTotalTimmar, uppdateraStatus, hämtaAnsökanViaId, avvisaAllaUtomEn, återställAllaFörJobb, hämtaAllaKonversationerFörFöretag, hämtaGodkändaFörJobb, ångraAnsökan, hämtaAnsökanMedJobbInfo, hämtaKonversationMellan, hämtaGrupperadeKonversationer };
+// Hämtar alla godkända pass som ännu saknar tidrapport, för att kunna påminna
+// företaget när passets sluttid passerat. Returnerar företag-id, sökandes namn
+// och jobbets arbetstider per pass.
+async function hämtaPågåendePassFörPåminnelse() {
+  const { data: ansökningar, error } = await supabase
+    .from('ansokningar')
+    .select('id, jobb_id, sokande_id')
+    .eq('status', 'godkänd');
+
+  if (error) throw error;
+  if (!ansökningar || !ansökningar.length) return [];
+
+  const jobbIds = [...new Set(ansökningar.map(a => a.jobb_id))];
+  const ansokanIds = ansökningar.map(a => a.id);
+  const sokandeIds = [...new Set(ansökningar.map(a => a.sokande_id))];
+
+  const [{ data: jobb }, { data: tidrapporter }, { data: användare }] = await Promise.all([
+    supabase.from('Jobb').select('id, arbetstider, Foretag_id').in('id', jobbIds),
+    supabase.from('tidrapporter').select('ansokan_id').in('ansokan_id', ansokanIds),
+    supabase.from('användare').select('id, Namn').in('id', sokandeIds),
+  ]);
+
+  const jobbMap = Object.fromEntries((jobb || []).map(j => [j.id, j]));
+  const namnMap = Object.fromEntries((användare || []).map(u => [u.id, u.Namn]));
+  const harTidrapport = new Set((tidrapporter || []).map(r => r.ansokan_id));
+
+  return ansökningar
+    .filter(a => !harTidrapport.has(a.id))
+    .map(a => {
+      const j = jobbMap[a.jobb_id];
+      return {
+        ansokanId: a.id,
+        foretagId: j?.Foretag_id ?? j?.foretag_id ?? null,
+        sökandeNamn: namnMap[a.sokande_id] ?? null,
+        arbetstider: j?.arbetstider ?? null,
+      };
+    })
+    .filter(p => p.foretagId != null && p.arbetstider != null);
+}
+
+module.exports = { skapaAnsökan, hämtaAnsökningarFörSökande, hämtaAnsökningarFörJobb, finnsDubblettAnsökan, hämtaTotalTimmar, uppdateraStatus, hämtaAnsökanViaId, avvisaAllaUtomEn, återställAllaFörJobb, hämtaAllaKonversationerFörFöretag, hämtaGodkändaFörJobb, ångraAnsökan, hämtaAnsökanMedJobbInfo, hämtaKonversationMellan, hämtaGrupperadeKonversationer, hämtaPågåendePassFörPåminnelse };

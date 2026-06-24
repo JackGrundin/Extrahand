@@ -6,7 +6,21 @@ import { useAuth } from '../context/AuthContext';
 import { useNotifikationer } from '../context/NotifikationsContext';
 import { api } from '../api/klient';
 
-function byggSektioner(poster, ärFöretag) {
+// Sorterar så att olästa chattar hamnar högst upp, därefter de med senaste meddelande
+function sorteraOlästaFörst(poster, olästaIds) {
+  const tidsstämpel = (p) => {
+    const t = p.senasteMeddelande?.created_at;
+    return t ? new Date(t).getTime() : 0;
+  };
+  return [...poster].sort((a, b) => {
+    const aOläst = olästaIds.has(a.id);
+    const bOläst = olästaIds.has(b.id);
+    if (aOläst !== bOläst) return aOläst ? -1 : 1;
+    return tidsstämpel(b) - tidsstämpel(a);
+  });
+}
+
+function byggSektioner(poster, ärFöretag, olästaIds) {
   const förfrågan = poster.filter(p => p.harVäntandeFörfragan);
   const övriga = poster.filter(p => !p.harVäntandeFörfragan);
   const attGodkänna = övriga.filter(p => p.harVäntandeTidrapport);
@@ -17,10 +31,10 @@ function byggSektioner(poster, ärFöretag) {
   const sektioner = [];
   const brådskandeTitel = ärFöretag ? 'Väntar på godkännande' : 'Att godkänna';
 
-  if (förfrågan.length) sektioner.push({ titel: 'Jobbförfrågan', data: förfrågan, brådskande: true });
-  if (attGodkänna.length) sektioner.push({ titel: brådskandeTitel, data: attGodkänna, brådskande: true });
-  if (aktiva.length) sektioner.push({ titel: 'Aktiva', data: aktiva, brådskande: false });
-  if (avslutade.length) sektioner.push({ titel: 'Avslutade', data: avslutade, brådskande: false });
+  if (förfrågan.length) sektioner.push({ titel: 'Jobbförfrågan', data: sorteraOlästaFörst(förfrågan, olästaIds), brådskande: true });
+  if (attGodkänna.length) sektioner.push({ titel: brådskandeTitel, data: sorteraOlästaFörst(attGodkänna, olästaIds), brådskande: true });
+  if (aktiva.length) sektioner.push({ titel: 'Aktiva', data: sorteraOlästaFörst(aktiva, olästaIds), brådskande: false });
+  if (avslutade.length) sektioner.push({ titel: 'Avslutade', data: sorteraOlästaFörst(avslutade, olästaIds), brådskande: false });
 
   return sektioner;
 }
@@ -69,7 +83,7 @@ export default function ChattListaScreen({ navigation }) {
       })
     : poster;
 
-  const sektioner = byggSektioner(filtrerade, ärFöretag);
+  const sektioner = byggSektioner(filtrerade, ärFöretag, olästaIds);
 
   return (
     <View style={styles.container}>

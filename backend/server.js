@@ -11,6 +11,7 @@ const betygRoutes = require('./routes/betyg');
 const tidrapporterRoutes = require('./routes/tidrapporter');
 const faktureringRoutes = require('./routes/fakturering');
 const jobbforfraganRoutes = require('./routes/jobbforfragan');
+const { startaPassPåminnelse } = require('./cron/passPaminnelse');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -43,6 +44,7 @@ process.on('unhandledRejection', (reason) => {
 
 const server = app.listen(PORT, () => {
   console.log(`Servern körs på port ${PORT}`);
+  startaPassPåminnelse();
 });
 
 server.on('error', (err) => console.error('HTTP-server fel:', err));

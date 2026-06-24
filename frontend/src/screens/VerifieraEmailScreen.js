@@ -21,6 +21,10 @@ export default function VerifieraEmailScreen({ route, navigation }) {
     try {
       const svar = await api.verifieraKod(email, kod);
       await AsyncStorage.setItem('token', svar.token);
+      // Flagga så att välkomstrutan visas direkt när privatpersonen kommit in i appen
+      if (svar.användare?.typ === 'privatperson') {
+        await AsyncStorage.setItem('visaVälkomst', 'true');
+      }
       sättAnvändare(svar.användare);
     } catch (fel) {
       Alert.alert('Fel', fel.message);

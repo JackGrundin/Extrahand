@@ -2,7 +2,8 @@ import { useEffect, useState } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Modal, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
 
 import { useAuth } from '../context/AuthContext';
@@ -180,6 +181,9 @@ function HuvudNavigator() {
   const ärFöretag = användare?.typ === 'företag';
   const ärAdmin = användare?.email === 'info@fastgig.se';
 
+  // Välkomstruta som visas en gång direkt efter att en ny privatperson kommit in i appen
+  const [visaVälkomst, setVisaVälkomst] = useState(false);
+
   // Initialisera badge-räknaren direkt vid inloggning, innan chattlistan öppnats
   useEffect(() => {
     async function initOlästa() {
@@ -191,7 +195,22 @@ function HuvudNavigator() {
     if (användare?.id) initOlästa();
   }, [användare?.id]);
 
+  // Kolla om välkomstrutan ska visas (flagga sätts vid e-postverifiering)
+  useEffect(() => {
+    async function kollaVälkomst() {
+      const flagga = await AsyncStorage.getItem('visaVälkomst');
+      if (flagga === 'true') setVisaVälkomst(true);
+    }
+    kollaVälkomst();
+  }, []);
+
+  async function stängVälkomst() {
+    await AsyncStorage.removeItem('visaVälkomst');
+    setVisaVälkomst(false);
+  }
+
   return (
+    <>
     <Tab.Navigator
       screenOptions={({ route }) => ({
         headerShown: false,
@@ -236,8 +255,33 @@ function HuvudNavigator() {
       )}
       <Tab.Screen name="Profil" component={ProfilNavigator} options={{ tabBarLabel: 'Profil' }} />
     </Tab.Navigator>
+
+    <Modal visible={visaVälkomst} transparent animationType="fade" onRequestClose={() => {}}>
+      <View style={styles.välkomstÖverlägg}>
+        <View style={styles.välkomstRuta}>
+          <Text style={styles.välkomstRubrik}>Välkommen till FastGig!</Text>
+          <Text style={styles.välkomstText}>
+            Du kommer inom 24 timmar att få ett anställningsavtal skickat till din mejl.
+            Du behöver signera avtalet innan du kan söka jobb.
+          </Text>
+          <TouchableOpacity style={styles.välkomstKnapp} onPress={stängVälkomst}>
+            <Text style={styles.välkomstKnappText}>OK</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    </Modal>
+    </>
   );
 }
+
+const styles = StyleSheet.create({
+  välkomstÖverlägg: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center', padding: 32 },
+  välkomstRuta: { backgroundColor: '#fff', borderRadius: 16, padding: 28, width: '100%', maxWidth: 360, alignItems: 'center' },
+  välkomstRubrik: { fontSize: 20, fontWeight: 'bold', color: '#1a1a1a', marginBottom: 12, textAlign: 'center' },
+  välkomstText: { fontSize: 15, color: '#444', textAlign: 'center', lineHeight: 22, marginBottom: 24 },
+  välkomstKnapp: { backgroundColor: '#2563eb', borderRadius: 10, paddingVertical: 14, paddingHorizontal: 32, alignItems: 'center', width: '100%' },
+  välkomstKnappText: { color: '#fff', fontWeight: '600', fontSize: 16 },
+});
 
 const badgeStyles = StyleSheet.create({
   // Padding + hitSlop ger en stor, förlåtande tryckyta runt ikonen
