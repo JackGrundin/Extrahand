@@ -5,6 +5,22 @@ import { api } from '../api/klient';
 
 import { parsaArbetstider, formatDagDatum, formatBricka } from '../utils/datumHelper';
 
+// Dagens datum som YYYY-MM-DD (lokal tid) för jämförelse mot arbetsdatum.
+function dagensDatum() {
+  const nu = new Date();
+  return `${nu.getFullYear()}-${String(nu.getMonth() + 1).padStart(2, '0')}-${String(nu.getDate()).padStart(2, '0')}`;
+}
+
+// Ett pass räknas som genomfört när dess sista arbetsdatum redan passerat, eller när
+// företaget skapat en tidrapport för passet. Saknas datum och tidrapport är passet kommande.
+function ärGenomfört(ansökan) {
+  if (ansökan.rapportStatus != null) return true;
+  const schema = parsaArbetstider(ansökan.arbetstider);
+  const datum = (schema || []).map(d => d.datum).filter(Boolean).sort();
+  const sista = datum[datum.length - 1];
+  return sista != null && sista < dagensDatum();
+}
+
 function grupperaPerMånad(pass) {
   const grupper = {};
   pass.forEach(p => {
@@ -37,9 +53,11 @@ export default function MinaPassScreen({ navigation }) {
   useFocusEffect(useCallback(() => { hämta(); }, []));
 
   const godkända = ansökningar.filter(a => a.status === 'godkänd');
-  const genomförda = godkända.filter(a => a.rapportStatus === 'godkänd');
+  // Ett pass är genomfört när dess sista arbetsdatum passerat, eller när en tidrapport
+  // skapats för passet (rapportStatus finns). Övriga godkända pass är kommande.
+  const genomförda = godkända.filter(ärGenomfört);
   const kommande = godkända
-    .filter(a => a.rapportStatus !== 'godkänd')
+    .filter(a => !ärGenomfört(a))
     .sort((a, b) => {
       const datumA = parsaArbetstider(a.arbetstider)?.[0]?.datum;
       const datumB = parsaArbetstider(b.arbetstider)?.[0]?.datum;

@@ -12,7 +12,8 @@ export default function MinaAnsokningarScreen({ navigation }) {
   async function hämta() {
     try {
       const data = await api.minaAnsökningar();
-      setAnsökningar(data);
+      // Filtrera bort godkända ansökningar – de visas under "Mina pass" istället
+      setAnsökningar(data.filter(a => a.status !== 'godkänd'));
     } catch (fel) {
       console.error(fel);
     } finally {
