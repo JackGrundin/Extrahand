@@ -41,11 +41,14 @@ export function AuthProvider({ children }) {
   }
 
   // Frågar om platstillstånd, hittar användarens stad via GPS + reverse geocoding
-  // och sparar den på profilen. Tyst om tillstånd nekas – då anger man staden
-  // manuellt i profilen istället.
+  // och sparar den på profilen. Om tillstånd nekas anger man staden manuellt i
+  // profilen istället. Loggar varje steg så att man kan felsöka om dialogen
+  // uteblir (oftast: appen behöver byggas om efter att expo-location lades till).
   async function begärOchSparaStad() {
     try {
-      const { status } = await Location.requestForegroundPermissionsAsync();
+      console.log('[plats] begär platstillstånd...');
+      const { status, canAskAgain } = await Location.requestForegroundPermissionsAsync();
+      console.log('[plats] tillståndsstatus:', status, 'canAskAgain:', canAskAgain);
       if (status !== 'granted') return;
 
       const position = await Location.getCurrentPositionAsync({
@@ -57,12 +60,15 @@ export function AuthProvider({ children }) {
       });
 
       const stad = plats?.city || plats?.subregion || plats?.region;
+      console.log('[plats] härledd stad:', stad);
       if (!stad) return;
 
       await api.uppdateraStad(stad);
       setAnvändare((prev) => (prev ? { ...prev, stad } : prev));
-    } catch {
-      // Funkar inte i simulator / utan plats – ignorera tyst
+    } catch (fel) {
+      // Vanligast: expo-location saknas i bygget (appen behöver byggas om), eller
+      // körs i en simulator utan plats. Logga så felet inte döljs.
+      console.warn('[plats] kunde inte hämta plats:', fel?.message ?? fel);
     }
   }
 
