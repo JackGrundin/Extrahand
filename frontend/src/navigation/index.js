@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
@@ -9,6 +9,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../context/AuthContext';
 import { useNotifikationer } from '../context/NotifikationsContext';
 import { useAttAvsluta } from '../context/AttAvslutaContext';
+import { useRealtidsPing } from '../context/RealtidsContext';
 import { api } from '../api/klient';
 import LoggaInScreen from '../screens/LoggaInScreen';
 import RegistreraScreen from '../screens/RegistreraScreen';
@@ -186,16 +187,17 @@ function HuvudNavigator() {
   // Välkomstruta som visas en gång direkt efter att en ny privatperson kommit in i appen
   const [visaVälkomst, setVisaVälkomst] = useState(false);
 
+  // Räknar om antalet olästa (röd prick + badge på chattikonen) från servern.
+  const laddaOlästa = useCallback(async () => {
+    if (!användare?.id) return;
+    try {
+      const data = await api.hämtaKonversationer();
+      uppdateraOlästa(data, användare.id);
+    } catch {}
+  }, [användare?.id, uppdateraOlästa]);
+
   // Initialisera badge-räknaren direkt vid inloggning, innan chattlistan öppnats
-  useEffect(() => {
-    async function initOlästa() {
-      try {
-        const data = await api.hämtaKonversationer();
-        uppdateraOlästa(data, användare?.id);
-      } catch {}
-    }
-    if (användare?.id) initOlästa();
-  }, [användare?.id]);
+  useEffect(() => { laddaOlästa(); }, [laddaOlästa]);
 
   // Seed:a antalet pass som behöver avslutas direkt vid inloggning, så badgen syns
   // även innan företaget öppnat Mina jobb-fliken.
@@ -203,15 +205,23 @@ function HuvudNavigator() {
     if (ärFöretag) uppdateraAttAvsluta();
   }, [användare?.id, ärFöretag]);
 
-  // Räkna om badgen varje gång appen kommer tillbaka i förgrunden, så att pass som
-  // hunnit passera medan appen legat i bakgrunden syns direkt.
+  // Äkta realtid: en signal (utan innehåll) på användarens privata kanal räknar om olästa
+  // (och pass-att-avsluta för företag) direkt när något nytt skapats i databasen.
+  useRealtidsPing(() => {
+    laddaOlästa();
+    if (ärFöretag) uppdateraAttAvsluta();
+  });
+
+  // Fallback vid förgrund: om realtidskopplingen tappats medan appen legat i bakgrunden
+  // (vanligt på mobil) hämtas färskt läge direkt när appen öppnas igen.
   useEffect(() => {
-    if (!ärFöretag) return;
     const prenumeration = AppState.addEventListener('change', (status) => {
-      if (status === 'active') uppdateraAttAvsluta();
+      if (status !== 'active') return;
+      laddaOlästa();
+      if (ärFöretag) uppdateraAttAvsluta();
     });
     return () => prenumeration.remove();
-  }, [ärFöretag, uppdateraAttAvsluta]);
+  }, [laddaOlästa, ärFöretag, uppdateraAttAvsluta]);
 
   // Kolla om välkomstrutan ska visas (flagga sätts vid e-postverifiering)
   useEffect(() => {

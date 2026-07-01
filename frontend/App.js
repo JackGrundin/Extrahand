@@ -3,6 +3,7 @@ import * as Notifications from 'expo-notifications';
 import { AuthProvider } from './src/context/AuthContext';
 import { NotifikationsProvider } from './src/context/NotifikationsContext';
 import { AttAvslutaProvider } from './src/context/AttAvslutaContext';
+import { RealtidsProvider } from './src/context/RealtidsContext';
 import Navigation from './src/navigation';
 
 Notifications.setNotificationHandler({
@@ -18,8 +19,10 @@ export default function App() {
     <AuthProvider>
       <NotifikationsProvider>
         <AttAvslutaProvider>
-          <StatusBar style="auto" />
-          <Navigation />
+          <RealtidsProvider>
+            <StatusBar style="auto" />
+            <Navigation />
+          </RealtidsProvider>
         </AttAvslutaProvider>
       </NotifikationsProvider>
     </AuthProvider>

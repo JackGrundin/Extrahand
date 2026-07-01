@@ -3,6 +3,7 @@ const { kräverInloggning } = require('../middleware/auth');
 const { skickaMeddelande, hämtaMeddelanden } = require('../db/meddelanden');
 const { hämtaAnvändareViaId, hämtaPushToken } = require('../db/användare');
 const { skickaNotifikation: skickaRåNotifikation } = require('../utils/pushNotifikation');
+const { sändRealtidsPing } = require('../realtid');
 const { createClient } = require('@supabase/supabase-js');
 const ws = require('ws');
 
@@ -83,6 +84,8 @@ router.post('/:ansokningId', kräverInloggning, async (req, res) => {
     const mottagarId = req.användare.id === ansökan.sokande_id
       ? ansökan.foretag_id
       : ansökan.sokande_id;
+    // Realtidssignal (utan innehåll) så mottagarens app uppdaterar chatt och badge direkt
+    sändRealtidsPing(mottagarId, 'meddelande');
     hämtaAnvändareViaId(req.användare.id)
       .then((avsändare) => skickaNotifikation(mottagarId, avsändare?.Namn ?? 'Någon', innehall.trim()))
       .catch(console.error);

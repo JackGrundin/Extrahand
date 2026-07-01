@@ -10,6 +10,7 @@ import { parsaArbetstider, formatDagDatum, parsaObTillagg } from '../utils/datum
 import ErbjudPassModal from '../components/ErbjudPassModal';
 import JobbforfraganKort from '../components/JobbforfraganKort';
 import PassKort from '../components/PassKort';
+import { useRealtidsPing } from '../context/RealtidsContext';
 
 function TidrapportKort({ rapport, ärPrivatperson, onUppdaterad }) {
   const [sparar, setSparar] = useState(false);
@@ -212,6 +213,10 @@ export default function ChattScreen({ route, navigation }) {
   }
 
   useFocusEffect(useCallback(() => { hämta(); }, []));
+
+  // Realtid för den öppna konversationen: en signal på användarens kanal (nytt meddelande,
+  // tidrapport eller jobbförfrågan) hämtar färsk konversation direkt.
+  useRealtidsPing(() => { hämta(); });
 
   async function skicka() {
     if (!text.trim() || skickar || !aktivAnsokanId) return;

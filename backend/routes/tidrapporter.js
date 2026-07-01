@@ -4,6 +4,7 @@ const { skapaTidrapport, hämtaTidrapportFörAnsökan, hämtaTidrapportViaId, up
 const { hämtaAnsökanViaId } = require('../db/ansokningar');
 const { hämtaJobbViaId } = require('../db/jobb');
 const { hämtaAnvändareViaEmail } = require('../db/användare');
+const { sändRealtidsPing } = require('../realtid');
 
 const router = express.Router();
 
@@ -54,6 +55,9 @@ router.post('/', kräverInloggning, kräverTyp('företag'), async (req, res) => 
     });
 
     res.status(201).json(rapport);
+
+    // Realtidssignal (utan innehåll) till privatpersonen som fått tidrapporten
+    sändRealtidsPing(ansökan.sokande_id, 'tidrapport');
   } catch (fel) {
     if (fel.kod === 409) return res.status(409).json({ fel: fel.message });
     console.error('Tidrapport fel:', fel);
@@ -81,6 +85,10 @@ router.patch('/:id/status', kräverInloggning, kräverTyp('privatperson'), async
   try {
     await uppdateraTidrapportStatus(req.params.id, status);
     res.json({ ok: true });
+
+    // Realtidssignal (utan innehåll) till företaget som skapade tidrapporten
+    const rapport = await hämtaTidrapportViaId(req.params.id);
+    if (rapport?.foretag_id) sändRealtidsPing(rapport.foretag_id, 'tidrapport');
   } catch (fel) {
     console.error('Status fel:', fel);
     res.status(500).json({ fel: 'Serverfel' });

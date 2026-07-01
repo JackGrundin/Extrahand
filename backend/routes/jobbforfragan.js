@@ -11,6 +11,7 @@ const { skapaJobb } = require('../db/jobb');
 const { skapaAnsökan, uppdateraStatus } = require('../db/ansokningar');
 const { hämtaPushToken, hämtaAnvändareViaId } = require('../db/användare');
 const { skickaNotifikation } = require('../utils/pushNotifikation');
+const { sändRealtidsPing } = require('../realtid');
 
 const router = express.Router();
 
@@ -35,6 +36,9 @@ router.post('/', kräverInloggning, kräverTyp('företag'), async (req, res) => 
     });
 
     res.status(201).json(förfrågan);
+
+    // Realtidssignal (utan innehåll) till privatpersonen som fått förfrågan
+    sändRealtidsPing(till_anvandare_id, 'jobbforfragan');
 
     // Notifiera privatpersonen i bakgrunden
     try {
@@ -121,6 +125,9 @@ router.patch('/:id/acceptera', kräverInloggning, kräverTyp('privatperson'), as
 
     res.json({ ok: true, ansokanId: ansökan.id, jobbId: jobb.id });
 
+    // Realtidssignal (utan innehåll) till företaget som skickade förfrågan
+    sändRealtidsPing(förfrågan.fran_anvandare_id, 'jobbforfragan');
+
     // Notifiera företaget
     try {
       const [mottagare, pushToken] = await Promise.all([
@@ -155,6 +162,9 @@ router.patch('/:id/avboj', kräverInloggning, kräverTyp('privatperson'), async 
 
     await uppdateraJobbforfraganStatus(förfrågan.id, 'avslagen');
     res.json({ ok: true });
+
+    // Realtidssignal (utan innehåll) till företaget som skickade förfrågan
+    sändRealtidsPing(förfrågan.fran_anvandare_id, 'jobbforfragan');
   } catch (fel) {
     console.error('Fel vid avböjning av jobbförfrågan:', fel);
     res.status(500).json({ fel: 'Serverfel vid avböjning av jobbförfrågan' });
