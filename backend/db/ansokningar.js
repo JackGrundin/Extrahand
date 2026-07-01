@@ -8,6 +8,24 @@ const supabase = createClient(
   { realtime: { transport: ws } }
 );
 
+// Väver in tidrapporter i "senaste aktivitet" per ansökan. En ny tidrapport ska räknas
+// som ett oläst meddelande, med företaget som avsändare (samma logik som vanliga
+// meddelanden: mottagaren får röd prick och badge, avsändaren gör det inte).
+function vävInTidrapporter(senasteMap, tidrapporter) {
+  for (const r of (tidrapporter || [])) {
+    if (!r.created_at) continue;
+    const befintlig = senasteMap[r.ansokan_id];
+    if (!befintlig || new Date(r.created_at) > new Date(befintlig.created_at)) {
+      senasteMap[r.ansokan_id] = {
+        ansokan_id: r.ansokan_id,
+        avsandare_id: r.foretag_id,
+        created_at: r.created_at,
+        innehall: 'Tidrapport',
+      };
+    }
+  }
+}
+
 async function skapaAnsökan({ jobb_id, sokande_id, meddelande }) {
   const { data, error } = await supabase
     .from('ansokningar')
@@ -34,7 +52,7 @@ async function hämtaAnsökningarFörSökande(sokande_id) {
 
   const [{ data: jobb }, { data: tidrapporter }, { data: meddelanden }] = await Promise.all([
     supabase.from('Jobb').select('*').in('id', jobbIds),
-    supabase.from('tidrapporter').select('ansokan_id, status').in('ansokan_id', ansökningsIds),
+    supabase.from('tidrapporter').select('ansokan_id, status, created_at, foretag_id').in('ansokan_id', ansökningsIds),
     supabase.from('meddelanden').select('ansokan_id, avsandare_id, created_at, innehall').in('ansokan_id', ansökningsIds).order('created_at', { ascending: false }),
   ]);
 
@@ -44,6 +62,7 @@ async function hämtaAnsökningarFörSökande(sokande_id) {
   for (const m of (meddelanden || [])) {
     if (!senasteMap[m.ansokan_id]) senasteMap[m.ansokan_id] = m;
   }
+  vävInTidrapporter(senasteMap, tidrapporter);
 
   const foretagIds = [...new Set(
     (jobb || []).map(j => j.Foretag_id ?? j.foretag_id).filter(id => id != null)
@@ -167,7 +186,7 @@ async function hämtaAllaKonversationerFörFöretag(foretag_id) {
 
   const [{ data: sökande }, { data: tidrapporter }, { data: meddelanden }] = await Promise.all([
     supabase.from('användare').select('id, Namn').in('id', sokandeIds),
-    supabase.from('tidrapporter').select('ansokan_id, status').in('ansokan_id', ansökningsIds),
+    supabase.from('tidrapporter').select('ansokan_id, status, created_at, foretag_id').in('ansokan_id', ansökningsIds),
     supabase.from('meddelanden').select('ansokan_id, avsandare_id, created_at, innehall').in('ansokan_id', ansökningsIds).order('created_at', { ascending: false }),
   ]);
 
@@ -177,6 +196,7 @@ async function hämtaAllaKonversationerFörFöretag(foretag_id) {
   for (const m of (meddelanden || [])) {
     if (!senasteMap[m.ansokan_id]) senasteMap[m.ansokan_id] = m;
   }
+  vävInTidrapporter(senasteMap, tidrapporter);
 
   return ansökningar.map(a => ({
     ...a,
