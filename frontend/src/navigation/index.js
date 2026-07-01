@@ -2,12 +2,13 @@ import { useEffect, useState } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { Modal, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { AppState, Modal, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
 
 import { useAuth } from '../context/AuthContext';
 import { useNotifikationer } from '../context/NotifikationsContext';
+import { useAttAvsluta } from '../context/AttAvslutaContext';
 import { api } from '../api/klient';
 import LoggaInScreen from '../screens/LoggaInScreen';
 import RegistreraScreen from '../screens/RegistreraScreen';
@@ -177,6 +178,7 @@ function RapporterNavigator() {
 function HuvudNavigator() {
   const { användare } = useAuth();
   const { uppdateraOlästa } = useNotifikationer();
+  const { antalAttAvsluta, uppdateraAttAvsluta } = useAttAvsluta();
   const ärPrivatperson = användare?.typ === 'privatperson';
   const ärFöretag = användare?.typ === 'företag';
   const ärAdmin = användare?.email === 'info@fastgig.se';
@@ -194,6 +196,22 @@ function HuvudNavigator() {
     }
     if (användare?.id) initOlästa();
   }, [användare?.id]);
+
+  // Seed:a antalet pass som behöver avslutas direkt vid inloggning, så badgen syns
+  // även innan företaget öppnat Mina jobb-fliken.
+  useEffect(() => {
+    if (ärFöretag) uppdateraAttAvsluta();
+  }, [användare?.id, ärFöretag]);
+
+  // Räkna om badgen varje gång appen kommer tillbaka i förgrunden, så att pass som
+  // hunnit passera medan appen legat i bakgrunden syns direkt.
+  useEffect(() => {
+    if (!ärFöretag) return;
+    const prenumeration = AppState.addEventListener('change', (status) => {
+      if (status === 'active') uppdateraAttAvsluta();
+    });
+    return () => prenumeration.remove();
+  }, [ärFöretag, uppdateraAttAvsluta]);
 
   // Kolla om välkomstrutan ska visas (flagga sätts vid e-postverifiering)
   useEffect(() => {
@@ -240,7 +258,15 @@ function HuvudNavigator() {
         <Tab.Screen name="MinaPassTab" component={MinaPassNavigator} options={{ tabBarLabel: 'Mina pass' }} />
       )}
       {ärFöretag && (
-        <Tab.Screen name="MinaJobbTab" component={MinaJobbNavigator} options={{ tabBarLabel: 'Mina annonser' }} />
+        <Tab.Screen
+          name="MinaJobbTab"
+          component={MinaJobbNavigator}
+          options={{
+            tabBarLabel: 'Mina annonser',
+            tabBarBadge: antalAttAvsluta > 0 ? (antalAttAvsluta > 9 ? '9+' : antalAttAvsluta) : undefined,
+            tabBarBadgeStyle: { backgroundColor: '#ea580c' },
+          }}
+        />
       )}
       {ärFöretag && (
         <Tab.Screen name="PubliceraTab" component={PubliceraNavigator} options={{ tabBarLabel: 'Publicera' }} />

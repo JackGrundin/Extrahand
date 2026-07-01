@@ -2,6 +2,7 @@ import { StatusBar } from 'expo-status-bar';
 import * as Notifications from 'expo-notifications';
 import { AuthProvider } from './src/context/AuthContext';
 import { NotifikationsProvider } from './src/context/NotifikationsContext';
+import { AttAvslutaProvider } from './src/context/AttAvslutaContext';
 import Navigation from './src/navigation';
 
 Notifications.setNotificationHandler({
@@ -16,8 +17,10 @@ export default function App() {
   return (
     <AuthProvider>
       <NotifikationsProvider>
-        <StatusBar style="auto" />
-        <Navigation />
+        <AttAvslutaProvider>
+          <StatusBar style="auto" />
+          <Navigation />
+        </AttAvslutaProvider>
       </NotifikationsProvider>
     </AuthProvider>
   );

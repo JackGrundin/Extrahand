@@ -222,7 +222,15 @@ export default function ChattScreen({ route, navigation }) {
     const poster = [
       ...meddelanden.map((m) => ({ typ: 'meddelande', tid: tidVärde(m.created_at), data: m, key: `m-${m.id}` })),
       ...förfrågningar.map((f) => ({ typ: 'förfrågan', tid: tidVärde(f.skapad_datum), data: f, key: `f-${f.id}` })),
-      ...pass.map((p) => ({ typ: 'pass', tid: tidVärde(p.tidrapport?.created_at ?? p.created_at), data: p, key: `p-${p.id}` })),
+      // Pass med tidrapport placeras efter när rapporten skickades (created_at, annars
+      // datum) så att den hamnar kronologiskt bland meddelandena. Pass utan tidrapport
+      // sorteras efter när passet/ansökan skapades.
+      ...pass.map((p) => ({
+        typ: 'pass',
+        tid: p.tidrapport ? tidVärde(p.tidrapport.created_at ?? p.tidrapport.datum) : tidVärde(p.created_at),
+        data: p,
+        key: `p-${p.id}`,
+      })),
     ];
     poster.sort((a, b) => a.tid - b.tid);
     return poster;

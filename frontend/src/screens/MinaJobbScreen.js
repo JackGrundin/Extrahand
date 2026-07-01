@@ -1,10 +1,11 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { View, Text, FlatList, TouchableOpacity, StyleSheet, ActivityIndicator, RefreshControl, Alert, ActionSheetIOS, Platform } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { api } from '../api/klient';
-import { parsaArbetstider, formatDagDatum } from '../utils/datumHelper';
+import { parsaArbetstider, formatDagDatum, behöverAvslutas, harStartat } from '../utils/datumHelper';
 import { STATUSFÄRGER_TIDRAPPORT as statusFärger } from '../utils/konstanter';
+import { useAttAvsluta } from '../context/AttAvslutaContext';
 
 export default function MinaJobbScreen({ navigation }) {
   const [jobb, setJobb] = useState([]);
@@ -13,6 +14,7 @@ export default function MinaJobbScreen({ navigation }) {
   const [aktivFlik, setAktivFlik] = useState('aktiva');
   const [laddar, setLaddar] = useState(true);
   const [uppdaterar, setUppdaterar] = useState(false);
+  const { setAntalAttAvsluta } = useAttAvsluta();
 
   async function taBort(id) {
     Alert.alert('Ta bort annons', 'Är du säker? Detta går inte att ångra.', [
@@ -71,19 +73,25 @@ export default function MinaJobbScreen({ navigation }) {
 
   useFocusEffect(useCallback(() => { hämta(); }, []));
 
-  if (laddar) return <ActivityIndicator style={{ flex: 1 }} size="large" />;
-
   // Jobb som redan har en tidrapport räknas som avslutade via tidrapporten.
   const avslutadeJobbIds = new Set(tidigarePass.map(p => p.jobbId).filter(Boolean));
-  // Backend levererar jobb med passerade datum separat. De som saknar tidrapport visas
-  // som tidigare pass (precis som i MinaPassScreen för privatpersoner).
+  // Backend levererar jobb med passerade datum separat. Ett pass flyttas till "Tidigare pass"
+  // först när företaget aktivt avslutat det och skapat en tidrapport – passerade jobb utan
+  // tidrapport ligger därför kvar under "Aktiva".
   const passeradeJobbUtanRapport = tidigareJobb.filter(j => !avslutadeJobbIds.has(j.id));
-  const aktivaJobb = jobb.filter(j => !avslutadeJobbIds.has(j.id));
-  // Tidigare pass = tidrapporter + passerade jobb utan tidrapport. _typ skiljer korttyperna.
-  const tidigareLista = [
-    ...tidigarePass.map(p => ({ _typ: 'rapport', ...p })),
-    ...passeradeJobbUtanRapport.map(j => ({ _typ: 'jobb', ...j })),
-  ];
+  const aktivaJobb = [...jobb, ...passeradeJobbUtanRapport].filter(j => !avslutadeJobbIds.has(j.id));
+  // Pass vars sista sluttid passerat måste avslutas – lyft dem överst så de inte missas.
+  const aktivaSorterade = [...aktivaJobb].sort(
+    (a, b) => (behöverAvslutas(b.arbetstider) ? 1 : 0) - (behöverAvslutas(a.arbetstider) ? 1 : 0)
+  );
+  const antalAttAvsluta = aktivaJobb.filter(j => behöverAvslutas(j.arbetstider)).length;
+  // Tidigare pass = enbart tidrapporter (pass som företaget aktivt avslutat).
+  const tidigareLista = tidigarePass.map(p => ({ _typ: 'rapport', ...p }));
+
+  // Håll fliken-badgen i synk med listan (även efter att ett pass avslutats).
+  useEffect(() => { setAntalAttAvsluta(antalAttAvsluta); }, [antalAttAvsluta]);
+
+  if (laddar) return <ActivityIndicator style={{ flex: 1 }} size="large" />;
 
   return (
     <View style={{ flex: 1, backgroundColor: '#f5f5f5' }}>
@@ -109,7 +117,7 @@ export default function MinaJobbScreen({ navigation }) {
       {aktivFlik === 'aktiva' ? (
         <FlatList
           style={styles.lista}
-          data={aktivaJobb}
+          data={aktivaSorterade}
           keyExtractor={(item) => item.id}
           refreshControl={<RefreshControl refreshing={uppdaterar} onRefresh={() => { setUppdaterar(true); hämta(); }} />}
           ListEmptyComponent={
@@ -122,11 +130,20 @@ export default function MinaJobbScreen({ navigation }) {
             const datum = schema ? schema.map(d => d.datum).filter(Boolean) : [];
             const visaDatum = datum.slice(0, 3);
             const flerDatum = datum.length > 3 ? datum.length - 3 : 0;
+            const måsteAvslutas = behöverAvslutas(item.arbetstider);
+            // När passet startat får det inte längre redigeras eller tas bort.
+            const kanÄndras = !harStartat(item.arbetstider);
             return (
               <TouchableOpacity
-                style={styles.kort}
+                style={[styles.kort, måsteAvslutas && styles.kortAttAvsluta]}
                 onPress={() => navigation.navigate('JobbAnsokningar', { jobbId: item.id, titel: item.Titel })}
               >
+                {måsteAvslutas && (
+                  <View style={styles.avslutaBadge}>
+                    <Ionicons name="alert-circle" size={14} color="#fff" />
+                    <Text style={styles.avslutaBadgeText}>Behöver avslutas</Text>
+                  </View>
+                )}
                 <Text style={styles.titel} numberOfLines={1}>{item.Titel}</Text>
 
                 <View style={styles.infoRad}>
@@ -152,9 +169,11 @@ export default function MinaJobbScreen({ navigation }) {
 
                 <View style={styles.kortBotten}>
                   <Text style={styles.seAnsokningar}>Se ansökningar →</Text>
-                  <TouchableOpacity style={styles.menyKnapp} onPress={() => öppnaÅtgärder(item)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-                    <Text style={styles.menyIkon}>•••</Text>
-                  </TouchableOpacity>
+                  {kanÄndras && (
+                    <TouchableOpacity style={styles.menyKnapp} onPress={() => öppnaÅtgärder(item)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+                      <Text style={styles.menyIkon}>•••</Text>
+                    </TouchableOpacity>
+                  )}
                 </View>
               </TouchableOpacity>
             );
@@ -172,39 +191,6 @@ export default function MinaJobbScreen({ navigation }) {
             </View>
           }
           renderItem={({ item }) => {
-            // Passerat jobb utan tidrapport: enklare kort som leder till ansökningar.
-            if (item._typ === 'jobb') {
-              const datum = (parsaArbetstider(item.arbetstider)?.map(d => d.datum).filter(Boolean) ?? []).sort();
-              // Saknas arbetsdatum (gammalt jobb): visa när jobbet publicerades istället.
-              const sista = datum.length > 0
-                ? formatDagDatum(datum[datum.length - 1])
-                : (item.created_at ? new Date(item.created_at).toLocaleDateString('sv-SE') : null);
-              return (
-                <TouchableOpacity
-                  style={styles.passKort}
-                  onPress={() => navigation.navigate('JobbAnsokningar', { jobbId: item.id, titel: item.Titel })}
-                >
-                  <View style={styles.passKortHuvud}>
-                    <View style={{ flex: 1 }}>
-                      <Text style={styles.passTitel}>{item.Titel ?? '–'}</Text>
-                      {item.Plats && <Text style={styles.passNamn}>{item.Plats}</Text>}
-                    </View>
-                    <View style={[styles.statusBricka, { backgroundColor: statusFärger.väntar.bg }]}>
-                      <Text style={[styles.statusText, { color: statusFärger.väntar.text }]}>Tidrapport saknas</Text>
-                    </View>
-                  </View>
-                  {sista && (
-                    <View style={styles.datumRad}>
-                      <Ionicons name="calendar" size={14} color="#2563eb" />
-                      <View style={styles.datumChip}>
-                        <Text style={styles.datumChipText}>{sista}</Text>
-                      </View>
-                    </View>
-                  )}
-                  <Text style={styles.seAnsokningar}>Se ansökningar →</Text>
-                </TouchableOpacity>
-              );
-            }
             const färg = statusFärger[item.status] ?? statusFärger.väntar;
             return (
               <View style={styles.passKort}>
@@ -252,6 +238,9 @@ const styles = StyleSheet.create({
   lista: { flex: 1, padding: 16 },
   // Aktiva jobb
   kort: { backgroundColor: '#fff', borderRadius: 12, padding: 16, marginBottom: 12, shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 4, elevation: 2 },
+  kortAttAvsluta: { borderWidth: 1.5, borderColor: '#ea580c' },
+  avslutaBadge: { flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-start', gap: 4, backgroundColor: '#ea580c', borderRadius: 8, paddingHorizontal: 8, paddingVertical: 4, marginBottom: 8 },
+  avslutaBadgeText: { color: '#fff', fontSize: 12, fontWeight: '700' },
   titel: { fontSize: 16, fontWeight: '700', color: '#1a1a1a', marginBottom: 6 },
   infoRad: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 8 },
   info: { fontSize: 14, color: '#666' },

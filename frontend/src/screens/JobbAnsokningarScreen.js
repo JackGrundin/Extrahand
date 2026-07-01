@@ -3,10 +3,10 @@ import { View, Text, FlatList, TouchableOpacity, StyleSheet, ActivityIndicator, 
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import { api } from '../api/klient';
-import { parsaObTillagg, beräknaObBelopp } from '../utils/datumHelper';
+import { parsaObTillagg, beräknaObBelopp, harStartat } from '../utils/datumHelper';
 import TidVäljare from '../components/TidVäljare';
 
-function StatusKnappar({ item, onUppdaterad, onAvsluta, navigation }) {
+function StatusKnappar({ item, onUppdaterad, onAvsluta, navigation, tidigare, startat }) {
   const [sparar, setSparar] = useState(false);
 
   async function godkänn() {
@@ -45,9 +45,12 @@ function StatusKnappar({ item, onUppdaterad, onAvsluta, navigation }) {
           </TouchableOpacity>
         </View>
         <View style={styles.godkändBottomRad}>
-          <TouchableOpacity onPress={återkalla} disabled={sparar}>
-            <Text style={styles.återkallaText}>Ta tillbaka godkännandet</Text>
-          </TouchableOpacity>
+          {/* "Ta tillbaka godkännandet" döljs för tidigare/passerade pass och när passet startat */}
+          {!tidigare && !startat && (
+            <TouchableOpacity onPress={återkalla} disabled={sparar}>
+              <Text style={styles.återkallaText}>Ta tillbaka godkännandet</Text>
+            </TouchableOpacity>
+          )}
           <TouchableOpacity onPress={() => navigation.navigate('Betygsatt', { ansokningId: item.id })}>
             <Text style={styles.betygsättText}>Betygsätt →</Text>
           </TouchableOpacity>
@@ -79,7 +82,7 @@ function StatusKnappar({ item, onUppdaterad, onAvsluta, navigation }) {
 }
 
 export default function JobbAnsokningarScreen({ route, navigation }) {
-  const { jobbId } = route.params;
+  const { jobbId, tidigare } = route.params;
   const [ansökningar, setAnsökningar] = useState([]);
   const [avslutadeIds, setAvslutadeIds] = useState(new Set());
   const [jobb, setJobb] = useState(null);
@@ -198,7 +201,7 @@ export default function JobbAnsokningarScreen({ route, navigation }) {
             <TouchableOpacity onPress={() => navigation.navigate('SökanadeProfil', { sokandeId: item.sokande_id, ansokningId: item.id })} style={styles.profilLänkRad}>
               <Text style={styles.chattLänk}>Visa profil →</Text>
             </TouchableOpacity>
-            <StatusKnappar item={item} onUppdaterad={hämta} onAvsluta={öppnaAvsluta} navigation={navigation} />
+            <StatusKnappar item={item} onUppdaterad={hämta} onAvsluta={öppnaAvsluta} navigation={navigation} tidigare={tidigare} startat={harStartat(jobb?.arbetstider)} />
           </TouchableOpacity>
         )}
       />

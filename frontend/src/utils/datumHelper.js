@@ -15,6 +15,44 @@ export function formatDagDatum(isoStr) {
   return new Date(isoStr + 'T12:00:00').toLocaleDateString('sv-SE', { day: 'numeric', month: 'short' });
 }
 
+// Sista sluttidpunkten för ett pass (Date), eller null om inga datum finns.
+export function passSlutTidpunkt(arbetstider) {
+  const schema = parsaArbetstider(arbetstider);
+  if (!schema) return null;
+  const dagar = schema.filter(d => d?.datum);
+  if (dagar.length === 0) return null;
+  // Sista arbetsdagen avgör när hela passet är slut.
+  const sista = dagar.reduce((a, b) => (b.datum > a.datum ? b : a));
+  // Saknas sluttid antar vi dygnets slut så vi inte flaggar passet för tidigt.
+  const slut = /^\d{1,2}:\d{2}$/.test(sista.slut ?? '') ? sista.slut.padStart(5, '0') : '23:59';
+  return new Date(`${sista.datum}T${slut}:00`);
+}
+
+// Första starttidpunkten för ett pass (Date), eller null om inga datum finns.
+export function passStartTidpunkt(arbetstider) {
+  const schema = parsaArbetstider(arbetstider);
+  if (!schema) return null;
+  const dagar = schema.filter(d => d?.datum);
+  if (dagar.length === 0) return null;
+  // Första arbetsdagen avgör när passet börjar.
+  const första = dagar.reduce((a, b) => (b.datum < a.datum ? b : a));
+  // Saknas starttid antar vi dygnets början.
+  const start = /^\d{1,2}:\d{2}$/.test(första.start ?? '') ? första.start.padStart(5, '0') : '00:00';
+  return new Date(`${första.datum}T${start}:00`);
+}
+
+// Passet har startat när första starttiden har passerat.
+export function harStartat(arbetstider) {
+  const start = passStartTidpunkt(arbetstider);
+  return start != null && start.getTime() < Date.now();
+}
+
+// Ett pass behöver avslutas när sista sluttiden har passerat (tidrapport saknas fortfarande).
+export function behöverAvslutas(arbetstider) {
+  const slut = passSlutTidpunkt(arbetstider);
+  return slut != null && slut.getTime() < Date.now();
+}
+
 export function parsaObTillagg(ob) {
   if (!ob) return [];
   if (Array.isArray(ob)) return ob;
