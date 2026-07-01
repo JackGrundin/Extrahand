@@ -100,6 +100,12 @@ function TidrapportKort({ rapport, ärPrivatperson, onUppdaterad }) {
           </TouchableOpacity>
         </View>
       )}
+
+      {rapport.created_at && !Number.isNaN(new Date(rapport.created_at).getTime()) && (
+        <Text style={styles.rapportTid}>
+          {new Date(rapport.created_at).toLocaleTimeString('sv-SE', { hour: '2-digit', minute: '2-digit' })}
+        </Text>
+      )}
     </View>
   );
 }
@@ -154,6 +160,14 @@ export default function ChattScreen({ route, navigation }) {
     return null;
   }
 
+  // Scrollar till botten av tidslinjen. Retries fångar att pass-/tidrapportkorten
+  // längst ned mäts klart först efter första scrollen (variabel höjd).
+  const scrollaTillBotten = useCallback((animated = false) => {
+    requestAnimationFrame(() => listRef.current?.scrollToEnd({ animated }));
+    setTimeout(() => listRef.current?.scrollToEnd({ animated }), 150);
+    setTimeout(() => listRef.current?.scrollToEnd({ animated }), 400);
+  }, []);
+
   async function hämta() {
     const id = await bestämMotpart();
     if (id == null) { setLaddar(false); setUppdaterar(false); return; }
@@ -176,6 +190,8 @@ export default function ChattScreen({ route, navigation }) {
     markeraLäst(String(id));
     setLaddar(false);
     setUppdaterar(false);
+    // Chatten ska alltid öppnas längst ned i konversationen.
+    scrollaTillBotten(false);
   }
 
   async function skickaFörfrågan(data) {
@@ -204,7 +220,7 @@ export default function ChattScreen({ route, navigation }) {
       const nytt = await api.skicka(aktivAnsokanId, { innehall: text.trim() });
       setMeddelanden((prev) => [...prev, nytt]);
       setText('');
-      setTimeout(() => listRef.current?.scrollToEnd({ animated: true }), 100);
+      scrollaTillBotten(true);
     } catch (fel) {
       console.error(fel);
     } finally {
@@ -353,6 +369,7 @@ const styles = StyleSheet.create({
   totalRad: { borderTopWidth: 1, borderTopColor: '#eee', paddingTop: 8, marginTop: 4 },
   totalEtikett: { fontSize: 15, fontWeight: '700', color: '#1a1a1a' },
   totalVärde: { fontSize: 15, fontWeight: '700', color: '#2563eb' },
+  rapportTid: { fontSize: 11, color: '#aaa', marginTop: 10, textAlign: 'right' },
   rapportKnappar: { flexDirection: 'row', gap: 10 },
   bestridKnapp: { flex: 1, borderWidth: 1, borderColor: '#ef4444', borderRadius: 10, paddingVertical: 10, alignItems: 'center' },
   bestridText: { color: '#ef4444', fontWeight: '600', fontSize: 14 },
