@@ -161,7 +161,6 @@ function TidrapportKort({ rapport, ärPrivatperson, ärSenaste, onUppdaterad }) 
         <View style={styles.modalBakgrund}>
           <View style={styles.modalKort}>
             <Text style={styles.modalRubrik}>Bestrid tidrapport</Text>
-            <Text style={styles.modalText}>Förklara varför tidrapporten inte stämmer, t.ex. "Jag jobbade 8 timmar inte 6".</Text>
             <TextInput
               style={styles.modalInput}
               placeholder="Förklara vad som inte stämmer med tidrapporten"
@@ -508,7 +507,6 @@ const styles = StyleSheet.create({
   modalBakgrund: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'center', padding: 24 },
   modalKort: { backgroundColor: '#fff', borderRadius: 16, padding: 20 },
   modalRubrik: { fontSize: 17, fontWeight: '700', color: '#1a1a1a', marginBottom: 8 },
-  modalText: { fontSize: 14, color: '#666', lineHeight: 20, marginBottom: 14 },
   modalInput: { borderWidth: 1, borderColor: '#ddd', borderRadius: 10, padding: 12, fontSize: 15, minHeight: 48, textAlignVertical: 'top', marginBottom: 16 },
   modalKnappar: { flexDirection: 'row', gap: 10 },
   modalAvbryt: { flex: 1, borderWidth: 1, borderColor: '#ddd', borderRadius: 10, paddingVertical: 12, alignItems: 'center' },
