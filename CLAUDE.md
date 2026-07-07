@@ -10,15 +10,19 @@ Plattform som kopplar samman företag och privatpersoner för kortare jobbpass o
 - Privatpersoner blockeras från att ansöka tills avtal är godkänt (avtal_godkant = true)
 - E-postverifiering via Resend (noreply@fastgig.se) krävs vid registrering
 - Backend körs på Railway via api.fastgig.se
-- Supabase-tabeller: användare, Jobb, ansokningar, meddelanden, betyg, tidrapporter, faktureringsunderlag
+- Realtidsuppdateringar via Supabase Broadcast (meddelanden, tidrapporter, ansökningar, betyg, jobbförfrågningar)
+- Supabase-tabeller: användare, Jobb, ansokningar, meddelanden, betyg, tidrapporter, faktureringsunderlag, jobbforfragan
+- Jobb försvinner från listan när någon blivit godkänd eller datumet passerat
+- Bestridandeflöde: privatperson bestrider → förklaring sparas → företag skickar korrigerad tidrapport
 
 ## Tech stack
 - Backend: Node.js med Express, REST API
 - Databas: PostgreSQL via Supabase
 - Frontend: React Native med Expo (mobilapp)
-- Auth: JWT-tokens
+- Auth: JWT-tokens (eget system med bcrypt)
 - Hosting: Railway (backend via api.fastgig.se), Supabase (databas)
 - Mejl: Resend (noreply@fastgig.se)
+- Realtid: Supabase Broadcast
 
 ## Kodstil
 - Använd async/await, inte callbacks
@@ -30,10 +34,12 @@ Plattform som kopplar samman företag och privatpersoner för kortare jobbpass o
 /routes     → API-endpoints
 /middleware → Auth-kontroll
 /db         → Databasanrop
+/db/migrations → SQL-migrationer
 
 ## Mappstruktur frontend
 /src/screens    → Alla skärmar
 /src/api        → klient.js – alla API-anrop
-/src/context    → AuthContext, NotifikationsContext
+/src/context    → AuthContext, NotifikationsContext, RealtidsContext
 /src/navigation → Navigationsstruktur
 /src/utils      → datumHelper.js, konstanter.js
+/src/components → Återanvändbara komponenter
