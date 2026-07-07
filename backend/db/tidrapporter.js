@@ -8,8 +8,12 @@ const supabase = createClient(
 );
 
 async function skapaTidrapport({ ansokan_id, foretag_id, anvandare_id, datum, timmar, timlon, ob_belopp, ob_tillagg, totalt_belopp }) {
+  // Blockera bara om det redan finns en aktiv tidrapport (väntar på svar eller godkänd).
+  // En bestridd tidrapport får ersättas av en ny korrigerad rapport.
   const befintlig = await hämtaTidrapportFörAnsökan(ansokan_id);
-  if (befintlig) throw Object.assign(new Error('En tidrapport finns redan för denna ansökan'), { kod: 409 });
+  if (befintlig && befintlig.status !== 'bestridd') {
+    throw Object.assign(new Error('En aktiv tidrapport finns redan för denna ansökan'), { kod: 409 });
+  }
 
   const { data, error } = await supabase
     .from('tidrapporter')
@@ -21,21 +25,27 @@ async function skapaTidrapport({ ansokan_id, foretag_id, anvandare_id, datum, ti
   return data;
 }
 
+// Returnerar den senaste tidrapporten för en ansökan (det kan nu finnas flera, där
+// äldre är bestridda och ersatta av korrigerade rapporter).
 async function hämtaTidrapportFörAnsökan(ansokan_id) {
   const { data, error } = await supabase
     .from('tidrapporter')
     .select('*')
     .eq('ansokan_id', ansokan_id)
+    .order('created_at', { ascending: false })
+    .limit(1)
     .maybeSingle();
 
   if (error) throw error;
   return data;
 }
 
-async function uppdateraTidrapportStatus(id, status) {
+async function uppdateraTidrapportStatus(id, status, bestridande_orsak) {
+  const fält = { status };
+  if (status === 'bestridd') fält.bestridande_orsak = bestridande_orsak ?? null;
   const { error } = await supabase
     .from('tidrapporter')
-    .update({ status })
+    .update(fält)
     .eq('id', id);
 
   if (error) throw error;
@@ -77,14 +87,25 @@ async function hämtaAllaTidrapporter({ fromDate, toDate } = {}) {
 }
 
 async function hämtaTidrapporterFörFöretag(foretagId) {
-  const { data: rapporter, error } = await supabase
+  const { data: allaRapporter, error } = await supabase
     .from('tidrapporter')
     .select('*')
     .eq('foretag_id', foretagId)
     .order('datum', { ascending: false });
 
   if (error) throw error;
-  if (!rapporter || !rapporter.length) return [];
+  if (!allaRapporter || !allaRapporter.length) return [];
+
+  // En ansökan kan ha flera tidrapporter (bestridd + korrigerad). Visa bara den
+  // senaste per ansökan så att "Tidigare pass" inte dubbleras.
+  const senastePerAnsökan = {};
+  for (const r of allaRapporter) {
+    const befintlig = senastePerAnsökan[r.ansokan_id];
+    if (!befintlig || new Date(r.created_at ?? r.datum) > new Date(befintlig.created_at ?? befintlig.datum)) {
+      senastePerAnsökan[r.ansokan_id] = r;
+    }
+  }
+  const rapporter = Object.values(senastePerAnsökan);
 
   const ansokanIds = rapporter.map(r => r.ansokan_id);
   const anvandareIds = [...new Set(rapporter.map(r => r.anvandare_id))];

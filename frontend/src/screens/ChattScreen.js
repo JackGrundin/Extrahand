@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef, useCallback, useMemo } from 'react';
-import { View, Text, FlatList, ScrollView, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform, ActivityIndicator, Alert, RefreshControl } from 'react-native';
+import { View, Text, FlatList, ScrollView, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform, ActivityIndicator, Alert, RefreshControl, Modal } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { api } from '../api/klient';
@@ -12,13 +12,55 @@ import JobbforfraganKort from '../components/JobbforfraganKort';
 import PassKort from '../components/PassKort';
 import { useRealtidsPing } from '../context/RealtidsContext';
 
-function TidrapportKort({ rapport, ärPrivatperson, onUppdaterad }) {
+function TidrapportKort({ rapport, ärPrivatperson, ärSenaste, onUppdaterad }) {
   const [sparar, setSparar] = useState(false);
+  const [bestridVisas, setBestridVisas] = useState(false);
+  const [bestridText, setBestridText] = useState('');
+  const [korrigeraVisas, setKorrigeraVisas] = useState(false);
+  const [korrigeraTimmar, setKorrigeraTimmar] = useState(String(rapport.timmar ?? ''));
 
-  async function hantera(status) {
+  async function godkänn() {
     setSparar(true);
     try {
-      await api.uppdateraTidrapportStatus(rapport.id, status);
+      await api.uppdateraTidrapportStatus(rapport.id, 'godkänd');
+      onUppdaterad();
+    } catch (fel) {
+      Alert.alert('Fel', fel.message);
+    } finally {
+      setSparar(false);
+    }
+  }
+
+  async function skickaBestridande() {
+    const orsak = bestridText.trim();
+    if (!orsak) {
+      Alert.alert('Fel', 'Skriv en förklaring till varför du bestrider tidrapporten.');
+      return;
+    }
+    setSparar(true);
+    try {
+      await api.bestridTidrapport(rapport.id, orsak);
+      setBestridVisas(false);
+      setBestridText('');
+      onUppdaterad();
+    } catch (fel) {
+      Alert.alert('Fel', fel.message);
+    } finally {
+      setSparar(false);
+    }
+  }
+
+  async function skickaKorrigering() {
+    const timmar = parseFloat(String(korrigeraTimmar).replace(',', '.'));
+    if (!timmar || timmar <= 0) {
+      Alert.alert('Fel', 'Ange ett giltigt antal timmar');
+      return;
+    }
+    setSparar(true);
+    try {
+      // Ny korrigerad tidrapport för samma pass – behåller OB-tilläggen från originalet.
+      await api.skapaRapport({ ansokan_id: rapport.ansokan_id, timmar, ob_tillagg: parsaObTillagg(rapport.ob_tillagg) });
+      setKorrigeraVisas(false);
       onUppdaterad();
     } catch (fel) {
       Alert.alert('Fel', fel.message);
@@ -83,18 +125,25 @@ function TidrapportKort({ rapport, ärPrivatperson, onUppdaterad }) {
         </View>
       </View>
 
+      {rapport.status === 'bestridd' && rapport.bestridande_orsak ? (
+        <View style={styles.bestridandeRuta}>
+          <Text style={styles.bestridandeRubrik}>Bestriden</Text>
+          <Text style={styles.bestridandeText}>{rapport.bestridande_orsak}</Text>
+        </View>
+      ) : null}
+
       {ärPrivatperson && rapport.status === 'väntar' && (
         <View style={styles.rapportKnappar}>
           <TouchableOpacity
             style={[styles.bestridKnapp, sparar && { opacity: 0.5 }]}
-            onPress={() => hantera('bestridd')}
+            onPress={() => setBestridVisas(true)}
             disabled={sparar}
           >
             <Text style={styles.bestridText}>Bestrid</Text>
           </TouchableOpacity>
           <TouchableOpacity
             style={[styles.godkännKnapp, sparar && { opacity: 0.5 }]}
-            onPress={() => hantera('godkänd')}
+            onPress={godkänn}
             disabled={sparar}
           >
             <Text style={styles.godkännText}>Godkänn</Text>
@@ -102,11 +151,74 @@ function TidrapportKort({ rapport, ärPrivatperson, onUppdaterad }) {
         </View>
       )}
 
+      {!ärPrivatperson && rapport.status === 'bestridd' && ärSenaste && (
+        <TouchableOpacity
+          style={[styles.korrigeraKnapp, sparar && { opacity: 0.5 }]}
+          onPress={() => { setKorrigeraTimmar(String(rapport.timmar ?? '')); setKorrigeraVisas(true); }}
+          disabled={sparar}
+        >
+          <Ionicons name="create-outline" size={16} color="#2563eb" />
+          <Text style={styles.korrigeraText}>Skicka korrigerad tidrapport</Text>
+        </TouchableOpacity>
+      )}
+
       {rapport.created_at && !Number.isNaN(new Date(rapport.created_at).getTime()) && (
         <Text style={styles.rapportTid}>
           {new Date(rapport.created_at).toLocaleTimeString('sv-SE', { hour: '2-digit', minute: '2-digit' })}
         </Text>
       )}
+
+      {/* Ruta där privatpersonen förklarar varför tidrapporten bestrids */}
+      <Modal visible={bestridVisas} transparent animationType="fade" onRequestClose={() => setBestridVisas(false)}>
+        <View style={styles.modalBakgrund}>
+          <View style={styles.modalKort}>
+            <Text style={styles.modalRubrik}>Bestrid tidrapport</Text>
+            <Text style={styles.modalText}>Förklara varför tidrapporten inte stämmer, t.ex. "Jag jobbade 8 timmar inte 6".</Text>
+            <TextInput
+              style={styles.modalInput}
+              placeholder="Din förklaring..."
+              value={bestridText}
+              onChangeText={setBestridText}
+              multiline
+              autoFocus
+            />
+            <View style={styles.modalKnappar}>
+              <TouchableOpacity style={styles.modalAvbryt} onPress={() => setBestridVisas(false)} disabled={sparar}>
+                <Text style={styles.modalAvbrytText}>Avbryt</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={[styles.modalSkicka, sparar && { opacity: 0.5 }]} onPress={skickaBestridande} disabled={sparar}>
+                <Text style={styles.modalSkickaText}>Skicka</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Ruta där företaget anger nya timmar för en korrigerad tidrapport */}
+      <Modal visible={korrigeraVisas} transparent animationType="fade" onRequestClose={() => setKorrigeraVisas(false)}>
+        <View style={styles.modalBakgrund}>
+          <View style={styles.modalKort}>
+            <Text style={styles.modalRubrik}>Korrigerad tidrapport</Text>
+            <Text style={styles.modalText}>Ange rätt antal timmar. Eventuella OB-tillägg från den ursprungliga rapporten behålls.</Text>
+            <TextInput
+              style={styles.modalInput}
+              placeholder="Antal timmar"
+              value={korrigeraTimmar}
+              onChangeText={setKorrigeraTimmar}
+              keyboardType="decimal-pad"
+              autoFocus
+            />
+            <View style={styles.modalKnappar}>
+              <TouchableOpacity style={styles.modalAvbryt} onPress={() => setKorrigeraVisas(false)} disabled={sparar}>
+                <Text style={styles.modalAvbrytText}>Avbryt</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={[styles.modalSkicka, sparar && { opacity: 0.5 }]} onPress={skickaKorrigering} disabled={sparar}>
+                <Text style={styles.modalSkickaText}>Skicka</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -243,15 +355,22 @@ export default function ChattScreen({ route, navigation }) {
     const poster = [
       ...meddelanden.map((m) => ({ typ: 'meddelande', tid: tidVärde(m.created_at), data: m, key: `m-${m.id}` })),
       ...förfrågningar.map((f) => ({ typ: 'förfrågan', tid: tidVärde(f.skapad_datum), data: f, key: `f-${f.id}` })),
-      // Pass med tidrapport placeras efter när rapporten skickades (created_at, annars
-      // datum) så att den hamnar kronologiskt bland meddelandena. Pass utan tidrapport
-      // sorteras efter när passet/ansökan skapades.
-      ...pass.map((p) => ({
-        typ: 'pass',
-        tid: p.tidrapport ? tidVärde(p.tidrapport.created_at ?? p.tidrapport.datum) : tidVärde(p.created_at),
-        data: p,
-        key: `p-${p.id}`,
-      })),
+      // Varje tidrapport (det kan finnas flera per pass: bestridda + korrigerade) placeras
+      // efter när den skickades (created_at, annars datum) så att den hamnar kronologiskt
+      // bland meddelandena. Pass utan tidrapport sorteras efter när passet/ansökan skapades.
+      ...pass.flatMap((p) => {
+        const rapporter = p.tidrapporter ?? (p.tidrapport ? [p.tidrapport] : []);
+        if (!rapporter.length) {
+          return [{ typ: 'pass', tid: tidVärde(p.created_at), data: p, key: `p-${p.id}` }];
+        }
+        return rapporter.map((r, i) => ({
+          typ: 'tidrapport',
+          tid: tidVärde(r.created_at ?? r.datum),
+          data: r,
+          ärSenaste: i === rapporter.length - 1,
+          key: `t-${r.id}`,
+        }));
+      }),
     ];
     poster.sort((a, b) => a.tid - b.tid);
     return poster;
@@ -292,16 +411,18 @@ export default function ChattScreen({ route, navigation }) {
               />
             );
           }
-          if (item.typ === 'pass') {
-            return item.data.tidrapport ? (
+          if (item.typ === 'tidrapport') {
+            return (
               <TidrapportKort
-                rapport={item.data.tidrapport}
+                rapport={item.data}
                 ärPrivatperson={ärPrivatperson}
+                ärSenaste={item.ärSenaste}
                 onUppdaterad={hämta}
               />
-            ) : (
-              <PassKort pass={item.data} />
             );
+          }
+          if (item.typ === 'pass') {
+            return <PassKort pass={item.data} />;
           }
           const m = item.data;
           const ärMitt = m.avsandare_id === användare?.id;
@@ -380,6 +501,21 @@ const styles = StyleSheet.create({
   bestridText: { color: '#ef4444', fontWeight: '600', fontSize: 14 },
   godkännKnapp: { flex: 1, backgroundColor: '#16a34a', borderRadius: 10, paddingVertical: 10, alignItems: 'center' },
   godkännText: { color: '#fff', fontWeight: '600', fontSize: 14 },
+  bestridandeRuta: { backgroundColor: '#fef2f2', borderRadius: 8, padding: 10, marginBottom: 12, borderWidth: 1, borderColor: '#fecaca' },
+  bestridandeRubrik: { fontSize: 12, fontWeight: '700', color: '#dc2626', marginBottom: 4 },
+  bestridandeText: { fontSize: 14, color: '#7f1d1d', lineHeight: 20 },
+  korrigeraKnapp: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, borderWidth: 1, borderColor: '#2563eb', borderRadius: 10, paddingVertical: 10 },
+  korrigeraText: { color: '#2563eb', fontWeight: '600', fontSize: 14 },
+  modalBakgrund: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'center', padding: 24 },
+  modalKort: { backgroundColor: '#fff', borderRadius: 16, padding: 20 },
+  modalRubrik: { fontSize: 17, fontWeight: '700', color: '#1a1a1a', marginBottom: 8 },
+  modalText: { fontSize: 14, color: '#666', lineHeight: 20, marginBottom: 14 },
+  modalInput: { borderWidth: 1, borderColor: '#ddd', borderRadius: 10, padding: 12, fontSize: 15, minHeight: 48, textAlignVertical: 'top', marginBottom: 16 },
+  modalKnappar: { flexDirection: 'row', gap: 10 },
+  modalAvbryt: { flex: 1, borderWidth: 1, borderColor: '#ddd', borderRadius: 10, paddingVertical: 12, alignItems: 'center' },
+  modalAvbrytText: { color: '#666', fontWeight: '600', fontSize: 15 },
+  modalSkicka: { flex: 1, backgroundColor: '#2563eb', borderRadius: 10, paddingVertical: 12, alignItems: 'center' },
+  modalSkickaText: { color: '#fff', fontWeight: '600', fontSize: 15 },
   obSektion: { backgroundColor: '#fff7ed', borderRadius: 8, padding: 10, marginVertical: 4, borderWidth: 1, borderColor: '#fed7aa' },
   obRubrik: { fontSize: 12, fontWeight: '700', color: '#9a3412', marginBottom: 6 },
   obRad: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 2 },

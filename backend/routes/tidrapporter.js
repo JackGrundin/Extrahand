@@ -3,7 +3,9 @@ const { kräverInloggning, kräverTyp } = require('../middleware/auth');
 const { skapaTidrapport, hämtaTidrapportFörAnsökan, hämtaTidrapportViaId, uppdateraTidrapportStatus, hämtaAllaTidrapporter, hämtaTidrapporterFörFöretag, markeraTidrapportBetald } = require('../db/tidrapporter');
 const { hämtaAnsökanViaId } = require('../db/ansokningar');
 const { hämtaJobbViaId } = require('../db/jobb');
-const { hämtaAnvändareViaEmail } = require('../db/användare');
+const { hämtaAnvändareViaEmail, hämtaAnvändareViaId, hämtaPushToken } = require('../db/användare');
+const { skickaMeddelande } = require('../db/meddelanden');
+const { skickaNotifikation } = require('../utils/pushNotifikation');
 const { sändRealtidsPing } = require('../realtid');
 
 const router = express.Router();
@@ -58,6 +60,12 @@ router.post('/', kräverInloggning, kräverTyp('företag'), async (req, res) => 
 
     // Realtidssignal (utan innehåll) till privatpersonen som fått tidrapporten
     sändRealtidsPing(ansökan.sokande_id, 'tidrapport');
+
+    // Push-notis till privatpersonen om att en tidrapport finns att granska (i bakgrunden)
+    (async () => {
+      const token = await hämtaPushToken(ansökan.sokande_id);
+      await skickaNotifikation(token, 'Ny tidrapport', 'Du har fått en tidrapport att granska.');
+    })().catch(console.error);
   } catch (fel) {
     if (fel.kod === 409) return res.status(409).json({ fel: fel.message });
     console.error('Tidrapport fel:', fel);
@@ -78,17 +86,48 @@ router.get('/ansokan/:ansokningId', kräverInloggning, async (req, res) => {
 
 // PATCH /api/tidrapporter/:id/status — privatperson godkänner eller bestrider
 router.patch('/:id/status', kräverInloggning, kräverTyp('privatperson'), async (req, res) => {
-  const { status } = req.body;
+  const { status, orsak } = req.body;
   if (!['godkänd', 'bestridd'].includes(status)) {
     return res.status(400).json({ fel: 'Status måste vara godkänd eller bestridd' });
   }
+  // Ett bestridande måste ha en förklaring så att företaget vet vad som är fel.
+  const förklaring = typeof orsak === 'string' ? orsak.trim() : '';
+  if (status === 'bestridd' && !förklaring) {
+    return res.status(400).json({ fel: 'En förklaring krävs vid bestridande' });
+  }
+
   try {
-    await uppdateraTidrapportStatus(req.params.id, status);
+    const rapport = await hämtaTidrapportViaId(req.params.id);
+    if (!rapport) return res.status(404).json({ fel: 'Tidrapport hittades inte' });
+    // Bara privatpersonen som rapporten gäller får ändra status.
+    if (rapport.anvandare_id !== req.användare.id) {
+      return res.status(403).json({ fel: 'Åtkomst nekad' });
+    }
+
+    await uppdateraTidrapportStatus(req.params.id, status, förklaring);
     res.json({ ok: true });
 
     // Realtidssignal (utan innehåll) till företaget som skapade tidrapporten
-    const rapport = await hämtaTidrapportViaId(req.params.id);
-    if (rapport?.foretag_id) sändRealtidsPing(rapport.foretag_id, 'tidrapport');
+    if (rapport.foretag_id) sändRealtidsPing(rapport.foretag_id, 'tidrapport');
+
+    // Vid bestridande: lägg förklaringen som ett meddelande i chatten och notera företaget.
+    if (status === 'bestridd') {
+      (async () => {
+        // Förklaringen visas som ett vanligt chattmeddelande från privatpersonen.
+        await skickaMeddelande({
+          ansokan_id: rapport.ansokan_id,
+          avsandare_id: req.användare.id,
+          innehall: `Bestrider tidrapporten: ${förklaring}`,
+        });
+        // Signalera företaget om det nya meddelandet (chatt och badge uppdateras direkt).
+        if (rapport.foretag_id) sändRealtidsPing(rapport.foretag_id, 'meddelande');
+
+        const token = await hämtaPushToken(rapport.foretag_id);
+        const avsändare = await hämtaAnvändareViaId(req.användare.id);
+        const namn = avsändare?.Namn ?? 'Arbetstagaren';
+        await skickaNotifikation(token, 'Tidrapport bestriden', `${namn}: ${förklaring}`);
+      })().catch(console.error);
+    }
   } catch (fel) {
     console.error('Status fel:', fel);
     res.status(500).json({ fel: 'Serverfel' });

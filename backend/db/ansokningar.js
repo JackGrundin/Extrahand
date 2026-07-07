@@ -52,7 +52,7 @@ async function hämtaAnsökningarFörSökande(sokande_id) {
 
   const [{ data: jobb }, { data: tidrapporter }, { data: meddelanden }] = await Promise.all([
     supabase.from('Jobb').select('*').in('id', jobbIds),
-    supabase.from('tidrapporter').select('ansokan_id, status, created_at, foretag_id').in('ansokan_id', ansökningsIds),
+    supabase.from('tidrapporter').select('ansokan_id, status, created_at, foretag_id').in('ansokan_id', ansökningsIds).order('created_at', { ascending: true }),
     supabase.from('meddelanden').select('ansokan_id, avsandare_id, created_at, innehall').in('ansokan_id', ansökningsIds).order('created_at', { ascending: false }),
   ]);
 
@@ -186,7 +186,7 @@ async function hämtaAllaKonversationerFörFöretag(foretag_id) {
 
   const [{ data: sökande }, { data: tidrapporter }, { data: meddelanden }] = await Promise.all([
     supabase.from('användare').select('id, Namn').in('id', sokandeIds),
-    supabase.from('tidrapporter').select('ansokan_id, status, created_at, foretag_id').in('ansokan_id', ansökningsIds),
+    supabase.from('tidrapporter').select('ansokan_id, status, created_at, foretag_id').in('ansokan_id', ansökningsIds).order('created_at', { ascending: true }),
     supabase.from('meddelanden').select('ansokan_id, avsandare_id, created_at, innehall').in('ansokan_id', ansökningsIds).order('created_at', { ascending: false }),
   ]);
 
@@ -309,7 +309,15 @@ async function hämtaKonversationMellan(företagId, privatpersonId, motpartId) {
     tidrapporter = t || [];
   }
 
-  const tidrapportMap = Object.fromEntries(tidrapporter.map(r => [r.ansokan_id, r]));
+  // Flera tidrapporter kan finnas per ansökan (bestridda + korrigerade). Samla dem
+  // per ansökan, sorterade kronologiskt, så att var och en visas som ett eget kort.
+  const tidrapporterPerAnsökan = {};
+  for (const r of tidrapporter) {
+    (tidrapporterPerAnsökan[r.ansokan_id] ??= []).push(r);
+  }
+  for (const lista of Object.values(tidrapporterPerAnsökan)) {
+    lista.sort((a, b) => new Date(a.created_at ?? a.datum) - new Date(b.created_at ?? b.datum));
+  }
 
   // Aktiv ansökan = den med senast aktivitet (senaste meddelandet, annars senast skapad)
   let aktivAnsokanId = ansökningar.length ? ansökningar[ansökningar.length - 1].id : null;
@@ -321,14 +329,19 @@ async function hämtaKonversationMellan(företagId, privatpersonId, motpartId) {
     .eq('id', motpartId)
     .maybeSingle();
 
-  const pass = ansökningar.map(a => ({
-    id: a.id,
-    status: a.status,
-    created_at: a.created_at,
-    jobbTitel: jobbMap[a.jobb_id]?.Titel ?? null,
-    arbetstider: jobbMap[a.jobb_id]?.arbetstider ?? null,
-    tidrapport: tidrapportMap[a.id] ?? null,
-  }));
+  const pass = ansökningar.map(a => {
+    const rapporter = tidrapporterPerAnsökan[a.id] ?? [];
+    return {
+      id: a.id,
+      status: a.status,
+      created_at: a.created_at,
+      jobbTitel: jobbMap[a.jobb_id]?.Titel ?? null,
+      arbetstider: jobbMap[a.jobb_id]?.arbetstider ?? null,
+      tidrapporter: rapporter,
+      // Behåll senaste rapporten för bakåtkompatibilitet med äldre klienter.
+      tidrapport: rapporter[rapporter.length - 1] ?? null,
+    };
+  });
 
   return { motpartNamn: motpart?.Namn ?? null, aktivAnsokanId, meddelanden, pass };
 }
