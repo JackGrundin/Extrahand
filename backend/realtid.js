@@ -14,8 +14,14 @@ function användarKanal(användarId) {
   return `anvandare:${användarId}`;
 }
 
-async function sändRealtidsPing(mottagarId, typ) {
-  if (!SUPABASE_URL || !SERVICE_KEY || mottagarId == null) return;
+// Delad kanal som alla privatpersoner lyssnar på för att hålla den publika jobblistan
+// synkad i realtid. Måste matcha klientens prenumeration (RealtidsContext).
+const JOBBLISTA_KANAL = 'jobblista';
+
+// Skickar en broadcast med enbart en typ-etikett till en topic. Realtid är en signal,
+// inte en kritisk väg – vi loggar men fäller aldrig huvudanropet.
+async function sändBroadcast(topic, typ) {
+  if (!SUPABASE_URL || !SERVICE_KEY) return;
   try {
     const svar = await fetch(`${SUPABASE_URL}/realtime/v1/api/broadcast`, {
       method: 'POST',
@@ -26,7 +32,7 @@ async function sändRealtidsPing(mottagarId, typ) {
       },
       body: JSON.stringify({
         messages: [
-          { topic: användarKanal(mottagarId), event: 'ny', payload: { typ } },
+          { topic, event: 'ny', payload: { typ } },
         ],
       }),
     });
@@ -34,9 +40,20 @@ async function sändRealtidsPing(mottagarId, typ) {
       console.error('Realtidsping svarade', svar.status, await svar.text().catch(() => ''));
     }
   } catch (fel) {
-    // Realtid är en signal, inte en kritisk väg – logga men fäll aldrig huvudanropet.
     console.error('Realtidsping misslyckades:', fel.message);
   }
 }
 
-module.exports = { sändRealtidsPing };
+// Signal till en enskild användares privata kanal (olästa, passtatus, betyg m.m.).
+async function sändRealtidsPing(mottagarId, typ) {
+  if (mottagarId == null) return;
+  return sändBroadcast(användarKanal(mottagarId), typ);
+}
+
+// Signal till den delade jobblista-kanalen – triggar alla privatpersoners jobblista att
+// hämta färsk data när ett jobb publiceras, ändras, tas bort eller blir tillsatt/ledigt.
+async function sändJobblistaPing(typ) {
+  return sändBroadcast(JOBBLISTA_KANAL, typ);
+}
+
+module.exports = { sändRealtidsPing, sändJobblistaPing };

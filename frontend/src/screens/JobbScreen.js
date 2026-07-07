@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { View, Text, FlatList, TouchableOpacity, StyleSheet, ActivityIndicator, RefreshControl, TextInput, ScrollView, Modal, KeyboardAvoidingView, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { api } from '../api/klient';
+import { useJobblistaPing } from '../context/RealtidsContext';
 
 import { TYPER_FILTER as TYPER, KATEGORIER } from '../utils/konstanter';
 import { parsaArbetstider, formatDagDatum, parsaObTillagg } from '../utils/datumHelper';
@@ -79,6 +80,10 @@ export default function JobbScreen({ navigation }) {
   }
 
   useEffect(() => { hämta(); }, []);
+
+  // Realtid: uppdatera listan direkt när ett jobb publiceras, ändras, tas bort eller
+  // blir tillsatt/ledigt – utan att privatpersonen behöver dra för att ladda om.
+  useJobblistaPing(() => { hämta(); });
 
   const aktivaFilter = [
     valtTyp !== 'Alla',

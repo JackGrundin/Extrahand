@@ -5,6 +5,7 @@ const { hämtaGodkändaFörJobb } = require('../db/ansokningar');
 const { skickaMeddelande } = require('../db/meddelanden');
 const { hämtaPushToken, hämtaPrivatpersonerIStad } = require('../db/användare');
 const { skickaNotifikation } = require('../utils/pushNotifikation');
+const { sändJobblistaPing } = require('../realtid');
 
 const router = express.Router();
 
@@ -87,6 +88,9 @@ router.post('/', kräverInloggning, kräverTyp('företag'), async (req, res) => 
     });
     res.status(201).json(jobb);
 
+    // Realtidssignal till alla privatpersoners jobblista om det nya jobbet
+    sändJobblistaPing('jobb-ny');
+
     // Notifiera privatpersoner i samma stad om det nya jobbet (blockerar inte svaret)
     notifieraPrivatpersonerIStad(jobb).catch((notisfel) =>
       console.error('Notisfel vid nytt jobb:', notisfel)
@@ -140,6 +144,9 @@ router.put('/:id', kräverInloggning, kräverTyp('företag'), async (req, res) =
     }
 
     res.json(jobb);
+
+    // Realtidssignal – en ändring kan flytta jobbet in i eller ut ur den aktiva listan
+    sändJobblistaPing('jobb-andrad');
   } catch (fel) {
     console.error('Fel vid uppdatering av jobb:', fel);
     res.status(500).json({ fel: 'Serverfel vid uppdatering av jobb' });
@@ -152,6 +159,9 @@ router.delete('/:id', kräverInloggning, kräverTyp('företag'), async (req, res
     const godkända = await hämtaGodkändaFörJobb(req.params.id);
     await taBortJobb(req.params.id, req.användare.id);
     res.json({ ok: true });
+
+    // Realtidssignal till alla privatpersoners jobblista om att jobbet försvunnit
+    sändJobblistaPing('jobb-borttagen');
 
     // Meddela godkända privatpersoner att passet tagits bort
     for (const a of godkända) {

@@ -4,7 +4,7 @@ const { skapaAnsökan, hämtaAnsökningarFörSökande, hämtaAnsökningarFörJob
 const { hämtaPushToken, hämtaAnvändareViaId } = require('../db/användare');
 const { hämtaJobbViaId } = require('../db/jobb');
 const { skickaNotifikation } = require('../utils/pushNotifikation');
-const { sändRealtidsPing } = require('../realtid');
+const { sändRealtidsPing, sändJobblistaPing } = require('../realtid');
 
 const router = express.Router();
 
@@ -136,6 +136,13 @@ router.patch('/:id/status', kräverInloggning, kräverTyp('företag'), async (re
     const berörda = new Set([ansökan.sokande_id, ...övrigaBerörda].filter(Boolean));
     for (const sokandeId of berörda) sändRealtidsPing(sokandeId, 'pass-status');
 
+    // Signalera företaget så att dess "Mina jobb"-lista uppdateras direkt vid statusändring
+    sändRealtidsPing(req.användare.id, 'ansokan');
+
+    // Jobbet döljs vid godkännande och dyker upp igen när godkännandet ångras – signalera
+    // den delade jobblista-kanalen så att alla privatpersoners lista uppdateras direkt.
+    sändJobblistaPing(status === 'godkänd' ? 'jobb-tillsatt' : 'jobb-ledigt');
+
     if (status === 'godkänd') {
       try {
         const [pushToken, jobb] = await Promise.all([
@@ -173,8 +180,19 @@ router.get('/:id/detaljer', kräverInloggning, async (req, res) => {
 // DELETE /api/ansokningar/:id — privatperson ångrar en väntande ansökan
 router.delete('/:id', kräverInloggning, kräverTyp('privatperson'), async (req, res) => {
   try {
-    await ångraAnsökan(req.params.id, req.användare.id);
+    const borttagna = await ångraAnsökan(req.params.id, req.användare.id);
     res.json({ ok: true });
+
+    // Signalera företaget så att dess "Mina jobb"-lista uppdateras direkt när en väntande
+    // ansökan tas tillbaka. Bara om en rad faktiskt togs bort (rätt ägare och väntande).
+    if (borttagna.length > 0) {
+      try {
+        const jobb = await hämtaJobbViaId(borttagna[0].jobb_id);
+        sändRealtidsPing(jobb?.Foretag_id ?? jobb?.foretag_id, 'ansokan');
+      } catch (pingfel) {
+        console.error('Realtidsping vid ångra ansökan misslyckades:', pingfel);
+      }
+    }
   } catch (fel) {
     console.error('Fel vid ångra ansökan:', fel);
     res.status(500).json({ fel: 'Serverfel vid ångra ansökan' });

@@ -242,14 +242,18 @@ async function återställAllaFörJobb(jobb_id) {
   return (data || []).map(a => a.sokande_id).filter(Boolean);
 }
 
+// Returnerar de borttagna raderna (med jobb_id) så att anropande route kan signalera
+// företaget om att en väntande ansökan tagits tillbaka. Tom lista = inget togs bort.
 async function ångraAnsökan(id, sokande_id) {
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from('ansokningar')
     .delete()
     .eq('id', id)
     .eq('sokande_id', sokande_id)
-    .eq('status', 'väntande');
+    .eq('status', 'väntande')
+    .select('jobb_id');
   if (error) throw error;
+  return data || [];
 }
 
 async function hämtaAnsökanMedJobbInfo(id) {

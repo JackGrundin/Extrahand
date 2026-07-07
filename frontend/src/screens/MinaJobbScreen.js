@@ -6,6 +6,7 @@ import { api } from '../api/klient';
 import { parsaArbetstider, formatDagDatum, behöverAvslutas, harStartat } from '../utils/datumHelper';
 import { STATUSFÄRGER_TIDRAPPORT as statusFärger } from '../utils/konstanter';
 import { useAttAvsluta } from '../context/AttAvslutaContext';
+import { useRealtidsPing } from '../context/RealtidsContext';
 
 export default function MinaJobbScreen({ navigation }) {
   const [jobb, setJobb] = useState([]);
@@ -72,6 +73,10 @@ export default function MinaJobbScreen({ navigation }) {
   }
 
   useFocusEffect(useCallback(() => { hämta(); }, []));
+
+  // Realtid: uppdatera listan direkt när en ansökan inkommer eller byter status. Vi filtrerar
+  // på 'ansokan' eftersom hämta() gör flera API-anrop och inte ska trigga på t.ex. chattpingar.
+  useRealtidsPing((payload) => { if (payload?.typ === 'ansokan') hämta(); });
 
   // Jobb som redan har en tidrapport räknas som avslutade via tidrapporten.
   const avslutadeJobbIds = new Set(tidigarePass.map(p => p.jobbId).filter(Boolean));
