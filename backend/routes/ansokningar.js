@@ -1,6 +1,6 @@
 const express = require('express');
 const { kräverInloggning, kräverTyp } = require('../middleware/auth');
-const { skapaAnsökan, hämtaAnsökningarFörSökande, hämtaAnsökningarFörJobb, finnsDubblettAnsökan, uppdateraStatus, hämtaAnsökanViaId, avvisaAllaUtomEn, återställAllaFörJobb, hämtaAllaKonversationerFörFöretag, ångraAnsökan, hämtaAnsökanMedJobbInfo, hämtaKonversationMellan, hämtaGrupperadeKonversationer } = require('../db/ansokningar');
+const { skapaAnsökan, hämtaAnsökningarFörSökande, hämtaAnsökningarFörJobb, finnsDubblettAnsökan, uppdateraStatus, hämtaAnsökanViaId, avvisaAllaUtomEn, återställAllaFörJobb, hämtaAllaKonversationerFörFöretag, ångraAnsökan, hämtaAnsökanMedJobbInfo, hämtaKonversationMellan, hämtaGrupperadeKonversationer, hämtaGodkändaFörJobb } = require('../db/ansokningar');
 const { hämtaPushToken, hämtaAnvändareViaId } = require('../db/användare');
 const { hämtaJobbViaId } = require('../db/jobb');
 const { skickaNotifikation } = require('../utils/pushNotifikation');
@@ -14,6 +14,12 @@ router.post('/:jobbId', kräverInloggning, kräverTyp('privatperson'), async (re
   const { meddelande } = req.body;
 
   try {
+    // Passet är tillsatt om någon redan blivit godkänd – då går det inte längre att söka
+    const godkända = await hämtaGodkändaFörJobb(jobbId);
+    if (godkända.length > 0) {
+      return res.status(409).json({ fel: 'Jobbet är redan tillsatt' });
+    }
+
     const dubblett = await finnsDubblettAnsökan(jobbId, req.användare.id);
     if (dubblett) {
       return res.status(409).json({ fel: 'Du har redan sökt detta jobb' });

@@ -24,10 +24,17 @@ async function filtreraAktivaJobb(jobb) {
   const jobbIds = jobb.map(j => j.id);
   const { data: ansokningar } = await supabase
     .from('ansokningar')
-    .select('id, jobb_id')
+    .select('id, jobb_id, status')
     .in('jobb_id', jobbIds);
 
+  // Ett jobb ska försvinna från listan så snart en ansökan blivit godkänd – då är
+  // passet tillsatt och ska inte längre gå att söka. Vi tar även med jobb vars
+  // tidrapport godkänts (avslutade pass) för bakåtkompatibilitet.
   const godkändaJobbIds = new Set();
+  for (const a of (ansokningar || [])) {
+    if (a.status === 'godkänd') godkändaJobbIds.add(a.jobb_id);
+  }
+
   const ansokningsIds = (ansokningar || []).map(a => a.id);
   if (ansokningsIds.length > 0) {
     const { data: godkändaRapporter } = await supabase
