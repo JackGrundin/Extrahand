@@ -10,6 +10,7 @@ import { parsaArbetstider, formatDagDatum, parsaObTillagg } from '../utils/datum
 import ErbjudPassModal from '../components/ErbjudPassModal';
 import JobbforfraganKort from '../components/JobbforfraganKort';
 import PassKort from '../components/PassKort';
+import AvslutaPassModal from '../components/AvslutaPassModal';
 import { useRealtidsPing } from '../context/RealtidsContext';
 
 function TidrapportKort({ rapport, ärPrivatperson, ärSenaste, onUppdaterad }) {
@@ -17,7 +18,6 @@ function TidrapportKort({ rapport, ärPrivatperson, ärSenaste, onUppdaterad }) 
   const [bestridVisas, setBestridVisas] = useState(false);
   const [bestridText, setBestridText] = useState('');
   const [korrigeraVisas, setKorrigeraVisas] = useState(false);
-  const [korrigeraTimmar, setKorrigeraTimmar] = useState(String(rapport.timmar ?? ''));
 
   async function godkänn() {
     setSparar(true);
@@ -50,16 +50,11 @@ function TidrapportKort({ rapport, ärPrivatperson, ärSenaste, onUppdaterad }) 
     }
   }
 
-  async function skickaKorrigering() {
-    const timmar = parseFloat(String(korrigeraTimmar).replace(',', '.'));
-    if (!timmar || timmar <= 0) {
-      Alert.alert('Fel', 'Ange ett giltigt antal timmar');
-      return;
-    }
+  async function skickaKorrigering({ timmar, ob_tillagg }) {
     setSparar(true);
     try {
-      // Ny korrigerad tidrapport för samma pass – behåller OB-tilläggen från originalet.
-      await api.skapaRapport({ ansokan_id: rapport.ansokan_id, timmar, ob_tillagg: parsaObTillagg(rapport.ob_tillagg) });
+      // Ny korrigerad tidrapport för samma pass.
+      await api.skapaRapport({ ansokan_id: rapport.ansokan_id, timmar, ob_tillagg });
       setKorrigeraVisas(false);
       onUppdaterad();
     } catch (fel) {
@@ -125,13 +120,6 @@ function TidrapportKort({ rapport, ärPrivatperson, ärSenaste, onUppdaterad }) 
         </View>
       </View>
 
-      {rapport.status === 'bestridd' && rapport.bestridande_orsak ? (
-        <View style={styles.bestridandeRuta}>
-          <Text style={styles.bestridandeRubrik}>Bestriden</Text>
-          <Text style={styles.bestridandeText}>{rapport.bestridande_orsak}</Text>
-        </View>
-      ) : null}
-
       {ärPrivatperson && rapport.status === 'väntar' && (
         <View style={styles.rapportKnappar}>
           <TouchableOpacity
@@ -154,7 +142,7 @@ function TidrapportKort({ rapport, ärPrivatperson, ärSenaste, onUppdaterad }) 
       {!ärPrivatperson && rapport.status === 'bestridd' && ärSenaste && (
         <TouchableOpacity
           style={[styles.korrigeraKnapp, sparar && { opacity: 0.5 }]}
-          onPress={() => { setKorrigeraTimmar(String(rapport.timmar ?? '')); setKorrigeraVisas(true); }}
+          onPress={() => setKorrigeraVisas(true)}
           disabled={sparar}
         >
           <Ionicons name="create-outline" size={16} color="#2563eb" />
@@ -176,7 +164,7 @@ function TidrapportKort({ rapport, ärPrivatperson, ärSenaste, onUppdaterad }) 
             <Text style={styles.modalText}>Förklara varför tidrapporten inte stämmer, t.ex. "Jag jobbade 8 timmar inte 6".</Text>
             <TextInput
               style={styles.modalInput}
-              placeholder="Din förklaring..."
+              placeholder="Förklara vad som inte stämmer med tidrapporten"
               value={bestridText}
               onChangeText={setBestridText}
               multiline
@@ -194,31 +182,30 @@ function TidrapportKort({ rapport, ärPrivatperson, ärSenaste, onUppdaterad }) 
         </View>
       </Modal>
 
-      {/* Ruta där företaget anger nya timmar för en korrigerad tidrapport */}
-      <Modal visible={korrigeraVisas} transparent animationType="fade" onRequestClose={() => setKorrigeraVisas(false)}>
-        <View style={styles.modalBakgrund}>
-          <View style={styles.modalKort}>
-            <Text style={styles.modalRubrik}>Korrigerad tidrapport</Text>
-            <Text style={styles.modalText}>Ange rätt antal timmar. Eventuella OB-tillägg från den ursprungliga rapporten behålls.</Text>
-            <TextInput
-              style={styles.modalInput}
-              placeholder="Antal timmar"
-              value={korrigeraTimmar}
-              onChangeText={setKorrigeraTimmar}
-              keyboardType="decimal-pad"
-              autoFocus
-            />
-            <View style={styles.modalKnappar}>
-              <TouchableOpacity style={styles.modalAvbryt} onPress={() => setKorrigeraVisas(false)} disabled={sparar}>
-                <Text style={styles.modalAvbrytText}>Avbryt</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={[styles.modalSkicka, sparar && { opacity: 0.5 }]} onPress={skickaKorrigering} disabled={sparar}>
-                <Text style={styles.modalSkickaText}>Skicka</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-      </Modal>
+      {/* Korrigerad tidrapport använder samma formulär som "Avsluta pass" */}
+      <AvslutaPassModal
+        visible={korrigeraVisas}
+        onClose={() => setKorrigeraVisas(false)}
+        timlön={rapport.timlon}
+        initialObTillagg={rapport.ob_tillagg}
+        sparar={sparar}
+        onSkicka={skickaKorrigering}
+        rubrik="Korrigerad tidrapport"
+      />
+    </View>
+  );
+}
+
+// Tydligt kort i chatten som visar att privatpersonen bestridit tidrapporten,
+// med förklaringstexten inuti kortet (ersätter ett vanligt chattmeddelande).
+function BestriddKort({ rapport }) {
+  return (
+    <View style={styles.bestriddKort}>
+      <View style={styles.bestriddHuvud}>
+        <Ionicons name="alert-circle" size={18} color="#dc2626" />
+        <Text style={styles.bestriddRubrik}>Tidrapport bestriden</Text>
+      </View>
+      <Text style={styles.bestriddText}>{rapport.bestridande_orsak}</Text>
     </View>
   );
 }
@@ -363,13 +350,21 @@ export default function ChattScreen({ route, navigation }) {
         if (!rapporter.length) {
           return [{ typ: 'pass', tid: tidVärde(p.created_at), data: p, key: `p-${p.id}` }];
         }
-        return rapporter.map((r, i) => ({
-          typ: 'tidrapport',
-          tid: tidVärde(r.created_at ?? r.datum),
-          data: r,
-          ärSenaste: i === rapporter.length - 1,
-          key: `t-${r.id}`,
-        }));
+        return rapporter.flatMap((r, i) => {
+          const tid = tidVärde(r.created_at ?? r.datum);
+          const poster = [{
+            typ: 'tidrapport',
+            tid,
+            data: r,
+            ärSenaste: i === rapporter.length - 1,
+            key: `t-${r.id}`,
+          }];
+          // Ett bestridande visas som ett eget "Bestridd"-kort direkt efter tidrapporten.
+          if (r.status === 'bestridd' && r.bestridande_orsak) {
+            poster.push({ typ: 'bestridd', tid, data: r, key: `b-${r.id}` });
+          }
+          return poster;
+        });
       }),
     ];
     poster.sort((a, b) => a.tid - b.tid);
@@ -420,6 +415,9 @@ export default function ChattScreen({ route, navigation }) {
                 onUppdaterad={hämta}
               />
             );
+          }
+          if (item.typ === 'bestridd') {
+            return <BestriddKort rapport={item.data} />;
           }
           if (item.typ === 'pass') {
             return <PassKort pass={item.data} />;
@@ -501,9 +499,10 @@ const styles = StyleSheet.create({
   bestridText: { color: '#ef4444', fontWeight: '600', fontSize: 14 },
   godkännKnapp: { flex: 1, backgroundColor: '#16a34a', borderRadius: 10, paddingVertical: 10, alignItems: 'center' },
   godkännText: { color: '#fff', fontWeight: '600', fontSize: 14 },
-  bestridandeRuta: { backgroundColor: '#fef2f2', borderRadius: 8, padding: 10, marginBottom: 12, borderWidth: 1, borderColor: '#fecaca' },
-  bestridandeRubrik: { fontSize: 12, fontWeight: '700', color: '#dc2626', marginBottom: 4 },
-  bestridandeText: { fontSize: 14, color: '#7f1d1d', lineHeight: 20 },
+  bestriddKort: { backgroundColor: '#fef2f2', borderRadius: 14, padding: 16, marginTop: 12, borderWidth: 1, borderColor: '#fecaca' },
+  bestriddHuvud: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 },
+  bestriddRubrik: { fontSize: 15, fontWeight: '700', color: '#dc2626', flex: 1 },
+  bestriddText: { fontSize: 15, color: '#7f1d1d', lineHeight: 21 },
   korrigeraKnapp: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, borderWidth: 1, borderColor: '#2563eb', borderRadius: 10, paddingVertical: 10 },
   korrigeraText: { color: '#2563eb', fontWeight: '600', fontSize: 14 },
   modalBakgrund: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'center', padding: 24 },

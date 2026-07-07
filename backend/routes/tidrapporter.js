@@ -4,7 +4,6 @@ const { skapaTidrapport, hämtaTidrapportFörAnsökan, hämtaTidrapportViaId, up
 const { hämtaAnsökanViaId } = require('../db/ansokningar');
 const { hämtaJobbViaId } = require('../db/jobb');
 const { hämtaAnvändareViaEmail, hämtaAnvändareViaId, hämtaPushToken } = require('../db/användare');
-const { skickaMeddelande } = require('../db/meddelanden');
 const { skickaNotifikation } = require('../utils/pushNotifikation');
 const { sändRealtidsPing } = require('../realtid');
 
@@ -110,18 +109,11 @@ router.patch('/:id/status', kräverInloggning, kräverTyp('privatperson'), async
     // Realtidssignal (utan innehåll) till företaget som skapade tidrapporten
     if (rapport.foretag_id) sändRealtidsPing(rapport.foretag_id, 'tidrapport');
 
-    // Vid bestridande: lägg förklaringen som ett meddelande i chatten och notera företaget.
+    // Vid bestridande: notera företaget. Förklaringen sparas på tidrapporten
+    // (bestridande_orsak) och visas som ett "Bestridd"-kort i chatten – inte som ett
+    // vanligt chattmeddelande.
     if (status === 'bestridd') {
       (async () => {
-        // Förklaringen visas som ett vanligt chattmeddelande från privatpersonen.
-        await skickaMeddelande({
-          ansokan_id: rapport.ansokan_id,
-          avsandare_id: req.användare.id,
-          innehall: `Bestrider tidrapporten: ${förklaring}`,
-        });
-        // Signalera företaget om det nya meddelandet (chatt och badge uppdateras direkt).
-        if (rapport.foretag_id) sändRealtidsPing(rapport.foretag_id, 'meddelande');
-
         const token = await hämtaPushToken(rapport.foretag_id);
         const avsändare = await hämtaAnvändareViaId(req.användare.id);
         const namn = avsändare?.Namn ?? 'Arbetstagaren';
