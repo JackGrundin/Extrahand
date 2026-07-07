@@ -2,6 +2,7 @@ import { useCallback, useState } from 'react';
 import { View, Text, SectionList, TouchableOpacity, StyleSheet, ActivityIndicator, RefreshControl } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { api } from '../api/klient';
+import { useRealtidsPing } from '../context/RealtidsContext';
 
 import { parsaArbetstider, formatDagDatum, formatBricka } from '../utils/datumHelper';
 
@@ -51,6 +52,9 @@ export default function MinaPassScreen({ navigation }) {
   }
 
   useFocusEffect(useCallback(() => { hämta(); }, []));
+
+  // Realtid: passlistan uppdateras direkt vid statusändringar och nya tidrapporter
+  useRealtidsPing(() => { hämta(); });
 
   const godkända = ansökningar.filter(a => a.status === 'godkänd');
   // Ett pass är genomfört när dess sista arbetsdatum passerat, eller när en tidrapport

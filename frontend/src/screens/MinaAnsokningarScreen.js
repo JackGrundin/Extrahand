@@ -3,6 +3,7 @@ import { View, Text, FlatList, TouchableOpacity, StyleSheet, ActivityIndicator, 
 import { useFocusEffect } from '@react-navigation/native';
 import { api } from '../api/klient';
 import { STATUSFÄRGER_ANSÖKAN as STATUSFÄRGER } from '../utils/konstanter';
+import { useRealtidsPing } from '../context/RealtidsContext';
 
 export default function MinaAnsokningarScreen({ navigation }) {
   const [ansökningar, setAnsökningar] = useState([]);
@@ -23,6 +24,9 @@ export default function MinaAnsokningarScreen({ navigation }) {
   }
 
   useFocusEffect(useCallback(() => { hämta(); }, []));
+
+  // Realtid: uppdatera listan direkt när en ansökans status ändras (godkänd/avvisad/väntande)
+  useRealtidsPing(() => { hämta(); });
 
   function ångra(id) {
     Alert.alert('Ångra ansökan', 'Vill du ta tillbaka din ansökan?', [

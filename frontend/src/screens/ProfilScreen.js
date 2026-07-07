@@ -5,6 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { useAuth } from '../context/AuthContext';
 import { api } from '../api/klient';
+import { useRealtidsPing } from '../context/RealtidsContext';
 
 function ProfilSektion({ rubrik, innehall }) {
   if (!innehall) return null;
@@ -40,6 +41,9 @@ export default function ProfilScreen({ navigation }) {
   }
 
   useFocusEffect(useCallback(() => { hämta(); }, []));
+
+  // Realtid: nya betyg dyker upp på egna profilen direkt
+  useRealtidsPing(() => { hämta(); });
 
   async function väljaProfilBild() {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();

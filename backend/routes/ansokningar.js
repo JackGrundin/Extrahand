@@ -4,6 +4,7 @@ const { skapaAnsökan, hämtaAnsökningarFörSökande, hämtaAnsökningarFörJob
 const { hämtaPushToken, hämtaAnvändareViaId } = require('../db/användare');
 const { hämtaJobbViaId } = require('../db/jobb');
 const { skickaNotifikation } = require('../utils/pushNotifikation');
+const { sändRealtidsPing } = require('../realtid');
 
 const router = express.Router();
 
@@ -32,6 +33,8 @@ router.post('/:jobbId', kräverInloggning, kräverTyp('privatperson'), async (re
         hämtaAnvändareViaId(req.användare.id),
       ]);
       const foretagId = jobb?.Foretag_id ?? jobb?.foretag_id;
+      // Realtidssignal (utan innehåll) till företaget om den nya ansökan
+      sändRealtidsPing(foretagId, 'ansokan');
       const pushToken = await hämtaPushToken(foretagId);
       await skickaNotifikation(pushToken, 'Ny ansökan!', `${sökande?.Namn ?? 'Någon'} har sökt "${jobb?.Titel ?? 'ditt jobb'}"`)
     } catch (notisfel) {
@@ -112,14 +115,20 @@ router.patch('/:id/status', kräverInloggning, kräverTyp('företag'), async (re
   try {
     const ansökan = await hämtaAnsökanViaId(req.params.id);
 
+    // Berörda sökande (utöver den vars status ändras direkt) att signalera om
+    let övrigaBerörda = [];
     if (status === 'godkänd') {
       await uppdateraStatus(req.params.id, 'godkänd');
-      await avvisaAllaUtomEn(ansökan.jobb_id, req.params.id);
+      övrigaBerörda = await avvisaAllaUtomEn(ansökan.jobb_id, req.params.id);
     } else {
-      await återställAllaFörJobb(ansökan.jobb_id);
+      övrigaBerörda = await återställAllaFörJobb(ansökan.jobb_id);
     }
 
     res.json({ ok: true });
+
+    // Realtidssignal (utan innehåll) om passets statusändring till alla berörda sökande
+    const berörda = new Set([ansökan.sokande_id, ...övrigaBerörda].filter(Boolean));
+    for (const sokandeId of berörda) sändRealtidsPing(sokandeId, 'pass-status');
 
     if (status === 'godkänd') {
       try {

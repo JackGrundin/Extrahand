@@ -1,6 +1,7 @@
 const express = require('express');
 const { kräverInloggning, kräverTyp } = require('../middleware/auth');
 const { skapaBetyg, finnsDublettBetyg, hämtaBetyg } = require('../db/betyg');
+const { sändRealtidsPing } = require('../realtid');
 const { createClient } = require('@supabase/supabase-js');
 const ws = require('ws');
 
@@ -72,6 +73,9 @@ router.post('/:ansokningId', kräverInloggning, kräverTyp('företag'), async (r
     });
 
     res.status(201).json(betyg);
+
+    // Realtidssignal (utan innehåll) till den som fått betyget
+    sändRealtidsPing(till_anvandare_id, 'betyg');
   } catch (fel) {
     console.error('Fel vid betygsättning:', fel);
     res.status(500).json({ fel: 'Serverfel vid betygsättning' });

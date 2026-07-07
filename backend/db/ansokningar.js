@@ -219,21 +219,27 @@ async function hämtaGodkändaFörJobb(jobb_id) {
   return data || [];
 }
 
+// Returnerar de berörda sökandenas id så att anropande route kan skicka realtidssignaler
+// om statusändringen till varje påverkad person.
 async function avvisaAllaUtomEn(jobb_id, godkänd_id) {
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from('ansokningar')
     .update({ status: 'avvisad' })
     .eq('jobb_id', jobb_id)
-    .neq('id', godkänd_id);
+    .neq('id', godkänd_id)
+    .select('sokande_id');
   if (error) throw error;
+  return (data || []).map(a => a.sokande_id).filter(Boolean);
 }
 
 async function återställAllaFörJobb(jobb_id) {
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from('ansokningar')
     .update({ status: 'väntande' })
-    .eq('jobb_id', jobb_id);
+    .eq('jobb_id', jobb_id)
+    .select('sokande_id');
   if (error) throw error;
+  return (data || []).map(a => a.sokande_id).filter(Boolean);
 }
 
 async function ångraAnsökan(id, sokande_id) {

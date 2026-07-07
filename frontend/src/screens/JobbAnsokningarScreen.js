@@ -5,6 +5,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import { api } from '../api/klient';
 import { parsaObTillagg, beräknaObBelopp, harStartat } from '../utils/datumHelper';
 import TidVäljare from '../components/TidVäljare';
+import { useRealtidsPing } from '../context/RealtidsContext';
 
 function StatusKnappar({ item, onUppdaterad, onAvsluta, navigation, tidigare, startat }) {
   const [sparar, setSparar] = useState(false);
@@ -121,6 +122,9 @@ export default function JobbAnsokningarScreen({ route, navigation }) {
   }
 
   useFocusEffect(useCallback(() => { hämta(); }, []));
+
+  // Realtid: nya ansökningar och statusändringar visas direkt för företaget
+  useRealtidsPing(() => { hämta(); });
 
   function öppnaAvsluta(ansokningId) {
     setValtAnsokningId(ansokningId);
