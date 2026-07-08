@@ -88,7 +88,7 @@ const styles = StyleSheet.create({
   betygText: { textAlign: 'center', fontSize: 16, fontWeight: '600', color: '#f59e0b', marginBottom: 28 },
   label: { fontSize: 14, fontWeight: '600', color: '#444', marginBottom: 8 },
   textArea: { borderWidth: 1, borderColor: '#ddd', borderRadius: 10, padding: 14, fontSize: 15, height: 110, backgroundColor: '#fafafa', marginBottom: 28 },
-  knapp: { backgroundColor: '#2563eb', borderRadius: 12, padding: 16, alignItems: 'center' },
+  knapp: { backgroundColor: '#2563eb', borderRadius: 12, padding: 16, alignItems: 'center', alignSelf: 'center', width: '100%', maxWidth: 400 },
   knappInaktiv: { backgroundColor: '#93c5fd' },
   knappText: { color: '#fff', fontWeight: '600', fontSize: 16 },
 });

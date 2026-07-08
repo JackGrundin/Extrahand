@@ -84,8 +84,11 @@ export default function MinaAnsokningarScreen({ navigation }) {
           )}
 
           <View style={styles.kortFot}>
-            <TouchableOpacity onPress={() => navigation.navigate('Chatt', { ansokningId: item.id })}>
-              <Text style={styles.chattLänk}>Öppna chatt →</Text>
+            <TouchableOpacity
+              style={styles.chattKnapp}
+              onPress={() => navigation.navigate('Chatt', { ansokningId: item.id })}
+            >
+              <Text style={styles.chattKnappText}>Öppna chatt →</Text>
             </TouchableOpacity>
             {item.status === 'väntande' && (
               <TouchableOpacity onPress={() => ångra(item.id)}>
@@ -108,8 +111,9 @@ const styles = StyleSheet.create({
   datum: { fontSize: 13, color: '#999', marginLeft: 8 },
   meddelande: { fontSize: 14, color: '#555', lineHeight: 20, marginBottom: 10 },
   ingetMeddelande: { fontSize: 14, color: '#aaa', fontStyle: 'italic', marginBottom: 10 },
-  kortFot: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  chattLänk: { fontSize: 13, color: '#2563eb', fontWeight: '500' },
+  kortFot: { alignItems: 'center', gap: 10 },
+  chattKnapp: { alignSelf: 'center', width: '100%', maxWidth: 400, backgroundColor: '#eff6ff', borderRadius: 8, paddingVertical: 10, alignItems: 'center' },
+  chattKnappText: { fontSize: 13, color: '#2563eb', fontWeight: '600' },
   ångraLänk: { fontSize: 13, color: '#dc2626', fontWeight: '500' },
   statusBadge: { borderRadius: 10, paddingHorizontal: 8, paddingVertical: 2 },
   statusText: { fontSize: 12, fontWeight: '600' },

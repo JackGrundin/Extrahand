@@ -152,7 +152,12 @@ export default function MinaPassScreen({ navigation }) {
                   ) : null}
                 </View>
               </View>
-              <Text style={styles.chattLänk}>Öppna chatt →</Text>
+              <TouchableOpacity
+                style={styles.chattKnapp}
+                onPress={() => navigation.navigate('Chatt', { ansokningId: item.id })}
+              >
+                <Text style={styles.chattKnappText}>Öppna chatt →</Text>
+              </TouchableOpacity>
             </TouchableOpacity>
           );
         }}
@@ -183,7 +188,8 @@ const styles = StyleSheet.create({
   passDetalj: { fontSize: 12, color: '#6b7280', backgroundColor: '#f3f4f6', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6 },
   timmarBricka: { backgroundColor: '#dcfce7', borderRadius: 8, paddingHorizontal: 8, paddingVertical: 4 },
   timmarText: { fontSize: 13, fontWeight: '700', color: '#16a34a' },
-  chattLänk: { fontSize: 13, color: '#2563eb', fontWeight: '500' },
+  chattKnapp: { alignSelf: 'center', width: '100%', maxWidth: 400, backgroundColor: '#eff6ff', borderRadius: 8, paddingVertical: 10, alignItems: 'center', marginTop: 4 },
+  chattKnappText: { fontSize: 13, color: '#2563eb', fontWeight: '600' },
 
   tomContainer: { alignItems: 'center', marginTop: 60 },
   tomText: { fontSize: 16, color: '#999' },

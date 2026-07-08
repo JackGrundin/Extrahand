@@ -222,8 +222,11 @@ export default function MinaJobbScreen({ navigation }) {
                     <Text style={[styles.passVärde, { color: '#2563eb' }]}>{item.totalt_belopp?.toLocaleString('sv-SE')} kr</Text>
                   </View>
                 </View>
-                <TouchableOpacity onPress={() => navigation.navigate('Chatt', { ansokningId: item.ansokan_id })}>
-                  <Text style={styles.chattLänk}>Öppna chatt →</Text>
+                <TouchableOpacity
+                  style={styles.chattKnapp}
+                  onPress={() => navigation.navigate('Chatt', { ansokningId: item.ansokan_id })}
+                >
+                  <Text style={styles.chattKnappText}>Öppna chatt →</Text>
                 </TouchableOpacity>
               </View>
             );
@@ -271,5 +274,6 @@ const styles = StyleSheet.create({
   passDetalj: { flex: 1, backgroundColor: '#f9fafb', borderRadius: 8, padding: 10, alignItems: 'center' },
   passEtikett: { fontSize: 11, color: '#888', marginBottom: 4 },
   passVärde: { fontSize: 14, fontWeight: '600', color: '#1a1a1a' },
-  chattLänk: { fontSize: 13, color: '#2563eb', fontWeight: '500' },
+  chattKnapp: { alignSelf: 'center', width: '100%', maxWidth: 400, backgroundColor: '#eff6ff', borderRadius: 8, paddingVertical: 10, alignItems: 'center', marginTop: 4 },
+  chattKnappText: { fontSize: 13, color: '#2563eb', fontWeight: '600' },
 });

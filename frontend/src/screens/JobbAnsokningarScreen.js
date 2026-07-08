@@ -40,21 +40,25 @@ function StatusKnappar({ item, onUppdaterad, onAvsluta, navigation, tidigare, st
           <View style={styles.godkändBadge}>
             <Text style={styles.godkändText}>Godkänd</Text>
           </View>
-          <TouchableOpacity onPress={() => navigation.navigate('Chatt', { ansokningId: item.id })}>
-            <Text style={styles.öppnaChattText}>Öppna chatt →</Text>
-          </TouchableOpacity>
-        </View>
-        <View style={styles.godkändBottomRad}>
           {/* "Ta tillbaka godkännandet" döljs för tidigare/passerade pass och när passet startat */}
           {!tidigare && !startat && (
             <TouchableOpacity onPress={återkalla} disabled={sparar}>
               <Text style={styles.återkallaText}>Ta tillbaka godkännandet</Text>
             </TouchableOpacity>
           )}
-          <TouchableOpacity onPress={() => navigation.navigate('Betygsatt', { ansokningId: item.id })}>
-            <Text style={styles.betygsättText}>Betygsätt →</Text>
-          </TouchableOpacity>
         </View>
+        <TouchableOpacity
+          style={styles.länkKnapp}
+          onPress={() => navigation.navigate('Chatt', { ansokningId: item.id })}
+        >
+          <Text style={styles.länkKnappText}>Öppna chatt →</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={styles.länkKnapp}
+          onPress={() => navigation.navigate('Betygsatt', { ansokningId: item.id })}
+        >
+          <Text style={styles.länkKnappText}>Betygsätt →</Text>
+        </TouchableOpacity>
         <TouchableOpacity style={styles.avsluteKnapp} onPress={() => onAvsluta(item.id)}>
           <Text style={styles.avsluteKnappText}>Avsluta pass</Text>
         </TouchableOpacity>
@@ -205,13 +209,12 @@ const styles = StyleSheet.create({
   godkännKnapp: { backgroundColor: '#16a34a', borderRadius: 8, paddingVertical: 10, alignItems: 'center', marginBottom: 12 },
   godkännKnappText: { color: '#fff', fontWeight: '600', fontSize: 14 },
   godkändContainer: { marginBottom: 12 },
-  godkändRad: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 },
+  godkändRad: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 },
   godkändBadge: { backgroundColor: '#dcfce7', borderRadius: 10, paddingHorizontal: 12, paddingVertical: 5 },
   godkändText: { color: '#16a34a', fontWeight: '700', fontSize: 13 },
-  öppnaChattText: { fontSize: 13, color: '#2563eb', fontWeight: '500' },
-  godkändBottomRad: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 },
   återkallaText: { fontSize: 12, color: '#9ca3af', textDecorationLine: 'underline' },
-  betygsättText: { fontSize: 13, color: '#2563eb', fontWeight: '500' },
+  länkKnapp: { alignSelf: 'center', width: '100%', maxWidth: 400, backgroundColor: '#eff6ff', borderRadius: 8, paddingVertical: 10, alignItems: 'center', marginBottom: 8 },
+  länkKnappText: { fontSize: 13, color: '#2563eb', fontWeight: '600' },
   avsluteKnapp: { backgroundColor: '#059669', borderRadius: 8, paddingVertical: 10, alignItems: 'center' },
   avsluteKnappText: { color: '#fff', fontWeight: '600', fontSize: 14 },
   avvisadBadge: { backgroundColor: '#fee2e2', borderRadius: 10, paddingHorizontal: 12, paddingVertical: 5, alignSelf: 'flex-start', marginBottom: 12 },

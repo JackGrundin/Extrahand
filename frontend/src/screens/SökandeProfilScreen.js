@@ -145,7 +145,7 @@ const styles = StyleSheet.create({
   betygDatum: { fontSize: 12, color: '#aaa' },
   betygFöretag: { fontSize: 13, fontWeight: '600', color: '#555', marginBottom: 4 },
   betygKommentar: { fontSize: 14, color: '#444', lineHeight: 20 },
-  chattKnapp: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: '#2563eb', borderRadius: 12, paddingVertical: 14, paddingHorizontal: 32, marginTop: 24 },
+  chattKnapp: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', alignSelf: 'center', gap: 8, backgroundColor: '#2563eb', borderRadius: 12, paddingVertical: 14, paddingHorizontal: 32, marginTop: 24, width: '100%', maxWidth: 400 },
   chattKnappText: { color: '#fff', fontWeight: '600', fontSize: 15 },
   fel: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   felText: { color: '#999', fontSize: 16 },
