@@ -6,6 +6,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { useAuth } from '../context/AuthContext';
 import { api } from '../api/klient';
 import { useRealtidsPing } from '../context/RealtidsContext';
+import { useAppStateAktiv } from '../utils/useAppStateAktiv';
 import {
   PÅSLAG_PRO,
   PÅSLAG_GRATIS,
@@ -80,6 +81,12 @@ export default function ProfilScreen({ navigation }) {
   }
 
   useFocusEffect(useCallback(() => { hämta(); }, []));
+
+  // Stripe Checkout och kundportalen öppnas i den externa webbläsaren. Webhooken skickar
+  // visserligen en realtidsping när prenumerationen ändras, men den kopplingen tappas ofta
+  // medan appen ligger i bakgrunden på mobil – detta är säkerhetsnätet som säkerställer att
+  // statusen är färsk när användaren kommer tillbaka.
+  useAppStateAktiv(() => { hämta(); });
 
   // Realtid: nya betyg dyker upp på egna profilen direkt
   useRealtidsPing(() => { hämta(); });

@@ -6,6 +6,7 @@ import { Ionicons } from '@expo/vector-icons';
 import TidVäljare from '../components/TidVäljare';
 import PrenumerationModal from '../components/PrenumerationModal';
 import ProBesparing from '../components/ProBesparing';
+import { useAppStateAktiv } from '../utils/useAppStateAktiv';
 import { api } from '../api/klient';
 import { KATEGORIER, PÅSLAG_GRATIS, beräknaFakturapris, formateraPris } from '../utils/konstanter';
 import StadInput, { ärGiltigStad } from '../components/StadInput';
@@ -56,6 +57,11 @@ export default function PubliceraJobbScreen({ navigation }) {
   useFocusEffect(useCallback(() => {
     hämtaPrenumeration();
   }, [hämtaPrenumeration]));
+
+  // Stripe Checkout öppnas i den externa webbläsaren, så skärmen tappar aldrig fokus och
+  // useFocusEffect ovan triggar inte vid återkomst. Utan detta skulle priset visas för
+  // högt tills företaget bytte flik – trots att de just uppgraderat.
+  useAppStateAktiv(hämtaPrenumeration);
 
   // Påslaget som gäller för nästa pass företaget publicerar.
   const gällandePåslag = prenumeration?.paslag ?? PÅSLAG_GRATIS;
@@ -202,9 +208,9 @@ export default function PubliceraJobbScreen({ navigation }) {
     }
   }
 
-  // "Uppgradera till Pro" – Stripe Checkout öppnas i webbläsaren. När företaget
-  // återvänder till appen hämtas planen om via useFocusEffect; är den Pro publiceras
-  // passet med 20 % påslag när de trycker publicera igen.
+  // "Uppgradera till Pro" – Stripe Checkout öppnas i webbläsaren. När företaget återvänder
+  // till appen hämtas planen om via useAppStateAktiv (inte useFocusEffect – skärmen tappar
+  // aldrig fokus när appen bara läggs i bakgrunden), så priset uppdateras direkt.
   async function uppgraderaTillPro() {
     setBetalningLaddar(true);
     try {
