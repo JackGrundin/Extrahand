@@ -4,7 +4,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../context/AuthContext';
 import { api } from '../api/klient';
 import { parsaArbetstider, formatDagDatum, parsaObTillagg, beräknaObBelopp } from '../utils/datumHelper';
-import { beräknaFakturapris, påslagEller40 } from '../utils/konstanter';
+import { beräknaFakturapris } from '../utils/konstanter';
+import { useJobbPåslag } from '../utils/useJobbPåslag';
 
 export default function JobbDetaljScreen({ route, navigation }) {
   const { jobb } = route.params;
@@ -13,6 +14,7 @@ export default function JobbDetaljScreen({ route, navigation }) {
   const [sökt, setSökt] = useState(false);
   const [meddelande, setMeddelande] = useState('');
   const [avtalsModalSynlig, setAvtalsModalSynlig] = useState(false);
+  const påslag = useJobbPåslag(jobb.paslag, användare?.typ === 'företag');
 
   function öppnaKarta() {
     const q = encodeURIComponent(jobb.adress);
@@ -52,10 +54,8 @@ export default function JobbDetaljScreen({ route, navigation }) {
         const timlön = jobb.Lon;
         const totalObBrutto = beräknaObBelopp(ob, timlön);
         const erFöretag = användare?.typ === 'företag';
-        // Jobbets påslag frystes vid publiceringen – priset ska visas med det, inte
-        // med företagets nuvarande plan.
         const totalVisat = erFöretag
-          ? beräknaFakturapris(totalObBrutto, påslagEller40(jobb.paslag))
+          ? beräknaFakturapris(totalObBrutto, påslag)
           : totalObBrutto;
         return (
           <View style={styles.obSektion}>

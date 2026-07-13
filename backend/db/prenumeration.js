@@ -72,6 +72,19 @@ async function ökaPassDennaManad(id) {
   return data;
 }
 
+// Minskar räknaren när ett godkännande tas tillbaka – passet blev aldrig av och ska
+// inte förbruka ett gratispass. Klampar vid 0 och rör bara räknaren om den avser
+// innevarande månad (se minska_pass_denna_manad i migrationen).
+async function minskaPassDennaManad(id) {
+  const { data, error } = await supabase.rpc('minska_pass_denna_manad', {
+    p_id: id,
+    p_manad: nuvarandeMånad(),
+  });
+
+  if (error) throw error;
+  return data;
+}
+
 // Uppdaterar prenumerationstillståndet. Anropas av Stripe-webhooken och av
 // checkout-flödet när en Stripe-kund skapas.
 async function sättPrenumeration(id, { status, expiresAt, stripeCustomerId }) {
@@ -102,6 +115,7 @@ module.exports = {
   aktuelltAntalPass,
   gällandePåslag,
   ökaPassDennaManad,
+  minskaPassDennaManad,
   sättPrenumeration,
   nollställAllaPass,
 };

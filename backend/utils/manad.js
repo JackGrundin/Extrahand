@@ -16,4 +16,20 @@ function nuvarandeMånad(nu = new Date()) {
   return `${delar.year}-${delar.month}`;
 }
 
-module.exports = { nuvarandeMånad };
+// Returnerar tidpunkten då innevarande månad började (den 1:a kl. 00:00 svensk tid),
+// som ISO-sträng. Används för att räkna hur många jobb ett företag publicerat i månaden.
+function månadensStart(nu = new Date()) {
+  const [år, månad] = nuvarandeMånad(nu).split('-').map(Number);
+
+  // Gissa midnatt UTC och justera med Stockholms offset vid just den tidpunkten, så att
+  // gränsen hamnar på svensk midnatt oavsett sommar- eller vintertid.
+  const gissning = Date.UTC(år, månad - 1, 1);
+  const lokalMidnatt = new Date(gissning);
+  const offsetMs =
+    new Date(lokalMidnatt.toLocaleString('en-US', { timeZone: 'UTC' })).getTime() -
+    new Date(lokalMidnatt.toLocaleString('en-US', { timeZone: STOCKHOLM })).getTime();
+
+  return new Date(gissning + offsetMs).toISOString();
+}
+
+module.exports = { nuvarandeMånad, månadensStart };

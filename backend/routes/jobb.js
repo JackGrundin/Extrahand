@@ -1,11 +1,11 @@
 const express = require('express');
 const { kräverInloggning, kräverTyp } = require('../middleware/auth');
-const { skapaJobb, hämtaAllaJobb, hämtaJobbViaId, hämtaJobbFörFöretag, hämtaTidigareJobbFörFöretag, uppdateraJobb, taBortJobb } = require('../db/jobb');
+const { skapaJobb, hämtaAllaJobb, hämtaJobbViaId, hämtaJobbFörFöretag, hämtaTidigareJobbFörFöretag, uppdateraJobb, taBortJobb, räknaJobbDennaMånad } = require('../db/jobb');
 const { hämtaGodkändaFörJobb } = require('../db/ansokningar');
 const { skickaMeddelande } = require('../db/meddelanden');
 const { hämtaPushToken, hämtaPrivatpersonerIStad } = require('../db/användare');
-const { hämtaPrenumeration, ärPro, aktuelltAntalPass, ökaPassDennaManad } = require('../db/prenumeration');
-const { PÅSLAG_PRO, PÅSLAG_GRATIS, GRATIS_PASS_PER_MANAD } = require('../utils/pris');
+const { hämtaPrenumeration, ärPro } = require('../db/prenumeration');
+const { GRATIS_PASS_PER_MANAD } = require('../utils/pris');
 const { skickaNotifikation } = require('../utils/pushNotifikation');
 const { sändJobblistaPing } = require('../realtid');
 
@@ -75,26 +75,24 @@ router.post('/', kräverInloggning, kräverTyp('företag'), async (req, res) => 
   }
 
   try {
-    // Påslaget avgörs av företagets plan just nu och fryses på jobbet. Faktureringen
-    // sker långt senare, då planen kan ha ändrats, så det går inte att härleda i
-    // efterhand vilket påslag som gällde när passet publicerades.
+    // Varning innan företaget binder upp sig: har de redan publicerat två pass denna
+    // månad höjs priset om fler än två faktiskt genomförs. Räknas direkt ur Jobb, så
+    // ett borttaget jobb försvinner automatiskt ur räkningen. Pro-företag har inget tak
+    // och ska aldrig se planvalet.
     const prenumeration = await hämtaPrenumeration(req.användare.id);
-    let paslag = PÅSLAG_PRO;
 
-    if (!ärPro(prenumeration) && aktuelltAntalPass(prenumeration) >= GRATIS_PASS_PER_MANAD) {
-      // Gratiskontot har förbrukat månadens två pass. Klienten visar planvalet och
-      // publicerar om med acceptera_hogre_paslag om företaget väljer att fortsätta
-      // utan abonnemang.
-      if (!acceptera_hogre_paslag) {
+    if (!ärPro(prenumeration) && !acceptera_hogre_paslag) {
+      const publicerade = await räknaJobbDennaMånad(req.användare.id);
+      if (publicerade >= GRATIS_PASS_PER_MANAD) {
         return res.status(409).json({
-          fel: 'Detta är ert tredje pass denna månad',
+          fel: 'Ni har redan publicerat två pass denna månad',
           kod: 'KRAVER_PLANVAL',
-          paslag: PÅSLAG_GRATIS,
         });
       }
-      paslag = PÅSLAG_GRATIS;
     }
 
+    // Påslaget sätts inte här. Det fryses först när en ansökan godkänns – ett pass som
+    // aldrig tillsätts ska varken kosta något eller förbruka ett gratispass.
     const jobb = await skapaJobb({
       titel,
       beskrivning,
@@ -106,13 +104,8 @@ router.post('/', kräverInloggning, kräverTyp('företag'), async (req, res) => 
       antal_dagar: antal_dagar || null,
       arbetstider: arbetstider?.trim() || null,
       ob_tillagg: Array.isArray(ob_tillagg) ? ob_tillagg : [],
-      paslag,
       foretag_id: req.användare.id,
     });
-
-    // Räknas upp först när jobbet faktiskt skapats, så ett misslyckat anrop inte
-    // förbrukar ett gratispass.
-    await ökaPassDennaManad(req.användare.id);
 
     res.status(201).json(jobb);
 

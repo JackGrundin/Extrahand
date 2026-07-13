@@ -1,7 +1,7 @@
-// Visas när ett gratiskonto publicerar sitt tredje pass samma månad. Företaget får
-// välja mellan att uppgradera till Pro (fortsatt 20% påslag) eller att publicera
-// passet med 40% påslag. Priserna räknas ut på jobbets faktiska timlön så att
-// skillnaden blir konkret.
+// Visas när ett gratiskonto publicerar sitt tredje pass samma månad. Priset styrs av
+// hur många pass som faktiskt GENOMFÖRS, så detta är en varning innan de binder upp
+// sig – inte ett hinder. Priserna räknas på jobbets faktiska timlön så att skillnaden
+// mellan planerna blir konkret.
 import { View, Text, TouchableOpacity, StyleSheet, Modal, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import {
@@ -28,10 +28,9 @@ export default function PrenumerationModal({
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
       <View style={styles.modalBakgrund}>
         <View style={styles.modalKort}>
-          <Text style={styles.rubrik}>Ni har använt månadens två pass</Text>
           <Text style={styles.underrubrik}>
-            Uppgradera till Pro för att behålla 20 % påslag, eller fortsätt utan abonnemang
-            med 40 % påslag på det här passet.
+            Ni har redan publicerat två pass denna månad. Om fler än två pass genomförs
+            kommer ert pris att höjas. Uppgradera till Pro för att behålla lägsta pris.
           </Text>
 
           <View style={styles.block}>
@@ -62,8 +61,7 @@ export default function PrenumerationModal({
               {harTimlön && (
                 <Text style={styles.jämförelse}>
                   Med denna timlön blir er kostnad{' '}
-                  <Text style={styles.prisFramhävd}>{proPris} kr/h</Text> istället för{' '}
-                  <Text style={styles.prisÖverstruken}>{gratisPris} kr/h</Text>
+                  <Text style={styles.prisFramhävd}>{proPris} kr/h</Text>
                 </Text>
               )}
             </View>
@@ -87,7 +85,7 @@ export default function PrenumerationModal({
 
               {harTimlön && (
                 <Text style={styles.jämförelse}>
-                  Passet publiceras med en kostnad på{' '}
+                  Med denna timlön blir er kostnad{' '}
                   <Text style={styles.prisFramhävd}>{gratisPris} kr/h</Text>
                 </Text>
               )}
@@ -112,14 +110,12 @@ const styles = StyleSheet.create({
     padding: 24,
     paddingBottom: 40,
   },
-  rubrik: { fontSize: 20, fontWeight: '700', color: '#1a1a1a', textAlign: 'center' },
   underrubrik: {
-    fontSize: 13,
-    color: '#64748b',
+    fontSize: 14,
+    color: '#334155',
     textAlign: 'center',
-    marginTop: 8,
     marginBottom: 20,
-    lineHeight: 19,
+    lineHeight: 20,
   },
 
   block: { flexDirection: 'row', gap: 12 },
@@ -185,7 +181,6 @@ const styles = StyleSheet.create({
 
   jämförelse: { fontSize: 11, color: '#64748b', textAlign: 'center', marginTop: 12, lineHeight: 16 },
   prisFramhävd: { fontWeight: '700', color: '#2563eb' },
-  prisÖverstruken: { textDecorationLine: 'line-through', color: '#94a3b8' },
 
   avbryt: { marginTop: 20, alignItems: 'center', paddingVertical: 8 },
   avbrytText: { color: '#94a3b8', fontSize: 14 },

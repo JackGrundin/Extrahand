@@ -1,5 +1,6 @@
 const { createClient } = require('@supabase/supabase-js');
 const ws = require('ws');
+const { månadensStart } = require('../utils/manad');
 
 const supabase = createClient(
   process.env.SUPABASE_URL,
@@ -182,6 +183,27 @@ async function uppdateraJobb(id, foretag_id, { titel, beskrivning, plats, adress
   return data;
 }
 
+// Fryser (eller nollar) jobbets påslag. Sätts när en ansökan godkänns – passet är då
+// tillsatt och priset avgjort. Nollas igen om godkännandet tas tillbaka.
+async function sättJobbPåslag(id, paslag) {
+  const { error } = await supabase.from('Jobb').update({ paslag }).eq('id', id);
+  if (error) throw error;
+}
+
+// Antal jobb företaget publicerat denna månad. Styr popupen vid publicering. Räknas
+// direkt ur tabellen i stället för via en kolumn, så att ett borttaget jobb automatiskt
+// försvinner ur räkningen.
+async function räknaJobbDennaMånad(foretag_id) {
+  const { count, error } = await supabase
+    .from('Jobb')
+    .select('id', { count: 'exact', head: true })
+    .eq('Foretag_id', foretag_id)
+    .gte('created_at', månadensStart());
+
+  if (error) throw error;
+  return count ?? 0;
+}
+
 async function taBortJobb(id, foretag_id) {
   const { error } = await supabase
     .from('Jobb')
@@ -191,4 +213,4 @@ async function taBortJobb(id, foretag_id) {
   if (error) throw error;
 }
 
-module.exports = { skapaJobb, hämtaAllaJobb, hämtaJobbViaId, hämtaJobbFörFöretag, hämtaTidigareJobbFörFöretag, uppdateraJobb, taBortJobb };
+module.exports = { skapaJobb, hämtaAllaJobb, hämtaJobbViaId, hämtaJobbFörFöretag, hämtaTidigareJobbFörFöretag, uppdateraJobb, taBortJobb, sättJobbPåslag, räknaJobbDennaMånad };

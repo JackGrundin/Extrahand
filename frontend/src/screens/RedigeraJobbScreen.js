@@ -2,7 +2,8 @@ import { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, ScrollView, ActivityIndicator, KeyboardAvoidingView, Platform, Modal } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { api } from '../api/klient';
-import { TYPER, KATEGORIER, beräknaFakturapris, påslagEller40, formateraPris } from '../utils/konstanter';
+import { TYPER, KATEGORIER, beräknaFakturapris, formateraPris } from '../utils/konstanter';
+import { useJobbPåslag } from '../utils/useJobbPåslag';
 import { parsaObTillagg } from '../utils/datumHelper';
 import TidVäljare from '../components/TidVäljare';
 
@@ -19,6 +20,7 @@ function parsaArbetstiderTider(arbetstider) {
 
 export default function RedigeraJobbScreen({ route, navigation }) {
   const { jobb } = route.params;
+  const påslag = useJobbPåslag(jobb.paslag, true);
 
   const [titel, setTitel] = useState(jobb.Titel ?? '');
   const [beskrivning, setBeskrivning] = useState(jobb.Beskrivning ?? '');
@@ -147,8 +149,7 @@ export default function RedigeraJobbScreen({ route, navigation }) {
                   const h = (eh * 60 + em - (sh * 60 + sm)) / 60;
                   const timlön = parseFloat(lon) || 0;
                   const brutto = ob.typ === 'procent' ? h * timlön * (ob.värde / 100) : h * ob.värde;
-                  // Jobbets påslag frystes vid publiceringen och ändras inte av en redigering.
-                  const kostnad = beräknaFakturapris(brutto, påslagEller40(jobb.paslag));
+                  const kostnad = beräknaFakturapris(brutto, påslag);
                   return kostnad > 0 ? ` = +${formateraPris(kostnad)} kr (er kostnad)` : '';
                 })() : ''}
               </Text>

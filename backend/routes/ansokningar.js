@@ -2,7 +2,8 @@ const express = require('express');
 const { kräverInloggning, kräverTyp } = require('../middleware/auth');
 const { skapaAnsökan, hämtaAnsökningarFörSökande, hämtaAnsökningarFörJobb, finnsDubblettAnsökan, uppdateraStatus, hämtaAnsökanViaId, avvisaAllaUtomEn, återställAllaFörJobb, hämtaAllaKonversationerFörFöretag, ångraAnsökan, hämtaAnsökanMedJobbInfo, hämtaKonversationMellan, hämtaGrupperadeKonversationer, hämtaGodkändaFörJobb } = require('../db/ansokningar');
 const { hämtaPushToken, hämtaAnvändareViaId } = require('../db/användare');
-const { hämtaJobbViaId } = require('../db/jobb');
+const { hämtaJobbViaId, sättJobbPåslag } = require('../db/jobb');
+const { hämtaPrenumeration, gällandePåslag, ökaPassDennaManad, minskaPassDennaManad } = require('../db/prenumeration');
 const { skickaNotifikation } = require('../utils/pushNotifikation');
 const { sändRealtidsPing, sändJobblistaPing } = require('../realtid');
 
@@ -121,13 +122,34 @@ router.patch('/:id/status', kräverInloggning, kräverTyp('företag'), async (re
   try {
     const ansökan = await hämtaAnsökanViaId(req.params.id);
 
+    // Var passet redan tillsatt innan den här ändringen? Avgör om räknaren ska röras.
+    // Ett jobb är ett pass och räknas en enda gång – byter företaget godkänd person på
+    // ett redan tillsatt jobb är det inte ett nytt pass.
+    const godkändaFöre = await hämtaGodkändaFörJobb(ansökan.jobb_id);
+
     // Berörda sökande (utöver den vars status ändras direkt) att signalera om
     let övrigaBerörda = [];
     if (status === 'godkänd') {
       await uppdateraStatus(req.params.id, 'godkänd');
       övrigaBerörda = await avvisaAllaUtomEn(ansökan.jobb_id, req.params.id);
+
+      if (godkändaFöre.length === 0) {
+        // Passet är nu genomfört-att-bli och räknas mot månadens gräns. Påslaget avgörs
+        // FÖRE inkrementet: pass 1 och 2 får 20 %, pass 3 och framåt 40 %. Det fryses på
+        // jobbet och följer sedan med till tidrapporten och fakturan.
+        const företag = await hämtaPrenumeration(req.användare.id);
+        await sättJobbPåslag(ansökan.jobb_id, gällandePåslag(företag));
+        await ökaPassDennaManad(req.användare.id);
+      }
     } else {
       övrigaBerörda = await återställAllaFörJobb(ansökan.jobb_id);
+
+      if (godkändaFöre.length > 0) {
+        // Godkännandet togs tillbaka – passet blev aldrig av och ska inte förbruka ett
+        // gratispass. Påslaget nollas så att det sätts om vid ett nytt godkännande.
+        await minskaPassDennaManad(req.användare.id);
+        await sättJobbPåslag(ansökan.jobb_id, null);
+      }
     }
 
     res.json({ ok: true });

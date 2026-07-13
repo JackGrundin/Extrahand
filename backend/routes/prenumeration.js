@@ -1,6 +1,7 @@
 const express = require('express');
 const { kräverInloggning, kräverTyp } = require('../middleware/auth');
 const { hämtaAnvändareViaEmail } = require('../db/användare');
+const { räknaJobbDennaMånad } = require('../db/jobb');
 const {
   hämtaPrenumeration,
   sättPrenumeration,
@@ -22,13 +23,19 @@ const KLAR_URL = `${API_BAS_URL}/prenumeration/klar`;
 // GET /api/prenumeration/status — företagets plan och kvarvarande gratispass
 router.get('/status', kräverInloggning, kräverTyp('företag'), async (req, res) => {
   try {
-    const prenumeration = await hämtaPrenumeration(req.användare.id);
+    const [prenumeration, publicerade] = await Promise.all([
+      hämtaPrenumeration(req.användare.id),
+      räknaJobbDennaMånad(req.användare.id),
+    ]);
+    // passDennaManad = genomförda (godkända) pass och styr påslaget.
+    // publiceradeDennaManad = publicerade jobb och styr popupen.
     const antalPass = aktuelltAntalPass(prenumeration);
 
     res.json({
       status: prenumeration?.prenumeration_status ?? 'gratis',
       pro: ärPro(prenumeration),
       passDennaManad: antalPass,
+      publiceradeDennaManad: publicerade,
       gratisPassKvar: Math.max(0, GRATIS_PASS_PER_MANAD - antalPass),
       paslag: gällandePåslag(prenumeration),
       expiresAt: prenumeration?.prenumeration_expires_at ?? null,
