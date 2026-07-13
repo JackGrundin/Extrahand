@@ -7,7 +7,7 @@ const {
   sättPrenumeration,
   ärPro,
   aktuelltAntalPass,
-  gällandePåslag,
+  prognosPåslag,
 } = require('../db/prenumeration');
 const { GRATIS_PASS_PER_MANAD } = require('../utils/pris');
 const { stripe, API_BAS_URL } = require('../utils/stripe');
@@ -37,7 +37,9 @@ router.get('/status', kräverInloggning, kräverTyp('företag'), async (req, res
       passDennaManad: antalPass,
       publiceradeDennaManad: publicerade,
       gratisPassKvar: Math.max(0, GRATIS_PASS_PER_MANAD - antalPass),
-      paslag: gällandePåslag(prenumeration),
+      // Prognos, inte faktureringen: räknar även publicerade jobb som ännu inte tillsatts,
+      // så prisrutan aldrig visar det lägre priset medan popupen varnar för det högre.
+      paslag: prognosPåslag(prenumeration, publicerade),
       expiresAt: prenumeration?.prenumeration_expires_at ?? null,
     });
   } catch (fel) {

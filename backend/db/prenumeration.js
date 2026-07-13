@@ -45,9 +45,9 @@ function ärPro(användare) {
   return !utgång || new Date(utgång) > new Date();
 }
 
-// Antal pass företaget publicerat denna månad. Om månadsstämpeln avser en tidigare
-// månad har räknaren ännu inte nollställts (cron kan ha missat den 1:a) – då är det
-// korrekta svaret 0.
+// Antal GENOMFÖRDA (godkända) pass denna månad – det är den räknare som avgör vad vi
+// fakturerar. Om månadsstämpeln avser en tidigare månad har räknaren ännu inte
+// nollställts (cron kan ha missat den 1:a) – då är det korrekta svaret 0.
 function aktuelltAntalPass(användare) {
   if (användare?.pass_manad !== nuvarandeMånad()) return 0;
   return användare?.pass_denna_manad ?? 0;
@@ -70,10 +70,29 @@ async function sättPlanvalGjort(id) {
   if (error) throw error;
 }
 
-// Vilket påslag ska gälla för ett jobb som företaget publicerar just nu?
+// Påslaget som FAKTURERAS. Anropas när ett pass tillsätts (en ansökan godkänns) och
+// fryses då på jobbet. Bygger enbart på genomförda pass – ett jobb som aldrig tillsätts
+// ska inte kosta något.
 function gällandePåslag(användare) {
   if (ärPro(användare)) return PÅSLAG_PRO;
   return aktuelltAntalPass(användare) >= GRATIS_PASS_PER_MANAD ? PÅSLAG_GRATIS : PÅSLAG_PRO;
+}
+
+// Påslaget som VISAS i appen för ett pass som ännu inte tillsatts. Till skillnad från
+// gällandePåslag räknas här även jobb som publicerats men inte fyllts: de ligger i kön
+// före det jobb företaget håller på att lägga upp och avgör vilket passnummer det blir.
+// Utan detta skulle prisrutan visa det lägre priset samtidigt som popupen varnar för att
+// priset höjs.
+//
+// Prognosen är avsiktligt konservativ. Blir jobbet ändå månadens första godkända pass
+// faktureras det lägre påslaget, och kunden betalar mindre än vad vi visade – aldrig mer.
+function prognosPåslag(användare, publiceradeDennaMånad = 0) {
+  if (ärPro(användare)) return PÅSLAG_PRO;
+
+  // Max av de två: ett jobb publicerat förra månaden kan godkännas denna, och då är
+  // publiceringsantalet lågt men de genomförda passen många.
+  const förbrukade = Math.max(aktuelltAntalPass(användare), publiceradeDennaMånad);
+  return förbrukade >= GRATIS_PASS_PER_MANAD ? PÅSLAG_GRATIS : PÅSLAG_PRO;
 }
 
 // Räknar upp antalet publicerade pass atomiskt (radlås i Postgres) så att två
@@ -131,6 +150,7 @@ module.exports = {
   ärPro,
   aktuelltAntalPass,
   gällandePåslag,
+  prognosPåslag,
   harGjortPlanval,
   sättPlanvalGjort,
   ökaPassDennaManad,
