@@ -4,7 +4,7 @@ const { skapaJobb, hämtaAllaJobb, hämtaJobbViaId, hämtaJobbFörFöretag, häm
 const { hämtaGodkändaFörJobb } = require('../db/ansokningar');
 const { skickaMeddelande } = require('../db/meddelanden');
 const { hämtaPushToken, hämtaPrivatpersonerIStad } = require('../db/användare');
-const { hämtaPrenumeration, ärPro } = require('../db/prenumeration');
+const { hämtaPrenumeration, ärPro, harGjortPlanval, sättPlanvalGjort } = require('../db/prenumeration');
 const { GRATIS_PASS_PER_MANAD } = require('../utils/pris');
 const { skickaNotifikation } = require('../utils/pushNotifikation');
 const { sändJobblistaPing } = require('../realtid');
@@ -81,7 +81,9 @@ router.post('/', kräverInloggning, kräverTyp('företag'), async (req, res) => 
     // och ska aldrig se planvalet.
     const prenumeration = await hämtaPrenumeration(req.användare.id);
 
-    if (!ärPro(prenumeration) && !acceptera_hogre_paslag) {
+    // Har företaget redan valt att fortsätta utan abonnemang denna månad ska de inte
+    // tillfrågas igen – valet gäller resten av månaden.
+    if (!ärPro(prenumeration) && !acceptera_hogre_paslag && !harGjortPlanval(prenumeration)) {
       const publicerade = await räknaJobbDennaMånad(req.användare.id);
       if (publicerade >= GRATIS_PASS_PER_MANAD) {
         return res.status(409).json({
@@ -106,6 +108,12 @@ router.post('/', kräverInloggning, kräverTyp('företag'), async (req, res) => 
       ob_tillagg: Array.isArray(ob_tillagg) ? ob_tillagg : [],
       foretag_id: req.användare.id,
     });
+
+    // Företaget tryckte "Fortsätt utan abonnemang" – kom ihåg valet så att de slipper
+    // frågan igen resten av månaden. Registreras först när jobbet faktiskt skapats.
+    if (acceptera_hogre_paslag && !ärPro(prenumeration) && !harGjortPlanval(prenumeration)) {
+      await sättPlanvalGjort(req.användare.id);
+    }
 
     res.status(201).json(jobb);
 

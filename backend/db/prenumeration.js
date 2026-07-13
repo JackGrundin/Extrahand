@@ -10,7 +10,7 @@ const supabase = createClient(
 );
 
 const PRENUMERATIONSFÄLT =
-  'id, stripe_customer_id, prenumeration_status, prenumeration_expires_at, pass_denna_manad, pass_manad';
+  'id, stripe_customer_id, prenumeration_status, prenumeration_expires_at, pass_denna_manad, pass_manad, planval_manad';
 
 // Hämtar ett företags prenumerations- och räknartillstånd.
 async function hämtaPrenumeration(id) {
@@ -51,6 +51,23 @@ function ärPro(användare) {
 function aktuelltAntalPass(användare) {
   if (användare?.pass_manad !== nuvarandeMånad()) return 0;
   return användare?.pass_denna_manad ?? 0;
+}
+
+// Har företaget redan valt att fortsätta utan abonnemang denna månad? Då ska planvalet
+// inte visas igen förrän nästa månad. Avser stämpeln en tidigare månad räknas valet som
+// ogjort, så popupen kommer tillbaka av sig själv vid månadsskifte.
+function harGjortPlanval(användare) {
+  return användare?.planval_manad === nuvarandeMånad();
+}
+
+// Registrerar att företaget valt att fortsätta utan abonnemang denna månad.
+async function sättPlanvalGjort(id) {
+  const { error } = await supabase
+    .from('användare')
+    .update({ planval_manad: nuvarandeMånad() })
+    .eq('id', id);
+
+  if (error) throw error;
 }
 
 // Vilket påslag ska gälla för ett jobb som företaget publicerar just nu?
@@ -114,6 +131,8 @@ module.exports = {
   ärPro,
   aktuelltAntalPass,
   gällandePåslag,
+  harGjortPlanval,
+  sättPlanvalGjort,
   ökaPassDennaManad,
   minskaPassDennaManad,
   sättPrenumeration,
