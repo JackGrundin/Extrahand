@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Modal, TextInput, KeyboardAvoidingView, Platform, ScrollView, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { parsaObTillagg, beräknaObBelopp } from '../utils/datumHelper';
-import { beräknaFakturapris, påslagEller40 } from '../utils/konstanter';
+import { beräknaFakturapris, påslagEller40, formateraPris } from '../utils/konstanter';
 import TidVäljare from './TidVäljare';
 
 // Formulär för att skicka en tidrapport (avsluta pass eller skicka en korrigerad rapport).
@@ -84,7 +84,7 @@ export default function AvslutaPassModal({ visible, onClose, timlön = 0, paslag
                 const [eh = 0, em = 0] = ob.slut.split(':').map(Number);
                 const h = (eh * 60 + em - (sh * 60 + sm)) / 60;
                 const brutto = ob.typ === 'procent' ? h * timlön * (ob.värde / 100) : h * ob.värde;
-                const kostnad = brutto * fakturaFaktor;
+                const kostnad = beräknaFakturapris(brutto, påslagEller40(paslag));
                 return (
                   <View key={i} style={styles.obRad}>
                     <View style={{ flex: 1 }}>
@@ -148,7 +148,7 @@ export default function AvslutaPassModal({ visible, onClose, timlön = 0, paslag
             {timmar > 0 && timlön > 0 && (
               <View style={styles.totalRad}>
                 <Text style={styles.totalEtikett}>Er totalkostnad{obKostnad > 0 ? ' (inkl. OB)' : ''}</Text>
-                <Text style={styles.totalVärde}>{(timmar * timlön * fakturaFaktor + obKostnad).toLocaleString('sv-SE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} kr</Text>
+                <Text style={styles.totalVärde}>{formateraPris(beräknaFakturapris(timmar * timlön, påslagEller40(paslag)) + obKostnad)} kr</Text>
               </View>
             )}
 

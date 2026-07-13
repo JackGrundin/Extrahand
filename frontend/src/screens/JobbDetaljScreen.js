@@ -68,7 +68,7 @@ export default function JobbDetaljScreen({ route, navigation }) {
               const [eh = 0, em = 0] = o.slut.split(':').map(Number);
               const h = (eh * 60 + em - (sh * 60 + sm)) / 60;
               const brutto = o.typ === 'procent' ? h * timlön * (o.värde / 100) : h * o.värde;
-              const visat = erFöretag ? brutto * fakturaFaktor : brutto;
+              const visat = erFöretag ? beräknaFakturapris(brutto, påslag) : brutto;
               return (
                 <View key={i} style={styles.obRad}>
                   <Text style={styles.obIntervall}>{o.start}–{o.slut}</Text>
