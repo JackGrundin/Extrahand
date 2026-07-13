@@ -5,6 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 import TidVäljare from './TidVäljare';
 import { api } from '../api/klient';
 import { PÅSLAG_GRATIS, beräknaFakturapris, formateraPris } from '../utils/konstanter';
+import ProBesparing from './ProBesparing';
 
 function formatDatum(date) {
   if (!date) return null;
@@ -192,6 +193,7 @@ export default function ErbjudPassModal({ visible, onClose, onSkicka, skickar })
               <View style={styles.prisKalkyl}>
                 <Text style={styles.prisRad}>Timlön för personen: <Text style={styles.prisFet}>{lön} kr/h</Text></Text>
                 <Text style={styles.prisRad}>Ni faktureras: <Text style={styles.prisFetBlå}>{formateraPris(beräknaFakturapris(lön, påslag))} kr/h</Text> (exkl. moms)</Text>
+                <ProBesparing timlön={lön} paslag={påslag} />
               </View>
             )}
 

@@ -184,7 +184,7 @@ export default function ProfilScreen({ navigation }) {
                   <Ionicons name="star" size={12} color="#fff" />
                   <Text style={styles.proBadgeText}>PRO</Text>
                 </View>
-                <Text style={styles.proAktivText}>Alltid 20 % påslag</Text>
+                <Text style={styles.proAktivText}>Lägsta pris på alla pass</Text>
               </View>
 
               <TouchableOpacity

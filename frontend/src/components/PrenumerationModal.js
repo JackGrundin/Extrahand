@@ -42,7 +42,7 @@ export default function PrenumerationModal({
               </View>
               <Text style={styles.planPris}>{PRO_PRIS_KR} kr</Text>
               <Text style={styles.planPeriod}>per månad</Text>
-              <Text style={styles.planPåslag}>Alltid 20 % påslag</Text>
+              <Text style={styles.planPåslag}>Lägsta pris</Text>
               <Text style={styles.planInfo}>Obegränsat antal pass</Text>
 
               <TouchableOpacity
@@ -71,7 +71,7 @@ export default function PrenumerationModal({
               <Text style={styles.gratisEtikett}>GRATIS</Text>
               <Text style={styles.planPris}>0 kr</Text>
               <Text style={styles.planPeriod}>per månad</Text>
-              <Text style={styles.planPåslag}>40 % påslag</Text>
+              <Text style={styles.planPåslag}>Högre pris</Text>
               <Text style={styles.planInfo}>Efter 2 pass i månaden</Text>
 
               <TouchableOpacity

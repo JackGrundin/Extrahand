@@ -5,6 +5,7 @@ import DateTimePicker from '@react-native-community/datetimepicker';
 import { Ionicons } from '@expo/vector-icons';
 import TidVäljare from '../components/TidVäljare';
 import PrenumerationModal from '../components/PrenumerationModal';
+import ProBesparing from '../components/ProBesparing';
 import { api } from '../api/klient';
 import { KATEGORIER, PÅSLAG_GRATIS, beräknaFakturapris, formateraPris } from '../utils/konstanter';
 import StadInput, { ärGiltigStad } from '../components/StadInput';
@@ -267,7 +268,7 @@ export default function PubliceraJobbScreen({ navigation }) {
               <View style={styles.prisKalkyl}>
                 <Text style={styles.prisRad}>Timlön för personen: <Text style={styles.prisFet}>{timlön} kr/h</Text></Text>
                 <Text style={styles.prisRad}>Ni faktureras: <Text style={styles.prisFetBlå}>{faktureringspris} kr/h</Text> (exkl. moms)</Text>
-                <Text style={styles.prisPåslag}>{Math.round(gällandePåslag * 100)} % påslag</Text>
+                <ProBesparing timlön={timlön} paslag={gällandePåslag} />
               </View>
             ) : null;
           })() : null}
@@ -515,7 +516,6 @@ const styles = StyleSheet.create({
   prisRad: { fontSize: 13, color: '#0369a1' },
   prisFet: { fontWeight: '700', color: '#0369a1' },
   prisFetBlå: { fontWeight: '700', color: '#1d4ed8' },
-  prisPåslag: { fontSize: 11, color: '#0284c7' },
 
   dagSektion: { marginTop: 12, borderWidth: 1, borderColor: '#e5e7eb', borderRadius: 12, padding: 14, backgroundColor: '#fafafa' },
   kryssRad: { flexDirection: 'row', alignItems: 'center', marginBottom: 14 },

@@ -33,6 +33,18 @@ export function formateraPris(belopp) {
   return belopp.toLocaleString('sv-SE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
+// Vad företaget hade betalat med Pro, och hur mycket de sparar. Returnerar null när de
+// redan har det lägsta priset – då finns inget att erbjuda. Att jämföra påslagen här
+// (i stället för att skicka runt en pro-flagga) räcker: en Pro-kund har alltid lägsta
+// påslaget, så raden kan aldrig råka visas för dem.
+export function proBesparing(belopp, paslag) {
+  if (!(belopp > 0) || paslag <= PÅSLAG_PRO) return null;
+
+  const proPris = beräknaFakturapris(belopp, PÅSLAG_PRO);
+  const nuPris = beräknaFakturapris(belopp, paslag);
+  return { proPris, besparing: nuPris - proPris };
+}
+
 export const STATUSFÄRGER_ANSÖKAN = {
   godkänd:  { bg: '#dcfce7', text: '#16a34a' },
   avvisad:  { bg: '#fee2e2', text: '#dc2626' },
