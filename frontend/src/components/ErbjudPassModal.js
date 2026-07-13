@@ -3,15 +3,26 @@ import { View, Text, TextInput, TouchableOpacity, StyleSheet, Modal, Platform, S
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { Ionicons } from '@expo/vector-icons';
 import TidVäljare from './TidVäljare';
+import { api } from '../api/klient';
+import { PÅSLAG_GRATIS, beräknaFakturapris, formateraPris } from '../utils/konstanter';
 
 function formatDatum(date) {
   if (!date) return null;
   return date.toLocaleDateString('sv-SE', { weekday: 'short', day: 'numeric', month: 'short' });
 }
 
-const FAKTURAFAKTOR = 1.32 * 1.06 * 1.40;
-
 export default function ErbjudPassModal({ visible, onClose, onSkicka, skickar }) {
+  // Passet blir ett riktigt jobb först när privatpersonen accepterar, och påslaget
+  // fryses då. Här visas därför företagets påslag som det ser ut just nu.
+  const [påslag, setPåslag] = useState(PÅSLAG_GRATIS);
+
+  useEffect(() => {
+    if (!visible) return;
+    api.prenumerationStatus()
+      .then((status) => setPåslag(status.paslag))
+      .catch(() => {});
+  }, [visible]);
+
   const [titel, setTitel] = useState('');
   const [datum, setDatum] = useState(null);
   const [datumPickerVisas, setDatumPickerVisas] = useState(false);
@@ -180,7 +191,7 @@ export default function ErbjudPassModal({ visible, onClose, onSkicka, skickar })
             {lön > 0 && (
               <View style={styles.prisKalkyl}>
                 <Text style={styles.prisRad}>Timlön för personen: <Text style={styles.prisFet}>{lön} kr/h</Text></Text>
-                <Text style={styles.prisRad}>Ni faktureras: <Text style={styles.prisFetBlå}>{(lön * FAKTURAFAKTOR).toLocaleString('sv-SE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} kr/h</Text> (exkl. moms)</Text>
+                <Text style={styles.prisRad}>Ni faktureras: <Text style={styles.prisFetBlå}>{formateraPris(beräknaFakturapris(lön, påslag))} kr/h</Text> (exkl. moms)</Text>
               </View>
             )}
 

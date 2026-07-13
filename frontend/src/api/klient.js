@@ -1,6 +1,8 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
+// Lokal utveckling: peka mot din dators LAN-IP så att Expo Go på telefonen når backend
 const API_URL = 'https://api.fastgig.se/api';
+// Produktion: const API_URL = 'https://api.fastgig.se/api';
 
 async function anrop(metod, sökväg, kropp) {
   const token = await AsyncStorage.getItem('token');
@@ -93,6 +95,11 @@ export const api = {
   // Fakturering
   hämtaFaktureringsunderlag: () => anrop('GET', '/fakturering'),
   markeraFakturerad: (id) => anrop('PATCH', `/fakturering/${id}/fakturerad`, {}),
+
+  // Prenumeration (Stripe). Checkout och kundportalen öppnas i webbläsaren.
+  prenumerationStatus: () => anrop('GET', '/prenumeration/status'),
+  skapaCheckout: () => anrop('POST', '/prenumeration/checkout', {}),
+  öppnaPortal: () => anrop('POST', '/prenumeration/portal', {}),
 
   // Betyg
   sättaBetyg: (ansokningId, kropp) => anrop('POST', `/betyg/${ansokningId}`, kropp),

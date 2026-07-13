@@ -5,8 +5,12 @@ Plattform som kopplar samman företag och privatpersoner för kortare jobbpass o
 
 ## Viktiga detaljer
 - Admin-vy tillgänglig för info@fastgig.se med flikar: Tidrapporter, Avtal, Företag, Fakturering
-- Faktureringspris beräknas: (timlön + timlön*0.32 + timlön*0.06) * 1.40
-- OB-fakturering: (ob_belopp + ob_belopp*0.32 + ob_belopp*0.06) * 1.40
+- Faktureringspris beräknas: timlön + timlön*0.32 + timlön*0.06 + ((timlön*1.32) + (timlön*1.32*0.06)) * påslag
+- OB-fakturering: samma formel med ob_belopp i stället för timlön
+- Påslaget är 0.20 (Pro-kunder + gratiskontonas två första pass per månad) eller 0.40 (från 3:e passet). Formeln bor i backend/utils/pris.js och speglas i frontend/src/utils/konstanter.js – ändra alltid på båda ställena
+- Påslaget FRYSES på jobbet när det publiceras (Jobb.paslag) och kopieras till tidrapporten. Faktureringen sker långt senare, då planen kan ha ändrats, så det går inte att härleda i efterhand. Jobb från före prenumerationssystemet saknar påslag och faktureras med 40%
+- Prenumeration: Pro 299 kr/mån via Stripe Checkout (extern webbläsare) + Stripes kundportal. Webhook på /webhooks/stripe måste monteras med express.raw FÖRE express.json, annars går signaturverifieringen inte att göra
+- Pass-räknaren (pass_denna_manad + månadsstämpeln pass_manad) nollställs av cron den 1:a, men databasfunktionen oka_pass_denna_manad nollställer också lazily vid månadsskifte – så en omstartad Railway-process kan inte råka fakturera 40% i en ny månad
 - Privatpersoner blockeras från att ansöka tills avtal är godkänt (avtal_godkant = true)
 - E-postverifiering via Resend (noreply@fastgig.se) krävs vid registrering
 - Backend körs på Railway via api.fastgig.se

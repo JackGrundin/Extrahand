@@ -4,6 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../context/AuthContext';
 import { api } from '../api/klient';
 import { parsaArbetstider, formatDagDatum, parsaObTillagg, beräknaObBelopp } from '../utils/datumHelper';
+import { beräknaFakturapris, påslagEller40 } from '../utils/konstanter';
 
 export default function JobbDetaljScreen({ route, navigation }) {
   const { jobb } = route.params;
@@ -51,8 +52,11 @@ export default function JobbDetaljScreen({ route, navigation }) {
         const timlön = jobb.Lon;
         const totalObBrutto = beräknaObBelopp(ob, timlön);
         const erFöretag = användare?.typ === 'företag';
-        const fakturaFaktor = 1.32 * 1.06 * 1.40;
-        const totalVisat = erFöretag ? totalObBrutto * fakturaFaktor : totalObBrutto;
+        // Jobbets påslag frystes vid publiceringen – priset ska visas med det, inte
+        // med företagets nuvarande plan.
+        const totalVisat = erFöretag
+          ? beräknaFakturapris(totalObBrutto, påslagEller40(jobb.paslag))
+          : totalObBrutto;
         return (
           <View style={styles.obSektion}>
             <View style={styles.obRubrikRad}>

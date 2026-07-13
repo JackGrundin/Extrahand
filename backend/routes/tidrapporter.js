@@ -5,6 +5,7 @@ const { hämtaAnsökanViaId } = require('../db/ansokningar');
 const { hämtaJobbViaId } = require('../db/jobb');
 const { hämtaAnvändareViaEmail, hämtaAnvändareViaId, hämtaPushToken } = require('../db/användare');
 const { skickaNotifikation } = require('../utils/pushNotifikation');
+const { påslagEller40 } = require('../utils/pris');
 const { sändRealtidsPing } = require('../realtid');
 
 const router = express.Router();
@@ -53,6 +54,8 @@ router.post('/', kräverInloggning, kräverTyp('företag'), async (req, res) => 
       ob_belopp,
       ob_tillagg: obTillagg,
       totalt_belopp,
+      // Påslaget fryses vid publicering och följer med jobbet hit, precis som timlönen.
+      paslag: påslagEller40(jobb?.paslag),
     });
 
     res.status(201).json(rapport);

@@ -4,6 +4,7 @@ const ws = require('ws');
 const { kräverInloggning } = require('../middleware/auth');
 const { hämtaAnvändareViaEmail, hämtaAnvändareViaId, uppdateraProfil, uppdateraProfilBild, uppdateraStad, sparaPushToken, hämtaPushToken, hämtaAllaPrivatpersoner, godkännAvtal, hämtaAllaFöretag } = require('../db/användare');
 const { hämtaTotalTimmar } = require('../db/ansokningar');
+const { ärPro } = require('../db/prenumeration');
 const { skickaNotifikation } = require('../utils/pushNotifikation');
 const { hämtaJobbFörFöretag } = require('../db/jobb');
 
@@ -44,6 +45,9 @@ router.get('/profil', kräverInloggning, async (req, res) => {
       hemsida: användare.hemsida ?? null,
       totalTimmar,
       avtalGodkant: användare.avtal_godkant ?? false,
+      prenumerationStatus: användare.prenumeration_status ?? 'gratis',
+      prenumerationExpiresAt: användare.prenumeration_expires_at ?? null,
+      pro: ärPro(användare),
     });
   } catch (fel) {
     console.error('Profilfel:', fel);

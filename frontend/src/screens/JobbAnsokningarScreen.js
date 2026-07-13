@@ -185,6 +185,7 @@ export default function JobbAnsokningarScreen({ route, navigation }) {
         visible={modalSynlig}
         onClose={() => setModalSynlig(false)}
         timlön={timlön}
+        paslag={jobb?.paslag}
         initialObTillagg={jobb?.ob_tillagg}
         sparar={sparar}
         onSkicka={skickaRapport}

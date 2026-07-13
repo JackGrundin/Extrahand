@@ -2,12 +2,14 @@ import { useEffect, useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Modal, TextInput, KeyboardAvoidingView, Platform, ScrollView, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { parsaObTillagg, beräknaObBelopp } from '../utils/datumHelper';
+import { beräknaFakturapris, påslagEller40 } from '../utils/konstanter';
 import TidVäljare from './TidVäljare';
 
 // Formulär för att skicka en tidrapport (avsluta pass eller skicka en korrigerad rapport).
 // Samma formulär och design används både från "Avsluta pass" och från chatten, så att en
 // korrigerad tidrapport ser ut och fungerar exakt som en vanlig tidrapport.
-export default function AvslutaPassModal({ visible, onClose, timlön = 0, initialObTillagg = [], sparar = false, onSkicka, rubrik = 'Avsluta pass' }) {
+// paslag är jobbets frysta påslag – utelämnat blir det 40 % (pass från före prenumerationerna).
+export default function AvslutaPassModal({ visible, onClose, timlön = 0, paslag, initialObTillagg = [], sparar = false, onSkicka, rubrik = 'Avsluta pass' }) {
   const [timmarText, setTimmarText] = useState('');
   const [editerbartOb, setEditerbartOb] = useState([]);
   const [obFormVisas, setObFormVisas] = useState(false);
@@ -48,9 +50,8 @@ export default function AvslutaPassModal({ visible, onClose, timlön = 0, initia
   }
 
   const timmar = parseFloat(timmarText.replace(',', '.')) || 0;
-  const fakturaFaktor = 1.32 * 1.06 * 1.40;
   const obBrutto = beräknaObBelopp(editerbartOb, timlön);
-  const obKostnad = obBrutto * fakturaFaktor;
+  const obKostnad = beräknaFakturapris(obBrutto, påslagEller40(paslag));
 
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>

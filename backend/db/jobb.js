@@ -7,10 +7,10 @@ const supabase = createClient(
   { realtime: { transport: ws } }
 );
 
-async function skapaJobb({ titel, beskrivning, plats, adress, lon, typ, kategori, antal_dagar, arbetstider, ob_tillagg, foretag_id }) {
+async function skapaJobb({ titel, beskrivning, plats, adress, lon, typ, kategori, antal_dagar, arbetstider, ob_tillagg, paslag, foretag_id }) {
   const { data, error } = await supabase
     .from('Jobb')
-    .insert([{ Titel: titel, Beskrivning: beskrivning, Plats: plats, adress, Lon: lon, Typ: typ, Kategori: kategori, antal_dagar, arbetstider, ob_tillagg: ob_tillagg || [], Foretag_id: foretag_id }])
+    .insert([{ Titel: titel, Beskrivning: beskrivning, Plats: plats, adress, Lon: lon, Typ: typ, Kategori: kategori, antal_dagar, arbetstider, ob_tillagg: ob_tillagg || [], paslag, Foretag_id: foretag_id }])
     .select()
     .single();
 

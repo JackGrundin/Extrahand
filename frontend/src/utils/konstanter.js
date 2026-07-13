@@ -8,6 +8,31 @@ export const KATEGORIER = [
   'Väktare', 'Chaufför', 'Eventpersonal', 'Handyman', 'Säljare', 'Vakt',
 ];
 
+// Faktureringspriset beror på företagets plan. Speglar backend/utils/pris.js –
+// ändras formeln på ett ställe måste den ändras på båda.
+//
+//   timlön + timlön*0.32 + timlön*0.06 + ((timlön*1.32) + (timlön*1.32*0.06)) * påslag
+//
+// 20% gäller för Pro-kunder och gratiskontonas två första pass varje månad, därefter 40%.
+export const PÅSLAG_PRO = 0.20;
+export const PÅSLAG_GRATIS = 0.40;
+export const PRO_PRIS_KR = 299;
+
+// Beräknar vad företaget faktureras för ett bruttobelopp (timlön eller OB-belopp).
+export function beräknaFakturapris(belopp, paslag = PÅSLAG_GRATIS) {
+  return belopp * 1.38 + belopp * 1.32 * 1.06 * paslag;
+}
+
+// Jobb som publicerades före prenumerationssystemet saknar påslag och faktureras med 40%.
+export function påslagEller40(paslag) {
+  return paslag ?? PÅSLAG_GRATIS;
+}
+
+// Formaterar ett belopp som svensk valuta med två decimaler.
+export function formateraPris(belopp) {
+  return belopp.toLocaleString('sv-SE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
 export const STATUSFÄRGER_ANSÖKAN = {
   godkänd:  { bg: '#dcfce7', text: '#16a34a' },
   avvisad:  { bg: '#fee2e2', text: '#dc2626' },

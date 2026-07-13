@@ -4,6 +4,8 @@ const { skapaJobb, hämtaAllaJobb, hämtaJobbViaId, hämtaJobbFörFöretag, häm
 const { hämtaGodkändaFörJobb } = require('../db/ansokningar');
 const { skickaMeddelande } = require('../db/meddelanden');
 const { hämtaPushToken, hämtaPrivatpersonerIStad } = require('../db/användare');
+const { hämtaPrenumeration, ärPro, aktuelltAntalPass, ökaPassDennaManad } = require('../db/prenumeration');
+const { PÅSLAG_PRO, PÅSLAG_GRATIS, GRATIS_PASS_PER_MANAD } = require('../utils/pris');
 const { skickaNotifikation } = require('../utils/pushNotifikation');
 const { sändJobblistaPing } = require('../realtid');
 
@@ -58,7 +60,7 @@ router.get('/:id', async (req, res) => {
 
 // POST /api/jobb — kräver inloggning som företag
 router.post('/', kräverInloggning, kräverTyp('företag'), async (req, res) => {
-  const { titel, beskrivning, plats, adress, lon, typ, kategori, antal_dagar, arbetstider, ob_tillagg } = req.body;
+  const { titel, beskrivning, plats, adress, lon, typ, kategori, antal_dagar, arbetstider, ob_tillagg, acceptera_hogre_paslag } = req.body;
 
   if (!titel || !beskrivning || !typ) {
     return res.status(400).json({ fel: 'Fälten titel, beskrivning och typ krävs' });
@@ -73,6 +75,26 @@ router.post('/', kräverInloggning, kräverTyp('företag'), async (req, res) => 
   }
 
   try {
+    // Påslaget avgörs av företagets plan just nu och fryses på jobbet. Faktureringen
+    // sker långt senare, då planen kan ha ändrats, så det går inte att härleda i
+    // efterhand vilket påslag som gällde när passet publicerades.
+    const prenumeration = await hämtaPrenumeration(req.användare.id);
+    let paslag = PÅSLAG_PRO;
+
+    if (!ärPro(prenumeration) && aktuelltAntalPass(prenumeration) >= GRATIS_PASS_PER_MANAD) {
+      // Gratiskontot har förbrukat månadens två pass. Klienten visar planvalet och
+      // publicerar om med acceptera_hogre_paslag om företaget väljer att fortsätta
+      // utan abonnemang.
+      if (!acceptera_hogre_paslag) {
+        return res.status(409).json({
+          fel: 'Detta är ert tredje pass denna månad',
+          kod: 'KRAVER_PLANVAL',
+          paslag: PÅSLAG_GRATIS,
+        });
+      }
+      paslag = PÅSLAG_GRATIS;
+    }
+
     const jobb = await skapaJobb({
       titel,
       beskrivning,
@@ -84,8 +106,14 @@ router.post('/', kräverInloggning, kräverTyp('företag'), async (req, res) => 
       antal_dagar: antal_dagar || null,
       arbetstider: arbetstider?.trim() || null,
       ob_tillagg: Array.isArray(ob_tillagg) ? ob_tillagg : [],
+      paslag,
       foretag_id: req.användare.id,
     });
+
+    // Räknas upp först när jobbet faktiskt skapats, så ett misslyckat anrop inte
+    // förbrukar ett gratispass.
+    await ökaPassDennaManad(req.användare.id);
+
     res.status(201).json(jobb);
 
     // Realtidssignal till alla privatpersoners jobblista om det nya jobbet

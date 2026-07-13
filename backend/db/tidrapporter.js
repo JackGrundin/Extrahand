@@ -7,7 +7,7 @@ const supabase = createClient(
   { realtime: { transport: ws } }
 );
 
-async function skapaTidrapport({ ansokan_id, foretag_id, anvandare_id, datum, timmar, timlon, ob_belopp, ob_tillagg, totalt_belopp }) {
+async function skapaTidrapport({ ansokan_id, foretag_id, anvandare_id, datum, timmar, timlon, ob_belopp, ob_tillagg, totalt_belopp, paslag }) {
   // Blockera bara om det redan finns en aktiv tidrapport (väntar på svar eller godkänd).
   // En bestridd tidrapport får ersättas av en ny korrigerad rapport.
   const befintlig = await hämtaTidrapportFörAnsökan(ansokan_id);
@@ -17,7 +17,7 @@ async function skapaTidrapport({ ansokan_id, foretag_id, anvandare_id, datum, ti
 
   const { data, error } = await supabase
     .from('tidrapporter')
-    .insert([{ ansokan_id, foretag_id, anvandare_id, datum, timmar, timlon, ob_belopp: ob_belopp || 0, ob_tillagg: ob_tillagg || [], totalt_belopp, status: 'väntar' }])
+    .insert([{ ansokan_id, foretag_id, anvandare_id, datum, timmar, timlon, ob_belopp: ob_belopp || 0, ob_tillagg: ob_tillagg || [], totalt_belopp, paslag, status: 'väntar' }])
     .select()
     .single();
 

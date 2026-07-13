@@ -1,5 +1,6 @@
 const { createClient } = require('@supabase/supabase-js');
 const ws = require('ws');
+const { beräknaFakturapris, påslagEller40 } = require('../utils/pris');
 
 const supabase = createClient(
   process.env.SUPABASE_URL,
@@ -29,13 +30,17 @@ async function hämtaFaktureringsunderlag() {
 
   return rapporter.map(r => {
     const f = företagMap[r.foretag_id] || {};
-    const faktureringsbelopp = (r.timmar * r.timlon + (r.ob_belopp || 0)) * 1.32 * 1.06 * 1.40;
+    // Påslaget frystes när jobbet publicerades. Rapporter från före prenumerations-
+    // systemet saknar påslag och faktureras med 40%.
+    const paslag = påslagEller40(r.paslag);
+    const faktureringsbelopp = beräknaFakturapris(r.timmar * r.timlon + (r.ob_belopp || 0), paslag);
     return {
       id: r.id,
       datum: r.datum,
       timmar: r.timmar,
       timlon: r.timlon,
       ob_belopp: r.ob_belopp || 0,
+      paslag,
       faktureringsbelopp,
       foretagsnamn: f.Namn ?? null,
       organisationsnummer: f.organisationsnummer ?? null,

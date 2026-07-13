@@ -186,6 +186,7 @@ function TidrapportKort({ rapport, ärPrivatperson, ärSenaste, onUppdaterad }) 
         visible={korrigeraVisas}
         onClose={() => setKorrigeraVisas(false)}
         timlön={rapport.timlon}
+        paslag={rapport.paslag}
         initialObTillagg={rapport.ob_tillagg}
         sparar={sparar}
         onSkicka={skickaKorrigering}

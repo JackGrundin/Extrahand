@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, ScrollView, ActivityIndicator, KeyboardAvoidingView, Platform, Modal } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { api } from '../api/klient';
-import { TYPER, KATEGORIER } from '../utils/konstanter';
+import { TYPER, KATEGORIER, beräknaFakturapris, påslagEller40, formateraPris } from '../utils/konstanter';
 import { parsaObTillagg } from '../utils/datumHelper';
 import TidVäljare from '../components/TidVäljare';
 
@@ -147,8 +147,9 @@ export default function RedigeraJobbScreen({ route, navigation }) {
                   const h = (eh * 60 + em - (sh * 60 + sm)) / 60;
                   const timlön = parseFloat(lon) || 0;
                   const brutto = ob.typ === 'procent' ? h * timlön * (ob.värde / 100) : h * ob.värde;
-                  const kostnad = brutto * 1.32 * 1.06 * 1.40;
-                  return kostnad > 0 ? ` = +${kostnad.toLocaleString('sv-SE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} kr (er kostnad)` : '';
+                  // Jobbets påslag frystes vid publiceringen och ändras inte av en redigering.
+                  const kostnad = beräknaFakturapris(brutto, påslagEller40(jobb.paslag));
+                  return kostnad > 0 ? ` = +${formateraPris(kostnad)} kr (er kostnad)` : '';
                 })() : ''}
               </Text>
               <TouchableOpacity onPress={() => setObTillagg(prev => prev.filter((_, j) => j !== i))}>

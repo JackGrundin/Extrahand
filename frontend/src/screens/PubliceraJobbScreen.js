@@ -1,10 +1,12 @@
-import { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, ScrollView, ActivityIndicator, KeyboardAvoidingView, Platform, Modal, FlatList } from 'react-native';
+import { useCallback, useState } from 'react';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, ScrollView, ActivityIndicator, KeyboardAvoidingView, Platform, Modal, FlatList, Linking } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { Ionicons } from '@expo/vector-icons';
 import TidVäljare from '../components/TidVäljare';
+import PrenumerationModal from '../components/PrenumerationModal';
 import { api } from '../api/klient';
-import { TYPER, KATEGORIER } from '../utils/konstanter';
+import { KATEGORIER, PÅSLAG_GRATIS, beräknaFakturapris, formateraPris } from '../utils/konstanter';
 import StadInput, { ärGiltigStad } from '../components/StadInput';
 
 function formatDatum(isoStr) {
@@ -19,7 +21,6 @@ export default function PubliceraJobbScreen({ navigation }) {
   const [plats, setPlats] = useState('');
   const [adress, setAdress] = useState('');
   const [lon, setLon] = useState('');
-  const [typ, setTyp] = useState('gig');
   const [kategori, setKategori] = useState('');
   const [antalDagar, setAntalDagar] = useState('');
   const [dagScheman, setDagScheman] = useState([]);
@@ -36,6 +37,27 @@ export default function PubliceraJobbScreen({ navigation }) {
   const [obSlut, setObSlut] = useState('');
   const [obTyp, setObTyp] = useState('procent');
   const [obVärde, setObVärde] = useState('');
+  const [prenumeration, setPrenumeration] = useState(null);
+  const [planModalVisas, setPlanModalVisas] = useState(false);
+  const [betalningLaddar, setBetalningLaddar] = useState(false);
+
+  // Hämtar företagets plan så att prisrutan kan visa rätt påslag redan innan
+  // publicering. Hämtas om vid varje fokus – t.ex. när användaren kommer tillbaka
+  // från Stripe Checkout i webbläsaren.
+  const hämtaPrenumeration = useCallback(async () => {
+    try {
+      setPrenumeration(await api.prenumerationStatus());
+    } catch {
+      // Statusen är bara till för prisvisningen – backend avgör i slutändan.
+    }
+  }, []);
+
+  useFocusEffect(useCallback(() => {
+    hämtaPrenumeration();
+  }, [hämtaPrenumeration]));
+
+  // Påslaget som gäller för nästa pass företaget publicerar.
+  const gällandePåslag = prenumeration?.paslag ?? PÅSLAG_GRATIS;
 
   function hanteraAntalDagar(val) {
     setAntalDagar(val);
@@ -108,6 +130,31 @@ export default function PubliceraJobbScreen({ navigation }) {
     k.toLowerCase().includes(sokKategori.toLowerCase())
   );
 
+  // Skickar jobbet till backend. Backend avgör påslaget och svarar med KRAVER_PLANVAL
+  // om gratiskontot förbrukat månadens två pass – då visas planvalet i stället, och
+  // publiceringen görs om med accepteraHögrePåslag när företaget valt.
+  async function publicera({ accepteraHögrePåslag = false } = {}) {
+    const arbetstider = dagScheman.length > 0 ? JSON.stringify(dagScheman) : undefined;
+
+    await api.publicera({
+      titel: titel.trim(),
+      beskrivning: beskrivning.trim(),
+      plats: plats.trim() || undefined,
+      adress: adress.trim(),
+      lon: lon ? parseInt(lon) : undefined,
+      typ: 'gig',
+      kategori: kategori || undefined,
+      antal_dagar: antalDagar ? parseInt(antalDagar) : undefined,
+      arbetstider,
+      ob_tillagg: obTillagg,
+      ...(accepteraHögrePåslag ? { acceptera_hogre_paslag: true } : {}),
+    });
+
+    Alert.alert('Klart!', 'Jobbet har publicerats.', [
+      { text: 'OK', onPress: () => navigation.goBack() },
+    ]);
+  }
+
   async function hanteraPublicering() {
     if (!titel.trim() || !beskrivning.trim()) {
       Alert.alert('Fel', 'Titel och beskrivning krävs');
@@ -128,28 +175,45 @@ export default function PubliceraJobbScreen({ navigation }) {
     }
     setLaddar(true);
     try {
-      const arbetstider = dagScheman.length > 0
-        ? JSON.stringify(dagScheman)
-        : undefined;
-      await api.publicera({
-        titel: titel.trim(),
-        beskrivning: beskrivning.trim(),
-        plats: plats.trim() || undefined,
-        adress: adress.trim(),
-        lon: lon ? parseInt(lon) : undefined,
-        typ,
-        kategori: kategori || undefined,
-        antal_dagar: antalDagar ? parseInt(antalDagar) : undefined,
-        arbetstider,
-        ob_tillagg: obTillagg,
-      });
-      Alert.alert('Klart!', 'Jobbet har publicerats.', [
-        { text: 'OK', onPress: () => navigation.goBack() },
-      ]);
+      await publicera();
+    } catch (fel) {
+      // Tredje passet denna månad på gratisplanen – låt företaget välja plan.
+      if (fel.kod === 'KRAVER_PLANVAL') {
+        setPlanModalVisas(true);
+        return;
+      }
+      Alert.alert('Fel', fel.message);
+    } finally {
+      setLaddar(false);
+    }
+  }
+
+  // "Fortsätt utan abonnemang" – jobbet publiceras med 40 % påslag.
+  async function fortsattUtanAbonnemang() {
+    setPlanModalVisas(false);
+    setLaddar(true);
+    try {
+      await publicera({ accepteraHögrePåslag: true });
     } catch (fel) {
       Alert.alert('Fel', fel.message);
     } finally {
       setLaddar(false);
+    }
+  }
+
+  // "Uppgradera till Pro" – Stripe Checkout öppnas i webbläsaren. När företaget
+  // återvänder till appen hämtas planen om via useFocusEffect; är den Pro publiceras
+  // passet med 20 % påslag när de trycker publicera igen.
+  async function uppgraderaTillPro() {
+    setBetalningLaddar(true);
+    try {
+      const { url } = await api.skapaCheckout();
+      await Linking.openURL(url);
+      setPlanModalVisas(false);
+    } catch (fel) {
+      Alert.alert('Fel', fel.message);
+    } finally {
+      setBetalningLaddar(false);
     }
   }
 
@@ -198,11 +262,12 @@ export default function PubliceraJobbScreen({ navigation }) {
           <TextInput style={styles.input} placeholder="t.ex. 160" value={lon} onChangeText={setLon} keyboardType="numeric" />
           {lon ? (() => {
             const timlön = parseFloat(lon) || 0;
-            const faktureringspris = (timlön * 1.32 * 1.06 * 1.40).toLocaleString('sv-SE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+            const faktureringspris = formateraPris(beräknaFakturapris(timlön, gällandePåslag));
             return timlön > 0 ? (
               <View style={styles.prisKalkyl}>
                 <Text style={styles.prisRad}>Timlön för personen: <Text style={styles.prisFet}>{timlön} kr/h</Text></Text>
                 <Text style={styles.prisRad}>Ni faktureras: <Text style={styles.prisFetBlå}>{faktureringspris} kr/h</Text> (exkl. moms)</Text>
+                <Text style={styles.prisPåslag}>{Math.round(gällandePåslag * 100)} % påslag</Text>
               </View>
             ) : null;
           })() : null}
@@ -264,8 +329,8 @@ export default function PubliceraJobbScreen({ navigation }) {
                   const h = (eh * 60 + em - (sh * 60 + sm)) / 60;
                   const timlön = parseFloat(lon) || 0;
                   const brutto = ob.typ === 'procent' ? h * timlön * (ob.värde / 100) : h * ob.värde;
-                  const kostnad = brutto * 1.32 * 1.06 * 1.40;
-                  return kostnad > 0 ? ` = +${kostnad.toLocaleString('sv-SE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} kr (er kostnad)` : '';
+                  const kostnad = beräknaFakturapris(brutto, gällandePåslag);
+                  return kostnad > 0 ? ` = +${formateraPris(kostnad)} kr (er kostnad)` : '';
                 })() : ''}
               </Text>
               <TouchableOpacity onPress={() => setObTillagg(prev => prev.filter((_, j) => j !== i))}>
@@ -322,17 +387,6 @@ export default function PubliceraJobbScreen({ navigation }) {
             </TouchableOpacity>
           )}
 
-          <Text style={styles.label}>Typ *</Text>
-          <View style={styles.typVäljare}>
-            {TYPER.map((t) => (
-              <TouchableOpacity key={t} style={[styles.typKnapp, typ === t && styles.typKnappAktiv]} onPress={() => setTyp(t)}>
-                <Text style={[styles.typText, typ === t && styles.typTextAktiv]}>
-                  {t.charAt(0).toUpperCase() + t.slice(1)}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-
           <Text style={styles.label}>Kategori</Text>
           <TouchableOpacity style={styles.väljarKnapp} onPress={() => setKategoriModalVisas(true)} activeOpacity={0.7}>
             <Text style={[styles.väljarText, !kategori && styles.väljarPlaceholder]}>
@@ -346,6 +400,16 @@ export default function PubliceraJobbScreen({ navigation }) {
           </TouchableOpacity>
         </ScrollView>
       </KeyboardAvoidingView>
+
+      {/* Planval vid tredje passet samma månad */}
+      <PrenumerationModal
+        visible={planModalVisas}
+        onClose={() => setPlanModalVisas(false)}
+        timlön={parseFloat(lon) || 0}
+        laddar={betalningLaddar}
+        onUppgradera={uppgraderaTillPro}
+        onFortsattUtan={fortsattUtanAbonnemang}
+      />
 
       {/* Datumväljare – Android (native dialog) */}
       {Platform.OS === 'android' && dagPickerIndex !== null && (
@@ -451,6 +515,7 @@ const styles = StyleSheet.create({
   prisRad: { fontSize: 13, color: '#0369a1' },
   prisFet: { fontWeight: '700', color: '#0369a1' },
   prisFetBlå: { fontWeight: '700', color: '#1d4ed8' },
+  prisPåslag: { fontSize: 11, color: '#0284c7' },
 
   dagSektion: { marginTop: 12, borderWidth: 1, borderColor: '#e5e7eb', borderRadius: 12, padding: 14, backgroundColor: '#fafafa' },
   kryssRad: { flexDirection: 'row', alignItems: 'center', marginBottom: 14 },

@@ -8,6 +8,7 @@ const {
   uppdateraJobbforfraganStatus,
 } = require('../db/jobbforfragan');
 const { skapaJobb } = require('../db/jobb');
+const { hämtaPrenumeration, gällandePåslag, ökaPassDennaManad } = require('../db/prenumeration');
 const { skapaAnsökan, uppdateraStatus } = require('../db/ansokningar');
 const { hämtaPushToken, hämtaAnvändareViaId } = require('../db/användare');
 const { skickaNotifikation } = require('../utils/pushNotifikation');
@@ -99,6 +100,12 @@ router.patch('/:id/acceptera', kräverInloggning, kräverTyp('privatperson'), as
       { datum: förfrågan.datum, start: förfrågan.starttid, slut: förfrågan.sluttid },
     ]);
 
+    // Passet räknas mot företagets gratisgräns precis som ett vanligt publicerat jobb –
+    // annars skulle gränsen kunna kringgås helt genom att erbjuda pass via chatten.
+    // Här kan inget planval visas (det är privatpersonen som accepterar), så påslaget
+    // avgörs av företagets plan i det ögonblick passet blir till ett riktigt jobb.
+    const företaget = await hämtaPrenumeration(förfrågan.fran_anvandare_id);
+
     const jobb = await skapaJobb({
       titel: förfrågan.titel || `Pass ${förfrågan.datum}`,
       beskrivning: 'Pass erbjudet direkt via chatten.',
@@ -110,8 +117,11 @@ router.patch('/:id/acceptera', kräverInloggning, kräverTyp('privatperson'), as
       antal_dagar: 1,
       arbetstider,
       ob_tillagg: Array.isArray(förfrågan.ob_tillagg) ? förfrågan.ob_tillagg : [],
+      paslag: gällandePåslag(företaget),
       foretag_id: förfrågan.fran_anvandare_id,
     });
+
+    await ökaPassDennaManad(förfrågan.fran_anvandare_id);
 
     // Skapa en redan godkänd ansökan så passet beter sig som ett vanligt godkänt pass
     const ansökan = await skapaAnsökan({
