@@ -1,11 +1,13 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, ScrollView, ActivityIndicator, KeyboardAvoidingView, Platform, Modal } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { api } from '../api/klient';
 import { TYPER, KATEGORIER, beräknaFakturapris, formateraPris } from '../utils/konstanter';
 import { useJobbPåslag } from '../utils/useJobbPåslag';
+import { valideraJobb } from '../utils/jobbValidering';
 import { parsaObTillagg } from '../utils/datumHelper';
 import TidVäljare from '../components/TidVäljare';
+import FältFel from '../components/FältFel';
 
 function parsaArbetstiderTider(arbetstider) {
   if (!arbetstider) return { start: '', slut: '' };
@@ -33,6 +35,8 @@ export default function RedigeraJobbScreen({ route, navigation }) {
   const [arbetstiderStart, setArbetstiderStart] = useState(() => parsaArbetstiderTider(jobb.arbetstider).start);
   const [arbetstiderSlut, setArbetstiderSlut] = useState(() => parsaArbetstiderTider(jobb.arbetstider).slut);
   const [laddar, setLaddar] = useState(false);
+  const [fel, setFel] = useState({});
+  const scrollRef = useRef(null);
   const [kategoriModalVisas, setKategoriModalVisas] = useState(false);
   const [sokKategori, setSokKategori] = useState('');
   const [obTillagg, setObTillagg] = useState(() => parsaObTillagg(jobb.ob_tillagg));
@@ -63,15 +67,27 @@ export default function RedigeraJobbScreen({ route, navigation }) {
     k.toLowerCase().includes(sokKategori.toLowerCase())
   );
 
+  function rensaFel(nyckel) {
+    setFel(prev => (prev[nyckel] ? { ...prev, [nyckel]: undefined } : prev));
+  }
+
   async function hanteraSpara() {
-    if (!titel.trim() || !beskrivning.trim()) {
-      Alert.alert('Fel', 'Titel och beskrivning krävs');
+    // Redigeringsformuläret har fri stad (ingen ortlista) och platta tidfält i stället
+    // för dag-schemat, så staden och schemat valideras inte via den delade funktionen.
+    const nyaFel = valideraJobb(
+      { titel, beskrivning, kategori, plats, adress, lon },
+      { kräverStadFrånLista: false, kräverSchema: false }
+    );
+    if (!arbetstiderStart || !arbetstiderSlut) {
+      nyaFel.arbetstider = 'Ange både start- och sluttid';
+    }
+    if (Object.keys(nyaFel).length) {
+      setFel(nyaFel);
+      scrollRef.current?.scrollTo({ y: 0, animated: true });
       return;
     }
-    if (!adress.trim()) {
-      Alert.alert('Fel', 'Adress till arbetsplatsen krävs');
-      return;
-    }
+    setFel({});
+
     setLaddar(true);
     try {
       await api.uppdateraJobb(jobb.id, {
@@ -89,8 +105,8 @@ export default function RedigeraJobbScreen({ route, navigation }) {
       Alert.alert('Sparat!', 'Annonsen har uppdaterats.', [
         { text: 'OK', onPress: () => navigation.goBack() },
       ]);
-    } catch (fel) {
-      Alert.alert('Fel', fel.message);
+    } catch (error) {
+      Alert.alert('Fel', error.message);
     } finally {
       setLaddar(false);
     }
@@ -99,44 +115,50 @@ export default function RedigeraJobbScreen({ route, navigation }) {
   return (
     <>
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-        <ScrollView style={styles.container} keyboardShouldPersistTaps="handled">
+        <ScrollView ref={scrollRef} style={styles.container} keyboardShouldPersistTaps="handled">
           <Text style={styles.label}>Jobbtitel *</Text>
-          <TextInput style={styles.input} value={titel} onChangeText={setTitel} />
+          <TextInput style={[styles.input, fel.titel && styles.inputFel]} value={titel} onChangeText={(t) => { setTitel(t); rensaFel('titel'); }} />
+          <FältFel text={fel.titel} />
 
           <Text style={styles.label}>Beskrivning *</Text>
           <TextInput
-            style={[styles.input, styles.textArea]}
+            style={[styles.input, styles.textArea, fel.beskrivning && styles.inputFel]}
             value={beskrivning}
-            onChangeText={setBeskrivning}
+            onChangeText={(t) => { setBeskrivning(t); rensaFel('beskrivning'); }}
             multiline
             numberOfLines={5}
             textAlignVertical="top"
           />
+          <FältFel text={fel.beskrivning} />
 
-          <Text style={styles.label}>Plats</Text>
-          <TextInput style={styles.input} value={plats} onChangeText={setPlats} />
+          <Text style={styles.label}>Plats *</Text>
+          <TextInput style={[styles.input, fel.plats && styles.inputFel]} value={plats} onChangeText={(t) => { setPlats(t); rensaFel('plats'); }} />
+          <FältFel text={fel.plats} />
 
           <Text style={styles.label}>Adress till arbetsplatsen *</Text>
           <TextInput
-            style={styles.input}
+            style={[styles.input, fel.adress && styles.inputFel]}
             placeholder="t.ex. Storgatan 12, Stockholm"
             value={adress}
-            onChangeText={setAdress}
+            onChangeText={(t) => { setAdress(t); rensaFel('adress'); }}
             autoCorrect={false}
           />
+          <FältFel text={fel.adress} />
 
-          <Text style={styles.label}>Timlön (kr/tim)</Text>
-          <TextInput style={styles.input} value={lon} onChangeText={setLon} keyboardType="numeric" />
+          <Text style={styles.label}>Timlön (kr/tim) *</Text>
+          <TextInput style={[styles.input, fel.lon && styles.inputFel]} value={lon} onChangeText={(t) => { setLon(t); rensaFel('lon'); }} keyboardType="numeric" />
+          <FältFel text={fel.lon} />
 
           <Text style={styles.label}>Antal dagar</Text>
           <TextInput style={styles.input} value={antalDagar} onChangeText={setAntalDagar} keyboardType="numeric" />
 
-          <Text style={styles.label}>Arbetstider</Text>
+          <Text style={styles.label}>Arbetstider *</Text>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-            <TidVäljare style={{ flex: 1 }} placeholder="08:00" value={arbetstiderStart} onChange={setArbetstiderStart} />
+            <TidVäljare style={{ flex: 1 }} placeholder="08:00" value={arbetstiderStart} onChange={(v) => { setArbetstiderStart(v); rensaFel('arbetstider'); }} />
             <Text style={{ fontSize: 16, color: '#9ca3af' }}>–</Text>
-            <TidVäljare style={{ flex: 1 }} placeholder="17:00" value={arbetstiderSlut} onChange={setArbetstiderSlut} />
+            <TidVäljare style={{ flex: 1 }} placeholder="17:00" value={arbetstiderSlut} onChange={(v) => { setArbetstiderSlut(v); rensaFel('arbetstider'); }} />
           </View>
+          <FältFel text={fel.arbetstider} />
 
           <Text style={styles.label}>OB-tillägg (obekväm arbetstid)</Text>
           {obTillagg.map((ob, i) => (
@@ -208,13 +230,14 @@ export default function RedigeraJobbScreen({ route, navigation }) {
             ))}
           </View>
 
-          <Text style={styles.label}>Kategori</Text>
-          <TouchableOpacity style={styles.väljarKnapp} onPress={() => setKategoriModalVisas(true)} activeOpacity={0.7}>
+          <Text style={styles.label}>Kategori *</Text>
+          <TouchableOpacity style={[styles.väljarKnapp, fel.kategori && styles.inputFel]} onPress={() => setKategoriModalVisas(true)} activeOpacity={0.7}>
             <Text style={[styles.väljarText, !kategori && styles.väljarPlaceholder]}>
               {kategori || 'Välj kategori...'}
             </Text>
             <Ionicons name="chevron-forward" size={18} color="#9ca3af" />
           </TouchableOpacity>
+          <FältFel text={fel.kategori} />
 
           <TouchableOpacity style={[styles.knapp, laddar && styles.knappInaktiv]} onPress={hanteraSpara} disabled={laddar}>
             {laddar ? <ActivityIndicator color="#fff" /> : <Text style={styles.knappText}>Spara ändringar</Text>}
@@ -250,7 +273,7 @@ export default function RedigeraJobbScreen({ route, navigation }) {
                     key={k}
                     style={styles.kategoriRad}
                     activeOpacity={0.7}
-                    onPress={() => { setKategori(k); setKategoriModalVisas(false); setSokKategori(''); }}
+                    onPress={() => { setKategori(k); rensaFel('kategori'); setKategoriModalVisas(false); setSokKategori(''); }}
                   >
                     <Text style={styles.kategoriRadText}>{k}</Text>
                     {kategori === k && <Ionicons name="checkmark" size={20} color="#2563eb" />}
@@ -269,6 +292,7 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#fff', padding: 20 },
   label: { fontSize: 14, fontWeight: '600', color: '#444', marginBottom: 6, marginTop: 16 },
   input: { borderWidth: 1, borderColor: '#ddd', borderRadius: 10, padding: 14, fontSize: 15, backgroundColor: '#fafafa', letterSpacing: 0 },
+  inputFel: { borderColor: '#dc2626', borderWidth: 1.5, backgroundColor: '#fef2f2' },
   textArea: { height: 120 },
 
   väljarKnapp: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderWidth: 1, borderColor: '#ddd', borderRadius: 10, padding: 14, backgroundColor: '#fafafa' },

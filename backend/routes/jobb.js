@@ -11,6 +11,23 @@ const { sändJobblistaPing } = require('../realtid');
 
 const router = express.Router();
 
+const GILTIGA_TYPER = ['gig', 'sommarjobb', 'deltid', 'heltid', 'uppdrag'];
+
+// Validerar ett inkommande jobb. Returnerar ett felmeddelande (sträng) om något
+// obligatoriskt fält saknas, annars null. Servern är sista försvaret: en tom timlön
+// kopieras vidare som 0 till tidrapporten och ger en faktura på 0 kr, så det måste
+// stoppas här även om appen redan validerat. Alla fält utom OB-tillägg krävs.
+function valideraJobbInput({ titel, beskrivning, typ, plats, adress, lon, kategori, arbetstider }) {
+  if (!titel || !beskrivning || !typ) return 'Fälten titel, beskrivning och typ krävs';
+  if (!GILTIGA_TYPER.includes(typ)) return 'Ogiltig typ';
+  if (!plats || !String(plats).trim()) return 'Stad krävs';
+  if (!adress || !String(adress).trim()) return 'Adress till arbetsplatsen krävs';
+  if (!kategori || !String(kategori).trim()) return 'Kategori krävs';
+  if (!arbetstider || !String(arbetstider).trim()) return 'Arbetstider krävs';
+  if (lon == null || !(Number(lon) > 0)) return 'Giltig timlön krävs';
+  return null;
+}
+
 // GET /api/jobb — publik, hämtar alla jobb
 router.get('/', async (req, res) => {
   try {
@@ -62,16 +79,9 @@ router.get('/:id', async (req, res) => {
 router.post('/', kräverInloggning, kräverTyp('företag'), async (req, res) => {
   const { titel, beskrivning, plats, adress, lon, typ, kategori, antal_dagar, arbetstider, ob_tillagg, acceptera_hogre_paslag } = req.body;
 
-  if (!titel || !beskrivning || !typ) {
-    return res.status(400).json({ fel: 'Fälten titel, beskrivning och typ krävs' });
-  }
-  if (!adress) {
-    return res.status(400).json({ fel: 'Adress till arbetsplatsen krävs' });
-  }
-
-  const giltiga_typer = ['gig', 'sommarjobb', 'deltid', 'heltid', 'uppdrag'];
-  if (!giltiga_typer.includes(typ)) {
-    return res.status(400).json({ fel: 'Ogiltig typ' });
+  const valideringsfel = valideraJobbInput({ titel, beskrivning, typ, plats, adress, lon, kategori, arbetstider });
+  if (valideringsfel) {
+    return res.status(400).json({ fel: valideringsfel });
   }
 
   try {
@@ -148,11 +158,9 @@ async function notifieraPrivatpersonerIStad(jobb) {
 router.put('/:id', kräverInloggning, kräverTyp('företag'), async (req, res) => {
   const { titel, beskrivning, plats, adress, lon, typ, kategori, antal_dagar, arbetstider, ob_tillagg } = req.body;
 
-  if (!titel || !beskrivning || !typ) {
-    return res.status(400).json({ fel: 'Fälten titel, beskrivning och typ krävs' });
-  }
-  if (!adress) {
-    return res.status(400).json({ fel: 'Adress till arbetsplatsen krävs' });
+  const valideringsfel = valideraJobbInput({ titel, beskrivning, typ, plats, adress, lon, kategori, arbetstider });
+  if (valideringsfel) {
+    return res.status(400).json({ fel: valideringsfel });
   }
 
   try {

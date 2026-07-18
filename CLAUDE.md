@@ -4,6 +4,7 @@
 Plattform som kopplar samman företag och privatpersoner för kortare jobbpass och längre uppdrag. Företag publicerar jobb med datum, tider, adress, timlön och OB-tillägg. Privatpersoner ansöker, chattar med företag och får betyg efter avslutat pass.
 
 ## Viktiga detaljer
+- Alla fält i jobbformuläret är obligatoriska utom OB-tillägg (titel, beskrivning, kategori, stad, adress, timlön, antal dagar, datum+tider per dag). Delad validering i frontend/src/utils/jobbValidering.js (valideraJobb) + inline-fel via components/FältFel.js. Backend är sista försvaret: routes/jobb.js valideraJobbInput körs i både POST och PUT och avvisar bl.a. tom/0 timlön med 400 – annars ger jobbet en tidrapport på 0 kr
 - Admin-vy tillgänglig för info@fastgig.se med flikar: Tidrapporter, Avtal, Företag, Fakturering
 - Faktureringspris beräknas: timlön + timlön*0.32 + timlön*0.06 + ((timlön*1.32) + (timlön*1.32*0.06)) * påslag
 - OB-fakturering: samma formel med ob_belopp i stället för timlön

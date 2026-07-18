@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, ScrollView, ActivityIndicator, KeyboardAvoidingView, Platform, Modal, FlatList, Linking } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import DateTimePicker from '@react-native-community/datetimepicker';
@@ -6,10 +6,12 @@ import { Ionicons } from '@expo/vector-icons';
 import TidVäljare from '../components/TidVäljare';
 import PrenumerationModal from '../components/PrenumerationModal';
 import ProBesparing from '../components/ProBesparing';
+import FältFel from '../components/FältFel';
 import { useAppStateAktiv } from '../utils/useAppStateAktiv';
+import { valideraJobb } from '../utils/jobbValidering';
 import { api } from '../api/klient';
 import { KATEGORIER, PÅSLAG_GRATIS, beräknaFakturapris, formateraPris } from '../utils/konstanter';
-import StadInput, { ärGiltigStad } from '../components/StadInput';
+import StadInput from '../components/StadInput';
 
 function formatDatum(isoStr) {
   if (!isoStr) return null;
@@ -28,7 +30,8 @@ export default function PubliceraJobbScreen({ navigation }) {
   const [dagScheman, setDagScheman] = useState([]);
   const [sammaTider, setSammaTider] = useState(false);
   const [laddar, setLaddar] = useState(false);
-  const [platsFel, setPlatsFel] = useState(false);
+  const [fel, setFel] = useState({});
+  const scrollRef = useRef(null);
   const [kategoriModalVisas, setKategoriModalVisas] = useState(false);
   const [sokKategori, setSokKategori] = useState('');
   const [dagPickerIndex, setDagPickerIndex] = useState(null);
@@ -76,6 +79,7 @@ export default function PubliceraJobbScreen({ navigation }) {
   }
 
   function uppdateraDag(index, fält, värde) {
+    rensaFel('schema');
     setDagScheman(prev => {
       if (sammaTider && fält !== 'datum') {
         return prev.map(dag => ({ ...dag, [fält]: värde }));
@@ -110,10 +114,15 @@ export default function PubliceraJobbScreen({ navigation }) {
     }
   }
 
+  // Rensar felmarkeringen för ett fält så snart användaren börjar rätta det.
+  function rensaFel(nyckel) {
+    setFel(prev => (prev[nyckel] ? { ...prev, [nyckel]: undefined } : prev));
+  }
+
   // Uppdaterar platsfältet och rensar felmarkering
   function hanteraPlatsInput(text) {
     setPlats(text);
-    if (platsFel) setPlatsFel(false);
+    rensaFel('plats');
   }
 
   function läggTillOb() {
@@ -163,33 +172,26 @@ export default function PubliceraJobbScreen({ navigation }) {
   }
 
   async function hanteraPublicering() {
-    if (!titel.trim() || !beskrivning.trim()) {
-      Alert.alert('Fel', 'Titel och beskrivning krävs');
+    const nyaFel = valideraJobb({ titel, beskrivning, kategori, plats, adress, lon, dagScheman });
+    if (Object.keys(nyaFel).length) {
+      setFel(nyaFel);
+      // Fälten ligger i ordning uppifrån, så det räcker att scrolla till toppen för att
+      // första felet alltid ska synas.
+      scrollRef.current?.scrollTo({ y: 0, animated: true });
       return;
     }
-    if (!plats.trim() || !ärGiltigStad(plats)) {
-      setPlatsFel(true);
-      Alert.alert('Fel', 'Välj en stad från listan');
-      return;
-    }
-    if (!adress.trim()) {
-      Alert.alert('Fel', 'Adress till arbetsplatsen krävs');
-      return;
-    }
-    if (dagScheman.length === 0 || !dagScheman.some(d => d.datum)) {
-      Alert.alert('Fel', 'Du måste ange datum för passet');
-      return;
-    }
+    setFel({});
+
     setLaddar(true);
     try {
       await publicera();
-    } catch (fel) {
+    } catch (error) {
       // Tredje passet denna månad på gratisplanen – låt företaget välja plan.
-      if (fel.kod === 'KRAVER_PLANVAL') {
+      if (error.kod === 'KRAVER_PLANVAL') {
         setPlanModalVisas(true);
         return;
       }
-      Alert.alert('Fel', fel.message);
+      Alert.alert('Fel', error.message);
     } finally {
       setLaddar(false);
     }
@@ -227,46 +229,50 @@ export default function PubliceraJobbScreen({ navigation }) {
   return (
     <>
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-        <ScrollView style={styles.container} keyboardShouldPersistTaps="handled">
+        <ScrollView ref={scrollRef} style={styles.container} keyboardShouldPersistTaps="handled">
           <Text style={styles.label}>Jobbtitel *</Text>
           <TextInput
-            style={styles.input}
+            style={[styles.input, fel.titel && styles.inputFel]}
             placeholder="t.ex. Sommarjobbare på café"
             value={titel}
-            onChangeText={setTitel}
+            onChangeText={(t) => { setTitel(t); rensaFel('titel'); }}
           />
+          <FältFel text={fel.titel} />
 
           <Text style={styles.label}>Beskrivning *</Text>
           <TextInput
-            style={[styles.input, styles.textArea]}
+            style={[styles.input, styles.textArea, fel.beskrivning && styles.inputFel]}
             placeholder="Beskriv tjänsten, krav och arbetsuppgifter..."
             value={beskrivning}
-            onChangeText={setBeskrivning}
+            onChangeText={(t) => { setBeskrivning(t); rensaFel('beskrivning'); }}
             multiline
             numberOfLines={5}
             textAlignVertical="top"
           />
+          <FältFel text={fel.beskrivning} />
 
           <Text style={styles.label}>Plats *</Text>
           <StadInput
             värde={plats}
             onÄndra={hanteraPlatsInput}
             placeholder="t.ex. Stockholm"
-            fel={platsFel}
+            fel={!!fel.plats}
           />
-          {platsFel && <Text style={styles.felText}>Välj en stad från listan</Text>}
+          <FältFel text={fel.plats} />
 
           <Text style={styles.label}>Adress till arbetsplatsen *</Text>
           <TextInput
-            style={styles.input}
+            style={[styles.input, fel.adress && styles.inputFel]}
             placeholder="t.ex. Storgatan 12, Stockholm"
             value={adress}
-            onChangeText={setAdress}
+            onChangeText={(t) => { setAdress(t); rensaFel('adress'); }}
             autoCorrect={false}
           />
+          <FältFel text={fel.adress} />
 
-          <Text style={styles.label}>Timlön (kr/tim)</Text>
-          <TextInput style={styles.input} placeholder="t.ex. 160" value={lon} onChangeText={setLon} keyboardType="numeric" />
+          <Text style={styles.label}>Timlön (kr/tim) *</Text>
+          <TextInput style={[styles.input, fel.lon && styles.inputFel]} placeholder="t.ex. 160" value={lon} onChangeText={(t) => { setLon(t); rensaFel('lon'); }} keyboardType="numeric" />
+          <FältFel text={fel.lon} />
           {lon ? (() => {
             const timlön = parseFloat(lon) || 0;
             const faktureringspris = formateraPris(beräknaFakturapris(timlön, gällandePåslag));
@@ -279,8 +285,9 @@ export default function PubliceraJobbScreen({ navigation }) {
             ) : null;
           })() : null}
 
-          <Text style={styles.label}>Antal dagar</Text>
+          <Text style={styles.label}>Antal dagar *</Text>
           <TextInput style={styles.input} placeholder="t.ex. 5" value={antalDagar} onChangeText={hanteraAntalDagar} keyboardType="numeric" />
+          {dagScheman.length === 0 && <FältFel text={fel.schema} />}
 
           {dagScheman.length > 0 && (
             <View style={styles.dagSektion}>
@@ -322,6 +329,7 @@ export default function PubliceraJobbScreen({ navigation }) {
                   </View>
                 </View>
               ))}
+              <FältFel text={fel.schema} />
             </View>
           )}
 
@@ -394,13 +402,14 @@ export default function PubliceraJobbScreen({ navigation }) {
             </TouchableOpacity>
           )}
 
-          <Text style={styles.label}>Kategori</Text>
-          <TouchableOpacity style={styles.väljarKnapp} onPress={() => setKategoriModalVisas(true)} activeOpacity={0.7}>
+          <Text style={styles.label}>Kategori *</Text>
+          <TouchableOpacity style={[styles.väljarKnapp, fel.kategori && styles.inputFel]} onPress={() => setKategoriModalVisas(true)} activeOpacity={0.7}>
             <Text style={[styles.väljarText, !kategori && styles.väljarPlaceholder]}>
               {kategori || 'Välj kategori...'}
             </Text>
             <Ionicons name="chevron-forward" size={18} color="#9ca3af" />
           </TouchableOpacity>
+          <FältFel text={fel.kategori} />
 
           <TouchableOpacity style={[styles.knapp, laddar && styles.knappInaktiv]} onPress={hanteraPublicering} disabled={laddar}>
             {laddar ? <ActivityIndicator color="#fff" /> : <Text style={styles.knappText}>Publicera jobb</Text>}
@@ -486,7 +495,7 @@ export default function PubliceraJobbScreen({ navigation }) {
                     key={k}
                     style={styles.kategoriRad}
                     activeOpacity={0.7}
-                    onPress={() => { setKategori(k); setKategoriModalVisas(false); setSokKategori(''); }}
+                    onPress={() => { setKategori(k); rensaFel('kategori'); setKategoriModalVisas(false); setSokKategori(''); }}
                   >
                     <Text style={styles.kategoriRadText}>{k}</Text>
                     {kategori === k && <Ionicons name="checkmark" size={20} color="#2563eb" />}
@@ -517,7 +526,7 @@ const styles = StyleSheet.create({
   typText: { color: '#555', fontWeight: '500', fontSize: 14 },
   typTextAktiv: { color: '#fff' },
 
-  felText: { color: '#dc2626', fontSize: 13, marginTop: 6, fontWeight: '500' },
+  inputFel: { borderColor: '#dc2626', borderWidth: 1.5, backgroundColor: '#fef2f2' },
   prisKalkyl: { backgroundColor: '#f0f9ff', borderRadius: 10, padding: 12, marginTop: 8, gap: 4, borderWidth: 1, borderColor: '#bae6fd' },
   prisRad: { fontSize: 13, color: '#0369a1' },
   prisFet: { fontWeight: '700', color: '#0369a1' },
