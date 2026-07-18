@@ -4,6 +4,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import { api } from '../api/klient';
 import { STATUSFÄRGER_ANSÖKAN as STATUSFÄRGER } from '../utils/konstanter';
 import { useRealtidsPing } from '../context/RealtidsContext';
+import HandlingsKnapp from '../components/HandlingsKnapp';
 
 export default function MinaAnsokningarScreen({ navigation }) {
   const [ansökningar, setAnsökningar] = useState([]);
@@ -84,12 +85,10 @@ export default function MinaAnsokningarScreen({ navigation }) {
           )}
 
           <View style={styles.kortFot}>
-            <TouchableOpacity
-              style={styles.chattKnapp}
+            <HandlingsKnapp
+              text="Öppna chatt →"
               onPress={() => navigation.navigate('Chatt', { ansokningId: item.id })}
-            >
-              <Text style={styles.chattKnappText}>Öppna chatt →</Text>
-            </TouchableOpacity>
+            />
             {item.status === 'väntande' && (
               <TouchableOpacity onPress={() => ångra(item.id)}>
                 <Text style={styles.ångraLänk}>Ångra ansökan</Text>

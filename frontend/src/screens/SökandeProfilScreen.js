@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { View, Text, ScrollView, StyleSheet, ActivityIndicator, TouchableOpacity, Image } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { api } from '../api/klient';
+import HandlingsKnapp from '../components/HandlingsKnapp';
 
 function Sektion({ rubrik, innehall }) {
   if (!innehall) return null;
@@ -107,13 +108,13 @@ export default function SökandeProfilScreen({ route, navigation }) {
       )}
 
       {ansokningId && (
-        <TouchableOpacity
-          style={styles.chattKnapp}
+        <HandlingsKnapp
+          variant="fylld"
+          ikon="chatbubble-outline"
+          text="Öppna chatt"
+          style={styles.chattKnappAvstånd}
           onPress={() => navigation.navigate('Chatt', { ansokningId })}
-        >
-          <Ionicons name="chatbubble-outline" size={18} color="#fff" />
-          <Text style={styles.chattKnappText}>Öppna chatt</Text>
-        </TouchableOpacity>
+        />
       )}
     </ScrollView>
   );
@@ -145,8 +146,7 @@ const styles = StyleSheet.create({
   betygDatum: { fontSize: 12, color: '#aaa' },
   betygFöretag: { fontSize: 13, fontWeight: '600', color: '#555', marginBottom: 4 },
   betygKommentar: { fontSize: 14, color: '#444', lineHeight: 20 },
-  chattKnapp: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', alignSelf: 'center', gap: 8, backgroundColor: '#2563eb', borderRadius: 12, paddingVertical: 14, paddingHorizontal: 32, marginTop: 24, width: '100%', maxWidth: 400 },
-  chattKnappText: { color: '#fff', fontWeight: '600', fontSize: 15 },
+  chattKnappAvstånd: { marginTop: 24 },
   fel: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   felText: { color: '#999', fontSize: 16 },
 });

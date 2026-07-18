@@ -4,6 +4,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import { api } from '../api/klient';
 import { harStartat } from '../utils/datumHelper';
 import AvslutaPassModal from '../components/AvslutaPassModal';
+import HandlingsKnapp from '../components/HandlingsKnapp';
 import { useRealtidsPing } from '../context/RealtidsContext';
 
 function StatusKnappar({ item, onUppdaterad, onAvsluta, navigation, tidigare, startat }) {
@@ -47,18 +48,14 @@ function StatusKnappar({ item, onUppdaterad, onAvsluta, navigation, tidigare, st
             </TouchableOpacity>
           )}
         </View>
-        <TouchableOpacity
-          style={styles.länkKnapp}
+        <HandlingsKnapp
+          text="Öppna chatt →"
           onPress={() => navigation.navigate('Chatt', { ansokningId: item.id })}
-        >
-          <Text style={styles.länkKnappText}>Öppna chatt →</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={styles.länkKnapp}
+        />
+        <HandlingsKnapp
+          text="Betygsätt →"
           onPress={() => navigation.navigate('Betygsatt', { ansokningId: item.id })}
-        >
-          <Text style={styles.länkKnappText}>Betygsätt →</Text>
-        </TouchableOpacity>
+        />
         <TouchableOpacity style={styles.avsluteKnapp} onPress={() => onAvsluta(item.id)}>
           <Text style={styles.avsluteKnappText}>Avsluta pass</Text>
         </TouchableOpacity>
@@ -214,8 +211,6 @@ const styles = StyleSheet.create({
   godkändBadge: { backgroundColor: '#dcfce7', borderRadius: 10, paddingHorizontal: 12, paddingVertical: 5 },
   godkändText: { color: '#16a34a', fontWeight: '700', fontSize: 13 },
   återkallaText: { fontSize: 12, color: '#9ca3af', textDecorationLine: 'underline' },
-  länkKnapp: { alignSelf: 'center', width: '100%', maxWidth: 400, backgroundColor: '#eff6ff', borderRadius: 8, paddingVertical: 10, alignItems: 'center', marginBottom: 8 },
-  länkKnappText: { fontSize: 13, color: '#2563eb', fontWeight: '600' },
   avsluteKnapp: { backgroundColor: '#059669', borderRadius: 8, paddingVertical: 10, alignItems: 'center' },
   avsluteKnappText: { color: '#fff', fontWeight: '600', fontSize: 14 },
   avvisadBadge: { backgroundColor: '#fee2e2', borderRadius: 10, paddingHorizontal: 12, paddingVertical: 5, alignSelf: 'flex-start', marginBottom: 12 },
