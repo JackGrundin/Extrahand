@@ -8,6 +8,13 @@ export const KATEGORIER = [
   'Väktare', 'Chaufför', 'Eventpersonal', 'Handyman', 'Säljare', 'Vakt',
 ];
 
+// Gör en sträng gemen och accent-okänslig, så att kategorisökningen matchar
+// oavsett diakriter ("vaktare" hittar "Väktare"). Delas av alla kategorifilter
+// (jobblistan samt publicera/redigera jobb) så att sökningen beter sig likadant.
+export function normalisera(s) {
+  return String(s ?? '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+}
+
 // Faktureringspriset beror på företagets plan. Speglar backend/utils/pris.js –
 // ändras formeln på ett ställe måste den ändras på båda.
 //

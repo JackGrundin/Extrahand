@@ -2,7 +2,7 @@ import { useRef, useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, ScrollView, ActivityIndicator, KeyboardAvoidingView, Platform, Modal } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { api } from '../api/klient';
-import { TYPER, KATEGORIER, beräknaFakturapris, formateraPris } from '../utils/konstanter';
+import { TYPER, KATEGORIER, beräknaFakturapris, formateraPris, normalisera } from '../utils/konstanter';
 import { useJobbPåslag } from '../utils/useJobbPåslag';
 import { valideraJobb } from '../utils/jobbValidering';
 import { parsaObTillagg } from '../utils/datumHelper';
@@ -64,7 +64,7 @@ export default function RedigeraJobbScreen({ route, navigation }) {
   }
 
   const filtreradeKategorier = KATEGORIER.filter(k =>
-    k.toLowerCase().includes(sokKategori.toLowerCase())
+    normalisera(k).includes(normalisera(sokKategori))
   );
 
   function rensaFel(nyckel) {

@@ -4,7 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { api } from '../api/klient';
 import { useJobblistaPing } from '../context/RealtidsContext';
 
-import { TYPER_FILTER as TYPER, KATEGORIER } from '../utils/konstanter';
+import { TYPER_FILTER as TYPER, KATEGORIER, normalisera } from '../utils/konstanter';
 import { parsaArbetstider, formatDagDatum, parsaObTillagg } from '../utils/datumHelper';
 import StadInput from '../components/StadInput';
 
@@ -22,9 +22,6 @@ function närmasteDatum(jobb) {
   return datum[0] ?? null;
 }
 
-function normalisera(s) {
-  return s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
-}
 
 function FilterVal({ label, vald, onPress, multiSelect }) {
   return (

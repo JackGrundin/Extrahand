@@ -10,7 +10,7 @@ import FältFel from '../components/FältFel';
 import { useAppStateAktiv } from '../utils/useAppStateAktiv';
 import { valideraJobb } from '../utils/jobbValidering';
 import { api } from '../api/klient';
-import { KATEGORIER, PÅSLAG_GRATIS, beräknaFakturapris, formateraPris } from '../utils/konstanter';
+import { KATEGORIER, PÅSLAG_GRATIS, beräknaFakturapris, formateraPris, normalisera } from '../utils/konstanter';
 import StadInput from '../components/StadInput';
 
 function formatDatum(isoStr) {
@@ -71,6 +71,7 @@ export default function PubliceraJobbScreen({ navigation }) {
 
   function hanteraAntalDagar(val) {
     setAntalDagar(val);
+    rensaFel('schema');
     const n = parseInt(val) || 0;
     setDagScheman(prev =>
       Array.from({ length: n }, (_, i) => prev[i] || { datum: '', start: '', slut: '' })
@@ -143,7 +144,7 @@ export default function PubliceraJobbScreen({ navigation }) {
   }
 
   const filtreradeKategorier = KATEGORIER.filter(k =>
-    k.toLowerCase().includes(sokKategori.toLowerCase())
+    normalisera(k).includes(normalisera(sokKategori))
   );
 
   // Skickar jobbet till backend. Backend avgör påslaget och svarar med KRAVER_PLANVAL
@@ -251,7 +252,7 @@ export default function PubliceraJobbScreen({ navigation }) {
           />
           <FältFel text={fel.beskrivning} />
 
-          <Text style={styles.label}>Plats *</Text>
+          <Text style={styles.label}>Stad *</Text>
           <StadInput
             värde={plats}
             onÄndra={hanteraPlatsInput}
@@ -286,7 +287,7 @@ export default function PubliceraJobbScreen({ navigation }) {
           })() : null}
 
           <Text style={styles.label}>Antal dagar *</Text>
-          <TextInput style={styles.input} placeholder="t.ex. 5" value={antalDagar} onChangeText={hanteraAntalDagar} keyboardType="numeric" />
+          <TextInput style={[styles.input, dagScheman.length === 0 && fel.schema && styles.inputFel]} placeholder="t.ex. 5" value={antalDagar} onChangeText={hanteraAntalDagar} keyboardType="numeric" />
           {dagScheman.length === 0 && <FältFel text={fel.schema} />}
 
           {dagScheman.length > 0 && (
