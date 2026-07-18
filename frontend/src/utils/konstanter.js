@@ -1,11 +1,52 @@
 export const TYPER = ['gig', 'sommarjobb'];
 export const TYPER_FILTER = ['Alla', 'gig', 'sommarjobb'];
 
+// Jobbkategorier grupperade per bransch. Kategorisökningen (normalisera) gör listan
+// lätt att navigera trots längden. Ordningen styr hur de visas i väljaren.
+// OBS: ta inte bort befintliga kategorier utan att migrera Jobb.Kategori – annars
+// tappar redan publicerade jobb sin kategori i filtret.
 export const KATEGORIER = [
-  'Servitör', 'Kock', 'Diskare', 'Barista', 'Butiksbiträde', 'Kassör',
-  'Lagerarbetare', 'Paketerare', 'Städare', 'Receptionist', 'Kontorsassistent',
-  'IT-tekniker', 'Snickare', 'Hantlangare', 'Trädgårdsarbetare', 'Barnvakt',
-  'Väktare', 'Chaufför', 'Eventpersonal', 'Handyman', 'Säljare', 'Vakt',
+  // Restaurang
+  'Servitör', 'Kock', 'Kockassistent', 'Kallskänka', 'Diskare', 'Bartender',
+  'Hovmästare', 'Pizzabagare', 'Cateringpersonal',
+  // Café & bageri
+  'Barista', 'Cafébiträde', 'Bagare', 'Konditor',
+  // Butik & handel
+  'Butiksbiträde', 'Butikssäljare', 'Kassör', 'Visual merchandiser', 'Lagerbiträde',
+  // Lager & logistik
+  'Lagerarbetare', 'Truckförare', 'Orderplockare', 'Paketerare', 'Terminalarbetare',
+  'Godsmottagare',
+  // Kontor & administration
+  'Kontorsassistent', 'Administratör', 'Receptionist', 'Kundtjänstmedarbetare',
+  'Dataregistrerare',
+  // IT & teknik
+  'IT-tekniker', 'IT-support', 'Systemutvecklare', 'Webbutvecklare', 'Testare',
+  // Bygg & anläggning
+  'Snickare', 'Byggarbetare', 'Målare', 'Elektriker', 'VVS-montör', 'Betongarbetare',
+  'Ställningsbyggare', 'Golvläggare', 'Plattsättare', 'Hantlangare', 'Anläggningsarbetare',
+  // Städ & lokalvård
+  'Städare', 'Lokalvårdare', 'Fönsterputsare', 'Flyttstädare',
+  // Vård & omsorg
+  'Undersköterska', 'Vårdbiträde', 'Personlig assistent', 'Sjuksköterska',
+  'Stödassistent', 'Barnskötare',
+  // Transport
+  'Chaufför', 'Lastbilschaufför', 'Budbilsförare', 'Taxiförare', 'Distributionsförare',
+  'Flyttarbetare',
+  // Event & underhållning
+  'Eventpersonal', 'Eventvärd', 'Scenarbetare', 'Riggare', 'Garderobiär', 'Biljettvärd',
+  'Promotor',
+  // Säkerhet
+  'Väktare', 'Vakt', 'Ordningsvakt', 'Entrévärd', 'Parkeringsvakt',
+  // Hotell
+  'Hotellstädare', 'Frukostvärd', 'Concierge', 'Nattreceptionist', 'Portier',
+  // Utbildning
+  'Lärarvikarie', 'Elevassistent', 'Fritidsledare', 'Läxhjälpare', 'Förskolevikarie',
+  // Sport & fritid
+  'Personlig tränare', 'Gruppträningsinstruktör', 'Simlärare', 'Livräddare', 'Idrottsledare',
+  // Trädgård & fastighet
+  'Trädgårdsarbetare', 'Fastighetsskötare', 'Vaktmästare', 'Snöröjare',
+  // Hushåll & övrigt
+  'Barnvakt', 'Hundvakt', 'Handyman', 'Montör', 'Säljare', 'Telefonförsäljare', 'Fotograf',
 ];
 
 // Gör en sträng gemen och accent-okänslig, så att kategorisökningen matchar
