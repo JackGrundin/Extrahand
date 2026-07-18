@@ -131,7 +131,7 @@ export default function RedigeraJobbScreen({ route, navigation }) {
           />
           <FältFel text={fel.beskrivning} />
 
-          <Text style={styles.label}>Plats *</Text>
+          <Text style={styles.label}>Stad *</Text>
           <TextInput style={[styles.input, fel.plats && styles.inputFel]} value={plats} onChangeText={(t) => { setPlats(t); rensaFel('plats'); }} />
           <FältFel text={fel.plats} />
 
