@@ -52,10 +52,6 @@ function StatusKnappar({ item, onUppdaterad, onAvsluta, navigation, tidigare, st
           text="Öppna chatt →"
           onPress={() => navigation.navigate('Chatt', { ansokningId: item.id })}
         />
-        <HandlingsKnapp
-          text="Betygsätt →"
-          onPress={() => navigation.navigate('Betygsatt', { ansokningId: item.id })}
-        />
         <TouchableOpacity style={styles.avsluteKnapp} onPress={() => onAvsluta(item.id)}>
           <Text style={styles.avsluteKnappText}>Avsluta pass</Text>
         </TouchableOpacity>
@@ -211,7 +207,7 @@ const styles = StyleSheet.create({
   godkändBadge: { backgroundColor: '#dcfce7', borderRadius: 10, paddingHorizontal: 12, paddingVertical: 5 },
   godkändText: { color: '#16a34a', fontWeight: '700', fontSize: 13 },
   återkallaText: { fontSize: 12, color: '#9ca3af', textDecorationLine: 'underline' },
-  avsluteKnapp: { backgroundColor: '#059669', borderRadius: 8, paddingVertical: 10, alignItems: 'center' },
+  avsluteKnapp: { backgroundColor: '#059669', borderRadius: 8, paddingVertical: 10, alignItems: 'center', marginTop: 8 },
   avsluteKnappText: { color: '#fff', fontWeight: '600', fontSize: 14 },
   avvisadBadge: { backgroundColor: '#fee2e2', borderRadius: 10, paddingHorizontal: 12, paddingVertical: 5, alignSelf: 'flex-start', marginBottom: 12 },
   avvisadText: { color: '#dc2626', fontWeight: '600', fontSize: 13 },
