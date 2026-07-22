@@ -67,6 +67,9 @@ export default function TidVäljare({ value, onChange, placeholder = 'HH:MM', st
               is24Hour
               onChange={(_, date) => date && setTempTid(date)}
               locale="sv-SE"
+              // Utan detta blir spinnern vit text mot den vita panelen i mörkt läge.
+              themeVariant="light"
+              textColor="#1a1a1a"
             />
           </View>
         </View>

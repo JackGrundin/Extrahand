@@ -243,6 +243,9 @@ export default function ErbjudPassModal({ visible, onClose, onSkicka, skickar })
               minimumDate={new Date()}
               onChange={(_, date) => date && setTempDatum(date)}
               locale="sv-SE"
+              // Utan detta blir spinnern vit text mot den vita panelen i mörkt läge.
+              themeVariant="light"
+              textColor="#1a1a1a"
             />
           </View>
         </View>

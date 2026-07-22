@@ -258,6 +258,7 @@ export default function RedigeraJobbScreen({ route, navigation }) {
             <TextInput
               style={styles.sokInput}
               placeholder="Sök kategori..."
+              placeholderTextColor="#9ca3af"
               value={sokKategori}
               onChangeText={setSokKategori}
               autoCorrect={false}
@@ -313,7 +314,7 @@ const styles = StyleSheet.create({
   panel: { backgroundColor: '#fff', borderTopLeftRadius: 20, borderTopRightRadius: 20, paddingHorizontal: 20, paddingTop: 12, paddingBottom: 32, maxHeight: '80%' },
   handtag: { width: 40, height: 4, backgroundColor: '#ddd', borderRadius: 2, alignSelf: 'center', marginBottom: 16 },
   panelTitel: { fontSize: 18, fontWeight: '700', color: '#1a1a1a', textAlign: 'center', marginBottom: 14 },
-  sokInput: { borderWidth: 1, borderColor: '#ddd', borderRadius: 10, paddingHorizontal: 14, paddingVertical: 9, fontSize: 15, backgroundColor: '#fafafa', marginBottom: 10 },
+  sokInput: { borderWidth: 1, borderColor: '#ddd', borderRadius: 10, paddingHorizontal: 14, paddingVertical: 9, fontSize: 15, color: '#1a1a1a', backgroundColor: '#fafafa', marginBottom: 10 },
   kategoriRad: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: '#f0f0f0' },
   kategoriRadText: { fontSize: 16, color: '#1a1a1a' },
   ingaResultat: { fontSize: 15, color: '#999', textAlign: 'center', marginTop: 24 },

@@ -276,6 +276,7 @@ export default function JobbScreen({ navigation }) {
                   <TextInput
                     style={styles.sokInput}
                     placeholder="Sök kategori..."
+                    placeholderTextColor="#9ca3af"
                     value={sokKategori}
                     onChangeText={setSokKategori}
                     clearButtonMode="while-editing"
@@ -401,7 +402,7 @@ const styles = StyleSheet.create({
   tillbakaKnapp: { flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: 14 },
   tillbakaText: { fontSize: 17, fontWeight: '600', color: '#2563eb' },
 
-  sokInput: { borderWidth: 1, borderColor: '#ddd', borderRadius: 10, paddingHorizontal: 14, paddingVertical: 9, fontSize: 15, backgroundColor: '#fafafa', marginBottom: 10, letterSpacing: 0 },
+  sokInput: { borderWidth: 1, borderColor: '#ddd', borderRadius: 10, paddingHorizontal: 14, paddingVertical: 9, fontSize: 15, color: '#1a1a1a', backgroundColor: '#fafafa', marginBottom: 10, letterSpacing: 0 },
 
   filterVal: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: '#f0f0f0' },
   filterValText: { fontSize: 16, color: '#1a1a1a' },
