@@ -86,11 +86,14 @@ export default function MinaJobbScreen({ navigation }) {
   // tidrapport ligger därför kvar under "Aktiva".
   const passeradeJobbUtanRapport = tidigareJobb.filter(j => !avslutadeJobbIds.has(j.id));
   const aktivaJobb = [...jobb, ...passeradeJobbUtanRapport].filter(j => !avslutadeJobbIds.has(j.id));
-  // Pass vars sista sluttid passerat måste avslutas – lyft dem överst så de inte missas.
+  // Ett pass behöver avslutas bara om datumet passerat OCH någon blev godkänd (harGodkänd
+  // från backend). Ett jobb som ingen tillsattes för har inget pass att avsluta.
+  const jobbMåsteAvslutas = (j) => behöverAvslutas(j.arbetstider) && j.harGodkänd;
+  // Pass som måste avslutas lyfts överst så de inte missas.
   const aktivaSorterade = [...aktivaJobb].sort(
-    (a, b) => (behöverAvslutas(b.arbetstider) ? 1 : 0) - (behöverAvslutas(a.arbetstider) ? 1 : 0)
+    (a, b) => (jobbMåsteAvslutas(b) ? 1 : 0) - (jobbMåsteAvslutas(a) ? 1 : 0)
   );
-  const antalAttAvsluta = aktivaJobb.filter(j => behöverAvslutas(j.arbetstider)).length;
+  const antalAttAvsluta = aktivaJobb.filter(jobbMåsteAvslutas).length;
   // Tidigare pass = enbart tidrapporter (pass som företaget aktivt avslutat).
   const tidigareLista = tidigarePass.map(p => ({ _typ: 'rapport', ...p }));
 
@@ -136,7 +139,7 @@ export default function MinaJobbScreen({ navigation }) {
             const datum = schema ? schema.map(d => d.datum).filter(Boolean) : [];
             const visaDatum = datum.slice(0, 3);
             const flerDatum = datum.length > 3 ? datum.length - 3 : 0;
-            const måsteAvslutas = behöverAvslutas(item.arbetstider);
+            const måsteAvslutas = jobbMåsteAvslutas(item);
             // När passet startat får det inte längre redigeras eller tas bort.
             const kanÄndras = !harStartat(item.arbetstider);
             return (

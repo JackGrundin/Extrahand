@@ -83,6 +83,18 @@ async function filtreraAktivaJobb(jobb) {
   });
 }
 
+// Returnerar en Set med de jobb-id (bland de angivna) som har minst en godkänd ansökan.
+// Ett jobb behöver bara avslutas om någon faktiskt blivit godkänd att jobba passet.
+async function jobbMedGodkändAnsökan(jobbIds) {
+  if (!jobbIds.length) return new Set();
+  const { data } = await supabase
+    .from('ansokningar')
+    .select('jobb_id')
+    .eq('status', 'godkänd')
+    .in('jobb_id', jobbIds);
+  return new Set((data || []).map(a => a.jobb_id));
+}
+
 async function hämtaAllaJobb() {
   const { data: jobb, error } = await supabase
     .from('Jobb')
@@ -150,7 +162,7 @@ async function hämtaTidigareJobbFörFöretag(foretag_id) {
   idag.setHours(0, 0, 0, 0);
   const trettioDagar = 30 * 24 * 60 * 60 * 1000;
 
-  return data.filter(j => {
+  const passerade = data.filter(j => {
     const schema = Array.isArray(j.arbetstider)
       ? j.arbetstider
       : (() => { try { return JSON.parse(j.arbetstider); } catch { return null; } })();
@@ -168,6 +180,11 @@ async function hämtaTidigareJobbFörFöretag(foretag_id) {
     // Saknar datum (med eller utan schema): tidigare när jobbet är äldre än 30 dagar.
     return idag - new Date(j.created_at) > trettioDagar;
   });
+
+  // Märk varje passerat jobb med om någon blev godkänd. Frontend visar "Behöver avslutas"
+  // bara när harGodkänd är sant – ett jobb som ingen tillsattes för har inget pass att avsluta.
+  const godkända = await jobbMedGodkändAnsökan(passerade.map(j => j.id));
+  return passerade.map(j => ({ ...j, harGodkänd: godkända.has(j.id) }));
 }
 
 async function uppdateraJobb(id, foretag_id, { titel, beskrivning, plats, adress, lon, typ, kategori, antal_dagar, arbetstider, ob_tillagg }) {
