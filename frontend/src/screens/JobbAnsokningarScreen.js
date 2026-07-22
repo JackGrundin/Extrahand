@@ -6,6 +6,7 @@ import { harStartat } from '../utils/datumHelper';
 import AvslutaPassModal from '../components/AvslutaPassModal';
 import HandlingsKnapp from '../components/HandlingsKnapp';
 import { useRealtidsPing } from '../context/RealtidsContext';
+import { useAttAvsluta } from '../context/AttAvslutaContext';
 
 function StatusKnappar({ item, onUppdaterad, onAvsluta, navigation, tidigare, startat }) {
   const [sparar, setSparar] = useState(false);
@@ -80,6 +81,7 @@ function StatusKnappar({ item, onUppdaterad, onAvsluta, navigation, tidigare, st
 
 export default function JobbAnsokningarScreen({ route, navigation }) {
   const { jobbId, tidigare } = route.params;
+  const { uppdateraAttAvsluta } = useAttAvsluta();
   const [ansökningar, setAnsökningar] = useState([]);
   const [avslutadeIds, setAvslutadeIds] = useState(new Set());
   const [jobb, setJobb] = useState(null);
@@ -110,7 +112,14 @@ export default function JobbAnsokningarScreen({ route, navigation }) {
     }
   }
 
-  useFocusEffect(useCallback(() => { hämta(); }, []));
+  useFocusEffect(useCallback(() => {
+    hämta();
+    // Att öppna jobbets ansökningslista räknas som att företaget sett ansökningarna –
+    // nollställ räknaren och uppdatera badgen på Mina jobb-fliken.
+    api.markeraAnsökningarSedda(jobbId)
+      .then(() => uppdateraAttAvsluta())
+      .catch(() => {});
+  }, [jobbId, uppdateraAttAvsluta]));
 
   // Realtid: nya ansökningar och statusändringar visas direkt för företaget
   useRealtidsPing(() => { hämta(); });

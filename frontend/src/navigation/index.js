@@ -179,7 +179,7 @@ function RapporterNavigator() {
 function HuvudNavigator() {
   const { användare } = useAuth();
   const { uppdateraOlästa } = useNotifikationer();
-  const { antalAttAvsluta, uppdateraAttAvsluta } = useAttAvsluta();
+  const { antalAttAvsluta, antalNyaAnsökningar, uppdateraAttAvsluta } = useAttAvsluta();
   const ärPrivatperson = användare?.typ === 'privatperson';
   const ärFöretag = användare?.typ === 'företag';
   const ärAdmin = användare?.email === 'info@fastgig.se';
@@ -273,7 +273,10 @@ function HuvudNavigator() {
           component={MinaJobbNavigator}
           options={{
             tabBarLabel: 'Mina annonser',
-            tabBarBadge: antalAttAvsluta > 0 ? (antalAttAvsluta > 9 ? '9+' : antalAttAvsluta) : undefined,
+            // Summan av saker att hantera på Mina jobb: pass att avsluta + nya ansökningar.
+            tabBarBadge: (antalAttAvsluta + antalNyaAnsökningar) > 0
+              ? ((antalAttAvsluta + antalNyaAnsökningar) > 9 ? '9+' : (antalAttAvsluta + antalNyaAnsökningar))
+              : undefined,
             tabBarBadgeStyle: { backgroundColor: '#ea580c' },
           }}
         />

@@ -131,6 +131,14 @@ export default function MinaJobbScreen({ navigation }) {
             <Text style={styles.avslutaBadgeText}>Behöver avslutas</Text>
           </View>
         )}
+        {item.nyaAnsökningar > 0 && (
+          <View style={styles.nyaAnsBadge}>
+            <Ionicons name="person-add" size={13} color="#fff" />
+            <Text style={styles.nyaAnsBadgeText}>
+              {item.nyaAnsökningar} {item.nyaAnsökningar === 1 ? 'ny ansökan' : 'nya ansökningar'}
+            </Text>
+          </View>
+        )}
         <Text style={styles.titel} numberOfLines={1}>{item.Titel}</Text>
 
         <View style={styles.infoRad}>
@@ -279,6 +287,8 @@ const styles = StyleSheet.create({
   kortAttAvsluta: { borderWidth: 1.5, borderColor: '#ea580c' },
   avslutaBadge: { flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-start', gap: 4, backgroundColor: '#ea580c', borderRadius: 8, paddingHorizontal: 8, paddingVertical: 4, marginBottom: 8 },
   avslutaBadgeText: { color: '#fff', fontSize: 12, fontWeight: '700' },
+  nyaAnsBadge: { flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-start', gap: 4, backgroundColor: '#2563eb', borderRadius: 8, paddingHorizontal: 8, paddingVertical: 4, marginBottom: 8 },
+  nyaAnsBadgeText: { color: '#fff', fontSize: 12, fontWeight: '700' },
   titel: { fontSize: 16, fontWeight: '700', color: '#1a1a1a', marginBottom: 6 },
   infoRad: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 8 },
   info: { fontSize: 14, color: '#666' },

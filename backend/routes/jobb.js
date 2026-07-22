@@ -1,6 +1,6 @@
 const express = require('express');
 const { kräverInloggning, kräverTyp } = require('../middleware/auth');
-const { skapaJobb, hämtaAllaJobb, hämtaJobbViaId, hämtaJobbFörFöretag, hämtaTidigareJobbFörFöretag, uppdateraJobb, taBortJobb, räknaJobbDennaMånad } = require('../db/jobb');
+const { skapaJobb, hämtaAllaJobb, hämtaJobbViaId, hämtaJobbFörFöretag, hämtaTidigareJobbFörFöretag, uppdateraJobb, taBortJobb, räknaJobbDennaMånad, markeraAnsökningarSedda } = require('../db/jobb');
 const { hämtaGodkändaFörJobb } = require('../db/ansokningar');
 const { skickaMeddelande } = require('../db/meddelanden');
 const { hämtaPushToken, hämtaPrivatpersonerIStad } = require('../db/användare');
@@ -58,6 +58,18 @@ router.get('/mina/tidigare', kräverInloggning, kräverTyp('företag'), async (r
   } catch (fel) {
     console.error('Fel vid hämtning av tidigare jobb:', fel);
     res.status(500).json({ fel: 'Serverfel vid hämtning av tidigare jobb' });
+  }
+});
+
+// POST /api/jobb/:id/markera-ansokningar-sedda — nollställer räknaren för nya ansökningar
+// på ett jobb (anropas när företaget öppnar jobbets ansökningslista)
+router.post('/:id/markera-ansokningar-sedda', kräverInloggning, kräverTyp('företag'), async (req, res) => {
+  try {
+    await markeraAnsökningarSedda(req.params.id, req.användare.id);
+    res.json({ ok: true });
+  } catch (fel) {
+    console.error('Fel vid markering av sedda ansökningar:', fel);
+    res.status(500).json({ fel: 'Serverfel' });
   }
 });
 

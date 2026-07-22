@@ -25,8 +25,19 @@ async function filtreraAktivaJobb(jobb) {
   const jobbIds = jobb.map(j => j.id);
   const { data: ansokningar } = await supabase
     .from('ansokningar')
-    .select('id, jobb_id, status')
+    .select('id, jobb_id, status, created_at')
     .in('jobb_id', jobbIds);
+
+  // Räkna nya ansökningar per jobb – de som kommit in efter att företaget senast öppnade
+  // jobbets ansökningslista (ansokningar_sedda_at). NULL = aldrig öppnat → alla är nya.
+  const nyaPerJobb = {};
+  const seddMap = Object.fromEntries(jobb.map(j => [j.id, j.ansokningar_sedda_at]));
+  for (const a of (ansokningar || [])) {
+    const sedd = seddMap[a.jobb_id];
+    if (!sedd || new Date(a.created_at) > new Date(sedd)) {
+      nyaPerJobb[a.jobb_id] = (nyaPerJobb[a.jobb_id] || 0) + 1;
+    }
+  }
 
   // Ett jobb ska försvinna från listan så snart en ansökan blivit godkänd – då är
   // passet tillsatt och ska inte längre gå att söka. Vi tar även med jobb vars
@@ -53,7 +64,7 @@ async function filtreraAktivaJobb(jobb) {
   const idag = new Date();
   idag.setHours(0, 0, 0, 0);
 
-  return jobb.filter(j => {
+  const aktiva = jobb.filter(j => {
     if (godkändaJobbIds.has(j.id)) return false;
 
     const schema = Array.isArray(j.arbetstider)
@@ -81,6 +92,8 @@ async function filtreraAktivaJobb(jobb) {
 
     return true;
   });
+
+  return aktiva.map(j => ({ ...j, nyaAnsökningar: nyaPerJobb[j.id] || 0 }));
 }
 
 // Returnerar en Set med de jobb-id (bland de angivna) som har minst en godkänd ansökan.
@@ -221,6 +234,17 @@ async function räknaJobbDennaMånad(foretag_id) {
   return count ?? 0;
 }
 
+// Nollställer räknaren för nya ansökningar genom att stämpla att företaget nyss öppnade
+// jobbets ansökningslista. Scoped på Foretag_id så bara ägaren kan markera sitt jobb.
+async function markeraAnsökningarSedda(id, foretag_id) {
+  const { error } = await supabase
+    .from('Jobb')
+    .update({ ansokningar_sedda_at: new Date().toISOString() })
+    .eq('id', id)
+    .eq('Foretag_id', foretag_id);
+  if (error) throw error;
+}
+
 async function taBortJobb(id, foretag_id) {
   const { error } = await supabase
     .from('Jobb')
@@ -230,4 +254,4 @@ async function taBortJobb(id, foretag_id) {
   if (error) throw error;
 }
 
-module.exports = { skapaJobb, hämtaAllaJobb, hämtaJobbViaId, hämtaJobbFörFöretag, hämtaTidigareJobbFörFöretag, uppdateraJobb, taBortJobb, sättJobbPåslag, räknaJobbDennaMånad };
+module.exports = { skapaJobb, hämtaAllaJobb, hämtaJobbViaId, hämtaJobbFörFöretag, hämtaTidigareJobbFörFöretag, uppdateraJobb, taBortJobb, sättJobbPåslag, räknaJobbDennaMånad, markeraAnsökningarSedda };
