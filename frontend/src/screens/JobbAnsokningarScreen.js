@@ -135,6 +135,10 @@ export default function JobbAnsokningarScreen({ route, navigation }) {
       await api.skapaRapport({ ansokan_id: valtAnsokningId, timmar, ob_tillagg });
       setModalSynlig(false);
       setAvslutadeIds(prev => new Set([...prev, valtAnsokningId]));
+      // Navigera tillbaka till "Mina jobb" direkt. Skärmens useFocusEffect hämtar då om
+      // tidrapporterna, vilket flyttar det avslutade passet från "Aktiva" till "Tidigare
+      // pass" utan att appen behöver laddas om.
+      navigation.goBack();
       Alert.alert('Skickat!', 'Tidrapporten har skickats till arbetstagaren för godkännande.');
     } catch (fel) {
       Alert.alert('Fel', fel.message);
