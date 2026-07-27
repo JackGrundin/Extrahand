@@ -264,7 +264,14 @@ export default function MinaJobbScreen({ navigation }) {
                 </View>
                 <HandlingsKnapp
                   text="Öppna chatt →"
-                  onPress={() => navigation.navigate('Chatt', { ansokningId: item.ansokan_id })}
+                  // Öppna chatten direkt mot motparten via dess användar-id. Tidrapporten
+                  // bär redan privatpersonens id och namn, så vi slipper slå upp ansökan →
+                  // jobb (som fallerar om annonsen hunnit tas bort/ändras efter passet).
+                  onPress={() => navigation.navigate('Chatt', {
+                    medAnvandareId: item.anvandare_id,
+                    motpartNamn: item.privatpersonNamn,
+                    ansokningId: item.ansokan_id,
+                  })}
                 />
               </View>
             );
