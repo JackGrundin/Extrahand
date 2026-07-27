@@ -5,22 +5,16 @@ import { api } from '../api/klient';
 import { useRealtidsPing } from '../context/RealtidsContext';
 import HandlingsKnapp from '../components/HandlingsKnapp';
 
-import { parsaArbetstider, formatDagDatum, formatBricka } from '../utils/datumHelper';
+import { parsaArbetstider, formatDagDatum, formatBricka, passSlutTidpunkt } from '../utils/datumHelper';
 
-// Dagens datum som YYYY-MM-DD (lokal tid) för jämförelse mot arbetsdatum.
-function dagensDatum() {
-  const nu = new Date();
-  return `${nu.getFullYear()}-${String(nu.getMonth() + 1).padStart(2, '0')}-${String(nu.getDate()).padStart(2, '0')}`;
-}
-
-// Ett pass räknas som genomfört när dess sista arbetsdatum redan passerat, eller när
-// företaget skapat en tidrapport för passet. Saknas datum och tidrapport är passet kommande.
+// Ett pass räknas som genomfört när dess sista sluttid redan passerat, eller när
+// företaget skapat en tidrapport för passet. Vi jämför mot exakt sluttidpunkt (samma
+// logik som företagssidans behöverAvslutas) så att ett pass flyttas till "Genomförda"
+// så snart det tagit slut – även samma dag. Saknas datum och tidrapport är passet kommande.
 function ärGenomfört(ansökan) {
   if (ansökan.rapportStatus != null) return true;
-  const schema = parsaArbetstider(ansökan.arbetstider);
-  const datum = (schema || []).map(d => d.datum).filter(Boolean).sort();
-  const sista = datum[datum.length - 1];
-  return sista != null && sista < dagensDatum();
+  const slut = passSlutTidpunkt(ansökan.arbetstider);
+  return slut != null && slut.getTime() < Date.now();
 }
 
 function grupperaPerMånad(pass) {
