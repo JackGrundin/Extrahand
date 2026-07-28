@@ -1,5 +1,5 @@
 import { useCallback, useRef, useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, ScrollView, ActivityIndicator, KeyboardAvoidingView, Platform, Modal, FlatList, Linking } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, ScrollView, ActivityIndicator, KeyboardAvoidingView, Platform, Modal, Linking } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { Ionicons } from '@expo/vector-icons';
@@ -7,123 +7,141 @@ import TidVäljare from '../components/TidVäljare';
 import PrenumerationModal from '../components/PrenumerationModal';
 import ProBesparing from '../components/ProBesparing';
 import FältFel from '../components/FältFel';
+import StadInput from '../components/StadInput';
 import { useAppStateAktiv } from '../utils/useAppStateAktiv';
-import { valideraJobb } from '../utils/jobbValidering';
+import { valideraSchema, genereraPass } from '../utils/schemaValidering';
+import { datumTillIso, veckodagsNamn } from '../utils/datumHelper';
 import { api } from '../api/klient';
 import { KATEGORIER, PÅSLAG_GRATIS, beräknaFakturapris, formateraPris, normalisera } from '../utils/konstanter';
-import StadInput from '../components/StadInput';
+
+const VECKODAGAR = ['Mån', 'Tis', 'Ons', 'Tors', 'Fre', 'Lör', 'Sön'];
 
 function formatDatum(isoStr) {
   if (!isoStr) return null;
-  const d = new Date(isoStr + 'T12:00:00');
-  return d.toLocaleDateString('sv-SE', { month: 'short', day: 'numeric' });
+  return new Date(isoStr + 'T12:00:00').toLocaleDateString('sv-SE', { day: 'numeric', month: 'short' });
 }
 
-export default function PubliceraJobbScreen({ navigation }) {
+export default function PubliceraSchemaScreen({ navigation }) {
   const [titel, setTitel] = useState('');
   const [beskrivning, setBeskrivning] = useState('');
   const [plats, setPlats] = useState('');
   const [adress, setAdress] = useState('');
-  const [lon, setLon] = useState('');
+  const [timlon, setTimlon] = useState('');
   const [kategori, setKategori] = useState('');
-  const [antalDagar, setAntalDagar] = useState('');
-  const [dagScheman, setDagScheman] = useState([]);
-  const [sammaTider, setSammaTider] = useState(false);
-  const [laddar, setLaddar] = useState(false);
-  const [fel, setFel] = useState({});
-  const scrollRef = useRef(null);
-  const [kategoriModalVisas, setKategoriModalVisas] = useState(false);
-  const [sokKategori, setSokKategori] = useState('');
-  const [dagPickerIndex, setDagPickerIndex] = useState(null);
-  const [tempDatum, setTempDatum] = useState(new Date());
+  const [startdatum, setStartdatum] = useState('');
+  const [slutdatum, setSlutdatum] = useState('');
+  const [pass, setPass] = useState([]);
+
+  // Passgeneratorn
+  const [valdaDagar, setValdaDagar] = useState([]);
+  const [genStart, setGenStart] = useState('');
+  const [genSlut, setGenSlut] = useState('');
+
   const [obTillagg, setObTillagg] = useState([]);
   const [obFormVisas, setObFormVisas] = useState(false);
   const [obStart, setObStart] = useState('');
   const [obSlut, setObSlut] = useState('');
   const [obTyp, setObTyp] = useState('procent');
   const [obVärde, setObVärde] = useState('');
+
+  const [laddar, setLaddar] = useState(false);
+  const [fel, setFel] = useState({});
+  const scrollRef = useRef(null);
+  const [kategoriModalVisas, setKategoriModalVisas] = useState(false);
+  const [sokKategori, setSokKategori] = useState('');
+  // 'start' | 'slut' | index på ett pass, eller null när ingen väljare är öppen
+  const [datumVäljare, setDatumVäljare] = useState(null);
+  const [tempDatum, setTempDatum] = useState(new Date());
   const [prenumeration, setPrenumeration] = useState(null);
   const [planModalVisas, setPlanModalVisas] = useState(false);
   const [betalningLaddar, setBetalningLaddar] = useState(false);
 
-  // Hämtar företagets plan så att prisrutan kan visa rätt påslag redan innan
-  // publicering. Hämtas om vid varje fokus – t.ex. när användaren kommer tillbaka
-  // från Stripe Checkout i webbläsaren.
   const hämtaPrenumeration = useCallback(async () => {
     try {
       setPrenumeration(await api.prenumerationStatus());
     } catch {
-      // Statusen är bara till för prisvisningen – backend avgör i slutändan.
+      // Statusen styr bara prisvisningen – backend avgör i slutändan.
     }
   }, []);
 
-  useFocusEffect(useCallback(() => {
-    hämtaPrenumeration();
-  }, [hämtaPrenumeration]));
-
-  // Stripe Checkout öppnas i den externa webbläsaren, så skärmen tappar aldrig fokus och
-  // useFocusEffect ovan triggar inte vid återkomst. Utan detta skulle priset visas för
-  // högt tills företaget bytte flik – trots att de just uppgraderat.
+  useFocusEffect(useCallback(() => { hämtaPrenumeration(); }, [hämtaPrenumeration]));
   useAppStateAktiv(hämtaPrenumeration);
 
-  // Påslaget som gäller för nästa pass företaget publicerar.
   const gällandePåslag = prenumeration?.paslag ?? PÅSLAG_GRATIS;
 
-  function hanteraAntalDagar(val) {
-    setAntalDagar(val);
-    rensaFel('schema');
-    const n = parseInt(val) || 0;
-    setDagScheman(prev =>
-      Array.from({ length: n }, (_, i) => prev[i] || { datum: '', start: '', slut: '' })
-    );
-    if (n <= 1) setSammaTider(false);
+  function rensaFel(nyckel) {
+    setFel(prev => (prev[nyckel] ? { ...prev, [nyckel]: undefined } : prev));
   }
 
-  function uppdateraDag(index, fält, värde) {
-    rensaFel('schema');
-    setDagScheman(prev => {
-      if (sammaTider && fält !== 'datum') {
-        return prev.map(dag => ({ ...dag, [fält]: värde }));
-      }
+  function toggleVeckodag(index) {
+    setValdaDagar(prev => (prev.includes(index) ? prev.filter(d => d !== index) : [...prev, index]));
+  }
+
+  // Fyller passlistan utifrån period, valda veckodagar och tider. Befintliga pass ersätts
+  // efter en bekräftelse så att ingen tappar handredigerade tider av misstag.
+  function körGenerator() {
+    if (!startdatum || !slutdatum) {
+      Alert.alert('Välj period', 'Ange start- och slutdatum innan du genererar pass.');
+      return;
+    }
+    if (valdaDagar.length === 0) {
+      Alert.alert('Välj dagar', 'Kryssa i vilka veckodagar som ska ingå.');
+      return;
+    }
+    if (!genStart || !genSlut) {
+      Alert.alert('Välj tider', 'Ange start- och sluttid för passen.');
+      return;
+    }
+
+    const nya = genereraPass({ startdatum, slutdatum, veckodagar: valdaDagar, starttid: genStart, sluttid: genSlut });
+    if (nya.length === 0) {
+      Alert.alert('Inga pass', 'Inga datum i perioden matchar de valda veckodagarna.');
+      return;
+    }
+
+    const applicera = () => { setPass(nya); rensaFel('pass'); };
+
+    if (pass.length > 0) {
+      Alert.alert(
+        'Ersätt passlistan?',
+        `Du har redan ${pass.length} pass. Vill du ersätta dem med ${nya.length} nya?`,
+        [{ text: 'Avbryt', style: 'cancel' }, { text: 'Ersätt', style: 'destructive', onPress: applicera }]
+      );
+    } else {
+      applicera();
+    }
+  }
+
+  function uppdateraPass(index, fält, värde) {
+    rensaFel('pass');
+    setPass(prev => {
       const ny = [...prev];
       ny[index] = { ...ny[index], [fält]: värde };
       return ny;
     });
   }
 
-  function öppnaPicker(index) {
-    const dag = dagScheman[index];
-    setTempDatum(dag.datum ? new Date(dag.datum + 'T12:00:00') : new Date());
-    setDagPickerIndex(index);
+  function taBortPass(index) {
+    setPass(prev => prev.filter((_, i) => i !== index));
   }
 
-  function sparaDatum(index, date) {
-    uppdateraDag(index, 'datum', date.toISOString().split('T')[0]);
+  function öppnaDatumVäljare(vilken) {
+    const nuvarande =
+      vilken === 'start' ? startdatum : vilken === 'slut' ? slutdatum : pass[vilken]?.datum;
+    setTempDatum(nuvarande ? new Date(nuvarande + 'T12:00:00') : new Date());
+    setDatumVäljare(vilken);
+  }
+
+  function sparaDatum(vilken, date) {
+    const iso = datumTillIso(date);
+    if (vilken === 'start') { setStartdatum(iso); rensaFel('period'); }
+    else if (vilken === 'slut') { setSlutdatum(iso); rensaFel('period'); }
+    else uppdateraPass(vilken, 'datum', iso);
   }
 
   function bekräftaDatum() {
-    if (dagPickerIndex !== null) sparaDatum(dagPickerIndex, tempDatum);
-    setDagPickerIndex(null);
-  }
-
-  function toggleSammaTider() {
-    const nästa = !sammaTider;
-    setSammaTider(nästa);
-    if (nästa && dagScheman.length > 0) {
-      const { start, slut } = dagScheman[0];
-      setDagScheman(prev => prev.map(dag => ({ ...dag, start, slut })));
-    }
-  }
-
-  // Rensar felmarkeringen för ett fält så snart användaren börjar rätta det.
-  function rensaFel(nyckel) {
-    setFel(prev => (prev[nyckel] ? { ...prev, [nyckel]: undefined } : prev));
-  }
-
-  // Uppdaterar platsfältet och rensar felmarkering
-  function hanteraPlatsInput(text) {
-    setPlats(text);
-    rensaFel('plats');
+    if (datumVäljare !== null) sparaDatum(datumVäljare, tempDatum);
+    setDatumVäljare(null);
   }
 
   function läggTillOb() {
@@ -147,37 +165,31 @@ export default function PubliceraJobbScreen({ navigation }) {
     normalisera(k).includes(normalisera(sokKategori))
   );
 
-  // Skickar jobbet till backend. Backend avgör påslaget och svarar med KRAVER_PLANVAL
-  // om gratiskontot förbrukat månadens två pass – då visas planvalet i stället, och
-  // publiceringen görs om med accepteraHögrePåslag när företaget valt.
   async function publicera({ accepteraHögrePåslag = false } = {}) {
-    const arbetstider = dagScheman.length > 0 ? JSON.stringify(dagScheman) : undefined;
-
-    await api.publicera({
+    await api.skapaSchema({
       titel: titel.trim(),
       beskrivning: beskrivning.trim(),
-      plats: plats.trim() || undefined,
+      plats: plats.trim(),
       adress: adress.trim(),
-      lon: lon ? parseInt(lon) : undefined,
-      typ: 'gig',
-      kategori: kategori || undefined,
-      antal_dagar: antalDagar ? parseInt(antalDagar) : undefined,
-      arbetstider,
+      kategori,
+      typ: 'sommarjobb',
+      startdatum,
+      slutdatum,
+      timlon: parseFloat(timlon),
       ob_tillagg: obTillagg,
+      pass,
       ...(accepteraHögrePåslag ? { acceptera_hogre_paslag: true } : {}),
     });
 
-    Alert.alert('Klart!', 'Jobbet har publicerats.', [
+    Alert.alert('Klart!', `Schemat har publicerats med ${pass.length} pass.`, [
       { text: 'OK', onPress: () => navigation.goBack() },
     ]);
   }
 
   async function hanteraPublicering() {
-    const nyaFel = valideraJobb({ titel, beskrivning, kategori, plats, adress, lon, dagScheman });
+    const nyaFel = valideraSchema({ titel, beskrivning, kategori, plats, adress, timlon, startdatum, slutdatum, pass });
     if (Object.keys(nyaFel).length) {
       setFel(nyaFel);
-      // Fälten ligger i ordning uppifrån, så det räcker att scrolla till toppen för att
-      // första felet alltid ska synas.
       scrollRef.current?.scrollTo({ y: 0, animated: true });
       return;
     }
@@ -187,7 +199,6 @@ export default function PubliceraJobbScreen({ navigation }) {
     try {
       await publicera();
     } catch (error) {
-      // Tredje passet denna månad på gratisplanen – låt företaget välja plan.
       if (error.kod === 'KRAVER_PLANVAL') {
         setPlanModalVisas(true);
         return;
@@ -198,30 +209,26 @@ export default function PubliceraJobbScreen({ navigation }) {
     }
   }
 
-  // "Fortsätt utan abonnemang" – jobbet publiceras med 40 % påslag.
   async function fortsattUtanAbonnemang() {
     setPlanModalVisas(false);
     setLaddar(true);
     try {
       await publicera({ accepteraHögrePåslag: true });
-    } catch (fel) {
-      Alert.alert('Fel', fel.message);
+    } catch (error) {
+      Alert.alert('Fel', error.message);
     } finally {
       setLaddar(false);
     }
   }
 
-  // "Uppgradera till Pro" – Stripe Checkout öppnas i webbläsaren. När företaget återvänder
-  // till appen hämtas planen om via useAppStateAktiv (inte useFocusEffect – skärmen tappar
-  // aldrig fokus när appen bara läggs i bakgrunden), så priset uppdateras direkt.
   async function uppgraderaTillPro() {
     setBetalningLaddar(true);
     try {
       const { url } = await api.skapaCheckout();
       await Linking.openURL(url);
       setPlanModalVisas(false);
-    } catch (fel) {
-      Alert.alert('Fel', fel.message);
+    } catch (error) {
+      Alert.alert('Fel', error.message);
     } finally {
       setBetalningLaddar(false);
     }
@@ -231,25 +238,18 @@ export default function PubliceraJobbScreen({ navigation }) {
     <>
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <ScrollView ref={scrollRef} style={styles.container} keyboardShouldPersistTaps="handled">
-          {/* Enstaka pass eller ett helt schema. Schemat har en egen skärm eftersom
-              formuläret skiljer sig helt: period + passgenerator i stället för antal dagar. */}
-          <View style={styles.lägeVäljare}>
-            <View style={[styles.lägeKnapp, styles.lägeKnappAktiv]}>
-              <Text style={[styles.lägeText, styles.lägeTextAktiv]}>Enstaka pass</Text>
-            </View>
-            <TouchableOpacity
-              style={styles.lägeKnapp}
-              onPress={() => navigation.navigate('PubliceraSchema')}
-              activeOpacity={0.8}
-            >
-              <Text style={styles.lägeText}>Schema/säsongsarbete</Text>
-            </TouchableOpacity>
+          <View style={styles.infoRuta}>
+            <Ionicons name="information-circle-outline" size={18} color="#0369a1" />
+            <Text style={styles.infoText}>
+              En person söker och godkänns för hela schemat. Tidrapporter skapas automatiskt
+              efter varje pass. Hela schemat räknas som ett pass mot gratisgränsen.
+            </Text>
           </View>
 
-          <Text style={styles.label}>Jobbtitel *</Text>
+          <Text style={styles.label}>Titel *</Text>
           <TextInput
             style={[styles.input, fel.titel && styles.inputFel]}
-            placeholder="t.ex. Sommarjobbare på café"
+            placeholder="t.ex. Sommarpersonal 2026"
             value={titel}
             onChangeText={(t) => { setTitel(t); rensaFel('titel'); }}
           />
@@ -258,7 +258,7 @@ export default function PubliceraJobbScreen({ navigation }) {
           <Text style={styles.label}>Beskrivning *</Text>
           <TextInput
             style={[styles.input, styles.textArea, fel.beskrivning && styles.inputFel]}
-            placeholder="Beskriv tjänsten, krav och arbetsuppgifter..."
+            placeholder="Beskriv uppdraget, krav och arbetsuppgifter..."
             value={beskrivning}
             onChangeText={(t) => { setBeskrivning(t); rensaFel('beskrivning'); }}
             multiline
@@ -270,7 +270,7 @@ export default function PubliceraJobbScreen({ navigation }) {
           <Text style={styles.label}>Stad *</Text>
           <StadInput
             värde={plats}
-            onÄndra={hanteraPlatsInput}
+            onÄndra={(t) => { setPlats(t); rensaFel('plats'); }}
             placeholder="t.ex. Stockholm"
             fel={!!fel.plats}
           />
@@ -287,82 +287,113 @@ export default function PubliceraJobbScreen({ navigation }) {
           <FältFel text={fel.adress} />
 
           <Text style={styles.label}>Timlön (kr/tim) *</Text>
-          <TextInput style={[styles.input, fel.lon && styles.inputFel]} placeholder="t.ex. 160" value={lon} onChangeText={(t) => { setLon(t); rensaFel('lon'); }} keyboardType="numeric" />
-          <FältFel text={fel.lon} />
-          {lon ? (() => {
-            const timlön = parseFloat(lon) || 0;
-            const faktureringspris = formateraPris(beräknaFakturapris(timlön, gällandePåslag));
-            return timlön > 0 ? (
+          <TextInput
+            style={[styles.input, fel.timlon && styles.inputFel]}
+            placeholder="t.ex. 160"
+            value={timlon}
+            onChangeText={(t) => { setTimlon(t); rensaFel('timlon'); }}
+            keyboardType="numeric"
+          />
+          <FältFel text={fel.timlon} />
+          {timlon ? (() => {
+            const lön = parseFloat(timlon) || 0;
+            if (lön <= 0) return null;
+            return (
               <View style={styles.prisKalkyl}>
-                <Text style={styles.prisRad}>Timlön för personen: <Text style={styles.prisFet}>{timlön} kr/h</Text></Text>
-                <Text style={styles.prisRad}>Ni faktureras: <Text style={styles.prisFetBlå}>{faktureringspris} kr/h</Text> (exkl. moms)</Text>
-                <ProBesparing timlön={timlön} paslag={gällandePåslag} />
+                <Text style={styles.prisRad}>Timlön för personen: <Text style={styles.prisFet}>{lön} kr/h</Text></Text>
+                <Text style={styles.prisRad}>Ni faktureras: <Text style={styles.prisFetBlå}>{formateraPris(beräknaFakturapris(lön, gällandePåslag))} kr/h</Text> (exkl. moms)</Text>
+                <ProBesparing timlön={lön} paslag={gällandePåslag} />
               </View>
-            ) : null;
+            );
           })() : null}
 
-          <Text style={styles.label}>Antal dagar *</Text>
-          <TextInput style={[styles.input, dagScheman.length === 0 && fel.schema && styles.inputFel]} placeholder="t.ex. 5" value={antalDagar} onChangeText={hanteraAntalDagar} keyboardType="numeric" />
-          {dagScheman.length === 0 && <FältFel text={fel.schema} />}
+          <Text style={styles.label}>Period *</Text>
+          <View style={styles.periodRad}>
+            <TouchableOpacity
+              style={[styles.input, styles.datumKnapp, fel.period && styles.inputFel]}
+              onPress={() => öppnaDatumVäljare('start')}
+              activeOpacity={0.7}
+            >
+              <Ionicons name="calendar-outline" size={16} color={startdatum ? '#1a1a1a' : '#aaa'} />
+              <Text style={[styles.datumText, !startdatum && styles.datumPlaceholder]}>
+                {startdatum ? formatDatum(startdatum) : 'Från'}
+              </Text>
+            </TouchableOpacity>
+            <Text style={styles.tidStreck}>–</Text>
+            <TouchableOpacity
+              style={[styles.input, styles.datumKnapp, fel.period && styles.inputFel]}
+              onPress={() => öppnaDatumVäljare('slut')}
+              activeOpacity={0.7}
+            >
+              <Ionicons name="calendar-outline" size={16} color={slutdatum ? '#1a1a1a' : '#aaa'} />
+              <Text style={[styles.datumText, !slutdatum && styles.datumPlaceholder]}>
+                {slutdatum ? formatDatum(slutdatum) : 'Till'}
+              </Text>
+            </TouchableOpacity>
+          </View>
+          <FältFel text={fel.period} />
 
-          {dagScheman.length > 0 && (
-            <View style={styles.dagSektion}>
-              {dagScheman.length > 1 && (
-                <TouchableOpacity style={styles.kryssRad} onPress={toggleSammaTider} activeOpacity={0.7}>
-                  <View style={[styles.kryssRuta, sammaTider && styles.kryssRutaAktiv]}>
-                    {sammaTider && <Ionicons name="checkmark" size={14} color="#fff" />}
-                  </View>
-                  <Text style={styles.kryssText}>Samma tider varje dag</Text>
+          {/* Passgeneratorn: utan den vore 40 pass omöjliga att mata in för hand */}
+          <Text style={styles.label}>Generera pass</Text>
+          <View style={styles.generator}>
+            <Text style={styles.generatorHjälp}>Välj vilka veckodagar som ska ingå:</Text>
+            <View style={styles.dagKnappar}>
+              {VECKODAGAR.map((dag, i) => (
+                <TouchableOpacity
+                  key={dag}
+                  style={[styles.dagKnapp, valdaDagar.includes(i) && styles.dagKnappAktiv]}
+                  onPress={() => toggleVeckodag(i)}
+                  activeOpacity={0.7}
+                >
+                  <Text style={[styles.dagKnappText, valdaDagar.includes(i) && styles.dagKnappTextAktiv]}>{dag}</Text>
                 </TouchableOpacity>
-              )}
-              {dagScheman.map((dag, i) => (
-                <View key={i} style={styles.dagRad}>
-                  <Text style={styles.dagEtikett}>Dag {i + 1}</Text>
-                  <View style={styles.dagFält}>
-                    <TouchableOpacity
-                      style={[styles.input, styles.datumKnapp]}
-                      onPress={() => öppnaPicker(i)}
-                      activeOpacity={0.7}
-                    >
-                      <Ionicons name="calendar-outline" size={16} color={dag.datum ? '#1a1a1a' : '#aaa'} />
-                      <Text style={[styles.datumText, !dag.datum && styles.datumPlaceholder]}>
-                        {dag.datum ? formatDatum(dag.datum) : 'Datum'}
-                      </Text>
-                    </TouchableOpacity>
-                    <TidVäljare
-                      style={{ flex: 1 }}
-                      placeholder="08:00"
-                      value={dag.start}
-                      onChange={v => uppdateraDag(i, 'start', v)}
-                    />
-                    <Text style={styles.tidStreck}>–</Text>
-                    <TidVäljare
-                      style={{ flex: 1 }}
-                      placeholder="17:00"
-                      value={dag.slut}
-                      onChange={v => uppdateraDag(i, 'slut', v)}
-                    />
-                  </View>
+              ))}
+            </View>
+            <View style={styles.generatorTider}>
+              <TidVäljare style={{ flex: 1 }} placeholder="08:00" value={genStart} onChange={setGenStart} />
+              <Text style={styles.tidStreck}>–</Text>
+              <TidVäljare style={{ flex: 1 }} placeholder="17:00" value={genSlut} onChange={setGenSlut} />
+            </View>
+            <TouchableOpacity style={styles.generatorKnapp} onPress={körGenerator} activeOpacity={0.8}>
+              <Ionicons name="repeat-outline" size={18} color="#fff" />
+              <Text style={styles.generatorKnappText}>Generera pass</Text>
+            </TouchableOpacity>
+          </View>
+
+          <Text style={styles.label}>
+            Pass * {pass.length > 0 ? `(${pass.length} st)` : ''}
+          </Text>
+          {pass.length === 0 ? (
+            <Text style={styles.tomPass}>Inga pass ännu. Använd generatorn ovan.</Text>
+          ) : (
+            <View style={styles.passLista}>
+              {pass.map((p, i) => (
+                <View key={`${p.datum}-${i}`} style={styles.passRad}>
+                  <TouchableOpacity
+                    style={styles.passDatum}
+                    onPress={() => öppnaDatumVäljare(i)}
+                    activeOpacity={0.7}
+                  >
+                    <Text style={styles.passVeckodag}>{veckodagsNamn(p.datum)}</Text>
+                    <Text style={styles.passDatumText}>{formatDatum(p.datum)}</Text>
+                  </TouchableOpacity>
+                  <TidVäljare style={{ flex: 1 }} placeholder="08:00" value={p.starttid} onChange={v => uppdateraPass(i, 'starttid', v)} />
+                  <Text style={styles.tidStreck}>–</Text>
+                  <TidVäljare style={{ flex: 1 }} placeholder="17:00" value={p.sluttid} onChange={v => uppdateraPass(i, 'sluttid', v)} />
+                  <TouchableOpacity onPress={() => taBortPass(i)} hitSlop={8}>
+                    <Ionicons name="close-circle" size={20} color="#ef4444" />
+                  </TouchableOpacity>
                 </View>
               ))}
-              <FältFel text={fel.schema} />
             </View>
           )}
+          <FältFel text={fel.pass} />
 
           <Text style={styles.label}>OB-tillägg (obekväm arbetstid)</Text>
           {obTillagg.map((ob, i) => (
             <View key={i} style={styles.obRad}>
               <Text style={styles.obRadText}>
                 {ob.start}–{ob.slut}: {ob.värde}{ob.typ === 'procent' ? '%' : ' kr/h'}
-                {lon ? (() => {
-                  const [sh = 0, sm = 0] = ob.start.split(':').map(Number);
-                  const [eh = 0, em = 0] = ob.slut.split(':').map(Number);
-                  const h = (eh * 60 + em - (sh * 60 + sm)) / 60;
-                  const timlön = parseFloat(lon) || 0;
-                  const brutto = ob.typ === 'procent' ? h * timlön * (ob.värde / 100) : h * ob.värde;
-                  const kostnad = beräknaFakturapris(brutto, gällandePåslag);
-                  return kostnad > 0 ? ` = +${formateraPris(kostnad)} kr (er kostnad)` : '';
-                })() : ''}
               </Text>
               <TouchableOpacity onPress={() => setObTillagg(prev => prev.filter((_, j) => j !== i))}>
                 <Ionicons name="close-circle" size={20} color="#ef4444" />
@@ -372,19 +403,9 @@ export default function PubliceraJobbScreen({ navigation }) {
           {obFormVisas ? (
             <View style={styles.obForm}>
               <View style={styles.obFormTider}>
-                <TidVäljare
-                  style={{ flex: 1 }}
-                  placeholder="18:00"
-                  value={obStart}
-                  onChange={setObStart}
-                />
+                <TidVäljare style={{ flex: 1 }} placeholder="18:00" value={obStart} onChange={setObStart} />
                 <Text style={styles.tidStreck}>–</Text>
-                <TidVäljare
-                  style={{ flex: 1 }}
-                  placeholder="20:00"
-                  value={obSlut}
-                  onChange={setObSlut}
-                />
+                <TidVäljare style={{ flex: 1 }} placeholder="20:00" value={obSlut} onChange={setObSlut} />
               </View>
               <View style={styles.typVäljare}>
                 {['procent', 'fast'].map(t => (
@@ -428,41 +449,41 @@ export default function PubliceraJobbScreen({ navigation }) {
           <FältFel text={fel.kategori} />
 
           <TouchableOpacity style={[styles.knapp, laddar && styles.knappInaktiv]} onPress={hanteraPublicering} disabled={laddar}>
-            {laddar ? <ActivityIndicator color="#fff" /> : <Text style={styles.knappText}>Publicera jobb</Text>}
+            {laddar ? <ActivityIndicator color="#fff" /> : <Text style={styles.knappText}>Publicera schema</Text>}
           </TouchableOpacity>
         </ScrollView>
       </KeyboardAvoidingView>
 
-      {/* Planval vid tredje passet samma månad */}
       <PrenumerationModal
         visible={planModalVisas}
         onClose={() => setPlanModalVisas(false)}
-        timlön={parseFloat(lon) || 0}
+        timlön={parseFloat(timlon) || 0}
         laddar={betalningLaddar}
         onUppgradera={uppgraderaTillPro}
         onFortsattUtan={fortsattUtanAbonnemang}
       />
 
-      {/* Datumväljare – Android (native dialog) */}
-      {Platform.OS === 'android' && dagPickerIndex !== null && (
+      {/* Datumväljare – Android */}
+      {Platform.OS === 'android' && datumVäljare !== null && (
         <DateTimePicker
           value={tempDatum}
           mode="date"
           display="default"
           minimumDate={new Date()}
           onChange={(_, date) => {
-            setDagPickerIndex(null);
-            if (date) sparaDatum(dagPickerIndex, date);
+            const vilken = datumVäljare;
+            setDatumVäljare(null);
+            if (date) sparaDatum(vilken, date);
           }}
         />
       )}
 
-      {/* Datumväljare – iOS (modal med spinner) */}
-      <Modal visible={Platform.OS === 'ios' && dagPickerIndex !== null} transparent animationType="slide" statusBarTranslucent>
+      {/* Datumväljare – iOS */}
+      <Modal visible={Platform.OS === 'ios' && datumVäljare !== null} transparent animationType="slide" statusBarTranslucent>
         <View style={styles.pickerBackdrop}>
           <View style={styles.pickerPanel}>
             <View style={styles.pickerRubrikRad}>
-              <TouchableOpacity onPress={() => setDagPickerIndex(null)}>
+              <TouchableOpacity onPress={() => setDatumVäljare(null)}>
                 <Text style={styles.pickerAvbryt}>Avbryt</Text>
               </TouchableOpacity>
               <Text style={styles.pickerRubrik}>Välj datum</Text>
@@ -477,8 +498,6 @@ export default function PubliceraJobbScreen({ navigation }) {
               minimumDate={new Date()}
               onChange={(_, date) => date && setTempDatum(date)}
               locale="sv-SE"
-              // iOS-spinnern följer annars systemets mörka läge och blir vit text mot
-              // den vita panelen (osynlig). Tvinga ljust tema + mörk text.
               themeVariant="light"
               textColor="#1a1a1a"
             />
@@ -534,18 +553,45 @@ export default function PubliceraJobbScreen({ navigation }) {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#fff', padding: 20 },
   label: { fontSize: 14, fontWeight: '600', color: '#444', marginBottom: 6, marginTop: 16 },
-
-  lägeVäljare: { flexDirection: 'row', gap: 8, marginTop: 12 },
-  lägeKnapp: { flex: 1, paddingVertical: 10, borderRadius: 10, alignItems: 'center', backgroundColor: '#f3f4f6' },
-  lägeKnappAktiv: { backgroundColor: '#2563eb' },
-  lägeText: { fontSize: 14, fontWeight: '600', color: '#6b7280' },
-  lägeTextAktiv: { color: '#fff' },
-  input: { borderWidth: 1, borderColor: '#ddd', borderRadius: 10, padding: 14, fontSize: 15, backgroundColor: '#fafafa', letterSpacing: 0 },
+  input: { borderWidth: 1, borderColor: '#ddd', borderRadius: 10, padding: 14, fontSize: 15, backgroundColor: '#fafafa' },
   textArea: { height: 120 },
+  inputFel: { borderColor: '#dc2626', borderWidth: 1.5, backgroundColor: '#fef2f2' },
+
+  infoRuta: { flexDirection: 'row', gap: 8, backgroundColor: '#f0f9ff', borderRadius: 10, padding: 12, marginTop: 16, borderWidth: 1, borderColor: '#bae6fd' },
+  infoText: { flex: 1, fontSize: 13, color: '#0369a1', lineHeight: 18 },
 
   väljarKnapp: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderWidth: 1, borderColor: '#ddd', borderRadius: 10, padding: 14, backgroundColor: '#fafafa' },
   väljarText: { fontSize: 15, color: '#1a1a1a' },
   väljarPlaceholder: { color: '#aaa' },
+
+  prisKalkyl: { backgroundColor: '#f0f9ff', borderRadius: 10, padding: 12, marginTop: 8, gap: 4, borderWidth: 1, borderColor: '#bae6fd' },
+  prisRad: { fontSize: 13, color: '#0369a1' },
+  prisFet: { fontWeight: '700', color: '#0369a1' },
+  prisFetBlå: { fontWeight: '700', color: '#1d4ed8' },
+
+  periodRad: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  datumKnapp: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 6 },
+  datumText: { fontSize: 15, color: '#1a1a1a' },
+  datumPlaceholder: { color: '#aaa' },
+  tidStreck: { fontSize: 16, color: '#9ca3af' },
+
+  generator: { borderWidth: 1, borderColor: '#e5e7eb', borderRadius: 12, padding: 14, backgroundColor: '#fafafa' },
+  generatorHjälp: { fontSize: 13, color: '#6b7280', marginBottom: 10 },
+  dagKnappar: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: 12 },
+  dagKnapp: { paddingHorizontal: 12, paddingVertical: 8, borderRadius: 8, borderWidth: 1, borderColor: '#d1d5db', backgroundColor: '#fff' },
+  dagKnappAktiv: { backgroundColor: '#2563eb', borderColor: '#2563eb' },
+  dagKnappText: { fontSize: 13, fontWeight: '600', color: '#6b7280' },
+  dagKnappTextAktiv: { color: '#fff' },
+  generatorTider: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 12 },
+  generatorKnapp: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: '#2563eb', borderRadius: 10, paddingVertical: 12 },
+  generatorKnappText: { color: '#fff', fontWeight: '600', fontSize: 15 },
+
+  tomPass: { fontSize: 14, color: '#9ca3af', fontStyle: 'italic', paddingVertical: 8 },
+  passLista: { borderWidth: 1, borderColor: '#e5e7eb', borderRadius: 12, padding: 10, backgroundColor: '#fafafa', gap: 8 },
+  passRad: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  passDatum: { width: 74 },
+  passVeckodag: { fontSize: 11, color: '#9ca3af', textTransform: 'uppercase', fontWeight: '600' },
+  passDatumText: { fontSize: 14, color: '#1a1a1a', fontWeight: '500' },
 
   typVäljare: { flexDirection: 'row', gap: 8, marginBottom: 8 },
   typKnapp: { flex: 1, padding: 12, borderRadius: 10, borderWidth: 1, borderColor: '#ddd', alignItems: 'center' },
@@ -553,25 +599,17 @@ const styles = StyleSheet.create({
   typText: { color: '#555', fontWeight: '500', fontSize: 14 },
   typTextAktiv: { color: '#fff' },
 
-  inputFel: { borderColor: '#dc2626', borderWidth: 1.5, backgroundColor: '#fef2f2' },
-  prisKalkyl: { backgroundColor: '#f0f9ff', borderRadius: 10, padding: 12, marginTop: 8, gap: 4, borderWidth: 1, borderColor: '#bae6fd' },
-  prisRad: { fontSize: 13, color: '#0369a1' },
-  prisFet: { fontWeight: '700', color: '#0369a1' },
-  prisFetBlå: { fontWeight: '700', color: '#1d4ed8' },
-
-  dagSektion: { marginTop: 12, borderWidth: 1, borderColor: '#e5e7eb', borderRadius: 12, padding: 14, backgroundColor: '#fafafa' },
-  kryssRad: { flexDirection: 'row', alignItems: 'center', marginBottom: 14 },
-  kryssRuta: { width: 20, height: 20, borderRadius: 5, borderWidth: 2, borderColor: '#2563eb', justifyContent: 'center', alignItems: 'center', marginRight: 10 },
-  kryssRutaAktiv: { backgroundColor: '#2563eb' },
-  kryssText: { fontSize: 14, color: '#374151', fontWeight: '500' },
-  dagRad: { marginBottom: 12 },
-  dagEtikett: { fontSize: 13, fontWeight: '700', color: '#6b7280', marginBottom: 6 },
-  dagFält: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  datumKnapp: { flex: 2, flexDirection: 'row', alignItems: 'center', gap: 6 },
-  datumText: { fontSize: 15, color: '#1a1a1a' },
-  datumPlaceholder: { color: '#aaa' },
-  tidInput: { flex: 1, textAlign: 'center' },
-  tidStreck: { fontSize: 16, color: '#9ca3af' },
+  obRad: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: '#fff7ed', borderRadius: 10, padding: 12, marginBottom: 8, borderWidth: 1, borderColor: '#fed7aa' },
+  obRadText: { fontSize: 14, color: '#9a3412', flex: 1 },
+  obForm: { backgroundColor: '#fff7ed', borderRadius: 12, padding: 14, marginBottom: 8, borderWidth: 1, borderColor: '#fed7aa' },
+  obFormTider: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 10 },
+  obFormKnappar: { flexDirection: 'row', gap: 10, marginTop: 8 },
+  obAvbryt: { flex: 1, borderWidth: 1, borderColor: '#d1d5db', borderRadius: 10, padding: 12, alignItems: 'center' },
+  obAvbrytText: { fontSize: 14, color: '#666', fontWeight: '600' },
+  obLäggTillKnapp: { flex: 1, backgroundColor: '#ea580c', borderRadius: 10, padding: 12, alignItems: 'center' },
+  obLäggTillText: { fontSize: 14, color: '#fff', fontWeight: '600' },
+  obAddKnapp: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 10, paddingHorizontal: 4, marginBottom: 4 },
+  obAddText: { fontSize: 14, color: '#ea580c', fontWeight: '600' },
 
   knapp: { backgroundColor: '#2563eb', borderRadius: 12, padding: 16, alignItems: 'center', marginTop: 28, marginBottom: 40 },
   knappInaktiv: { backgroundColor: '#93c5fd' },
@@ -592,15 +630,4 @@ const styles = StyleSheet.create({
   kategoriRad: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: '#f0f0f0' },
   kategoriRadText: { fontSize: 16, color: '#1a1a1a' },
   ingaResultat: { fontSize: 15, color: '#999', textAlign: 'center', marginTop: 24 },
-  obRad: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: '#fff7ed', borderRadius: 10, padding: 12, marginBottom: 8, borderWidth: 1, borderColor: '#fed7aa' },
-  obRadText: { fontSize: 14, color: '#9a3412', flex: 1 },
-  obForm: { backgroundColor: '#fff7ed', borderRadius: 12, padding: 14, marginBottom: 8, borderWidth: 1, borderColor: '#fed7aa' },
-  obFormTider: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 10 },
-  obFormKnappar: { flexDirection: 'row', gap: 10, marginTop: 8 },
-  obAvbryt: { flex: 1, borderWidth: 1, borderColor: '#d1d5db', borderRadius: 10, padding: 12, alignItems: 'center' },
-  obAvbrytText: { fontSize: 14, color: '#666', fontWeight: '600' },
-  obLäggTillKnapp: { flex: 1, backgroundColor: '#ea580c', borderRadius: 10, padding: 12, alignItems: 'center' },
-  obLäggTillText: { fontSize: 14, color: '#fff', fontWeight: '600' },
-  obAddKnapp: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 10, paddingHorizontal: 4, marginBottom: 4 },
-  obAddText: { fontSize: 14, color: '#ea580c', fontWeight: '600' },
 });

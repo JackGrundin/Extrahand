@@ -50,11 +50,19 @@ function TidrapportKort({ rapport, ärPrivatperson, ärSenaste, onUppdaterad }) 
     }
   }
 
+  // En automatiskt skapad rapport som fortfarande väntar på svar rättas PÅ PLATS – annars
+  // skulle dubblettspärren i backend svara 409, och chatten få två kort för samma pass.
+  // Efter ett bestridande gäller det vanliga flödet: en ny korrigerad rapport.
+  const kanKorrigeraPåPlats = rapport.auto_skapad && rapport.status === 'väntar';
+
   async function skickaKorrigering({ timmar, ob_tillagg }) {
     setSparar(true);
     try {
-      // Ny korrigerad tidrapport för samma pass.
-      await api.skapaRapport({ ansokan_id: rapport.ansokan_id, timmar, ob_tillagg });
+      if (kanKorrigeraPåPlats) {
+        await api.korrigeraTidrapport(rapport.id, { timmar, ob_tillagg });
+      } else {
+        await api.skapaRapport({ ansokan_id: rapport.ansokan_id, timmar, ob_tillagg });
+      }
       setKorrigeraVisas(false);
       onUppdaterad();
     } catch (fel) {
@@ -139,15 +147,25 @@ function TidrapportKort({ rapport, ärPrivatperson, ärSenaste, onUppdaterad }) 
         </View>
       )}
 
-      {!ärPrivatperson && rapport.status === 'bestridd' && ärSenaste && (
+      {/* Företaget rättar antingen en bestriden rapport, eller ett schemapass som
+          rapporterats automatiskt med schemalagda timmar (övertid eller rast). */}
+      {!ärPrivatperson && ärSenaste && (rapport.status === 'bestridd' || kanKorrigeraPåPlats) && (
         <TouchableOpacity
           style={[styles.korrigeraKnapp, sparar && { opacity: 0.5 }]}
           onPress={() => setKorrigeraVisas(true)}
           disabled={sparar}
         >
           <Ionicons name="create-outline" size={16} color="#2563eb" />
-          <Text style={styles.korrigeraText}>Skicka korrigerad tidrapport</Text>
+          <Text style={styles.korrigeraText}>
+            {kanKorrigeraPåPlats ? 'Justera timmar' : 'Skicka korrigerad tidrapport'}
+          </Text>
         </TouchableOpacity>
+      )}
+
+      {kanKorrigeraPåPlats && (
+        <Text style={styles.autoNot}>
+          Skapad automatiskt från schemalagda tider. Justera vid övertid eller rast.
+        </Text>
       )}
 
       {rapport.created_at && !Number.isNaN(new Date(rapport.created_at).getTime()) && (
@@ -348,6 +366,11 @@ export default function ChattScreen({ route, navigation }) {
       ...pass.flatMap((p) => {
         const rapporter = p.tidrapporter ?? (p.tidrapport ? [p.tidrapport] : []);
         if (!rapporter.length) {
+          // Ett schema ger ett pass per dag. Utan den här kollapsen skulle ett sommarschema
+          // lägga 60 passkort i tidslinjen. Schemats annons-pass (schemaPassId null) har
+          // alla datum i sina arbetstider och visas i stället som ett samlat kort.
+          // Tidrapporter döljs aldrig – var och en måste godkännas för sig.
+          if (p.schemaPassId) return [];
           return [{ typ: 'pass', tid: tidVärde(p.created_at), data: p, key: `p-${p.id}` }];
         }
         return rapporter.flatMap((r, i) => {
@@ -505,6 +528,7 @@ const styles = StyleSheet.create({
   bestriddText: { fontSize: 15, color: '#7f1d1d', lineHeight: 21 },
   korrigeraKnapp: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, borderWidth: 1, borderColor: '#2563eb', borderRadius: 10, paddingVertical: 10 },
   korrigeraText: { color: '#2563eb', fontWeight: '600', fontSize: 14 },
+  autoNot: { fontSize: 12, color: '#9ca3af', fontStyle: 'italic', marginTop: 6 },
   modalBakgrund: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'center', padding: 24 },
   modalKort: { backgroundColor: '#fff', borderRadius: 16, padding: 20 },
   modalRubrik: { fontSize: 17, fontWeight: '700', color: '#1a1a1a', marginBottom: 8 },

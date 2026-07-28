@@ -106,6 +106,23 @@ export const api = {
   sättaBetyg: (ansokningId, kropp) => anrop('POST', `/betyg/${ansokningId}`, kropp),
   hämtaBetyg: (anvandareId) => anrop('GET', `/betyg/anvandare/${anvandareId}`),
 
+  // Scheman (längre uppdrag: sommarjobb, säsongsarbete). Ett schema söks som helhet via
+  // sitt annons-jobb, så ansökan går genom sökaJobb ovan med schemats annons_jobb_id.
+  skapaSchema: (kropp) => anrop('POST', '/scheman', kropp),
+  hämtaScheman: () => anrop('GET', '/scheman'),
+  hämtaSchema: (id) => anrop('GET', `/scheman/${id}`),
+  minaScheman: () => anrop('GET', '/scheman/mina'),
+  minaSchemaPass: () => anrop('GET', '/scheman/mina-pass'),
+  uppdateraSchema: (id, kropp) => anrop('PUT', `/scheman/${id}`, kropp),
+  ersättPersonISchema: (id, nyAnvandareId) => anrop('PATCH', `/scheman/${id}/ersatt`, { ny_anvandare_id: nyAnvandareId }),
+  hoppaAvSchema: (id) => anrop('POST', `/scheman/${id}/hoppa-av`, {}),
+  avbrytSchema: (id) => anrop('POST', `/scheman/${id}/avbryt`, {}),
+  schemaKalender: (från, till) => anrop('GET', `/scheman/kalender?from=${från}&till=${till}`),
+
+  // Korrigerar en automatiskt skapad tidrapport som ännu väntar på svar (övertid/rast).
+  // Efter ett bestridande skickas i stället en ny rapport via skapaRapport.
+  korrigeraTidrapport: (id, kropp) => anrop('PATCH', `/tidrapporter/${id}/korrigera`, kropp),
+
   // Jobbförfrågningar (erbjud pass via chatten)
   skapaJobbforfragan: (kropp) => anrop('POST', '/jobbforfragan', kropp),
   hämtaJobbforfragningar: (medAnvandareId) => anrop('GET', `/jobbforfragan/konversation/${medAnvandareId}`),

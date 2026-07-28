@@ -4,6 +4,7 @@ const { skapaAnsökan, hämtaAnsökningarFörSökande, hämtaAnsökningarFörJob
 const { hämtaPushToken, hämtaAnvändareViaId } = require('../db/användare');
 const { hämtaJobbViaId, sättJobbPåslag } = require('../db/jobb');
 const { hämtaPrenumeration, gällandePåslag, ökaPassDennaManad, minskaPassDennaManad } = require('../db/prenumeration');
+const { tilldelaSchema, frigörFramtidaPass, återställSchema } = require('../db/schemaTilldelning');
 const { skickaNotifikation } = require('../utils/pushNotifikation');
 const { sändRealtidsPing, sändJobblistaPing } = require('../realtid');
 
@@ -15,6 +16,13 @@ router.post('/:jobbId', kräverInloggning, kräverTyp('privatperson'), async (re
   const { meddelande } = req.body;
 
   try {
+    // Materialiserade schemapass söks aldrig direkt – man söker schemat som helhet via
+    // dess annons-jobb, och passens ansökningar skapas automatiskt vid godkännandet.
+    const jobbet = await hämtaJobbViaId(jobbId);
+    if (!jobbet || jobbet.schema_pass_id) {
+      return res.status(404).json({ fel: 'Jobbet hittades inte' });
+    }
+
     // Passet är tillsatt om någon redan blivit godkänd – då går det inte längre att söka
     const godkända = await hämtaGodkändaFörJobb(jobbId);
     if (godkända.length > 0) {
@@ -127,19 +135,37 @@ router.patch('/:id/status', kräverInloggning, kräverTyp('företag'), async (re
     // ett redan tillsatt jobb är det inte ett nytt pass.
     const godkändaFöre = await hämtaGodkändaFörJobb(ansökan.jobb_id);
 
+    // Gäller ansökan ett helt schema? Schemats annons-jobb har schema_id men inget
+    // schema_pass_id. Hela påslags- och räknarlogiken nedan är oförändrad och gör redan
+    // rätt för ett schema: ett schema = ett pass mot gratisgränsen.
+    const jobb = await hämtaJobbViaId(ansökan.jobb_id);
+    const ärSchemaAnnons = !!(jobb?.schema_id && !jobb.schema_pass_id);
+
     // Berörda sökande (utöver den vars status ändras direkt) att signalera om
     let övrigaBerörda = [];
     if (status === 'godkänd') {
       await uppdateraStatus(req.params.id, 'godkänd');
       övrigaBerörda = await avvisaAllaUtomEn(ansökan.jobb_id, req.params.id);
 
+      // Påslaget som ska gälla: nyfryst vid första godkännandet, annars det som redan
+      // ligger på jobbet (byte av person ska inte kunna ändra ett avtalat pris).
+      let påslag = jobb?.paslag ?? null;
+
       if (godkändaFöre.length === 0) {
         // Passet är nu genomfört-att-bli och räknas mot månadens gräns. Påslaget avgörs
         // FÖRE inkrementet: pass 1 och 2 får 20 %, pass 3 och framåt 40 %. Det fryses på
         // jobbet och följer sedan med till tidrapporten och fakturan.
         const företag = await hämtaPrenumeration(req.användare.id);
-        await sättJobbPåslag(ansökan.jobb_id, gällandePåslag(företag));
+        påslag = gällandePåslag(företag);
+        await sättJobbPåslag(ansökan.jobb_id, påslag);
         await ökaPassDennaManad(req.användare.id);
+      }
+
+      if (ärSchemaAnnons) {
+        // Byter företaget person på ett redan tillsatt schema måste den förra personens
+        // framtida pass frigöras först. Genomförda pass rörs inte.
+        if (godkändaFöre.length > 0) await frigörFramtidaPass(jobb.schema_id);
+        await tilldelaSchema(jobb.schema_id, ansökan.sokande_id, påslag);
       }
     } else {
       övrigaBerörda = await återställAllaFörJobb(ansökan.jobb_id);
@@ -147,8 +173,18 @@ router.patch('/:id/status', kräverInloggning, kräverTyp('företag'), async (re
       if (godkändaFöre.length > 0) {
         // Godkännandet togs tillbaka – passet blev aldrig av och ska inte förbruka ett
         // gratispass. Påslaget nollas så att det sätts om vid ett nytt godkännande.
-        await minskaPassDennaManad(req.användare.id);
-        await sättJobbPåslag(ansökan.jobb_id, null);
+        //
+        // För ett schema gäller det bara om INGET pass hunnit genomföras. Har personen
+        // redan jobbat en dag är passet av och ska faktureras som avtalat.
+        let skaNollas = true;
+        if (ärSchemaAnnons) {
+          const { harGenomfört } = await återställSchema(jobb.schema_id);
+          skaNollas = !harGenomfört;
+        }
+        if (skaNollas) {
+          await minskaPassDennaManad(req.användare.id);
+          await sättJobbPåslag(ansökan.jobb_id, null);
+        }
       }
     }
 
@@ -167,12 +203,15 @@ router.patch('/:id/status', kräverInloggning, kräverTyp('företag'), async (re
 
     if (status === 'godkänd') {
       try {
-        const [pushToken, jobb] = await Promise.all([
-          hämtaPushToken(ansökan.sokande_id),
-          hämtaJobbViaId(ansökan.jobb_id),
-        ]);
+        const pushToken = await hämtaPushToken(ansökan.sokande_id);
         const jobbTitel = jobb?.Titel ?? 'jobbet';
-        await skickaNotifikation(pushToken, 'Grattis!', `Din ansökan till "${jobbTitel}" har godkänts!`);
+        await skickaNotifikation(
+          pushToken,
+          'Grattis!',
+          ärSchemaAnnons
+            ? `Du är godkänd för hela schemat "${jobbTitel}"!`
+            : `Din ansökan till "${jobbTitel}" har godkänts!`
+        );
       } catch (notisfel) {
         console.error('Push-notifikation fel:', notisfel);
       }

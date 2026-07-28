@@ -8,15 +8,39 @@ const supabase = createClient(
   { realtime: { transport: ws } }
 );
 
-async function skapaJobb({ titel, beskrivning, plats, adress, lon, typ, kategori, antal_dagar, arbetstider, ob_tillagg, paslag, foretag_id }) {
+// schema_id/schema_pass_id sätts bara av schemafunktionen. schema_id ensamt = schemats
+// annons-jobb (bär ansökningar och chatt), båda satta = ett materialiserat schemapass.
+// Se db/migrations/scheman.sql.
+async function skapaJobb({ titel, beskrivning, plats, adress, lon, typ, kategori, antal_dagar, arbetstider, ob_tillagg, paslag, foretag_id, schema_id = null, schema_pass_id = null }) {
   const { data, error } = await supabase
     .from('Jobb')
-    .insert([{ Titel: titel, Beskrivning: beskrivning, Plats: plats, adress, Lon: lon, Typ: typ, Kategori: kategori, antal_dagar, arbetstider, ob_tillagg: ob_tillagg || [], paslag, Foretag_id: foretag_id }])
+    .insert([{ Titel: titel, Beskrivning: beskrivning, Plats: plats, adress, Lon: lon, Typ: typ, Kategori: kategori, antal_dagar, arbetstider, ob_tillagg: ob_tillagg || [], paslag, Foretag_id: foretag_id, schema_id, schema_pass_id }])
     .select()
     .single();
 
   if (error) throw error;
   return data;
+}
+
+// Skapar flera jobb i ett anrop. Ett schema med 60 pass ska inte bli 60 rundturer till
+// databasen. Chunkas om 50 rader så att varken PostgREST eller Supabase stryper anropet.
+async function skapaJobbBatch(rader) {
+  if (!rader.length) return [];
+  const skapade = [];
+  for (let i = 0; i < rader.length; i += 50) {
+    const { data, error } = await supabase
+      .from('Jobb')
+      .insert(rader.slice(i, i + 50).map(r => ({
+        Titel: r.titel, Beskrivning: r.beskrivning, Plats: r.plats, adress: r.adress,
+        Lon: r.lon, Typ: r.typ, Kategori: r.kategori, antal_dagar: r.antal_dagar,
+        arbetstider: r.arbetstider, ob_tillagg: r.ob_tillagg || [], paslag: r.paslag,
+        Foretag_id: r.foretag_id, schema_id: r.schema_id ?? null, schema_pass_id: r.schema_pass_id ?? null,
+      })))
+      .select();
+    if (error) throw error;
+    skapade.push(...(data || []));
+  }
+  return skapade;
 }
 
 async function filtreraAktivaJobb(jobb) {
@@ -109,9 +133,14 @@ async function jobbMedGodkändAnsökan(jobbIds) {
 }
 
 async function hämtaAllaJobb() {
+  // Schemats jobb hör hemma i schemafliken, aldrig i listan över enstaka pass. Filtret
+  // är en korrekthetsfråga och inte kosmetika: i glappet när en person hoppat av och en
+  // ny ännu inte godkänts saknar de framtida passjobben godkänd ansökan, och skulle
+  // annars slinka igenom filtreraAktivaJobb som sökbara annonser.
   const { data: jobb, error } = await supabase
     .from('Jobb')
     .select('*')
+    .is('schema_id', null)
     .order('created_at', { ascending: false });
 
   if (error) throw error;
@@ -145,11 +174,15 @@ async function hämtaJobbViaId(id) {
   return data;
 }
 
+// Företagets egna annonser. Schemajobb filtreras bort – de visas i Scheman-fliken.
+// Anropas även av routes/användare.js för företagets publika profil, så filtret måste
+// sitta här och inte i routen.
 async function hämtaJobbFörFöretag(foretag_id, { endastAktiva = false } = {}) {
   const { data, error } = await supabase
     .from('Jobb')
     .select('*')
     .eq('Foretag_id', foretag_id)
+    .is('schema_id', null)
     .order('created_at', { ascending: false });
 
   if (error) throw error;
@@ -162,10 +195,14 @@ async function hämtaJobbFörFöretag(foretag_id, { endastAktiva = false } = {})
 // gamla jobb (äldre än 30 dagar) som saknar datum. Detta är den exakta inversen av
 // datumlogiken i filtreraAktivaJobb.
 async function hämtaTidigareJobbFörFöretag(foretag_id) {
+  // Schemajobb hålls utanför även här. Utöver att listan annars skulle floodas ger det
+  // rätt badge i AttAvslutaContext utan ändring: schemapass rapporteras automatiskt och
+  // ska aldrig räknas som "behöver avslutas".
   const { data, error } = await supabase
     .from('Jobb')
     .select('*')
     .eq('Foretag_id', foretag_id)
+    .is('schema_id', null)
     .order('created_at', { ascending: false });
 
   if (error) throw error;
@@ -200,12 +237,15 @@ async function hämtaTidigareJobbFörFöretag(foretag_id) {
   return passerade.map(j => ({ ...j, harGodkänd: godkända.has(j.id) }));
 }
 
+// Schemajobb får inte ändras via jobb-API:t – de ägs av schemat och redigeras via
+// /api/scheman. Därför .is('schema_id', null) utöver ägarkontrollen.
 async function uppdateraJobb(id, foretag_id, { titel, beskrivning, plats, adress, lon, typ, kategori, antal_dagar, arbetstider, ob_tillagg }) {
   const { data, error } = await supabase
     .from('Jobb')
     .update({ Titel: titel, Beskrivning: beskrivning, Plats: plats, adress, Lon: lon, Typ: typ, Kategori: kategori, antal_dagar, arbetstider, ob_tillagg: ob_tillagg || [] })
     .eq('id', id)
     .eq('Foretag_id', foretag_id)
+    .is('schema_id', null)
     .select()
     .single();
 
@@ -223,11 +263,15 @@ async function sättJobbPåslag(id, paslag) {
 // Antal jobb företaget publicerat denna månad. Styr popupen vid publicering. Räknas
 // direkt ur tabellen i stället för via en kolumn, så att ett borttaget jobb automatiskt
 // försvinner ur räkningen.
+// Ett schema räknas som EN publicering: schemats annons-jobb (schema_id satt,
+// schema_pass_id null) räknas med, medan de materialiserade passjobben filtreras bort.
+// Därmed behövs ingen separat räkning av scheman-tabellen.
 async function räknaJobbDennaMånad(foretag_id) {
   const { count, error } = await supabase
     .from('Jobb')
     .select('id', { count: 'exact', head: true })
     .eq('Foretag_id', foretag_id)
+    .is('schema_pass_id', null)
     .gte('created_at', månadensStart());
 
   if (error) throw error;
@@ -245,13 +289,16 @@ async function markeraAnsökningarSedda(id, foretag_id) {
   if (error) throw error;
 }
 
+// Schemajobb raderas aldrig härifrån – ett schema avbryts via /api/scheman, vilket
+// bevarar genomförda pass och deras tidrapporter.
 async function taBortJobb(id, foretag_id) {
   const { error } = await supabase
     .from('Jobb')
     .delete()
     .eq('id', id)
-    .eq('Foretag_id', foretag_id);
+    .eq('Foretag_id', foretag_id)
+    .is('schema_id', null);
   if (error) throw error;
 }
 
-module.exports = { skapaJobb, hämtaAllaJobb, hämtaJobbViaId, hämtaJobbFörFöretag, hämtaTidigareJobbFörFöretag, uppdateraJobb, taBortJobb, sättJobbPåslag, räknaJobbDennaMånad, markeraAnsökningarSedda };
+module.exports = { skapaJobb, skapaJobbBatch, hämtaAllaJobb, hämtaJobbViaId, hämtaJobbFörFöretag, hämtaTidigareJobbFörFöretag, uppdateraJobb, taBortJobb, sättJobbPåslag, räknaJobbDennaMånad, markeraAnsökningarSedda };

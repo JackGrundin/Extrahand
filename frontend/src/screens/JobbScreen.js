@@ -52,6 +52,10 @@ function KategoriRad({ label, värde, onPress }) {
 
 export default function JobbScreen({ navigation }) {
   const [jobb, setJobb] = useState([]);
+  const [scheman, setScheman] = useState([]);
+  // 'pass' = enstaka pass, 'scheman' = längre uppdrag. Scheman har egen datamodell och
+  // egna filterbehov, därför en egen lista i stället för att blandas in bland passen.
+  const [läge, setLäge] = useState('pass');
   const [laddar, setLaddar] = useState(true);
   const [uppdaterar, setUppdaterar] = useState(false);
   const [valtTyp, setValtTyp] = useState('Alla');
@@ -66,8 +70,12 @@ export default function JobbScreen({ navigation }) {
 
   async function hämta() {
     try {
-      const data = await api.hämtaJobb();
-      setJobb(data);
+      const [jobbData, schemaData] = await Promise.all([
+        api.hämtaJobb(),
+        api.hämtaScheman().catch(() => []),
+      ]);
+      setJobb(jobbData);
+      setScheman(schemaData);
     } catch (fel) {
       console.error(fel);
     } finally {
@@ -144,8 +152,89 @@ export default function JobbScreen({ navigation }) {
 
   if (laddar) return <ActivityIndicator style={{ flex: 1 }} size="large" />;
 
+  const filtreradeScheman = scheman.filter(s =>
+    !stadFilter.trim() || (s.plats ?? '').toLowerCase().includes(stadFilter.trim().toLowerCase())
+  );
+
   return (
     <View style={{ flex: 1, backgroundColor: '#f5f5f5' }}>
+      <View style={styles.lägeVäljare}>
+        <TouchableOpacity
+          style={[styles.lägeKnapp, läge === 'pass' && styles.lägeKnappAktiv]}
+          onPress={() => setLäge('pass')}
+          activeOpacity={0.8}
+        >
+          <Text style={[styles.lägeText, läge === 'pass' && styles.lägeTextAktiv]}>
+            Enstaka pass ({jobb.length})
+          </Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.lägeKnapp, läge === 'scheman' && styles.lägeKnappAktiv]}
+          onPress={() => setLäge('scheman')}
+          activeOpacity={0.8}
+        >
+          <Text style={[styles.lägeText, läge === 'scheman' && styles.lägeTextAktiv]}>
+            Scheman ({scheman.length})
+          </Text>
+        </TouchableOpacity>
+      </View>
+
+      {läge === 'scheman' ? (
+        <FlatList
+          data={filtreradeScheman}
+          keyExtractor={(item) => item.id}
+          contentContainerStyle={styles.lista}
+          refreshControl={<RefreshControl refreshing={uppdaterar} onRefresh={() => { setUppdaterar(true); hämta(); }} />}
+          ListHeaderComponent={
+            <View style={styles.schemaHeader}>
+              <StadInput
+                värde={stadFilter}
+                onÄndra={setStadFilter}
+                placeholder="Sök på stad..."
+                inputStyle={styles.stadInput}
+                containerStyle={{ flex: 1 }}
+                absolutLista
+                autoCapitalize="none"
+              />
+            </View>
+          }
+          ListEmptyComponent={<Text style={styles.tom}>Inga längre uppdrag just nu</Text>}
+          renderItem={({ item }) => (
+            <TouchableOpacity
+              style={styles.kort}
+              onPress={() => navigation.navigate('SchemaDetalj', { schemaId: item.id })}
+              activeOpacity={0.85}
+            >
+              <View style={styles.kortTopp}>
+                <Text style={styles.titel} numberOfLines={1}>{item.foretagNamn ?? 'Okänt företag'}</Text>
+                {item.kategori && <Text style={styles.kategoriTag}>{item.kategori}</Text>}
+              </View>
+              <Text style={styles.jobbTitel} numberOfLines={1}>{item.titel}</Text>
+
+              <View style={styles.datumRad}>
+                <Ionicons name="calendar" size={14} color="#2563eb" />
+                <View style={styles.datumChip}>
+                  <Text style={styles.datumChipText}>
+                    {formatDagDatum(item.startdatum)} – {formatDagDatum(item.slutdatum)}
+                  </Text>
+                </View>
+                <Text style={styles.flerDatumText}>{item.antalPass} pass</Text>
+              </View>
+
+              <Text style={styles.info}>{item.plats} · {item.typ}</Text>
+              <View style={styles.extraRad}>
+                {item.timlon != null && (
+                  <Text style={styles.lön}>{Number(item.timlon).toLocaleString('sv-SE')} kr/tim</Text>
+                )}
+                {parsaObTillagg(item.ob_tillagg).length > 0 && (
+                  <View style={styles.obBadge}><Text style={styles.obBadgeText}>OB</Text></View>
+                )}
+              </View>
+            </TouchableOpacity>
+          )}
+        />
+      ) : (
+      <>
       <View style={styles.headerContainer}>
         <StadInput
           värde={stadFilter}
@@ -212,6 +301,8 @@ export default function JobbScreen({ navigation }) {
           );
         }}
       />
+      </>
+      )}
 
       <Modal visible={modalVisas} animationType="slide" transparent statusBarTranslucent>
         <KeyboardAvoidingView
@@ -363,6 +454,13 @@ export default function JobbScreen({ navigation }) {
 }
 
 const styles = StyleSheet.create({
+  lägeVäljare: { flexDirection: 'row', gap: 8, backgroundColor: '#fff', paddingHorizontal: 16, paddingTop: 12, paddingBottom: 4 },
+  lägeKnapp: { flex: 1, paddingVertical: 8, borderRadius: 10, alignItems: 'center', backgroundColor: '#f3f4f6' },
+  lägeKnappAktiv: { backgroundColor: '#2563eb' },
+  lägeText: { fontSize: 14, fontWeight: '600', color: '#6b7280' },
+  lägeTextAktiv: { color: '#fff' },
+  schemaHeader: { flexDirection: 'row', marginBottom: 12, zIndex: 30 },
+
   headerContainer: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: '#fff', paddingHorizontal: 16, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: '#eee', zIndex: 30 },
   stadInputWrapper: { flex: 1, zIndex: 30 },
   stadInput: { borderWidth: 1, borderColor: '#ddd', borderRadius: 10, paddingHorizontal: 14, paddingVertical: 9, fontSize: 15, backgroundColor: '#fafafa', color: '#1a1a1a', letterSpacing: 0 },

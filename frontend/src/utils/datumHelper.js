@@ -15,6 +15,23 @@ export function formatDagDatum(isoStr) {
   return new Date(isoStr + 'T12:00:00').toLocaleDateString('sv-SE', { day: 'numeric', month: 'short' });
 }
 
+// Ett Date från en datumväljare till 'YYYY-MM-DD' i LOKAL tid.
+// toISOString() konverterar till UTC och ger fel dag för svenska datum valda före
+// 02:00 på sommaren – ett pass den 3:e kan då sparas som den 2:a.
+export function datumTillIso(date) {
+  if (!date) return '';
+  const år = date.getFullYear();
+  const mån = String(date.getMonth() + 1).padStart(2, '0');
+  const dag = String(date.getDate()).padStart(2, '0');
+  return `${år}-${mån}-${dag}`;
+}
+
+// Veckodagens korta namn för ett ISO-datum, t.ex. 'mån'. Används i schemats passlista.
+export function veckodagsNamn(isoStr) {
+  if (!isoStr) return '';
+  return new Date(isoStr + 'T12:00:00').toLocaleDateString('sv-SE', { weekday: 'short' });
+}
+
 // Sista sluttidpunkten för ett pass (Date), eller null om inga datum finns.
 export function passSlutTidpunkt(arbetstider) {
   const schema = parsaArbetstider(arbetstider);

@@ -17,15 +17,20 @@ function ärGenomfört(ansökan) {
   return slut != null && slut.getTime() < Date.now();
 }
 
+// Gruppera på ARBETSDATUM, inte på när ansökan skapades. Ett schema tilldelas i en enda
+// transaktion, så alla dess pass har samma created_at – utan detta skulle hela sommaren
+// hamna under den månad personen godkändes. Faller tillbaka på created_at för pass som
+// saknar datum.
 function grupperaPerMånad(pass) {
   const grupper = {};
   pass.forEach(p => {
-    const datum = new Date(p.created_at);
+    const arbetsdatum = parsaArbetstider(p.arbetstider)?.map(d => d.datum).filter(Boolean).sort()[0];
+    const datum = arbetsdatum ? new Date(arbetsdatum + 'T12:00:00') : new Date(p.created_at);
     const nyckel = datum.toLocaleDateString('sv-SE', { year: 'numeric', month: 'long' });
-    if (!grupper[nyckel]) grupper[nyckel] = [];
-    grupper[nyckel].push(p);
+    if (!grupper[nyckel]) grupper[nyckel] = { titel: nyckel, sortering: datum.getTime(), data: [] };
+    grupper[nyckel].data.push(p);
   });
-  return Object.entries(grupper).map(([titel, data]) => ({ titel, data }));
+  return Object.values(grupper).sort((a, b) => a.sortering - b.sortering);
 }
 
 export default function MinaPassScreen({ navigation }) {
@@ -54,9 +59,17 @@ export default function MinaPassScreen({ navigation }) {
   const godkända = ansökningar.filter(a => a.status === 'godkänd');
   // Ett pass är genomfört när dess sista arbetsdatum passerat, eller när en tidrapport
   // skapats för passet (rapportStatus finns). Övriga godkända pass är kommande.
-  const genomförda = godkända.filter(ärGenomfört);
+  //
+  // Ett schema ger både en annons-ansökan (alla datum, inget schemaPassId) och en ansökan
+  // per pass. Under Kommande visas bara det samlade schemakortet, så ett sommarjobb inte
+  // fyller listan med 60 rader. Under Genomförda visas i stället varje pass för sig, med
+  // sin egen tidrapport – och då döljs det samlade kortet.
+  const genomförda = godkända
+    .filter(ärGenomfört)
+    .filter(a => !(a.schemaId && !a.schemaPassId));
   const kommande = godkända
     .filter(a => !ärGenomfört(a))
+    .filter(a => !a.schemaPassId)
     .sort((a, b) => {
       const datumA = parsaArbetstider(a.arbetstider)?.[0]?.datum;
       const datumB = parsaArbetstider(b.arbetstider)?.[0]?.datum;
@@ -118,12 +131,14 @@ export default function MinaPassScreen({ navigation }) {
             : (() => { const d = new Date(item.created_at); return { rader: [String(d.getDate()), d.toLocaleDateString('sv-SE', { month: 'short' })], stor: true }; })();
           const visaDatum = allaDatum.slice(0, 3);
           const fler = allaDatum.length > 3 ? allaDatum.length - 3 : 0;
+          // Det samlade schemakortet öppnar schemat med hela passlistan; ett vanligt pass
+          // öppnar chatten som tidigare.
+          const ärSchemaKort = item.schemaId != null && item.schemaPassId == null;
+          const öppna = () => ärSchemaKort
+            ? navigation.navigate('SchemaDetalj', { schemaId: item.schemaId })
+            : navigation.navigate('Chatt', { ansokningId: item.id });
           return (
-            <TouchableOpacity
-              style={styles.kort}
-              onPress={() => navigation.navigate('Chatt', { ansokningId: item.id })}
-              activeOpacity={0.85}
-            >
+            <TouchableOpacity style={styles.kort} onPress={öppna} activeOpacity={0.85}>
               <View style={styles.datumRad}>
                 <View style={styles.datumBricka}>
                   {bricka.rader.map((rad, i) => (
@@ -131,7 +146,14 @@ export default function MinaPassScreen({ navigation }) {
                   ))}
                 </View>
                 <View style={styles.passInfo}>
-                  <Text style={styles.passTitel} numberOfLines={1}>{item.jobbTitel ?? 'Jobb'}</Text>
+                  <View style={styles.titelRad}>
+                    <Text style={styles.passTitel} numberOfLines={1}>{item.jobbTitel ?? 'Jobb'}</Text>
+                    {ärSchemaKort && (
+                      <View style={styles.schemaBricka}>
+                        <Text style={styles.schemaBrickaText}>Schema</Text>
+                      </View>
+                    )}
+                  </View>
                   <Text style={styles.passForetag} numberOfLines={1}>{item.foretagNamn ?? 'Okänt företag'}</Text>
                   {allaDatum.length > 0 ? (
                     <View style={styles.passDetaljer}>
@@ -148,8 +170,8 @@ export default function MinaPassScreen({ navigation }) {
                 </View>
               </View>
               <HandlingsKnapp
-                text="Öppna chatt →"
-                onPress={() => navigation.navigate('Chatt', { ansokningId: item.id })}
+                text={ärSchemaKort ? `Visa alla ${allaDatum.length} pass →` : 'Öppna chatt →'}
+                onPress={öppna}
               />
             </TouchableOpacity>
           );
@@ -175,7 +197,10 @@ const styles = StyleSheet.create({
   datumDag: { fontSize: 18, fontWeight: '700', color: '#2563eb', lineHeight: 22 },
   datumMån: { fontSize: 10, color: '#2563eb', fontWeight: '600', textTransform: 'uppercase' },
   passInfo: { flex: 1 },
-  passTitel: { fontSize: 15, fontWeight: '600', color: '#1a1a1a' },
+  titelRad: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  passTitel: { fontSize: 15, fontWeight: '600', color: '#1a1a1a', flexShrink: 1 },
+  schemaBricka: { backgroundColor: '#eff6ff', borderRadius: 6, paddingHorizontal: 6, paddingVertical: 2 },
+  schemaBrickaText: { fontSize: 11, fontWeight: '700', color: '#2563eb' },
   passForetag: { fontSize: 13, color: '#888', marginTop: 2 },
   passDetaljer: { flexDirection: 'row', gap: 8, marginTop: 4 },
   passDetalj: { fontSize: 12, color: '#6b7280', backgroundColor: '#f3f4f6', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6 },

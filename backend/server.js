@@ -12,9 +12,12 @@ const tidrapporterRoutes = require('./routes/tidrapporter');
 const faktureringRoutes = require('./routes/fakturering');
 const jobbforfraganRoutes = require('./routes/jobbforfragan');
 const prenumerationRoutes = require('./routes/prenumeration');
+const schemanRoutes = require('./routes/scheman');
 const { stripeWebhook } = require('./routes/stripeWebhook');
 const { startaPassPåminnelse } = require('./cron/passPaminnelse');
 const { startaNollställPass } = require('./cron/nollstallPass');
+const { startaSchemaTidrapport } = require('./cron/schemaTidrapport');
+const { startaSchemaPåminnelse } = require('./cron/schemaPaminnelse');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -78,6 +81,7 @@ app.use('/api/tidrapporter', tidrapporterRoutes);
 app.use('/api/fakturering', faktureringRoutes);
 app.use('/api/jobbforfragan', jobbforfraganRoutes);
 app.use('/api/prenumeration', prenumerationRoutes);
+app.use('/api/scheman', schemanRoutes);
 
 process.on('uncaughtException', (err) => {
   console.error('Ohanterat undantag:', err);
@@ -91,6 +95,8 @@ const server = app.listen(PORT, () => {
   console.log(`Servern körs på port ${PORT}`);
   startaPassPåminnelse();
   startaNollställPass();
+  startaSchemaTidrapport();
+  startaSchemaPåminnelse();
 });
 
 server.on('error', (err) => console.error('HTTP-server fel:', err));

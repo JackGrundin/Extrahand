@@ -8,6 +8,23 @@ const supabase = createClient(
   { realtime: { transport: ws } }
 );
 
+// PostgREST skickar .in()-listor i URL:en, som har en längdgräns. Ett schema med 60 pass
+// ger 60 ansökningar per person, så listorna växer snabbt förbi den gränsen och anropet
+// skulle svara 414. Kör frågan i bitar och slå ihop resultaten i stället.
+const CHUNK = 500;
+
+async function hämtaIBitar(ids, hämta) {
+  const unika = [...new Set(ids.filter(id => id != null))];
+  if (!unika.length) return [];
+  const alla = [];
+  for (let i = 0; i < unika.length; i += CHUNK) {
+    const { data, error } = await hämta(unika.slice(i, i + CHUNK));
+    if (error) throw error;
+    alla.push(...(data || []));
+  }
+  return alla;
+}
+
 // Väver in tidrapporter i "senaste aktivitet" per ansökan. En ny tidrapport ska räknas
 // som ett oläst meddelande, med företaget som avsändare (samma logik som vanliga
 // meddelanden: mottagaren får röd prick och badge, avsändaren gör det inte).
@@ -50,10 +67,10 @@ async function hämtaAnsökningarFörSökande(sokande_id) {
   const jobbIds = [...new Set(ansökningar.map(a => a.jobb_id))];
   const ansökningsIds = ansökningar.map(a => a.id);
 
-  const [{ data: jobb }, { data: tidrapporter }, { data: meddelanden }] = await Promise.all([
-    supabase.from('Jobb').select('*').in('id', jobbIds),
-    supabase.from('tidrapporter').select('ansokan_id, status, created_at, foretag_id').in('ansokan_id', ansökningsIds).order('created_at', { ascending: true }),
-    supabase.from('meddelanden').select('ansokan_id, avsandare_id, created_at, innehall').in('ansokan_id', ansökningsIds).order('created_at', { ascending: false }),
+  const [jobb, tidrapporter, meddelanden] = await Promise.all([
+    hämtaIBitar(jobbIds, bit => supabase.from('Jobb').select('*').in('id', bit)),
+    hämtaIBitar(ansökningsIds, bit => supabase.from('tidrapporter').select('ansokan_id, status, created_at, foretag_id').in('ansokan_id', bit).order('created_at', { ascending: true })),
+    hämtaIBitar(ansökningsIds, bit => supabase.from('meddelanden').select('ansokan_id, avsandare_id, created_at, innehall').in('ansokan_id', bit).order('created_at', { ascending: false })),
   ]);
 
   const jobbMap = Object.fromEntries((jobb || []).map(j => [j.id, j]));
@@ -76,6 +93,10 @@ async function hämtaAnsökningarFörSökande(sokande_id) {
     jobbTitel: jobbMap[a.jobb_id]?.Titel ?? null,
     arbetstider: jobbMap[a.jobb_id]?.arbetstider ?? null,
     antalDagar: jobbMap[a.jobb_id]?.antal_dagar ?? null,
+    // Mina pass använder dessa för att visa ETT samlat schemakort under Kommande
+    // (annons-ansökan) och varje genomfört pass för sig under Genomförda.
+    schemaId: jobbMap[a.jobb_id]?.schema_id ?? null,
+    schemaPassId: jobbMap[a.jobb_id]?.schema_pass_id ?? null,
     rapportStatus: rapportMap[a.id] ?? null,
     senasteMeddelande: senasteMap[a.id] ?? null,
     foretagId: (() => {
@@ -100,14 +121,16 @@ async function hämtaTotalTimmar(sokande_id) {
   if (!ansokningar || !ansokningar.length) return 0;
 
   const ansokanIds = ansokningar.map(a => a.id);
-  const { data } = await supabase
-    .from('tidrapporter')
-    .select('timmar')
-    .eq('anvandare_id', sokande_id)
-    .eq('status', 'godkänd')
-    .in('ansokan_id', ansokanIds);
+  const rapporter = await hämtaIBitar(ansokanIds, bit =>
+    supabase
+      .from('tidrapporter')
+      .select('timmar')
+      .eq('anvandare_id', sokande_id)
+      .eq('status', 'godkänd')
+      .in('ansokan_id', bit)
+  );
 
-  return (data || []).reduce((sum, r) => sum + (r.timmar || 0), 0);
+  return rapporter.reduce((sum, r) => sum + (r.timmar || 0), 0);
 }
 
 
@@ -164,7 +187,7 @@ async function hämtaAnsökanViaId(id) {
 async function hämtaAllaKonversationerFörFöretag(foretag_id) {
   const { data: jobb } = await supabase
     .from('Jobb')
-    .select('id, Titel, arbetstider, antal_dagar')
+    .select('id, Titel, arbetstider, antal_dagar, schema_id, schema_pass_id')
     .eq('Foretag_id', foretag_id);
 
   if (!jobb || !jobb.length) return [];
@@ -184,10 +207,10 @@ async function hämtaAllaKonversationerFörFöretag(foretag_id) {
   const ansökningsIds = ansökningar.map(a => a.id);
   const sokandeIds = [...new Set(ansökningar.map(a => a.sokande_id).filter(Boolean))];
 
-  const [{ data: sökande }, { data: tidrapporter }, { data: meddelanden }] = await Promise.all([
-    supabase.from('användare').select('id, Namn').in('id', sokandeIds),
-    supabase.from('tidrapporter').select('ansokan_id, status, created_at, foretag_id').in('ansokan_id', ansökningsIds).order('created_at', { ascending: true }),
-    supabase.from('meddelanden').select('ansokan_id, avsandare_id, created_at, innehall').in('ansokan_id', ansökningsIds).order('created_at', { ascending: false }),
+  const [sökande, tidrapporter, meddelanden] = await Promise.all([
+    hämtaIBitar(sokandeIds, bit => supabase.from('användare').select('id, Namn').in('id', bit)),
+    hämtaIBitar(ansökningsIds, bit => supabase.from('tidrapporter').select('ansokan_id, status, created_at, foretag_id').in('ansokan_id', bit).order('created_at', { ascending: true })),
+    hämtaIBitar(ansökningsIds, bit => supabase.from('meddelanden').select('ansokan_id, avsandare_id, created_at, innehall').in('ansokan_id', bit).order('created_at', { ascending: false })),
   ]);
 
   const sökandeMap = Object.fromEntries((sökande || []).map(s => [s.id, s]));
@@ -204,9 +227,31 @@ async function hämtaAllaKonversationerFörFöretag(foretag_id) {
     jobbTitel: jobbMap[a.jobb_id]?.Titel ?? null,
     arbetstider: jobbMap[a.jobb_id]?.arbetstider ?? null,
     antalDagar: jobbMap[a.jobb_id]?.antal_dagar ?? null,
+    schemaId: jobbMap[a.jobb_id]?.schema_id ?? null,
+    schemaPassId: jobbMap[a.jobb_id]?.schema_pass_id ?? null,
     rapportStatus: rapportMap[a.id] ?? null,
     senasteMeddelande: senasteMap[a.id] ?? null,
   }));
+}
+
+// Godkända ansökningar för flera jobb i ett svep, med sökandens id. Kalendervyn behöver
+// veta vem som är bokad på varje enstaka pass.
+async function hämtaGodkändaFörFleraJobb(jobbIds) {
+  return hämtaIBitar(jobbIds, bit =>
+    supabase
+      .from('ansokningar')
+      .select('id, jobb_id, sokande_id')
+      .eq('status', 'godkänd')
+      .in('jobb_id', bit)
+  );
+}
+
+// Namnuppslag för en lista användar-id. Returnerar en map id -> Namn.
+async function hämtaNamnFörAnvändare(ids) {
+  const rader = await hämtaIBitar(ids, bit =>
+    supabase.from('användare').select('id, Namn').in('id', bit)
+  );
+  return Object.fromEntries(rader.map(u => [u.id, u.Namn]));
 }
 
 async function hämtaGodkändaFörJobb(jobb_id) {
@@ -284,7 +329,7 @@ async function hämtaAnsökanMedJobbInfo(id) {
 async function hämtaKonversationMellan(företagId, privatpersonId, motpartId) {
   const { data: jobb } = await supabase
     .from('Jobb')
-    .select('id, Titel, arbetstider')
+    .select('id, Titel, arbetstider, schema_id, schema_pass_id')
     .eq('Foretag_id', företagId);
 
   const jobbIds = (jobb || []).map(j => j.id);
@@ -292,25 +337,28 @@ async function hämtaKonversationMellan(företagId, privatpersonId, motpartId) {
 
   let ansökningar = [];
   if (jobbIds.length) {
-    const { data } = await supabase
-      .from('ansokningar')
-      .select('*')
-      .eq('sokande_id', privatpersonId)
-      .in('jobb_id', jobbIds)
-      .order('created_at', { ascending: true });
-    ansökningar = data || [];
+    ansökningar = await hämtaIBitar(jobbIds, bit =>
+      supabase
+        .from('ansokningar')
+        .select('*')
+        .eq('sokande_id', privatpersonId)
+        .in('jobb_id', bit)
+        .order('created_at', { ascending: true })
+    );
+    ansökningar.sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
   }
 
   const ansokanIds = ansökningar.map(a => a.id);
   let meddelanden = [];
   let tidrapporter = [];
   if (ansokanIds.length) {
-    const [{ data: m }, { data: t }] = await Promise.all([
-      supabase.from('meddelanden').select('*').in('ansokan_id', ansokanIds).order('created_at', { ascending: true }),
-      supabase.from('tidrapporter').select('*').in('ansokan_id', ansokanIds),
+    const [m, t] = await Promise.all([
+      hämtaIBitar(ansokanIds, bit => supabase.from('meddelanden').select('*').in('ansokan_id', bit).order('created_at', { ascending: true })),
+      hämtaIBitar(ansokanIds, bit => supabase.from('tidrapporter').select('*').in('ansokan_id', bit)),
     ]);
-    meddelanden = m || [];
-    tidrapporter = t || [];
+    meddelanden = m;
+    meddelanden.sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+    tidrapporter = t;
   }
 
   // Flera tidrapporter kan finnas per ansökan (bestridda + korrigerade). Samla dem
@@ -341,6 +389,10 @@ async function hämtaKonversationMellan(företagId, privatpersonId, motpartId) {
       created_at: a.created_at,
       jobbTitel: jobbMap[a.jobb_id]?.Titel ?? null,
       arbetstider: jobbMap[a.jobb_id]?.arbetstider ?? null,
+      // Chatten kollapsar alla pass som hör till samma schema till ett enda kort –
+      // annars får ett sommarschema 60 passkort i tidslinjen.
+      schemaId: jobbMap[a.jobb_id]?.schema_id ?? null,
+      schemaPassId: jobbMap[a.jobb_id]?.schema_pass_id ?? null,
       tidrapporter: rapporter,
       // Behåll senaste rapporten för bakåtkompatibilitet med äldre klienter.
       tidrapport: rapporter[rapporter.length - 1] ?? null,
@@ -427,10 +479,13 @@ async function hämtaPågåendePassFörPåminnelse() {
   const ansokanIds = ansökningar.map(a => a.id);
   const sokandeIds = [...new Set(ansökningar.map(a => a.sokande_id))];
 
-  const [{ data: jobb }, { data: tidrapporter }, { data: användare }] = await Promise.all([
-    supabase.from('Jobb').select('id, arbetstider, Foretag_id').in('id', jobbIds),
-    supabase.from('tidrapporter').select('ansokan_id').in('ansokan_id', ansokanIds),
-    supabase.from('användare').select('id, Namn').in('id', sokandeIds),
+  // Schemapass rapporteras automatiskt av cron/schemaTidrapport.js – företaget ska inte
+  // få en "Avsluta passet"-påminnelse för dem. Filtret ligger på jobbet, så pass utan
+  // träff i jobbMap faller bort i mappningen nedan.
+  const [jobb, tidrapporter, användare] = await Promise.all([
+    hämtaIBitar(jobbIds, bit => supabase.from('Jobb').select('id, arbetstider, Foretag_id').is('schema_id', null).in('id', bit)),
+    hämtaIBitar(ansokanIds, bit => supabase.from('tidrapporter').select('ansokan_id').in('ansokan_id', bit)),
+    hämtaIBitar(sokandeIds, bit => supabase.from('användare').select('id, Namn').in('id', bit)),
   ]);
 
   const jobbMap = Object.fromEntries((jobb || []).map(j => [j.id, j]));
@@ -451,4 +506,4 @@ async function hämtaPågåendePassFörPåminnelse() {
     .filter(p => p.foretagId != null && p.arbetstider != null);
 }
 
-module.exports = { skapaAnsökan, hämtaAnsökningarFörSökande, hämtaAnsökningarFörJobb, finnsDubblettAnsökan, hämtaTotalTimmar, uppdateraStatus, hämtaAnsökanViaId, avvisaAllaUtomEn, återställAllaFörJobb, hämtaAllaKonversationerFörFöretag, hämtaGodkändaFörJobb, ångraAnsökan, hämtaAnsökanMedJobbInfo, hämtaKonversationMellan, hämtaGrupperadeKonversationer, hämtaPågåendePassFörPåminnelse };
+module.exports = { skapaAnsökan, hämtaAnsökningarFörSökande, hämtaAnsökningarFörJobb, finnsDubblettAnsökan, hämtaTotalTimmar, uppdateraStatus, hämtaAnsökanViaId, avvisaAllaUtomEn, återställAllaFörJobb, hämtaAllaKonversationerFörFöretag, hämtaGodkändaFörJobb, hämtaGodkändaFörFleraJobb, hämtaNamnFörAnvändare, ångraAnsökan, hämtaAnsökanMedJobbInfo, hämtaKonversationMellan, hämtaGrupperadeKonversationer, hämtaPågåendePassFörPåminnelse };

@@ -30,6 +30,9 @@ import MinaPassScreen from '../screens/MinaPassScreen';
 import FöretagsProfilScreen from '../screens/FöretagsProfilScreen';
 import RapporterScreen from '../screens/RapporterScreen';
 import VerifieraEmailScreen from '../screens/VerifieraEmailScreen';
+import PubliceraSchemaScreen from '../screens/PubliceraSchemaScreen';
+import SchemaDetaljScreen from '../screens/SchemaDetaljScreen';
+import SchemaKalenderScreen from '../screens/SchemaKalenderScreen';
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -78,6 +81,7 @@ function JobbNavigator() {
     >
       <Stack.Screen name="Jobb" component={JobbScreen} options={{ title: 'Lediga jobb' }} />
       <Stack.Screen name="JobbDetalj" component={JobbDetaljScreen} options={{ title: 'Jobbdetaljer' }} />
+      <Stack.Screen name="SchemaDetalj" component={SchemaDetaljScreen} options={{ title: 'Schema' }} />
       <Stack.Screen name="FöretagsProfil" component={FöretagsProfilScreen} options={{ title: 'Företagsprofil' }} />
       <Stack.Screen name="JobbAnsokningar" component={JobbAnsokningarScreen} options={({ route }) => ({ title: route.params?.titel ?? 'Ansökningar' })} />
       <Stack.Screen name="Chatt" component={ChattScreen} options={{ title: 'Chatt' }} />
@@ -107,6 +111,7 @@ function MinaPassNavigator() {
       })}
     >
       <Stack.Screen name="MinaPass" component={MinaPassScreen} options={{ title: 'Mina pass' }} />
+      <Stack.Screen name="SchemaDetalj" component={SchemaDetaljScreen} options={{ title: 'Schema' }} />
       <Stack.Screen name="Chatt" component={ChattScreen} options={{ title: 'Chatt' }} />
     </Stack.Navigator>
   );
@@ -132,6 +137,7 @@ function ProfilNavigator() {
     >
       <Stack.Screen name="ProfilHuvud" component={ProfilScreen} options={{ title: 'Profil' }} />
       <Stack.Screen name="RedigeraProfil" component={RedigeraProfilScreen} options={{ title: 'Redigera profil' }} />
+      <Stack.Screen name="SchemaKalender" component={SchemaKalenderScreen} options={{ title: 'Schemaöversikt' }} />
     </Stack.Navigator>
   );
 }
@@ -144,6 +150,7 @@ function MinaJobbNavigator() {
       })}
     >
       <Stack.Screen name="MinaJobb" component={MinaJobbScreen} options={{ title: 'Mina annonser' }} />
+      <Stack.Screen name="SchemaDetalj" component={SchemaDetaljScreen} options={{ title: 'Schema' }} />
       <Stack.Screen name="RedigeraJobb" component={RedigeraJobbScreen} options={{ title: 'Redigera annons' }} />
       <Stack.Screen name="JobbAnsokningar" component={JobbAnsokningarScreen} options={({ route }) => ({ title: route.params?.titel ?? 'Ansökningar' })} />
       <Stack.Screen name="SökanadeProfil" component={SökandeProfilScreen} options={{ title: 'Sökandes profil' }} />
@@ -161,6 +168,7 @@ function PubliceraNavigator() {
       })}
     >
       <Stack.Screen name="PubliceraJobb" component={PubliceraJobbScreen} options={{ title: 'Publicera jobb' }} />
+      <Stack.Screen name="PubliceraSchema" component={PubliceraSchemaScreen} options={{ title: 'Publicera schema' }} />
     </Stack.Navigator>
   );
 }

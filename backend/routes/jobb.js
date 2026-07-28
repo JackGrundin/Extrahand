@@ -80,6 +80,12 @@ router.get('/:id', async (req, res) => {
     if (!jobb) {
       return res.status(404).json({ fel: 'Jobbet hittades inte' });
     }
+    // Ett materialiserat schemapass är ingen annons och ska inte gå att öppna som en.
+    // Schemats annons-jobb (schema_pass_id null) får däremot hämtas – det är dit
+    // schemaansökningar går.
+    if (jobb.schema_pass_id) {
+      return res.status(404).json({ fel: 'Jobbet hittades inte' });
+    }
     res.json(jobb);
   } catch (fel) {
     console.error('Fel vid hämtning av jobb:', fel);

@@ -13,6 +13,7 @@ export default function MinaJobbScreen({ navigation }) {
   const [jobb, setJobb] = useState([]);
   const [tidigareJobb, setTidigareJobb] = useState([]);
   const [tidigarePass, setTidigarePass] = useState([]);
+  const [scheman, setScheman] = useState([]);
   const [aktivFlik, setAktivFlik] = useState('aktiva');
   const [laddar, setLaddar] = useState(true);
   const [uppdaterar, setUppdaterar] = useState(false);
@@ -68,6 +69,12 @@ export default function MinaJobbScreen({ navigation }) {
       setTidigarePass(rapporterData);
     } catch (fel) {
       console.error('Tidrapporter fel:', fel);
+    }
+    try {
+      const schemaData = await api.minaScheman();
+      setScheman(schemaData);
+    } catch (fel) {
+      console.error('Scheman fel:', fel);
     }
     setLaddar(false);
     setUppdaterar(false);
@@ -195,9 +202,62 @@ export default function MinaJobbScreen({ navigation }) {
             Tidigare pass ({tidigareLista.length})
           </Text>
         </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.flik, aktivFlik === 'scheman' && styles.flikAktiv]}
+          onPress={() => setAktivFlik('scheman')}
+        >
+          <Text style={[styles.flikText, aktivFlik === 'scheman' && styles.flikTextAktiv]}>
+            Scheman ({scheman.length})
+          </Text>
+        </TouchableOpacity>
       </View>
 
-      {aktivFlik === 'aktiva' ? (
+      {aktivFlik === 'scheman' ? (
+        <FlatList
+          style={styles.lista}
+          data={scheman}
+          keyExtractor={(item) => item.id}
+          refreshControl={<RefreshControl refreshing={uppdaterar} onRefresh={() => { setUppdaterar(true); hämta(); }} />}
+          ListEmptyComponent={
+            <View style={styles.tomContainer}>
+              <Text style={styles.tomText}>Inga scheman ännu</Text>
+            </View>
+          }
+          renderItem={({ item }) => (
+            <TouchableOpacity
+              style={styles.kort}
+              onPress={() => navigation.navigate('SchemaDetalj', { schemaId: item.id })}
+              activeOpacity={0.85}
+            >
+              <Text style={styles.titel} numberOfLines={1}>{item.titel}</Text>
+              <View style={styles.infoRad}>
+                <Text style={styles.info}>
+                  {formatDagDatum(item.startdatum)} – {formatDagDatum(item.slutdatum)}
+                </Text>
+                {item.timlon != null && (
+                  <Text style={styles.lön}>{Number(item.timlon).toLocaleString('sv-SE')} kr/tim</Text>
+                )}
+              </View>
+              <View style={styles.schemaRad}>
+                <View style={styles.schemaChip}>
+                  <Text style={styles.schemaChipText}>{item.antalPass} pass</Text>
+                </View>
+                {item.personNamn ? (
+                  <View style={[styles.schemaChip, styles.schemaChipGrön]}>
+                    <Ionicons name="person" size={12} color="#15803d" />
+                    <Text style={[styles.schemaChipText, { color: '#15803d' }]}>{item.personNamn}</Text>
+                  </View>
+                ) : (
+                  <View style={[styles.schemaChip, styles.schemaChipOrange]}>
+                    <Text style={[styles.schemaChipText, { color: '#c2410c' }]}>Söker person</Text>
+                  </View>
+                )}
+              </View>
+              <HandlingsKnapp text="Visa schema →" onPress={() => navigation.navigate('SchemaDetalj', { schemaId: item.id })} />
+            </TouchableOpacity>
+          )}
+        />
+      ) : aktivFlik === 'aktiva' ? (
         <FlatList
           style={styles.lista}
           data={huvudAktiva}
@@ -300,6 +360,12 @@ const styles = StyleSheet.create({
   infoRad: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 8 },
   info: { fontSize: 14, color: '#666' },
   lön: { fontSize: 14, color: '#2563eb', fontWeight: '600' },
+
+  schemaRad: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: 4 },
+  schemaChip: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: '#eff6ff', borderRadius: 8, paddingHorizontal: 8, paddingVertical: 4 },
+  schemaChipGrön: { backgroundColor: '#dcfce7' },
+  schemaChipOrange: { backgroundColor: '#ffedd5' },
+  schemaChipText: { fontSize: 12, fontWeight: '600', color: '#2563eb' },
   datumRad: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 6, marginBottom: 10 },
   datumChip: { backgroundColor: '#eff6ff', borderRadius: 8, paddingHorizontal: 8, paddingVertical: 4, borderWidth: 1, borderColor: '#bfdbfe' },
   datumChipText: { fontSize: 13, fontWeight: '700', color: '#2563eb' },

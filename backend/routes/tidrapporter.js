@@ -1,27 +1,16 @@
 const express = require('express');
 const { kräverInloggning, kräverTyp } = require('../middleware/auth');
-const { skapaTidrapport, hämtaTidrapportFörAnsökan, hämtaTidrapportViaId, uppdateraTidrapportStatus, hämtaAllaTidrapporter, hämtaTidrapporterFörFöretag, markeraTidrapportBetald } = require('../db/tidrapporter');
+const { skapaTidrapport, uppdateraAutoTidrapport, hämtaTidrapportFörAnsökan, hämtaTidrapportViaId, uppdateraTidrapportStatus, hämtaAllaTidrapporter, hämtaTidrapporterFörFöretag, markeraTidrapportBetald } = require('../db/tidrapporter');
 const { hämtaAnsökanViaId } = require('../db/ansokningar');
 const { hämtaJobbViaId } = require('../db/jobb');
 const { hämtaAnvändareViaEmail, hämtaAnvändareViaId, hämtaPushToken } = require('../db/användare');
 const { skickaNotifikation } = require('../utils/pushNotifikation');
-const { påslagEller40 } = require('../utils/pris');
+const { påslagEller40, beräknaObBelopp } = require('../utils/pris');
 const { sändRealtidsPing } = require('../realtid');
 
 const router = express.Router();
 
 const ADMIN_EMAIL = 'info@fastgig.se';
-
-function beräknaObBelopp(obTillagg, timlön) {
-  if (!Array.isArray(obTillagg) || !obTillagg.length || !timlön) return 0;
-  return obTillagg.reduce((sum, ob) => {
-    const [startH = 0, startM = 0] = ob.start.split(':').map(Number);
-    const [slutH = 0, slutM = 0] = ob.slut.split(':').map(Number);
-    const timmar = (slutH * 60 + slutM - (startH * 60 + startM)) / 60;
-    if (timmar <= 0) return sum;
-    return sum + (ob.typ === 'procent' ? timmar * timlön * (ob.värde / 100) : timmar * ob.värde);
-  }, 0);
-}
 
 // POST /api/tidrapporter — företag avslutar pass och rapporterar timmar
 router.post('/', kräverInloggning, kräverTyp('företag'), async (req, res) => {
@@ -125,6 +114,54 @@ router.patch('/:id/status', kräverInloggning, kräverTyp('privatperson'), async
     }
   } catch (fel) {
     console.error('Status fel:', fel);
+    res.status(500).json({ fel: 'Serverfel' });
+  }
+});
+
+// PATCH /api/tidrapporter/:id/korrigera — företag rättar en automatiskt skapad tidrapport
+// som fortfarande väntar på svar (övertid eller rast på ett schemapass). Rapporten
+// uppdateras på plats i stället för att ett andra kort läggs i chatten. Är rapporten redan
+// bestriden gäller det vanliga flödet: företaget POSTar en ny korrigerad rapport.
+router.patch('/:id/korrigera', kräverInloggning, kräverTyp('företag'), async (req, res) => {
+  const { timmar, ob_tillagg: obTillaggOverride } = req.body;
+  if (timmar == null || !(Number(timmar) > 0)) {
+    return res.status(400).json({ fel: 'Giltigt antal timmar krävs' });
+  }
+
+  try {
+    const rapport = await hämtaTidrapportViaId(req.params.id);
+    if (!rapport) return res.status(404).json({ fel: 'Tidrapport hittades inte' });
+    if (String(rapport.foretag_id) !== String(req.användare.id)) {
+      return res.status(403).json({ fel: 'Åtkomst nekad' });
+    }
+    if (!rapport.auto_skapad || rapport.status !== 'väntar') {
+      return res.status(400).json({ fel: 'Bara en automatisk tidrapport som väntar på svar kan korrigeras' });
+    }
+
+    const obTillagg = Array.isArray(obTillaggOverride)
+      ? obTillaggOverride
+      : (Array.isArray(rapport.ob_tillagg) ? rapport.ob_tillagg : []);
+    const ob_belopp = beräknaObBelopp(obTillagg, rapport.timlon);
+    const totalt_belopp = Number(timmar) * rapport.timlon + ob_belopp;
+
+    const uppdaterad = await uppdateraAutoTidrapport(req.params.id, req.användare.id, {
+      timmar: Number(timmar),
+      ob_belopp,
+      ob_tillagg: obTillagg,
+      totalt_belopp,
+    });
+    if (!uppdaterad) return res.status(409).json({ fel: 'Tidrapporten hann ändras – ladda om och försök igen' });
+
+    res.json(uppdaterad);
+
+    sändRealtidsPing(rapport.anvandare_id, 'tidrapport');
+
+    (async () => {
+      const token = await hämtaPushToken(rapport.anvandare_id);
+      await skickaNotifikation(token, 'Tidrapport korrigerad', 'Företaget har justerat timmarna. Granska rapporten.');
+    })().catch(console.error);
+  } catch (fel) {
+    console.error('Korrigering fel:', fel);
     res.status(500).json({ fel: 'Serverfel' });
   }
 });

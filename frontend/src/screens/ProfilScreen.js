@@ -169,6 +169,17 @@ export default function ProfilScreen({ navigation }) {
         <Text style={styles.redigeraText}>Redigera profil</Text>
       </TouchableOpacity>
 
+      {/* Bemanningsöversikt: vilka dagar företaget har personal och vem som jobbar när. */}
+      {!ärPrivatperson && (
+        <TouchableOpacity
+          style={styles.redigeraKnapp}
+          onPress={() => navigation.navigate('SchemaKalender')}
+        >
+          <Ionicons name="calendar-outline" size={18} color="#2563eb" />
+          <Text style={styles.redigeraText}>Schemaöversikt</Text>
+        </TouchableOpacity>
+      )}
+
       {ärPrivatperson && (
         <>
           <ProfilSektion rubrik="CV / Om mig" innehall={profil?.cv} />

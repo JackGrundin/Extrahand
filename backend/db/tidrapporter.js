@@ -7,7 +7,7 @@ const supabase = createClient(
   { realtime: { transport: ws } }
 );
 
-async function skapaTidrapport({ ansokan_id, foretag_id, anvandare_id, datum, timmar, timlon, ob_belopp, ob_tillagg, totalt_belopp, paslag }) {
+async function skapaTidrapport({ ansokan_id, foretag_id, anvandare_id, datum, timmar, timlon, ob_belopp, ob_tillagg, totalt_belopp, paslag, auto_skapad = false }) {
   // Blockera bara om det redan finns en aktiv tidrapport (väntar på svar eller godkänd).
   // En bestridd tidrapport får ersättas av en ny korrigerad rapport.
   const befintlig = await hämtaTidrapportFörAnsökan(ansokan_id);
@@ -17,9 +17,28 @@ async function skapaTidrapport({ ansokan_id, foretag_id, anvandare_id, datum, ti
 
   const { data, error } = await supabase
     .from('tidrapporter')
-    .insert([{ ansokan_id, foretag_id, anvandare_id, datum, timmar, timlon, ob_belopp: ob_belopp || 0, ob_tillagg: ob_tillagg || [], totalt_belopp, paslag, status: 'väntar' }])
+    .insert([{ ansokan_id, foretag_id, anvandare_id, datum, timmar, timlon, ob_belopp: ob_belopp || 0, ob_tillagg: ob_tillagg || [], totalt_belopp, paslag, status: 'väntar', auto_skapad }])
     .select()
     .single();
+
+  if (error) throw error;
+  return data;
+}
+
+// Korrigerar en automatiskt skapad tidrapport PÅ PLATS, så länge den fortfarande väntar
+// på svar. Schemapass rapporteras med schemalagda timmar; blev det övertid eller rast ska
+// företaget kunna rätta siffran utan att lägga ett andra kort i chatten. Efter ett
+// bestridande gäller i stället det vanliga flödet: en ny rapport via skapaTidrapport.
+async function uppdateraAutoTidrapport(id, foretag_id, { timmar, ob_belopp, ob_tillagg, totalt_belopp }) {
+  const { data, error } = await supabase
+    .from('tidrapporter')
+    .update({ timmar, ob_belopp: ob_belopp || 0, ob_tillagg: ob_tillagg || [], totalt_belopp })
+    .eq('id', id)
+    .eq('foretag_id', foretag_id)
+    .eq('auto_skapad', true)
+    .eq('status', 'väntar')
+    .select()
+    .maybeSingle();
 
   if (error) throw error;
   return data;
@@ -152,4 +171,4 @@ async function markeraTidrapportBetald(id) {
   if (error) throw error;
 }
 
-module.exports = { skapaTidrapport, hämtaTidrapportFörAnsökan, hämtaTidrapportViaId, uppdateraTidrapportStatus, hämtaAllaTidrapporter, hämtaTidrapporterFörFöretag, markeraTidrapportBetald };
+module.exports = { skapaTidrapport, uppdateraAutoTidrapport, hämtaTidrapportFörAnsökan, hämtaTidrapportViaId, uppdateraTidrapportStatus, hämtaAllaTidrapporter, hämtaTidrapporterFörFöretag, markeraTidrapportBetald };

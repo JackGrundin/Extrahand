@@ -1,0 +1,421 @@
+// Databaslager för schemafunktionen (längre uppdrag: sommarjobb, säsongsarbete).
+// Se db/migrations/scheman.sql för datamodellen och varför schemat materialiseras som
+// vanliga Jobb-rader.
+
+const { createClient } = require('@supabase/supabase-js');
+const ws = require('ws');
+
+const supabase = createClient(
+  process.env.SUPABASE_URL,
+  process.env.SUPABASE_SECRET_KEY,
+  { realtime: { transport: ws } }
+);
+
+const SCHEMAFÄLT = '*';
+
+// ---------------------------------------------------------------- Scheman
+
+async function skapaSchema({ foretag_id, titel, beskrivning, plats, adress, kategori, typ, startdatum, slutdatum, timlon, ob_tillagg }) {
+  const { data, error } = await supabase
+    .from('scheman')
+    .insert([{
+      foretag_id, titel, beskrivning, plats, adress, kategori,
+      typ: typ || 'sommarjobb',
+      startdatum, slutdatum, timlon,
+      ob_tillagg: ob_tillagg || [],
+    }])
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data;
+}
+
+// Kopplar schemat till sitt annons-jobb. Görs direkt efter att jobbet skapats.
+async function sättAnnonsJobb(id, annons_jobb_id) {
+  const { error } = await supabase.from('scheman').update({ annons_jobb_id }).eq('id', id);
+  if (error) throw error;
+}
+
+async function hämtaSchemaViaId(id) {
+  const { data, error } = await supabase
+    .from('scheman')
+    .select(SCHEMAFÄLT)
+    .eq('id', id)
+    .maybeSingle();
+  if (error) throw error;
+  return data;
+}
+
+// Slår upp schemat utifrån dess annons-jobb. Används av godkännandekroken i
+// routes/ansokningar.js, som bara känner till jobbet ansökan gäller.
+async function hämtaSchemaViaAnnonsJobb(jobb_id) {
+  const { data, error } = await supabase
+    .from('scheman')
+    .select(SCHEMAFÄLT)
+    .eq('annons_jobb_id', jobb_id)
+    .maybeSingle();
+  if (error) throw error;
+  return data;
+}
+
+// Öppna scheman som privatpersoner kan söka: publicerade, ingen tilldelad person, och
+// perioden har inte redan passerat.
+async function hämtaÖppnaScheman(idag) {
+  const { data: scheman, error } = await supabase
+    .from('scheman')
+    .select(SCHEMAFÄLT)
+    .eq('status', 'publicerat')
+    .is('anvandare_id', null)
+    .gte('slutdatum', idag)
+    .order('startdatum', { ascending: true });
+
+  if (error) throw error;
+  if (!scheman || !scheman.length) return [];
+
+  return berikaMedPassOchFöretag(scheman);
+}
+
+async function hämtaSchemanFörFöretag(foretag_id) {
+  const { data: scheman, error } = await supabase
+    .from('scheman')
+    .select(SCHEMAFÄLT)
+    .eq('foretag_id', foretag_id)
+    .neq('status', 'avbrutet')
+    .order('startdatum', { ascending: false });
+
+  if (error) throw error;
+  if (!scheman || !scheman.length) return [];
+
+  return berikaMedPassOchFöretag(scheman);
+}
+
+// Lägger på antal pass, nästa kommande datum och namn (företag + tilldelad person).
+// Inga joins – samma lookup-map-mönster som resten av db-lagret.
+async function berikaMedPassOchFöretag(scheman) {
+  const schemaIds = scheman.map(s => s.id);
+  const användarIds = [...new Set(
+    scheman.flatMap(s => [s.foretag_id, s.anvandare_id]).filter(id => id != null)
+  )];
+
+  const [{ data: pass }, { data: användare }] = await Promise.all([
+    supabase.from('schema_pass').select('schema_id, datum, starttid, sluttid, status').in('schema_id', schemaIds).order('datum', { ascending: true }),
+    supabase.from('användare').select('id, Namn').in('id', användarIds),
+  ]);
+
+  const passPerSchema = {};
+  for (const p of (pass || [])) (passPerSchema[p.schema_id] ??= []).push(p);
+  const namnMap = Object.fromEntries((användare || []).map(u => [u.id, u.Namn]));
+
+  return scheman.map(s => {
+    const egnaPass = passPerSchema[s.id] ?? [];
+    return {
+      ...s,
+      pass: egnaPass,
+      antalPass: egnaPass.length,
+      foretagNamn: namnMap[s.foretag_id] ?? null,
+      personNamn: s.anvandare_id != null ? (namnMap[s.anvandare_id] ?? null) : null,
+    };
+  });
+}
+
+async function sättSchemaStatus(id, status) {
+  const { error } = await supabase.from('scheman').update({ status }).eq('id', id);
+  if (error) throw error;
+}
+
+// Sätter (eller nollar) vem schemat är tilldelat och vilket påslag som frysts.
+async function sättSchemaTilldelning(id, { anvandare_id, paslag }) {
+  const uppdatering = {};
+  if (anvandare_id !== undefined) uppdatering.anvandare_id = anvandare_id;
+  if (paslag !== undefined) uppdatering.paslag = paslag;
+  if (!Object.keys(uppdatering).length) return;
+
+  const { error } = await supabase.from('scheman').update(uppdatering).eq('id', id);
+  if (error) throw error;
+}
+
+async function uppdateraSchema(id, foretag_id, fält) {
+  const { data, error } = await supabase
+    .from('scheman')
+    .update(fält)
+    .eq('id', id)
+    .eq('foretag_id', foretag_id)
+    .eq('status', 'publicerat')
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data;
+}
+
+// ------------------------------------------------------------ Schema_pass
+
+async function skapaSchemaPass(rader) {
+  if (!rader.length) return [];
+  const skapade = [];
+  for (let i = 0; i < rader.length; i += 50) {
+    const { data, error } = await supabase
+      .from('schema_pass')
+      .insert(rader.slice(i, i + 50))
+      .select();
+    if (error) throw error;
+    skapade.push(...(data || []));
+  }
+  return skapade;
+}
+
+async function hämtaPassFörSchema(schema_id) {
+  const { data, error } = await supabase
+    .from('schema_pass')
+    .select('*')
+    .eq('schema_id', schema_id)
+    .order('datum', { ascending: true });
+  if (error) throw error;
+  return data || [];
+}
+
+// Pass som ännu inte materialiserats för den godkända personen. Villkoret ansokan_id is
+// null gör tilldelningen körbar om: ett avbrutet anrop kan köras igen utan dubbletter.
+async function hämtaPassAttTilldela(schema_id, frånDatum) {
+  const { data, error } = await supabase
+    .from('schema_pass')
+    .select('*')
+    .eq('schema_id', schema_id)
+    .eq('status', 'planerad')
+    .is('ansokan_id', null)
+    .gte('datum', frånDatum)
+    .order('datum', { ascending: true });
+  if (error) throw error;
+  return data || [];
+}
+
+// Framtida pass som kan frigöras när någon hoppar av. Pass med tidrapport rörs aldrig –
+// arbetet är utfört och ska betalas.
+async function hämtaPassAttFrigöra(schema_id, frånDatum) {
+  const { data, error } = await supabase
+    .from('schema_pass')
+    .select('*')
+    .eq('schema_id', schema_id)
+    .eq('status', 'planerad')
+    .is('tidrapport_id', null)
+    .gte('datum', frånDatum)
+    .order('datum', { ascending: true });
+  if (error) throw error;
+  return data || [];
+}
+
+async function kopplaPassTillJobb(id, { jobb_id, ansokan_id, anvandare_id }) {
+  const { error } = await supabase
+    .from('schema_pass')
+    .update({ jobb_id, ansokan_id, anvandare_id })
+    .eq('id', id);
+  if (error) throw error;
+}
+
+// Nollar kopplingen till person och ansökan men BEHÅLLER jobb_id, så att Jobb-raden kan
+// återanvändas när en ny person godkänns (den har redan rätt fryst påslag).
+async function frikopplaPass(id) {
+  const { error } = await supabase
+    .from('schema_pass')
+    .update({ ansokan_id: null, anvandare_id: null, status: 'planerad' })
+    .eq('id', id);
+  if (error) throw error;
+}
+
+async function sättPassInställt(id) {
+  const { error } = await supabase
+    .from('schema_pass')
+    .update({ status: 'installt', ansokan_id: null, anvandare_id: null })
+    .eq('id', id);
+  if (error) throw error;
+}
+
+// Har schemat något pass som redan genomförts? Avgör om påslag och passräknare ska
+// nollas vid ett återkallande – ett schema där någon faktiskt jobbat ska faktureras.
+async function harGenomförtPass(schema_id) {
+  const { data, error } = await supabase
+    .from('schema_pass')
+    .select('id')
+    .eq('schema_id', schema_id)
+    .not('tidrapport_id', 'is', null)
+    .limit(1);
+  if (error) throw error;
+  return (data || []).length > 0;
+}
+
+async function hämtaJobbIdnFörSchema(schema_id) {
+  const { data, error } = await supabase
+    .from('schema_pass')
+    .select('jobb_id')
+    .eq('schema_id', schema_id)
+    .not('jobb_id', 'is', null);
+  if (error) throw error;
+  return [...new Set((data || []).map(p => p.jobb_id))];
+}
+
+// ------------------------------------------------------- Cron: tidrapport
+
+// Pass som är redo att rapporteras: tilldelade, ännu inte rapporterade, och vars datum
+// passerat (sluttiden kontrolleras av cron-jobbet, som kan tidszonerna).
+async function hämtaPassAttRapportera(tillDatum) {
+  const { data, error } = await supabase
+    .from('schema_pass')
+    .select('*')
+    .eq('status', 'planerad')
+    .not('ansokan_id', 'is', null)
+    .lte('datum', tillDatum)
+    .order('datum', { ascending: true });
+  if (error) throw error;
+  return data || [];
+}
+
+// Atomisk biljett: bara den körning som lyckas flytta passet planerad -> rapporterad får
+// skapa tidrapporten. En läs-sedan-skriv på tidrapport_id skulle kunna dubblera vid
+// överlappande körningar eller en omstart mitt i.
+async function krävPassFörRapport(id) {
+  const { data, error } = await supabase
+    .from('schema_pass')
+    .update({ status: 'rapporterad' })
+    .eq('id', id)
+    .eq('status', 'planerad')
+    .select('id');
+  if (error) throw error;
+  return (data || []).length > 0;
+}
+
+async function återställPassStatus(id, status) {
+  const { error } = await supabase.from('schema_pass').update({ status }).eq('id', id);
+  if (error) throw error;
+}
+
+async function sättPassTidrapport(id, tidrapport_id) {
+  const { error } = await supabase.from('schema_pass').update({ tidrapport_id }).eq('id', id);
+  if (error) throw error;
+}
+
+// ------------------------------------------------------- Cron: påminnelse
+
+async function hämtaPassFörPåminnelse(datum) {
+  const { data, error } = await supabase
+    .from('schema_pass')
+    .select('*')
+    .eq('datum', datum)
+    .eq('status', 'planerad')
+    .not('anvandare_id', 'is', null)
+    .is('paminnelse_skickad_at', null);
+  if (error) throw error;
+  return data || [];
+}
+
+// Samma atomiska biljettmönster som krävPassFörRapport. Stämpeln ligger i databasen och
+// överlever därför omstarter.
+async function krävPåminnelse(id) {
+  const { data, error } = await supabase
+    .from('schema_pass')
+    .update({ paminnelse_skickad_at: new Date().toISOString() })
+    .eq('id', id)
+    .is('paminnelse_skickad_at', null)
+    .select('id');
+  if (error) throw error;
+  return (data || []).length > 0;
+}
+
+// ------------------------------------------------------------ Vyer
+
+// Privatpersonens kommande schemapass.
+async function hämtaSchemaPassFörAnvändare(anvandare_id, frånDatum) {
+  const { data: pass, error } = await supabase
+    .from('schema_pass')
+    .select('*')
+    .eq('anvandare_id', anvandare_id)
+    .gte('datum', frånDatum)
+    .order('datum', { ascending: true });
+
+  if (error) throw error;
+  if (!pass || !pass.length) return [];
+
+  const schemaIds = [...new Set(pass.map(p => p.schema_id))];
+  const { data: scheman } = await supabase.from('scheman').select('id, titel, foretag_id, adress').in('id', schemaIds);
+  const foretagIds = [...new Set((scheman || []).map(s => s.foretag_id))];
+  const { data: företag } = await supabase.from('användare').select('id, Namn').in('id', foretagIds);
+
+  const schemaMap = Object.fromEntries((scheman || []).map(s => [s.id, s]));
+  const namnMap = Object.fromEntries((företag || []).map(f => [f.id, f.Namn]));
+
+  return pass.map(p => ({
+    ...p,
+    schemaTitel: schemaMap[p.schema_id]?.titel ?? null,
+    adress: schemaMap[p.schema_id]?.adress ?? null,
+    foretagNamn: namnMap[schemaMap[p.schema_id]?.foretag_id] ?? null,
+  }));
+}
+
+// Alla schemapass inom ett datumintervall för ett företag, med personens namn.
+// Kalendervyn kombinerar detta med företagets godkända enstaka pass.
+async function hämtaKalenderPass(foretag_id, från, till) {
+  const { data: scheman } = await supabase
+    .from('scheman')
+    .select('id, titel')
+    .eq('foretag_id', foretag_id)
+    .neq('status', 'avbrutet');
+
+  if (!scheman || !scheman.length) return [];
+
+  const schemaMap = Object.fromEntries(scheman.map(s => [s.id, s.titel]));
+  const { data: pass, error } = await supabase
+    .from('schema_pass')
+    .select('*')
+    .in('schema_id', scheman.map(s => s.id))
+    .neq('status', 'installt')
+    .gte('datum', från)
+    .lte('datum', till)
+    .order('datum', { ascending: true });
+
+  if (error) throw error;
+  if (!pass || !pass.length) return [];
+
+  const användarIds = [...new Set(pass.map(p => p.anvandare_id).filter(id => id != null))];
+  const { data: användare } = await supabase.from('användare').select('id, Namn').in('id', användarIds);
+  const namnMap = Object.fromEntries((användare || []).map(u => [u.id, u.Namn]));
+
+  return pass.map(p => ({
+    datum: p.datum,
+    starttid: p.starttid,
+    sluttid: p.sluttid,
+    personId: p.anvandare_id,
+    personNamn: p.anvandare_id != null ? (namnMap[p.anvandare_id] ?? null) : null,
+    titel: schemaMap[p.schema_id] ?? null,
+    typ: 'schema',
+    status: p.status,
+  }));
+}
+
+module.exports = {
+  skapaSchema,
+  sättAnnonsJobb,
+  hämtaSchemaViaId,
+  hämtaSchemaViaAnnonsJobb,
+  hämtaÖppnaScheman,
+  hämtaSchemanFörFöretag,
+  sättSchemaStatus,
+  sättSchemaTilldelning,
+  uppdateraSchema,
+  skapaSchemaPass,
+  hämtaPassFörSchema,
+  hämtaPassAttTilldela,
+  hämtaPassAttFrigöra,
+  kopplaPassTillJobb,
+  frikopplaPass,
+  sättPassInställt,
+  harGenomförtPass,
+  hämtaJobbIdnFörSchema,
+  hämtaPassAttRapportera,
+  krävPassFörRapport,
+  återställPassStatus,
+  sättPassTidrapport,
+  hämtaPassFörPåminnelse,
+  krävPåminnelse,
+  hämtaSchemaPassFörAnvändare,
+  hämtaKalenderPass,
+};
