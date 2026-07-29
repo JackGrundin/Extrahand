@@ -13,6 +13,25 @@ const supabase = createClient(
 
 const SCHEMAFÄLT = '*';
 
+// Ett schemapass ärver kategori och OB från schemat när passets egna fält är NULL.
+//
+// Skillnaden mellan NULL och [] är bärande: NULL betyder "ärv schemats OB", [] betyder
+// "det här passet har medvetet inget OB". Utan den skillnaden går det inte att ta bort OB
+// för ett enskilt pass – det skulle poppa tillbaka från schemat vid varje läsning.
+//
+// Pass som lades innan kategori och OB flyttades till passnivå har alltid NULL, så inget
+// backfill behövs. Den här funktionen är ENDA stället bakåtkompatibiliteten hanteras –
+// lägg aldrig till egna if-satser för det ute i koden.
+function passMedArv(schema, pass) {
+  return {
+    ...pass,
+    kategori: pass?.kategori ?? schema?.kategori ?? null,
+    ob_tillagg: Array.isArray(pass?.ob_tillagg)
+      ? pass.ob_tillagg
+      : (Array.isArray(schema?.ob_tillagg) ? schema.ob_tillagg : []),
+  };
+}
+
 // ---------------------------------------------------------------- Scheman
 
 async function skapaSchema({ foretag_id, titel, beskrivning, plats, adress, kategori, typ, startdatum, slutdatum, timlon, ob_tillagg }) {
@@ -99,7 +118,7 @@ async function berikaMedPassOchFöretag(scheman) {
   )];
 
   const [{ data: pass }, { data: användare }] = await Promise.all([
-    supabase.from('schema_pass').select('schema_id, datum, starttid, sluttid, status').in('schema_id', schemaIds).order('datum', { ascending: true }),
+    supabase.from('schema_pass').select('schema_id, datum, starttid, sluttid, status, kategori, ob_tillagg').in('schema_id', schemaIds).order('datum', { ascending: true }),
     supabase.from('användare').select('id, Namn').in('id', användarIds),
   ]);
 
@@ -108,10 +127,12 @@ async function berikaMedPassOchFöretag(scheman) {
   const namnMap = Object.fromEntries((användare || []).map(u => [u.id, u.Namn]));
 
   return scheman.map(s => {
-    const egnaPass = passPerSchema[s.id] ?? [];
+    const egnaPass = (passPerSchema[s.id] ?? []).map(p => passMedArv(s, p));
     return {
       ...s,
       pass: egnaPass,
+      // Rollerna som förekommer i schemat – schemakortet visar dem som brickor.
+      kategorier: [...new Set(egnaPass.map(p => p.kategori).filter(Boolean))],
       antalPass: egnaPass.length,
       foretagNamn: namnMap[s.foretag_id] ?? null,
       personNamn: s.anvandare_id != null ? (namnMap[s.anvandare_id] ?? null) : null,
@@ -336,15 +357,17 @@ async function hämtaSchemaPassFörAnvändare(anvandare_id, frånDatum) {
   if (!pass || !pass.length) return [];
 
   const schemaIds = [...new Set(pass.map(p => p.schema_id))];
-  const { data: scheman } = await supabase.from('scheman').select('id, titel, foretag_id, adress').in('id', schemaIds);
+  const { data: scheman } = await supabase.from('scheman').select('id, titel, foretag_id, adress, kategori, ob_tillagg').in('id', schemaIds);
   const foretagIds = [...new Set((scheman || []).map(s => s.foretag_id))];
   const { data: företag } = await supabase.from('användare').select('id, Namn').in('id', foretagIds);
 
   const schemaMap = Object.fromEntries((scheman || []).map(s => [s.id, s]));
   const namnMap = Object.fromEntries((företag || []).map(f => [f.id, f.Namn]));
 
+  // passMedArv även här, annars visas "ingen kategori" på pass från scheman som skapades
+  // innan kategorin flyttades till passnivå.
   return pass.map(p => ({
-    ...p,
+    ...passMedArv(schemaMap[p.schema_id], p),
     schemaTitel: schemaMap[p.schema_id]?.titel ?? null,
     adress: schemaMap[p.schema_id]?.adress ?? null,
     foretagNamn: namnMap[schemaMap[p.schema_id]?.foretag_id] ?? null,
@@ -354,15 +377,16 @@ async function hämtaSchemaPassFörAnvändare(anvandare_id, frånDatum) {
 // Alla schemapass inom ett datumintervall för ett företag, med personens namn.
 // Kalendervyn kombinerar detta med företagets godkända enstaka pass.
 async function hämtaKalenderPass(foretag_id, från, till) {
+  // kategori och ob_tillagg behövs för arvet när passet saknar egna värden.
   const { data: scheman } = await supabase
     .from('scheman')
-    .select('id, titel')
+    .select('id, titel, kategori, ob_tillagg')
     .eq('foretag_id', foretag_id)
     .neq('status', 'avbrutet');
 
   if (!scheman || !scheman.length) return [];
 
-  const schemaMap = Object.fromEntries(scheman.map(s => [s.id, s.titel]));
+  const schemaMap = Object.fromEntries(scheman.map(s => [s.id, s]));
   const { data: pass, error } = await supabase
     .from('schema_pass')
     .select('*')
@@ -379,19 +403,71 @@ async function hämtaKalenderPass(foretag_id, från, till) {
   const { data: användare } = await supabase.from('användare').select('id, Namn').in('id', användarIds);
   const namnMap = Object.fromEntries((användare || []).map(u => [u.id, u.Namn]));
 
-  return pass.map(p => ({
-    datum: p.datum,
-    starttid: p.starttid,
-    sluttid: p.sluttid,
-    personId: p.anvandare_id,
-    personNamn: p.anvandare_id != null ? (namnMap[p.anvandare_id] ?? null) : null,
-    titel: schemaMap[p.schema_id] ?? null,
-    typ: 'schema',
-    status: p.status,
-  }));
+  return pass.map(p => {
+    const medArv = passMedArv(schemaMap[p.schema_id], p);
+    return {
+      datum: p.datum,
+      starttid: p.starttid,
+      sluttid: p.sluttid,
+      personId: p.anvandare_id,
+      personNamn: p.anvandare_id != null ? (namnMap[p.anvandare_id] ?? null) : null,
+      titel: schemaMap[p.schema_id]?.titel ?? null,
+      // Rollen för just det här passet. Kalendern grupperar dagens pass per kategori så
+      // att företaget ser vilka avdelningar som är bemannade.
+      kategori: medArv.kategori,
+      typ: 'schema',
+      status: p.status,
+    };
+  });
+}
+
+// Distinkta kategorier företaget använt på sina schemapass förut, vanligast först.
+// Företagets "sparade kategorier" är helt enkelt de de redan skrivit – ingen egen tabell,
+// vilket gör listan självunderhållande.
+async function hämtaEgnaKategorier(foretag_id) {
+  const { data: scheman } = await supabase
+    .from('scheman')
+    .select('id')
+    .eq('foretag_id', foretag_id);
+
+  if (!scheman || !scheman.length) return [];
+
+  const { data: pass, error } = await supabase
+    .from('schema_pass')
+    .select('kategori')
+    .in('schema_id', scheman.map(s => s.id))
+    .not('kategori', 'is', null);
+
+  if (error) throw error;
+
+  const antal = {};
+  for (const p of (pass || [])) {
+    const namn = String(p.kategori).trim();
+    if (namn) antal[namn] = (antal[namn] || 0) + 1;
+  }
+  return Object.entries(antal)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 20)
+    .map(([namn]) => namn);
+}
+
+// Antal pass som räknas när ett 'totalt'-avdrag fördelas. Inställda pass exkluderas –
+// de kommer aldrig ge någon tidrapport och ska inte späda ut fördelningen.
+async function räknaPassFörSchema(schema_id) {
+  const { count, error } = await supabase
+    .from('schema_pass')
+    .select('id', { count: 'exact', head: true })
+    .eq('schema_id', schema_id)
+    .neq('status', 'installt');
+
+  if (error) throw error;
+  return count ?? 0;
 }
 
 module.exports = {
+  passMedArv,
+  hämtaEgnaKategorier,
+  räknaPassFörSchema,
   skapaSchema,
   sättAnnonsJobb,
   hämtaSchemaViaId,

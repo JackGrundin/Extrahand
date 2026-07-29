@@ -6,7 +6,7 @@ import { useAuth } from '../context/AuthContext';
 import { useRealtidsPing } from '../context/RealtidsContext';
 import { api } from '../api/klient';
 import { parsaObTillagg, beräknaObBelopp, formatDagDatum, veckodagsNamn } from '../utils/datumHelper';
-import { beräknaFakturapris } from '../utils/konstanter';
+import { beräknaFakturapris, formateraPris, beräknaAvdragFörPass } from '../utils/konstanter';
 import { useJobbPåslag } from '../utils/useJobbPåslag';
 
 const PASSFÄRGER = {
@@ -25,6 +25,10 @@ export default function SchemaDetaljScreen({ route, navigation }) {
   const [meddelande, setMeddelande] = useState('');
   const [sökt, setSökt] = useState(false);
   const [avtalsModalSynlig, setAvtalsModalSynlig] = useState(false);
+  const [avdragFormVisas, setAvdragFormVisas] = useState(false);
+  const [avdragNamn, setAvdragNamn] = useState('');
+  const [avdragBelopp, setAvdragBelopp] = useState('');
+  const [avdragTyp, setAvdragTyp] = useState('per_dag');
 
   const ärFöretag = användare?.typ === 'företag';
   const påslag = useJobbPåslag(schema?.paslag, ärFöretag);
@@ -145,6 +149,53 @@ export default function SchemaDetaljScreen({ route, navigation }) {
     );
   }
 
+  // Eget formulär i stället för Alert.prompt – den finns bara på iOS, och företag på
+  // Android hade annars inte kunnat lägga till avdrag alls.
+  async function sparaAvdrag() {
+    const belopp = parseFloat(String(avdragBelopp).replace(',', '.'));
+    if (!avdragNamn.trim()) return Alert.alert('Fel', 'Ge avdraget ett namn, t.ex. Boende.');
+    if (!(belopp > 0)) return Alert.alert('Fel', 'Ange ett belopp större än noll.');
+
+    setSparar(true);
+    try {
+      await api.skapaSchemaAvdrag(schema.id, { namn: avdragNamn.trim(), belopp, typ: avdragTyp });
+      setAvdragNamn('');
+      setAvdragBelopp('');
+      setAvdragTyp('per_dag');
+      setAvdragFormVisas(false);
+      await hämta();
+    } catch (fel) {
+      Alert.alert('Fel', fel.message);
+    } finally {
+      setSparar(false);
+    }
+  }
+
+  async function taBortAvdrag(a) {
+    Alert.alert(
+      'Ta bort avdraget?',
+      `${a.namn} slutar dras från kommande pass. Redan rapporterade pass påverkas inte.`,
+      [
+        { text: 'Avbryt', style: 'cancel' },
+        {
+          text: 'Ta bort',
+          style: 'destructive',
+          onPress: async () => {
+            setSparar(true);
+            try {
+              await api.taBortSchemaAvdrag(schema.id, a.id);
+              await hämta();
+            } catch (fel) {
+              Alert.alert('Fel', fel.message);
+            } finally {
+              setSparar(false);
+            }
+          },
+        },
+      ]
+    );
+  }
+
   async function avbryt() {
     Alert.alert(
       'Avbryt schemat?',
@@ -199,6 +250,7 @@ export default function SchemaDetaljScreen({ route, navigation }) {
 
   const ärTilldelad = schema.anvandare_id != null;
   const ärMitt = String(schema.anvandare_id ?? '') === String(användare?.id ?? '');
+  const avdrag = schema.avdrag ?? [];
   const ansökningar = schema.ansokningar ?? [];
   const godkändAnsökan = ansökningar.find(a => a.status === 'godkänd');
   const övrigaAnsökningar = ansökningar.filter(a => a.status !== 'godkänd');
@@ -276,6 +328,88 @@ export default function SchemaDetaljScreen({ route, navigation }) {
           </>
         ) : null}
 
+        {/* Löneavdrag – visas för ALLA, inte bara ägaren. Den som funderar på att söka
+            måste se att t.ex. 200 kr/dag dras för boende innan de ansöker, inte först
+            när den första tidrapporten dyker upp. */}
+        {avdrag.length > 0 && (
+          <View style={styles.avdragKort}>
+            <View style={styles.avdragRubrikRad}>
+              <Ionicons name="remove-circle-outline" size={16} color="#dc2626" />
+              <Text style={styles.avdragRubrik}>Löneavdrag</Text>
+            </View>
+            {avdrag.map(a => (
+              <View key={a.id} style={styles.avdragRad}>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.avdragNamn}>{a.namn}</Text>
+                  <Text style={styles.avdragDetalj}>
+                    {Number(a.belopp).toLocaleString('sv-SE')} kr {a.typ === 'totalt' ? 'totalt för perioden' : 'per pass'}
+                  </Text>
+                </View>
+                {ärFöretag && (
+                  <TouchableOpacity onPress={() => taBortAvdrag(a)} disabled={sparar} style={{ padding: 4 }}>
+                    <Ionicons name="close-circle" size={20} color="#dc2626" />
+                  </TouchableOpacity>
+                )}
+              </View>
+            ))}
+            {schema.pass?.length > 0 && (
+              <Text style={styles.avdragSumma}>
+                Dras från lönen: {formateraPris(beräknaAvdragFörPass(avdrag, schema.pass.length))} kr per pass.
+                Fakturan till företaget påverkas inte.
+              </Text>
+            )}
+          </View>
+        )}
+
+        {ärFöretag && (avdragFormVisas ? (
+          <View style={styles.avdragForm}>
+            <TextInput
+              style={styles.avdragInput}
+              placeholder="Namn, t.ex. Boende"
+              value={avdragNamn}
+              onChangeText={setAvdragNamn}
+              maxLength={40}
+            />
+            <TextInput
+              style={[styles.avdragInput, { marginTop: 8 }]}
+              placeholder="Belopp i kr"
+              value={avdragBelopp}
+              onChangeText={setAvdragBelopp}
+              keyboardType="numeric"
+            />
+            <View style={styles.typVäljare}>
+              {[['per_dag', 'Per pass'], ['totalt', 'Totalt']].map(([v, etikett]) => (
+                <TouchableOpacity
+                  key={v}
+                  style={[styles.typKnapp, avdragTyp === v && styles.typKnappAktiv]}
+                  onPress={() => setAvdragTyp(v)}
+                >
+                  <Text style={[styles.typText, avdragTyp === v && styles.typTextAktiv]}>{etikett}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+            <Text style={styles.avdragHjälp}>
+              {avdragTyp === 'totalt'
+                ? 'Fördelas jämnt över schemats pass.'
+                : 'Dras per pass – två pass samma dag ger två avdrag.'}
+              {' '}Gäller från nästa rapporterade pass; redan rapporterade påverkas inte.
+            </Text>
+            <View style={styles.avdragKnappar}>
+              <TouchableOpacity style={styles.avdragAvbryt} onPress={() => setAvdragFormVisas(false)} disabled={sparar}>
+                <Text style={styles.avdragAvbrytText}>Avbryt</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.avdragSpara} onPress={sparaAvdrag} disabled={sparar}>
+                <Text style={styles.avdragSparaText}>Lägg till</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        ) : (
+          <TouchableOpacity style={styles.avdragAddKnapp} onPress={() => setAvdragFormVisas(true)} disabled={sparar} activeOpacity={0.7}>
+            <Ionicons name="add-circle-outline" size={18} color="#dc2626" />
+            <Text style={styles.avdragAddText}>Lägg till löneavdrag</Text>
+          </TouchableOpacity>
+        ))}
+
         <Text style={styles.sektionsRubrik}>Pass ({schema.pass?.length ?? 0})</Text>
         <View style={styles.passLista}>
           {(schema.pass ?? []).map(p => {
@@ -286,7 +420,17 @@ export default function SchemaDetaljScreen({ route, navigation }) {
                   <Text style={styles.passVeckodag}>{veckodagsNamn(p.datum)}</Text>
                   <Text style={styles.passDatum}>{formatDagDatum(p.datum)}</Text>
                 </View>
-                <Text style={styles.passTid}>{p.starttid} – {p.sluttid}</Text>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.passTid}>{p.starttid} – {p.sluttid}</Text>
+                  <View style={styles.passBrickor}>
+                    {p.kategori ? (
+                      <View style={styles.rollBricka}><Text style={styles.rollBrickaText}>{p.kategori}</Text></View>
+                    ) : null}
+                    {p.ob_tillagg?.length > 0 && (
+                      <View style={styles.obBricka}><Text style={styles.obBrickaText}>OB</Text></View>
+                    )}
+                  </View>
+                </View>
                 <View style={[styles.statusBricka, { backgroundColor: färg.bg }]}>
                   <Text style={[styles.statusText, { color: färg.text }]}>{färg.etikett}</Text>
                 </View>
@@ -438,7 +582,35 @@ const styles = StyleSheet.create({
   passDatumBlock: { width: 70 },
   passVeckodag: { fontSize: 11, color: '#9ca3af', textTransform: 'uppercase', fontWeight: '600' },
   passDatum: { fontSize: 14, color: '#1a1a1a', fontWeight: '500' },
-  passTid: { fontSize: 14, color: '#374151', flex: 1 },
+  passTid: { fontSize: 14, color: '#374151' },
+  passBrickor: { flexDirection: 'row', flexWrap: 'wrap', gap: 5, marginTop: 3 },
+  rollBricka: { backgroundColor: '#eff6ff', borderRadius: 6, paddingHorizontal: 7, paddingVertical: 2 },
+  rollBrickaText: { fontSize: 11, color: '#2563eb', fontWeight: '700' },
+  obBricka: { backgroundColor: '#fff7ed', borderRadius: 6, paddingHorizontal: 7, paddingVertical: 2 },
+  obBrickaText: { fontSize: 11, color: '#c2410c', fontWeight: '700' },
+
+  avdragKort: { backgroundColor: '#fef2f2', borderRadius: 12, padding: 14, marginTop: 12, borderWidth: 1, borderColor: '#fecaca' },
+  avdragRubrikRad: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 8 },
+  avdragRubrik: { fontSize: 14, fontWeight: '700', color: '#991b1b' },
+  avdragRad: { flexDirection: 'row', alignItems: 'center', paddingVertical: 5 },
+  avdragNamn: { fontSize: 14, color: '#991b1b', fontWeight: '600' },
+  avdragDetalj: { fontSize: 13, color: '#b91c1c', marginTop: 1 },
+  avdragSumma: { fontSize: 12, color: '#b91c1c', marginTop: 8, lineHeight: 17, borderTopWidth: 1, borderTopColor: '#fecaca', paddingTop: 8 },
+  avdragAddKnapp: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 10, marginTop: 4 },
+  avdragAddText: { fontSize: 14, color: '#dc2626', fontWeight: '600' },
+  avdragForm: { backgroundColor: '#fef2f2', borderRadius: 12, padding: 12, marginTop: 10, borderWidth: 1, borderColor: '#fecaca' },
+  avdragInput: { borderWidth: 1, borderColor: '#fecaca', borderRadius: 10, padding: 12, fontSize: 15, backgroundColor: '#fff' },
+  avdragHjälp: { fontSize: 12, color: '#b91c1c', marginTop: 8, lineHeight: 17 },
+  avdragKnappar: { flexDirection: 'row', gap: 8, marginTop: 10 },
+  avdragAvbryt: { flex: 1, borderWidth: 1, borderColor: '#d1d5db', borderRadius: 8, paddingVertical: 10, alignItems: 'center' },
+  avdragAvbrytText: { fontSize: 13, color: '#666', fontWeight: '600' },
+  avdragSpara: { flex: 1, backgroundColor: '#dc2626', borderRadius: 8, paddingVertical: 10, alignItems: 'center' },
+  avdragSparaText: { fontSize: 13, color: '#fff', fontWeight: '600' },
+  typVäljare: { flexDirection: 'row', gap: 8, marginTop: 8 },
+  typKnapp: { flex: 1, padding: 10, borderRadius: 8, borderWidth: 1, borderColor: '#fecaca', alignItems: 'center', backgroundColor: '#fff' },
+  typKnappAktiv: { backgroundColor: '#dc2626', borderColor: '#dc2626' },
+  typText: { color: '#991b1b', fontWeight: '600', fontSize: 13 },
+  typTextAktiv: { color: '#fff' },
   statusBricka: { borderRadius: 8, paddingHorizontal: 8, paddingVertical: 3 },
   statusText: { fontSize: 12, fontWeight: '700' },
 

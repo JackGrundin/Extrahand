@@ -9,6 +9,7 @@ const { createClient } = require('@supabase/supabase-js');
 const ws = require('ws');
 const { skapaJobbBatch, sättJobbPåslag } = require('./jobb');
 const {
+  passMedArv,
   hämtaSchemaViaId,
   hämtaPassAttTilldela,
   hämtaPassAttFrigöra,
@@ -68,22 +69,27 @@ async function tilldelaSchema(schemaId, sokandeId, paslag) {
     // Jobb-raden – den har rätt fryst påslag och rätt innehåll sedan tidigare.
     const utanJobb = pass.filter(p => !p.jobb_id);
 
-    const nyaJobb = await skapaJobbBatch(utanJobb.map(p => ({
-      titel: schema.titel,
-      beskrivning: schema.beskrivning,
-      plats: schema.plats,
-      adress: schema.adress,
-      lon: schema.timlon,
-      typ: schema.typ,
-      kategori: schema.kategori,
-      antal_dagar: 1,
-      arbetstider: JSON.stringify([{ datum: p.datum, start: p.starttid, slut: p.sluttid }]),
-      ob_tillagg: schema.ob_tillagg,
-      paslag,
-      foretag_id: schema.foretag_id,
-      schema_id: schema.id,
-      schema_pass_id: p.id,
-    })));
+    // Varje pass har sin egen roll och sitt eget OB. passMedArv faller tillbaka på schemats
+    // värden för pass som lades innan de flyttades till passnivå.
+    const nyaJobb = await skapaJobbBatch(utanJobb.map(p => {
+      const { kategori, ob_tillagg } = passMedArv(schema, p);
+      return {
+        titel: schema.titel,
+        beskrivning: schema.beskrivning,
+        plats: schema.plats,
+        adress: schema.adress,
+        lon: schema.timlon,
+        typ: schema.typ,
+        kategori,
+        antal_dagar: 1,
+        arbetstider: JSON.stringify([{ datum: p.datum, start: p.starttid, slut: p.sluttid, kategori }]),
+        ob_tillagg,
+        paslag,
+        foretag_id: schema.foretag_id,
+        schema_id: schema.id,
+        schema_pass_id: p.id,
+      };
+    }));
 
     // Matcha jobb mot pass via schema_pass_id, inte via insättningsordning – batchen kan
     // komma tillbaka i annan ordning än den skickades.

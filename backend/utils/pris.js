@@ -39,6 +39,80 @@ function beräknaObBelopp(obTillagg, timlön) {
   }, 0);
 }
 
+// Enda källan till sanning för hur ett löneavdrag påverkar beloppen.
+//
+// Avdraget påverkar INTE fakturan: företaget faktureras på bruttot precis som förut
+// (beräknaFakturapris rörs inte). Avdraget reglerar bara vad personen får ut. Vill man
+// i stället låta avdraget minska fakturan är det HÄR det ändras – ingen annanstans.
+//
+// Taket mot bruttot är inte kosmetika: ett totalt-avdrag på 6 000 kr fördelat över 20 pass
+// är 300 kr, och ett tvåtimmarspass på 150 kr/h ger 300 kr brutto. Utan klampningen skulle
+// minsta avvikelse ge negativ utbetalning.
+//
+// Speglas i frontend/src/utils/konstanter.js – ändra alltid på båda ställena.
+function beräknaBelopp({ timmar = 0, timlon = 0, obBelopp = 0, avdragBelopp = 0 }) {
+  const brutto = (Number(timmar) || 0) * (Number(timlon) || 0) + (Number(obBelopp) || 0);
+  const avdrag = Math.min(Math.max(Number(avdragBelopp) || 0, 0), Math.max(brutto, 0));
+  return { brutto, avdrag, utbetalning: brutto - avdrag };
+}
+
+// Löser upp ett schemas avdrag till konkreta belopp för EN tidrapport.
+//   per_dag -> hela beloppet på varje rapporterat pass
+//   totalt  -> beloppet fördelat jämnt över schemats pass
+// Returnerar raderna som ska FRYSAS på tidrapporten (med det belopp som faktiskt drogs)
+// samt summan. antalPass klampas till minst 1 så att division med noll är omöjlig.
+function beräknaAvdragFörPass(avdrag, antalPass) {
+  const pass = Math.max(Number(antalPass) || 0, 1);
+  const rader = (Array.isArray(avdrag) ? avdrag : []).map(a => {
+    const belopp = Number(a?.belopp) || 0;
+    const avdraget = a?.typ === 'totalt'
+      ? Math.round((belopp / pass) * 100) / 100
+      : belopp;
+    return {
+      avdrag_id: a?.id ?? null,
+      namn: a?.namn ?? 'Avdrag',
+      typ: a?.typ === 'totalt' ? 'totalt' : 'per_dag',
+      belopp,
+      ...(a?.typ === 'totalt' ? { antalPass: pass } : {}),
+      avdraget,
+    };
+  });
+  return { rader, summa: rader.reduce((sum, r) => sum + r.avdraget, 0) };
+}
+
+// Summerar de frysta avdragen på en tidrapport.
+function summeraAvdrag(avdrag) {
+  if (!Array.isArray(avdrag)) return 0;
+  return avdrag.reduce((sum, a) => sum + (Number(a?.avdraget) || 0), 0);
+}
+
+const TID_MÖNSTER = /^\d{1,2}:\d{2}$/;
+
+// Formkontroll av OB-tillägg innan de sparas. Returnerar felsträng eller null.
+//
+// Utan den här kan ett trasigt intervall låsa cron/schemaTidrapport.js i en evig
+// omförsöksloop: beräknaObBelopp gör ob.start.split(':') och kastar om start saknas,
+// cron-jobbet fångar felet och sätter tillbaka passet till 'planerad', och försöket görs
+// om var femte minut för alltid. OB kommer rått från klienten, så kontrollen måste ske här.
+function valideraObTillagg(obTillagg) {
+  if (obTillagg == null) return null;
+  if (!Array.isArray(obTillagg)) return 'OB-tillägg måste vara en lista';
+
+  for (const ob of obTillagg) {
+    if (!ob || typeof ob !== 'object') return 'Ogiltigt OB-tillägg';
+    if (!TID_MÖNSTER.test(String(ob.start ?? ''))) return 'OB-tillägg måste ha en starttid (HH:MM)';
+    if (!TID_MÖNSTER.test(String(ob.slut ?? ''))) return 'OB-tillägg måste ha en sluttid (HH:MM)';
+    if (!['procent', 'fast'].includes(ob.typ)) return 'OB-tillägg måste vara procent eller fast';
+    if (!(Number(ob.värde) > 0)) return 'OB-tillägg måste ha ett värde större än noll';
+
+    const [startH, startM] = String(ob.start).split(':').map(Number);
+    const [slutH, slutM] = String(ob.slut).split(':').map(Number);
+    if (startH > 23 || slutH > 23 || startM > 59 || slutM > 59) return 'Ogiltig tid i OB-tillägg';
+    if (slutH * 60 + slutM <= startH * 60 + startM) return 'OB-tilläggets sluttid måste vara efter starttiden';
+  }
+  return null;
+}
+
 module.exports = {
   PÅSLAG_PRO,
   PÅSLAG_GRATIS,
@@ -46,4 +120,8 @@ module.exports = {
   beräknaFakturapris,
   påslagEller40,
   beräknaObBelopp,
+  beräknaBelopp,
+  beräknaAvdragFörPass,
+  summeraAvdrag,
+  valideraObTillagg,
 };

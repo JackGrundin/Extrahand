@@ -11,13 +11,16 @@ const {
   hämtaPassFörSchema,
   hämtaSchemaPassFörAnvändare,
   hämtaKalenderPass,
+  passMedArv,
+  hämtaEgnaKategorier,
 } = require('../db/scheman');
+const { GILTIGA_TYPER: AVDRAGSTYPER, skapaAvdrag, hämtaAktivaAvdrag, avaktiveraAvdrag } = require('../db/schemaAvdrag');
 const { tilldelaSchema, frigörFramtidaPass, återställSchema } = require('../db/schemaTilldelning');
 const { skapaJobb, räknaJobbDennaMånad, sättJobbPåslag, hämtaJobbFörFöretag } = require('../db/jobb');
 const { hämtaAnsökningarFörJobb, uppdateraStatus, hämtaGodkändaFörFleraJobb, hämtaNamnFörAnvändare } = require('../db/ansokningar');
 const { hämtaPrenumeration, ärPro, harGjortPlanval, sättPlanvalGjort, minskaPassDennaManad } = require('../db/prenumeration');
 const { hämtaPrivatpersonerIStad, hämtaPushToken, hämtaAnvändareViaId } = require('../db/användare');
-const { GRATIS_PASS_PER_MANAD } = require('../utils/pris');
+const { GRATIS_PASS_PER_MANAD, valideraObTillagg } = require('../utils/pris');
 const { skickaNotifikation } = require('../utils/pushNotifikation');
 const { idagStockholm, parsaArbetstider } = require('../utils/tid');
 const { sändJobblistaPing, sändRealtidsPing } = require('../realtid');
@@ -31,7 +34,14 @@ const TID_MÖNSTER = /^\d{2}:\d{2}$/;
 // Validerar ett inkommande schema. Returnerar felmeddelande (sträng) eller null.
 // Samma roll som valideraJobbInput i routes/jobb.js: servern är sista försvaret, för en
 // tom timlön ger tidrapporter på 0 kr och ett schema utan pass är meningslöst.
-function valideraSchemaInput({ titel, beskrivning, typ, plats, adress, kategori, timlon, startdatum, slutdatum, pass }) {
+const MAX_KATEGORI_LÄNGD = 40;
+
+// Validerar ett inkommande schema. Returnerar felmeddelande (sträng) eller null.
+//
+// Perioden skickas INTE in längre – den härleds ur passens datum (se härledPeriod). När
+// pass läggs ett i taget finns ingen period att validera mot innan passen finns, och
+// regeln "alla pass måste ligga inom perioden" blev bara en felkälla.
+function valideraSchemaInput({ titel, beskrivning, typ, plats, adress, kategori, timlon, pass, avdrag }) {
   if (!titel || !String(titel).trim()) return 'Titel krävs';
   if (!beskrivning || !String(beskrivning).trim()) return 'Beskrivning krävs';
   if (typ && !GILTIGA_TYPER.includes(typ)) return 'Ogiltig typ';
@@ -39,10 +49,6 @@ function valideraSchemaInput({ titel, beskrivning, typ, plats, adress, kategori,
   if (!adress || !String(adress).trim()) return 'Adress till arbetsplatsen krävs';
   if (!kategori || !String(kategori).trim()) return 'Kategori krävs';
   if (timlon == null || !(Number(timlon) > 0)) return 'Giltig timlön krävs';
-
-  if (!DATUM_MÖNSTER.test(startdatum || '')) return 'Startdatum krävs';
-  if (!DATUM_MÖNSTER.test(slutdatum || '')) return 'Slutdatum krävs';
-  if (slutdatum < startdatum) return 'Slutdatum kan inte vara före startdatum';
 
   if (!Array.isArray(pass) || !pass.length) return 'Schemat måste innehålla minst ett pass';
 
@@ -52,26 +58,47 @@ function valideraSchemaInput({ titel, beskrivning, typ, plats, adress, kategori,
     if (!TID_MÖNSTER.test(p?.starttid || '') || !TID_MÖNSTER.test(p?.sluttid || '')) {
       return 'Varje pass måste ha start- och sluttid';
     }
-    if (p.datum < startdatum || p.datum > slutdatum) {
-      return 'Alla pass måste ligga inom perioden';
+    // Kategori per pass är fri text – företaget namnger sina egna avdelningar och är inte
+    // bundet till KATEGORIER-listan. Bara längden begränsas.
+    if (p.kategori != null && String(p.kategori).trim().length > MAX_KATEGORI_LÄNGD) {
+      return `Kategori får vara högst ${MAX_KATEGORI_LÄNGD} tecken`;
     }
-    // Ett datum två gånger skulle ge två tidrapporter samma dag och dubbel fakturering.
+    // Formkontrollen är inte kosmetisk: ett trasigt OB får beräknaObBelopp att kasta, och
+    // cron-jobbet skulle då försöka rapportera passet om och om igen var femte minut.
+    const obFel = valideraObTillagg(p.ob_tillagg);
+    if (obFel) return obFel;
+
+    // Samma datum + starttid två gånger skulle ge två tidrapporter för samma pass.
+    // Olika starttid samma datum är däremot tillåtet – det är så en dag med två roller ser ut.
     const nyckel = `${p.datum} ${p.starttid}`;
     if (sedda.has(nyckel)) return 'Samma pass förekommer flera gånger';
     sedda.add(nyckel);
   }
+
+  for (const a of (Array.isArray(avdrag) ? avdrag : [])) {
+    if (!a?.namn || !String(a.namn).trim()) return 'Varje avdrag måste ha ett namn';
+    if (!(Number(a.belopp) > 0)) return 'Varje avdrag måste ha ett belopp större än noll';
+    if (a.typ != null && !AVDRAGSTYPER.includes(a.typ)) return 'Ogiltig avdragstyp';
+  }
   return null;
+}
+
+// Perioden är min/max av passens datum. Ett schema utan pass kan inte publiceras, så
+// listan är alltid icke-tom här.
+function härledPeriod(pass) {
+  const datum = pass.map(p => p.datum).sort();
+  return { startdatum: datum[0], slutdatum: datum[datum.length - 1] };
 }
 
 // POST /api/scheman — företag publicerar ett schema
 router.post('/', kräverInloggning, kräverTyp('företag'), async (req, res) => {
   const {
     titel, beskrivning, plats, adress, kategori, typ,
-    startdatum, slutdatum, timlon, ob_tillagg, pass, acceptera_hogre_paslag,
+    timlon, pass, avdrag, acceptera_hogre_paslag,
   } = req.body;
 
   const valideringsfel = valideraSchemaInput({
-    titel, beskrivning, typ, plats, adress, kategori, timlon, startdatum, slutdatum, pass,
+    titel, beskrivning, typ, plats, adress, kategori, timlon, pass, avdrag,
   });
   if (valideringsfel) return res.status(400).json({ fel: valideringsfel });
 
@@ -93,6 +120,7 @@ router.post('/', kräverInloggning, kräverTyp('företag'), async (req, res) => 
     const sorteradePass = [...pass].sort((a, b) =>
       a.datum === b.datum ? a.starttid.localeCompare(b.starttid) : a.datum.localeCompare(b.datum)
     );
+    const { startdatum, slutdatum } = härledPeriod(sorteradePass);
 
     const schema = await skapaSchema({
       foretag_id: req.användare.id,
@@ -100,12 +128,16 @@ router.post('/', kräverInloggning, kräverTyp('företag'), async (req, res) => 
       beskrivning: beskrivning.trim(),
       plats: plats.trim(),
       adress: adress.trim(),
+      // Schemats kategori är fortfarande en listkategori: den går vidare till annons-jobbets
+      // Kategori och därmed till jobbfiltret. Passens kategorier är fri text.
       kategori: kategori.trim(),
       typ: typ || 'sommarjobb',
       startdatum,
       slutdatum,
       timlon: Number(timlon),
-      ob_tillagg: Array.isArray(ob_tillagg) ? ob_tillagg : [],
+      // OB bor numera på passet. Kolumnen behålls tom för nya scheman och är kvar för
+      // gamla, där den fortfarande ärvs av pass utan eget OB.
+      ob_tillagg: [],
     });
 
     // Annons-jobbet. Det bär schemats ansökningar och därmed chatten, och det är här
@@ -121,10 +153,16 @@ router.post('/', kräverInloggning, kräverTyp('företag'), async (req, res) => 
       typ: schema.typ,
       kategori: schema.kategori,
       antal_dagar: sorteradePass.length,
+      // kategori följer med per dag så att personens PassKort kan visa avdelningen.
       arbetstider: JSON.stringify(
-        sorteradePass.map(p => ({ datum: p.datum, start: p.starttid, slut: p.sluttid }))
+        sorteradePass.map(p => ({
+          datum: p.datum,
+          start: p.starttid,
+          slut: p.sluttid,
+          kategori: p.kategori?.trim() || null,
+        }))
       ),
-      ob_tillagg: schema.ob_tillagg,
+      ob_tillagg: [],
       foretag_id: req.användare.id,
       schema_id: schema.id,
     });
@@ -136,7 +174,21 @@ router.post('/', kräverInloggning, kräverTyp('företag'), async (req, res) => 
       datum: p.datum,
       starttid: p.starttid,
       sluttid: p.sluttid,
+      // null = ärv schemats värde. Tom sträng ska aldrig sparas som kategori.
+      kategori: p.kategori?.trim() || null,
+      // [] betyder medvetet inget OB, null betyder ärv. Skicka bara [] när klienten
+      // faktiskt angett en (tom) lista.
+      ob_tillagg: Array.isArray(p.ob_tillagg) ? p.ob_tillagg : null,
     })));
+
+    for (const a of (Array.isArray(avdrag) ? avdrag : [])) {
+      await skapaAvdrag({
+        schema_id: schema.id,
+        namn: a.namn,
+        belopp: Number(a.belopp),
+        typ: a.typ,
+      });
+    }
 
     if (acceptera_hogre_paslag && !ärPro(prenumeration) && !harGjortPlanval(prenumeration)) {
       await sättPlanvalGjort(req.användare.id);
@@ -201,6 +253,17 @@ router.get('/mina-pass', kräverInloggning, kräverTyp('privatperson'), async (r
   }
 });
 
+// GET /api/scheman/kategorier — företagets tidigare passkategorier, för autocomplete.
+// MÅSTE ligga före GET /:id, annars fångar id-routen den.
+router.get('/kategorier', kräverInloggning, kräverTyp('företag'), async (req, res) => {
+  try {
+    res.json(await hämtaEgnaKategorier(req.användare.id));
+  } catch (fel) {
+    console.error('Fel vid hämtning av kategorier:', fel);
+    res.status(500).json({ fel: 'Serverfel vid hämtning av kategorier' });
+  }
+});
+
 // GET /api/scheman/kalender?from&till — bemanningen per datum för kalendervyn.
 // Unionerar schemapass OCH företagets godkända enstaka pass. Utan det senare skulle
 // företaget bara se halva sin bemanning i kalendern.
@@ -251,6 +314,9 @@ async function hämtaEnstakaPassFörKalender(foretag_id, från, till) {
         personId: person.sokande_id,
         personNamn: namn[person.sokande_id] ?? null,
         titel: j.Titel ?? null,
+        // Måste finnas även här, annars blir de två källorna olika formade och kalenderns
+        // gruppering per kategori tappar hälften av bemanningen.
+        kategori: j.Kategori ?? null,
         typ: 'pass',
         status: 'planerad',
       });
@@ -265,10 +331,20 @@ router.get('/:id', kräverInloggning, async (req, res) => {
     const schema = await hämtaSchemaViaId(req.params.id);
     if (!schema) return res.status(404).json({ fel: 'Schemat hittades inte' });
 
-    const pass = await hämtaPassFörSchema(schema.id);
+    const rådaPass = await hämtaPassFörSchema(schema.id);
+    const pass = rådaPass.map(p => passMedArv(schema, p));
     const ärÄgare = String(schema.foretag_id) === String(req.användare.id);
 
-    const svar = { ...schema, pass, antalPass: pass.length };
+    // Avdragen följer med för alla, inte bara ägaren – den som söker måste se dem först.
+    const avdrag = await hämtaAktivaAvdrag(schema.id);
+
+    const svar = {
+      ...schema,
+      pass,
+      antalPass: pass.length,
+      avdrag,
+      kategorier: [...new Set(pass.map(p => p.kategori).filter(Boolean))],
+    };
 
     if (ärÄgare && schema.annons_jobb_id) {
       svar.ansokningar = await hämtaAnsökningarFörJobb(schema.annons_jobb_id);
@@ -278,6 +354,73 @@ router.get('/:id', kräverInloggning, async (req, res) => {
   } catch (fel) {
     console.error('Fel vid hämtning av schema:', fel);
     res.status(500).json({ fel: 'Serverfel vid hämtning av schema' });
+  }
+});
+
+// GET /api/scheman/:id/avdrag — schemats löneavdrag.
+// Öppen för alla inloggade med flit: den som funderar på att söka måste kunna se att
+// t.ex. 200 kr/dag dras för boende INNAN de ansöker, inte först på tidrapporten.
+router.get('/:id/avdrag', kräverInloggning, async (req, res) => {
+  try {
+    res.json(await hämtaAktivaAvdrag(req.params.id));
+  } catch (fel) {
+    console.error('Fel vid hämtning av avdrag:', fel);
+    res.status(500).json({ fel: 'Serverfel vid hämtning av avdrag' });
+  }
+});
+
+// POST /api/scheman/:id/avdrag — företag lägger till ett löneavdrag
+router.post('/:id/avdrag', kräverInloggning, kräverTyp('företag'), async (req, res) => {
+  const { namn, belopp, typ } = req.body;
+  if (!namn || !String(namn).trim()) return res.status(400).json({ fel: 'Namn krävs' });
+  if (!(Number(belopp) > 0)) return res.status(400).json({ fel: 'Giltigt belopp krävs' });
+  if (typ != null && !AVDRAGSTYPER.includes(typ)) return res.status(400).json({ fel: 'Ogiltig avdragstyp' });
+
+  try {
+    const schema = await hämtaSchemaViaId(req.params.id);
+    if (!schema) return res.status(404).json({ fel: 'Schemat hittades inte' });
+    if (String(schema.foretag_id) !== String(req.användare.id)) {
+      return res.status(403).json({ fel: 'Åtkomst nekad' });
+    }
+
+    const avdrag = await skapaAvdrag({ schema_id: schema.id, namn, belopp, typ });
+    res.status(201).json(avdrag);
+
+    // Är schemat redan tillsatt måste personen få veta direkt. Ett löneavdrag som dyker
+    // upp först på tidrapporten är fel ordning – de ska kunna reagera innan de jobbar.
+    if (schema.anvandare_id != null) {
+      sändRealtidsPing(schema.anvandare_id, 'pass-status');
+      (async () => {
+        const token = await hämtaPushToken(schema.anvandare_id);
+        const enhet = avdrag.typ === 'totalt' ? 'totalt' : 'per pass';
+        await skickaNotifikation(
+          token,
+          'Nytt löneavdrag',
+          `${schema.titel}: ${avdrag.namn} ${avdrag.belopp} kr ${enhet} dras från kommande pass.`
+        );
+      })().catch(console.error);
+    }
+  } catch (fel) {
+    console.error('Fel vid skapande av avdrag:', fel);
+    res.status(500).json({ fel: 'Serverfel vid skapande av avdrag' });
+  }
+});
+
+// DELETE /api/scheman/:id/avdrag/:avdragId — mjuk borttagning.
+// Redan skapade tidrapporter bär sin frysta kopia och påverkas aldrig.
+router.delete('/:id/avdrag/:avdragId', kräverInloggning, kräverTyp('företag'), async (req, res) => {
+  try {
+    const schema = await hämtaSchemaViaId(req.params.id);
+    if (!schema) return res.status(404).json({ fel: 'Schemat hittades inte' });
+    if (String(schema.foretag_id) !== String(req.användare.id)) {
+      return res.status(403).json({ fel: 'Åtkomst nekad' });
+    }
+
+    await avaktiveraAvdrag(req.params.avdragId, schema.id);
+    res.json({ ok: true });
+  } catch (fel) {
+    console.error('Fel vid borttagning av avdrag:', fel);
+    res.status(500).json({ fel: 'Serverfel vid borttagning av avdrag' });
   }
 });
 

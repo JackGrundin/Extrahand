@@ -100,6 +100,8 @@ export default function RapporterScreen({ navigation }) {
 
   const totaltBelopp = rapporter.reduce((sum, r) => sum + (r.totalt_belopp ?? 0), 0);
   const totaltTimmar = rapporter.reduce((sum, r) => sum + (r.timmar ?? 0), 0);
+  // Löneavdragen minskar vad personerna får ut, men inte vad företagen faktureras.
+  const totaltAvdrag = rapporter.reduce((sum, r) => sum + (r.avdrag_belopp ?? 0), 0);
 
   const filtreradeFöretag = sökFöretag.trim()
     ? företag.filter(f => f.Email?.toLowerCase().includes(sökFöretag.toLowerCase()))
@@ -186,6 +188,22 @@ export default function RapporterScreen({ navigation }) {
                   <Text style={styles.totalEtikett}>Totalt belopp</Text>
                   <Text style={styles.totalVärde}>{totaltBelopp.toLocaleString('sv-SE')} kr</Text>
                 </View>
+                {totaltAvdrag > 0 && (
+                  <>
+                    <View style={styles.summeringRad}>
+                      <Text style={styles.summeringEtikett}>Varav löneavdrag</Text>
+                      <Text style={[styles.summeringVärde, { color: '#dc2626' }]}>
+                        −{totaltAvdrag.toLocaleString('sv-SE')} kr
+                      </Text>
+                    </View>
+                    <View style={styles.summeringRad}>
+                      <Text style={styles.summeringEtikett}>Att betala ut</Text>
+                      <Text style={[styles.summeringVärde, { color: '#16a34a', fontWeight: '700' }]}>
+                        {(totaltBelopp - totaltAvdrag).toLocaleString('sv-SE')} kr
+                      </Text>
+                    </View>
+                  </>
+                )}
               </View>
             ) : null}
             renderItem={({ item }) => (
@@ -212,6 +230,15 @@ export default function RapporterScreen({ navigation }) {
                     <Text style={[styles.detaljVärde, styles.totalText]}>{item.totalt_belopp?.toLocaleString('sv-SE')} kr</Text>
                   </View>
                 </View>
+                {item.avdrag_belopp > 0 && (
+                  <Text style={styles.avdragRad}>
+                    Löneavdrag −{item.avdrag_belopp.toLocaleString('sv-SE')} kr
+                    {' → att betala ut '}
+                    <Text style={styles.avdragNetto}>
+                      {((item.totalt_belopp ?? 0) - item.avdrag_belopp).toLocaleString('sv-SE')} kr
+                    </Text>
+                  </Text>
+                )}
                 {item.foretagNamn && (
                   <Text style={styles.foretag}>Företag: {item.foretagNamn}</Text>
                 )}
@@ -256,6 +283,13 @@ export default function RapporterScreen({ navigation }) {
                   <Text style={[styles.detaljVärde, styles.totalText]}>{item.faktureringsbelopp?.toLocaleString('sv-SE')} kr</Text>
                 </View>
               </View>
+              {item.avdrag_belopp > 0 && (
+                <Text style={styles.avdragInfo}>
+                  Personen har {item.avdrag_belopp.toLocaleString('sv-SE')} kr i löneavdrag
+                  {item.avdrag?.length ? ` (${item.avdrag.map(a => a.namn).join(', ')})` : ''}.
+                  {' '}Fakturabeloppet påverkas inte av det.
+                </Text>
+              )}
               <TouchableOpacity style={styles.faktureradKnapp} onPress={() => markeraFakturerad(item.id)}>
                 <Text style={styles.faktureradText}>Markera som fakturerad och klar</Text>
               </TouchableOpacity>
@@ -399,6 +433,9 @@ const styles = StyleSheet.create({
   detaljVärde: { fontSize: 14, fontWeight: '600', color: '#1a1a1a' },
   totalText: { color: '#2563eb' },
   foretag: { fontSize: 12, color: '#aaa' },
+  avdragRad: { fontSize: 12, color: '#b91c1c', marginBottom: 4 },
+  avdragNetto: { fontWeight: '700', color: '#16a34a' },
+  avdragInfo: { fontSize: 12, color: '#b91c1c', marginTop: 6, lineHeight: 17 },
   summering: { backgroundColor: '#fff', borderRadius: 12, padding: 16, marginTop: 8, borderWidth: 1, borderColor: '#e0e7ff' },
   summeringRad: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 },
   summeringEtikett: { fontSize: 14, color: '#555' },

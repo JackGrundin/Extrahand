@@ -15,11 +15,14 @@ const {
   återställPassStatus,
   sättPassTidrapport,
   hämtaSchemaViaId,
+  passMedArv,
+  räknaPassFörSchema,
 } = require('../db/scheman');
+const { hämtaAktivaAvdrag } = require('../db/schemaAvdrag');
 const { skapaTidrapport } = require('../db/tidrapporter');
 const { hämtaPushToken } = require('../db/användare');
 const { skickaNotifikation } = require('../utils/pushNotifikation');
-const { beräknaObBelopp, påslagEller40 } = require('../utils/pris');
+const { beräknaObBelopp, påslagEller40, beräknaBelopp, beräknaAvdragFörPass } = require('../utils/pris');
 const { idagStockholm, slutEpochFörPass, passTimmar } = require('../utils/tid');
 const { sändRealtidsPing } = require('../realtid');
 
@@ -29,10 +32,18 @@ async function kollaPassAttRapportera(nu = Date.now()) {
   const pass = await hämtaPassAttRapportera(idagStockholm(new Date(nu)));
   if (!pass.length) return 0;
 
-  // Ett schema per uppslag, inte ett per pass.
+  // Ett uppslag per schema, inte ett per pass: en körning med 30 pass i samma schema ska
+  // inte ge 90 databasfrågor. Avdragen och passantalet cachas tillsammans med schemat.
   const schemaCache = new Map();
   async function schemaFör(id) {
-    if (!schemaCache.has(id)) schemaCache.set(id, await hämtaSchemaViaId(id));
+    if (!schemaCache.has(id)) {
+      const [schema, avdrag, antalPass] = await Promise.all([
+        hämtaSchemaViaId(id),
+        hämtaAktivaAvdrag(id),
+        räknaPassFörSchema(id),
+      ]);
+      schemaCache.set(id, { schema, avdrag, antalPass });
+    }
     return schemaCache.get(id);
   }
 
@@ -42,7 +53,7 @@ async function kollaPassAttRapportera(nu = Date.now()) {
     const slut = slutEpochFörPass({ datum: p.datum, starttid: p.starttid, sluttid: p.sluttid });
     if (slut == null || slut > nu) continue;
 
-    const schema = await schemaFör(p.schema_id);
+    const { schema, avdrag, antalPass } = await schemaFör(p.schema_id);
     if (!schema) continue;
 
     // Ta biljetten först. Förlorar vi kapplöpningen har någon annan redan rapporterat.
@@ -57,9 +68,16 @@ async function kollaPassAttRapportera(nu = Date.now()) {
         continue;
       }
 
-      const obTillagg = Array.isArray(schema.ob_tillagg) ? schema.ob_tillagg : [];
+      // Passets egna OB, med fallback till schemats för pass som lades innan OB flyttades
+      // till passnivå.
+      const { ob_tillagg: obTillagg } = passMedArv(schema, p);
       const timlon = Number(schema.timlon) || 0;
       const obBelopp = beräknaObBelopp(obTillagg, timlon);
+
+      // Löneavdragen fryses på rapporten. De påverkar inte faktureringsbeloppet – bara vad
+      // personen får ut – så totalt_belopp förblir bruttot.
+      const { rader: avdragsrader, summa: avdragsSumma } = beräknaAvdragFörPass(avdrag, antalPass);
+      const belopp = beräknaBelopp({ timmar, timlon, obBelopp, avdragBelopp: avdragsSumma });
 
       const rapport = await skapaTidrapport({
         ansokan_id: p.ansokan_id,
@@ -71,7 +89,9 @@ async function kollaPassAttRapportera(nu = Date.now()) {
         timlon,
         ob_belopp: obBelopp,
         ob_tillagg: obTillagg,
-        totalt_belopp: timmar * timlon + obBelopp,
+        totalt_belopp: belopp.brutto,
+        avdrag: avdragsrader,
+        avdrag_belopp: belopp.avdrag,
         // Påslaget frystes på schemat när personen godkändes.
         paslag: påslagEller40(schema.paslag),
         auto_skapad: true,

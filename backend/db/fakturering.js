@@ -42,6 +42,13 @@ async function hämtaFaktureringsunderlag() {
       ob_belopp: r.ob_belopp || 0,
       paslag,
       faktureringsbelopp,
+      // Löneavdragen påverkar INTE faktureringsbeloppet – företaget faktureras på bruttot
+      // precis som förut. De följer med hit enbart som information, så att den som
+      // fakturerar kan se varför personens utbetalning skiljer sig från arbetskostnaden.
+      // Returobjektet är en explicit vitlista, så nya kolumner måste läggas till här för
+      // att synas (till skillnad från hämtaAllaTidrapporter som gör select('*')).
+      avdrag: Array.isArray(r.avdrag) ? r.avdrag : [],
+      avdrag_belopp: r.avdrag_belopp || 0,
       foretagsnamn: f.Namn ?? null,
       organisationsnummer: f.organisationsnummer ?? null,
       fakturaadress: f.fakturaadress ?? null,

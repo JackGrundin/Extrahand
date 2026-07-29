@@ -5,7 +5,7 @@ const { hämtaAnsökanViaId } = require('../db/ansokningar');
 const { hämtaJobbViaId } = require('../db/jobb');
 const { hämtaAnvändareViaEmail, hämtaAnvändareViaId, hämtaPushToken } = require('../db/användare');
 const { skickaNotifikation } = require('../utils/pushNotifikation');
-const { påslagEller40, beräknaObBelopp } = require('../utils/pris');
+const { påslagEller40, beräknaObBelopp, beräknaBelopp } = require('../utils/pris');
 const { sändRealtidsPing } = require('../realtid');
 
 const router = express.Router();
@@ -30,8 +30,16 @@ router.post('/', kräverInloggning, kräverTyp('företag'), async (req, res) => 
       ? obTillaggOverride
       : (Array.isArray(jobb?.ob_tillagg) ? jobb.ob_tillagg : []);
     const ob_belopp = beräknaObBelopp(obTillagg, timlon);
-    const totalt_belopp = timmar * timlon + ob_belopp;
     const datum = new Date().toISOString().split('T')[0];
+
+    // Löneavdrag allokeras bara EN gång per pass. En korrigerad rapport efter ett
+    // bestridande är en ny rad för samma ansökan – räknade vi om avdraget här skulle
+    // personen dras två gånger för samma dag. Kopiera från den föregående rapporten.
+    const föregående = await hämtaTidrapportFörAnsökan(ansokan_id);
+    const avdrag = Array.isArray(föregående?.avdrag) ? föregående.avdrag : [];
+    const avdrag_belopp = Number(föregående?.avdrag_belopp) || 0;
+
+    const belopp = beräknaBelopp({ timmar, timlon, obBelopp: ob_belopp, avdragBelopp: avdrag_belopp });
 
     const rapport = await skapaTidrapport({
       ansokan_id,
@@ -42,7 +50,9 @@ router.post('/', kräverInloggning, kräverTyp('företag'), async (req, res) => 
       timlon,
       ob_belopp,
       ob_tillagg: obTillagg,
-      totalt_belopp,
+      totalt_belopp: belopp.brutto,
+      avdrag,
+      avdrag_belopp: belopp.avdrag,
       // Påslaget fryses vid publicering och följer med jobbet hit, precis som timlönen.
       paslag: påslagEller40(jobb?.paslag),
     });
@@ -142,13 +152,23 @@ router.patch('/:id/korrigera', kräverInloggning, kräverTyp('företag'), async 
       ? obTillaggOverride
       : (Array.isArray(rapport.ob_tillagg) ? rapport.ob_tillagg : []);
     const ob_belopp = beräknaObBelopp(obTillagg, rapport.timlon);
-    const totalt_belopp = Number(timmar) * rapport.timlon + ob_belopp;
+    // Avdragen rörs inte: ett löneavdrag är per pass eller per period, inte per timme, så
+    // en justering av timmarna ändrar det inte. Att avdraget är oberoende av timmarna är
+    // just det som gör den här vägen enkel.
+    const belopp = beräknaBelopp({
+      timmar: Number(timmar),
+      timlon: rapport.timlon,
+      obBelopp: ob_belopp,
+      avdragBelopp: Number(rapport.avdrag_belopp) || 0,
+    });
 
     const uppdaterad = await uppdateraAutoTidrapport(req.params.id, req.användare.id, {
       timmar: Number(timmar),
       ob_belopp,
       ob_tillagg: obTillagg,
-      totalt_belopp,
+      totalt_belopp: belopp.brutto,
+      // Klampas om det korrigerade bruttot blivit lägre än avdraget.
+      avdrag_belopp: belopp.avdrag,
     });
     if (!uppdaterad) return res.status(409).json({ fel: 'Tidrapporten hann ändras – ladda om och försök igen' });
 

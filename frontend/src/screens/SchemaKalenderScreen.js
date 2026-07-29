@@ -6,6 +6,19 @@ import { useRealtidsPing } from '../context/RealtidsContext';
 import MånadsKalender from '../components/MånadsKalender';
 import { datumTillIso, formatDagDatum, veckodagsNamn } from '../utils/datumHelper';
 
+// Grupperar dagens pass per roll. Rubriken visas bara när dagen faktiskt har mer än en
+// roll – har alla samma (eller ingen) kategori vore en rubrik bara brus.
+function grupperaPerKategori(pass) {
+  const grupper = {};
+  for (const p of pass) {
+    const kategori = p.kategori || 'Övrigt';
+    (grupper[kategori] ??= []).push(p);
+  }
+  const namn = Object.keys(grupper).sort((a, b) => a.localeCompare(b, 'sv'));
+  const visaRubrik = namn.length > 1;
+  return namn.map(kategori => ({ kategori, pass: grupper[kategori], visaRubrik }));
+}
+
 // Företagets bemanningsöversikt: vilka dagar de har personal och vem som jobbar när.
 // Hämtar en månad i taget med en månads marginal åt varje håll, så att månadsbyte känns
 // direkt i stället för att trigga ett nytt API-anrop.
@@ -86,26 +99,38 @@ export default function SchemaKalenderScreen() {
         {dagensPass.length === 0 ? (
           <Text style={styles.tomText}>Ingen personal inbokad den här dagen.</Text>
         ) : (
-          dagensPass.map((p, i) => (
-            <View key={`${p.datum}-${p.personId}-${i}`} style={styles.passKort}>
-              <View style={styles.passHuvud}>
-                <Text style={styles.passNamn}>{p.personNamn ?? 'Ej tillsatt'}</Text>
-                {p.status === 'rapporterad' && (
-                  <View style={styles.genomfördBricka}>
-                    <Text style={styles.genomfördText}>Genomfört</Text>
+          // Grupperat per roll så att företaget ser vilka avdelningar som är bemannade –
+          // det är hela poängen med kategori per pass.
+          grupperaPerKategori(dagensPass).map(grupp => (
+            <View key={grupp.kategori}>
+              {grupp.visaRubrik && (
+                <View style={styles.kategoriRubrikRad}>
+                  <Text style={styles.kategoriRubrik}>{grupp.kategori}</Text>
+                  <Text style={styles.kategoriAntal}>{grupp.pass.length} st</Text>
+                </View>
+              )}
+              {grupp.pass.map((p, i) => (
+                <View key={`${p.datum}-${p.personId}-${i}`} style={styles.passKort}>
+                  <View style={styles.passHuvud}>
+                    <Text style={styles.passNamn}>{p.personNamn ?? 'Ej tillsatt'}</Text>
+                    {p.status === 'rapporterad' && (
+                      <View style={styles.genomfördBricka}>
+                        <Text style={styles.genomfördText}>Genomfört</Text>
+                      </View>
+                    )}
                   </View>
-                )}
-              </View>
-              <View style={styles.passRad}>
-                <Ionicons name="time-outline" size={14} color="#6b7280" />
-                <Text style={styles.passTid}>{p.starttid ?? '–'} – {p.sluttid ?? '–'}</Text>
-                {p.typ === 'schema' && (
-                  <View style={styles.schemaBricka}>
-                    <Text style={styles.schemaBrickaText}>Schema</Text>
+                  <View style={styles.passRad}>
+                    <Ionicons name="time-outline" size={14} color="#6b7280" />
+                    <Text style={styles.passTid}>{p.starttid ?? '–'} – {p.sluttid ?? '–'}</Text>
+                    {p.typ === 'schema' && (
+                      <View style={styles.schemaBricka}>
+                        <Text style={styles.schemaBrickaText}>Schema</Text>
+                      </View>
+                    )}
                   </View>
-                )}
-              </View>
-              {p.titel ? <Text style={styles.passTitel} numberOfLines={1}>{p.titel}</Text> : null}
+                  {p.titel ? <Text style={styles.passTitel} numberOfLines={1}>{p.titel}</Text> : null}
+                </View>
+              ))}
             </View>
           ))
         )}
@@ -125,6 +150,9 @@ const styles = StyleSheet.create({
   dagSektion: { padding: 16 },
   dagRubrik: { fontSize: 15, fontWeight: '700', color: '#1a1a1a', marginBottom: 12, textTransform: 'capitalize' },
   tomText: { fontSize: 14, color: '#9ca3af', fontStyle: 'italic' },
+  kategoriRubrikRad: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 6, marginBottom: 8 },
+  kategoriRubrik: { fontSize: 12, fontWeight: '700', color: '#2563eb', letterSpacing: 0.5, textTransform: 'uppercase' },
+  kategoriAntal: { fontSize: 12, color: '#9ca3af' },
 
   passKort: { backgroundColor: '#fff', borderRadius: 12, padding: 14, marginBottom: 10, shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 4, elevation: 2 },
   passHuvud: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 },

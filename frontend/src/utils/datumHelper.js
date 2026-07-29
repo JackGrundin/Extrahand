@@ -26,6 +26,16 @@ export function datumTillIso(date) {
   return `${år}-${mån}-${dag}`;
 }
 
+// Dagen efter ett ISO-datum. Stegar i UTC så att sommartidsskiften inte kan hoppa över
+// eller dubblera en dag. Används av "Kopiera föregående pass".
+export function nästaDatumIso(isoStr) {
+  if (!isoStr) return '';
+  const [år, mån, dag] = isoStr.split('-').map(Number);
+  const d = new Date(Date.UTC(år, mån - 1, dag));
+  d.setUTCDate(d.getUTCDate() + 1);
+  return d.toISOString().slice(0, 10);
+}
+
 // Veckodagens korta namn för ett ISO-datum, t.ex. 'mån'. Används i schemats passlista.
 export function veckodagsNamn(isoStr) {
   if (!isoStr) return '';

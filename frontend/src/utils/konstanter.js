@@ -93,6 +93,35 @@ export function proBesparing(belopp, paslag) {
   return { proPris, besparing: nuPris - proPris };
 }
 
+// Hur ett löneavdrag påverkar beloppen. Speglar beräknaBelopp i backend/utils/pris.js –
+// ändra alltid på båda ställena.
+//
+// Avdraget påverkar INTE fakturan: företaget faktureras på bruttot precis som förut.
+// Det reglerar bara vad personen får ut. Taket mot bruttot gör att ett stort avdrag på ett
+// kort pass aldrig kan ge negativ utbetalning.
+export function beräknaBelopp({ timmar = 0, timlon = 0, obBelopp = 0, avdragBelopp = 0 }) {
+  const brutto = (Number(timmar) || 0) * (Number(timlon) || 0) + (Number(obBelopp) || 0);
+  const avdrag = Math.min(Math.max(Number(avdragBelopp) || 0, 0), Math.max(brutto, 0));
+  return { brutto, avdrag, utbetalning: brutto - avdrag };
+}
+
+// Fördelar ett schemas avdrag på ETT pass. per_dag ger hela beloppet, totalt fördelas jämnt.
+// Används för förhandsvisningen i publiceringsformuläret; på en skapad tidrapport är
+// beloppen redan frysta i kolumnen avdrag och ska läsas därifrån.
+export function beräknaAvdragFörPass(avdrag, antalPass) {
+  const pass = Math.max(Number(antalPass) || 0, 1);
+  return (Array.isArray(avdrag) ? avdrag : []).reduce((sum, a) => {
+    const belopp = Number(a?.belopp) || 0;
+    return sum + (a?.typ === 'totalt' ? Math.round((belopp / pass) * 100) / 100 : belopp);
+  }, 0);
+}
+
+// Summerar de frysta avdragen på en tidrapport.
+export function summeraAvdrag(avdrag) {
+  if (!Array.isArray(avdrag)) return 0;
+  return avdrag.reduce((sum, a) => sum + (Number(a?.avdraget) || 0), 0);
+}
+
 export const STATUSFÄRGER_ANSÖKAN = {
   godkänd:  { bg: '#dcfce7', text: '#16a34a' },
   avvisad:  { bg: '#fee2e2', text: '#dc2626' },

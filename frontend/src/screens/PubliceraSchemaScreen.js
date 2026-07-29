@@ -1,25 +1,17 @@
 import { useCallback, useRef, useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, ScrollView, ActivityIndicator, KeyboardAvoidingView, Platform, Modal, Linking } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
-import DateTimePicker from '@react-native-community/datetimepicker';
 import { Ionicons } from '@expo/vector-icons';
-import TidVäljare from '../components/TidVäljare';
 import PrenumerationModal from '../components/PrenumerationModal';
 import ProBesparing from '../components/ProBesparing';
 import FältFel from '../components/FältFel';
 import StadInput from '../components/StadInput';
+import SchemaPassModal from '../components/SchemaPassModal';
 import { useAppStateAktiv } from '../utils/useAppStateAktiv';
-import { valideraSchema, genereraPass } from '../utils/schemaValidering';
-import { datumTillIso, veckodagsNamn } from '../utils/datumHelper';
+import { valideraSchema } from '../utils/schemaValidering';
+import { formatDagDatum, veckodagsNamn, nästaDatumIso } from '../utils/datumHelper';
 import { api } from '../api/klient';
-import { KATEGORIER, PÅSLAG_GRATIS, beräknaFakturapris, formateraPris, normalisera } from '../utils/konstanter';
-
-const VECKODAGAR = ['Mån', 'Tis', 'Ons', 'Tors', 'Fre', 'Lör', 'Sön'];
-
-function formatDatum(isoStr) {
-  if (!isoStr) return null;
-  return new Date(isoStr + 'T12:00:00').toLocaleDateString('sv-SE', { day: 'numeric', month: 'short' });
-}
+import { KATEGORIER, PÅSLAG_GRATIS, beräknaFakturapris, formateraPris, normalisera, beräknaAvdragFörPass } from '../utils/konstanter';
 
 export default function PubliceraSchemaScreen({ navigation }) {
   const [titel, setTitel] = useState('');
@@ -28,142 +20,121 @@ export default function PubliceraSchemaScreen({ navigation }) {
   const [adress, setAdress] = useState('');
   const [timlon, setTimlon] = useState('');
   const [kategori, setKategori] = useState('');
-  const [startdatum, setStartdatum] = useState('');
-  const [slutdatum, setSlutdatum] = useState('');
   const [pass, setPass] = useState([]);
+  const [avdrag, setAvdrag] = useState([]);
 
-  // Passgeneratorn
-  const [valdaDagar, setValdaDagar] = useState([]);
-  const [genStart, setGenStart] = useState('');
-  const [genSlut, setGenSlut] = useState('');
+  // Passmodalen. redigerarIndex = null vid nytt pass, annars passets plats i listan.
+  const [passModalVisas, setPassModalVisas] = useState(false);
+  const [redigerarIndex, setRedigerarIndex] = useState(null);
+  const [passUtkast, setPassUtkast] = useState(null);
+  const [egnaKategorier, setEgnaKategorier] = useState([]);
 
-  const [obTillagg, setObTillagg] = useState([]);
-  const [obFormVisas, setObFormVisas] = useState(false);
-  const [obStart, setObStart] = useState('');
-  const [obSlut, setObSlut] = useState('');
-  const [obTyp, setObTyp] = useState('procent');
-  const [obVärde, setObVärde] = useState('');
+  // Avdragsformuläret
+  const [avdragFormVisas, setAvdragFormVisas] = useState(false);
+  const [avdragNamn, setAvdragNamn] = useState('');
+  const [avdragBelopp, setAvdragBelopp] = useState('');
+  const [avdragTyp, setAvdragTyp] = useState('per_dag');
 
   const [laddar, setLaddar] = useState(false);
   const [fel, setFel] = useState({});
   const scrollRef = useRef(null);
   const [kategoriModalVisas, setKategoriModalVisas] = useState(false);
   const [sokKategori, setSokKategori] = useState('');
-  // 'start' | 'slut' | index på ett pass, eller null när ingen väljare är öppen
-  const [datumVäljare, setDatumVäljare] = useState(null);
-  const [tempDatum, setTempDatum] = useState(new Date());
   const [prenumeration, setPrenumeration] = useState(null);
   const [planModalVisas, setPlanModalVisas] = useState(false);
   const [betalningLaddar, setBetalningLaddar] = useState(false);
 
-  const hämtaPrenumeration = useCallback(async () => {
+  const hämtaStartdata = useCallback(async () => {
     try {
       setPrenumeration(await api.prenumerationStatus());
     } catch {
       // Statusen styr bara prisvisningen – backend avgör i slutändan.
     }
+    try {
+      setEgnaKategorier(await api.schemaKategorier());
+    } catch {
+      // Förslagen är en genväg, inte ett krav.
+    }
   }, []);
 
-  useFocusEffect(useCallback(() => { hämtaPrenumeration(); }, [hämtaPrenumeration]));
-  useAppStateAktiv(hämtaPrenumeration);
+  useFocusEffect(useCallback(() => { hämtaStartdata(); }, [hämtaStartdata]));
+  useAppStateAktiv(hämtaStartdata);
 
   const gällandePåslag = prenumeration?.paslag ?? PÅSLAG_GRATIS;
+  const timlönTal = parseFloat(timlon) || 0;
 
   function rensaFel(nyckel) {
     setFel(prev => (prev[nyckel] ? { ...prev, [nyckel]: undefined } : prev));
   }
 
-  function toggleVeckodag(index) {
-    setValdaDagar(prev => (prev.includes(index) ? prev.filter(d => d !== index) : [...prev, index]));
+  // ------------------------------------------------------------------ Pass
+
+  function öppnaNyttPass() {
+    setRedigerarIndex(null);
+    setPassUtkast(null);
+    setPassModalVisas(true);
   }
 
-  // Fyller passlistan utifrån period, valda veckodagar och tider. Befintliga pass ersätts
-  // efter en bekräftelse så att ingen tappar handredigerade tider av misstag.
-  function körGenerator() {
-    if (!startdatum || !slutdatum) {
-      Alert.alert('Välj period', 'Ange start- och slutdatum innan du genererar pass.');
-      return;
-    }
-    if (valdaDagar.length === 0) {
-      Alert.alert('Välj dagar', 'Kryssa i vilka veckodagar som ska ingå.');
-      return;
-    }
-    if (!genStart || !genSlut) {
-      Alert.alert('Välj tider', 'Ange start- och sluttid för passen.');
-      return;
-    }
-
-    const nya = genereraPass({ startdatum, slutdatum, veckodagar: valdaDagar, starttid: genStart, sluttid: genSlut });
-    if (nya.length === 0) {
-      Alert.alert('Inga pass', 'Inga datum i perioden matchar de valda veckodagarna.');
-      return;
-    }
-
-    const applicera = () => { setPass(nya); rensaFel('pass'); };
-
-    if (pass.length > 0) {
-      Alert.alert(
-        'Ersätt passlistan?',
-        `Du har redan ${pass.length} pass. Vill du ersätta dem med ${nya.length} nya?`,
-        [{ text: 'Avbryt', style: 'cancel' }, { text: 'Ersätt', style: 'destructive', onPress: applicera }]
-      );
-    } else {
-      applicera();
-    }
+  // Förifyller med föregående pass tider, roll och OB, och stegar datumet en dag framåt.
+  // Fortfarande ett pass i taget, men repetitiva scheman blir snabba att lägga in.
+  function öppnaKopieraFöregående() {
+    const sista = pass[pass.length - 1];
+    if (!sista) return;
+    setRedigerarIndex(null);
+    setPassUtkast({ ...sista, datum: nästaDatumIso(sista.datum) });
+    setPassModalVisas(true);
   }
 
-  function uppdateraPass(index, fält, värde) {
+  function öppnaRedigera(index) {
+    setRedigerarIndex(index);
+    setPassUtkast(pass[index]);
+    setPassModalVisas(true);
+  }
+
+  function sparaPass(nyttPass) {
     rensaFel('pass');
     setPass(prev => {
-      const ny = [...prev];
-      ny[index] = { ...ny[index], [fält]: värde };
-      return ny;
+      const nästa = redigerarIndex == null
+        ? [...prev, nyttPass]
+        : prev.map((p, i) => (i === redigerarIndex ? nyttPass : p));
+      // Håll listan kronologisk så att den speglar hur perioden faktiskt ser ut.
+      return nästa.sort((a, b) =>
+        a.datum === b.datum ? a.starttid.localeCompare(b.starttid) : a.datum.localeCompare(b.datum)
+      );
     });
+    setPassModalVisas(false);
   }
 
   function taBortPass(index) {
     setPass(prev => prev.filter((_, i) => i !== index));
   }
 
-  function öppnaDatumVäljare(vilken) {
-    const nuvarande =
-      vilken === 'start' ? startdatum : vilken === 'slut' ? slutdatum : pass[vilken]?.datum;
-    setTempDatum(nuvarande ? new Date(nuvarande + 'T12:00:00') : new Date());
-    setDatumVäljare(vilken);
+  // --------------------------------------------------------------- Avdrag
+
+  function läggTillAvdrag() {
+    const belopp = parseFloat(avdragBelopp);
+    if (!avdragNamn.trim()) return Alert.alert('Fel', 'Ge avdraget ett namn, t.ex. Boende.');
+    if (!belopp || belopp <= 0) return Alert.alert('Fel', 'Ange ett belopp större än noll.');
+    setAvdrag(prev => [...prev, { namn: avdragNamn.trim(), belopp, typ: avdragTyp }]);
+    setAvdragNamn('');
+    setAvdragBelopp('');
+    setAvdragTyp('per_dag');
+    setAvdragFormVisas(false);
+    rensaFel('avdrag');
   }
 
-  function sparaDatum(vilken, date) {
-    const iso = datumTillIso(date);
-    if (vilken === 'start') { setStartdatum(iso); rensaFel('period'); }
-    else if (vilken === 'slut') { setSlutdatum(iso); rensaFel('period'); }
-    else uppdateraPass(vilken, 'datum', iso);
-  }
-
-  function bekräftaDatum() {
-    if (datumVäljare !== null) sparaDatum(datumVäljare, tempDatum);
-    setDatumVäljare(null);
-  }
-
-  function läggTillOb() {
-    if (!obStart.trim() || !obSlut.trim() || !obVärde.trim()) {
-      Alert.alert('Fel', 'Fyll i alla OB-fält');
-      return;
-    }
-    const värde = parseFloat(obVärde);
-    if (!värde || värde <= 0) {
-      Alert.alert('Fel', 'Ange ett giltigt OB-värde');
-      return;
-    }
-    setObTillagg(prev => [...prev, { start: obStart.trim(), slut: obSlut.trim(), typ: obTyp, värde }]);
-    setObStart('');
-    setObSlut('');
-    setObVärde('');
-    setObFormVisas(false);
-  }
+  // ------------------------------------------------------------ Publicera
 
   const filtreradeKategorier = KATEGORIER.filter(k =>
     normalisera(k).includes(normalisera(sokKategori))
   );
+
+  // Perioden härleds ur passen – samma regel som servern använder.
+  const period = pass.length
+    ? { start: pass[0].datum, slut: pass[pass.length - 1].datum }
+    : null;
+
+  const avdragPerPass = beräknaAvdragFörPass(avdrag, pass.length);
 
   async function publicera({ accepteraHögrePåslag = false } = {}) {
     await api.skapaSchema({
@@ -173,11 +144,9 @@ export default function PubliceraSchemaScreen({ navigation }) {
       adress: adress.trim(),
       kategori,
       typ: 'sommarjobb',
-      startdatum,
-      slutdatum,
-      timlon: parseFloat(timlon),
-      ob_tillagg: obTillagg,
+      timlon: timlönTal,
       pass,
+      avdrag,
       ...(accepteraHögrePåslag ? { acceptera_hogre_paslag: true } : {}),
     });
 
@@ -187,7 +156,7 @@ export default function PubliceraSchemaScreen({ navigation }) {
   }
 
   async function hanteraPublicering() {
-    const nyaFel = valideraSchema({ titel, beskrivning, kategori, plats, adress, timlon, startdatum, slutdatum, pass });
+    const nyaFel = valideraSchema({ titel, beskrivning, kategori, plats, adress, timlon, pass, avdrag });
     if (Object.keys(nyaFel).length) {
       setFel(nyaFel);
       scrollRef.current?.scrollTo({ y: 0, animated: true });
@@ -295,151 +264,15 @@ export default function PubliceraSchemaScreen({ navigation }) {
             keyboardType="numeric"
           />
           <FältFel text={fel.timlon} />
-          {timlon ? (() => {
-            const lön = parseFloat(timlon) || 0;
-            if (lön <= 0) return null;
-            return (
-              <View style={styles.prisKalkyl}>
-                <Text style={styles.prisRad}>Timlön för personen: <Text style={styles.prisFet}>{lön} kr/h</Text></Text>
-                <Text style={styles.prisRad}>Ni faktureras: <Text style={styles.prisFetBlå}>{formateraPris(beräknaFakturapris(lön, gällandePåslag))} kr/h</Text> (exkl. moms)</Text>
-                <ProBesparing timlön={lön} paslag={gällandePåslag} />
-              </View>
-            );
-          })() : null}
-
-          <Text style={styles.label}>Period *</Text>
-          <View style={styles.periodRad}>
-            <TouchableOpacity
-              style={[styles.input, styles.datumKnapp, fel.period && styles.inputFel]}
-              onPress={() => öppnaDatumVäljare('start')}
-              activeOpacity={0.7}
-            >
-              <Ionicons name="calendar-outline" size={16} color={startdatum ? '#1a1a1a' : '#aaa'} />
-              <Text style={[styles.datumText, !startdatum && styles.datumPlaceholder]}>
-                {startdatum ? formatDatum(startdatum) : 'Från'}
-              </Text>
-            </TouchableOpacity>
-            <Text style={styles.tidStreck}>–</Text>
-            <TouchableOpacity
-              style={[styles.input, styles.datumKnapp, fel.period && styles.inputFel]}
-              onPress={() => öppnaDatumVäljare('slut')}
-              activeOpacity={0.7}
-            >
-              <Ionicons name="calendar-outline" size={16} color={slutdatum ? '#1a1a1a' : '#aaa'} />
-              <Text style={[styles.datumText, !slutdatum && styles.datumPlaceholder]}>
-                {slutdatum ? formatDatum(slutdatum) : 'Till'}
-              </Text>
-            </TouchableOpacity>
-          </View>
-          <FältFel text={fel.period} />
-
-          {/* Passgeneratorn: utan den vore 40 pass omöjliga att mata in för hand */}
-          <Text style={styles.label}>Generera pass</Text>
-          <View style={styles.generator}>
-            <Text style={styles.generatorHjälp}>Välj vilka veckodagar som ska ingå:</Text>
-            <View style={styles.dagKnappar}>
-              {VECKODAGAR.map((dag, i) => (
-                <TouchableOpacity
-                  key={dag}
-                  style={[styles.dagKnapp, valdaDagar.includes(i) && styles.dagKnappAktiv]}
-                  onPress={() => toggleVeckodag(i)}
-                  activeOpacity={0.7}
-                >
-                  <Text style={[styles.dagKnappText, valdaDagar.includes(i) && styles.dagKnappTextAktiv]}>{dag}</Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-            <View style={styles.generatorTider}>
-              <TidVäljare style={{ flex: 1 }} placeholder="08:00" value={genStart} onChange={setGenStart} />
-              <Text style={styles.tidStreck}>–</Text>
-              <TidVäljare style={{ flex: 1 }} placeholder="17:00" value={genSlut} onChange={setGenSlut} />
-            </View>
-            <TouchableOpacity style={styles.generatorKnapp} onPress={körGenerator} activeOpacity={0.8}>
-              <Ionicons name="repeat-outline" size={18} color="#fff" />
-              <Text style={styles.generatorKnappText}>Generera pass</Text>
-            </TouchableOpacity>
-          </View>
-
-          <Text style={styles.label}>
-            Pass * {pass.length > 0 ? `(${pass.length} st)` : ''}
-          </Text>
-          {pass.length === 0 ? (
-            <Text style={styles.tomPass}>Inga pass ännu. Använd generatorn ovan.</Text>
-          ) : (
-            <View style={styles.passLista}>
-              {pass.map((p, i) => (
-                <View key={`${p.datum}-${i}`} style={styles.passRad}>
-                  <TouchableOpacity
-                    style={styles.passDatum}
-                    onPress={() => öppnaDatumVäljare(i)}
-                    activeOpacity={0.7}
-                  >
-                    <Text style={styles.passVeckodag}>{veckodagsNamn(p.datum)}</Text>
-                    <Text style={styles.passDatumText}>{formatDatum(p.datum)}</Text>
-                  </TouchableOpacity>
-                  <TidVäljare style={{ flex: 1 }} placeholder="08:00" value={p.starttid} onChange={v => uppdateraPass(i, 'starttid', v)} />
-                  <Text style={styles.tidStreck}>–</Text>
-                  <TidVäljare style={{ flex: 1 }} placeholder="17:00" value={p.sluttid} onChange={v => uppdateraPass(i, 'sluttid', v)} />
-                  <TouchableOpacity onPress={() => taBortPass(i)} hitSlop={8}>
-                    <Ionicons name="close-circle" size={20} color="#ef4444" />
-                  </TouchableOpacity>
-                </View>
-              ))}
+          {timlönTal > 0 && (
+            <View style={styles.prisKalkyl}>
+              <Text style={styles.prisRad}>Timlön för personen: <Text style={styles.prisFet}>{timlönTal} kr/h</Text></Text>
+              <Text style={styles.prisRad}>Ni faktureras: <Text style={styles.prisFetBlå}>{formateraPris(beräknaFakturapris(timlönTal, gällandePåslag))} kr/h</Text> (exkl. moms)</Text>
+              <ProBesparing timlön={timlönTal} paslag={gällandePåslag} />
             </View>
           )}
-          <FältFel text={fel.pass} />
 
-          <Text style={styles.label}>OB-tillägg (obekväm arbetstid)</Text>
-          {obTillagg.map((ob, i) => (
-            <View key={i} style={styles.obRad}>
-              <Text style={styles.obRadText}>
-                {ob.start}–{ob.slut}: {ob.värde}{ob.typ === 'procent' ? '%' : ' kr/h'}
-              </Text>
-              <TouchableOpacity onPress={() => setObTillagg(prev => prev.filter((_, j) => j !== i))}>
-                <Ionicons name="close-circle" size={20} color="#ef4444" />
-              </TouchableOpacity>
-            </View>
-          ))}
-          {obFormVisas ? (
-            <View style={styles.obForm}>
-              <View style={styles.obFormTider}>
-                <TidVäljare style={{ flex: 1 }} placeholder="18:00" value={obStart} onChange={setObStart} />
-                <Text style={styles.tidStreck}>–</Text>
-                <TidVäljare style={{ flex: 1 }} placeholder="20:00" value={obSlut} onChange={setObSlut} />
-              </View>
-              <View style={styles.typVäljare}>
-                {['procent', 'fast'].map(t => (
-                  <TouchableOpacity key={t} style={[styles.typKnapp, obTyp === t && styles.typKnappAktiv]} onPress={() => setObTyp(t)}>
-                    <Text style={[styles.typText, obTyp === t && styles.typTextAktiv]}>
-                      {t === 'procent' ? 'Procent (%)' : 'Fast kr/h'}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-              <TextInput
-                style={styles.input}
-                placeholder={obTyp === 'procent' ? 'OB-procent (t.ex. 50)' : 'Extra kr/h (t.ex. 25)'}
-                value={obVärde}
-                onChangeText={setObVärde}
-                keyboardType="numeric"
-              />
-              <View style={styles.obFormKnappar}>
-                <TouchableOpacity style={styles.obAvbryt} onPress={() => { setObFormVisas(false); setObStart(''); setObSlut(''); setObVärde(''); }}>
-                  <Text style={styles.obAvbrytText}>Avbryt</Text>
-                </TouchableOpacity>
-                <TouchableOpacity style={styles.obLäggTillKnapp} onPress={läggTillOb}>
-                  <Text style={styles.obLäggTillText}>Lägg till</Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-          ) : (
-            <TouchableOpacity style={styles.obAddKnapp} onPress={() => setObFormVisas(true)} activeOpacity={0.7}>
-              <Ionicons name="add-circle-outline" size={18} color="#ea580c" />
-              <Text style={styles.obAddText}>Lägg till OB-intervall</Text>
-            </TouchableOpacity>
-          )}
-
-          <Text style={styles.label}>Kategori *</Text>
+          <Text style={styles.label}>Huvudkategori *</Text>
           <TouchableOpacity style={[styles.väljarKnapp, fel.kategori && styles.inputFel]} onPress={() => setKategoriModalVisas(true)} activeOpacity={0.7}>
             <Text style={[styles.väljarText, !kategori && styles.väljarPlaceholder]}>
               {kategori || 'Välj kategori...'}
@@ -447,6 +280,145 @@ export default function PubliceraSchemaScreen({ navigation }) {
             <Ionicons name="chevron-forward" size={18} color="#9ca3af" />
           </TouchableOpacity>
           <FältFel text={fel.kategori} />
+          <Text style={styles.hjälp}>
+            Beskriver annonsen. Varje pass kan sedan få en egen roll, t.ex. Liftvärd eller Garderob.
+          </Text>
+
+          {/* Passlistan. Perioden räknas ur passen – inga egna datumfält för den. */}
+          <View style={styles.passRubrikRad}>
+            <Text style={[styles.label, { marginTop: 24 }]}>Pass *</Text>
+            {period && (
+              <Text style={styles.periodText}>
+                {formatDagDatum(period.start)} – {formatDagDatum(period.slut)} · {pass.length} pass
+              </Text>
+            )}
+          </View>
+
+          {pass.length === 0 ? (
+            <Text style={styles.tomPass}>Inga pass ännu. Lägg till det första nedan.</Text>
+          ) : (
+            <View style={styles.passLista}>
+              {pass.map((p, i) => (
+                <TouchableOpacity
+                  key={`${p.datum}-${p.starttid}-${i}`}
+                  style={styles.passRad}
+                  onPress={() => öppnaRedigera(i)}
+                  activeOpacity={0.7}
+                >
+                  <View style={styles.passDatum}>
+                    <Text style={styles.passVeckodag}>{veckodagsNamn(p.datum)}</Text>
+                    <Text style={styles.passDatumText}>{formatDagDatum(p.datum)}</Text>
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.passTid}>{p.starttid}–{p.sluttid}</Text>
+                    <View style={styles.passBrickor}>
+                      {p.kategori ? (
+                        <View style={styles.rollBricka}><Text style={styles.rollBrickaText}>{p.kategori}</Text></View>
+                      ) : null}
+                      {p.ob_tillagg?.length > 0 && (
+                        <View style={styles.obBricka}><Text style={styles.obBrickaText}>OB ×{p.ob_tillagg.length}</Text></View>
+                      )}
+                    </View>
+                  </View>
+                  <TouchableOpacity onPress={() => taBortPass(i)} hitSlop={10} style={{ padding: 4 }}>
+                    <Ionicons name="close-circle" size={20} color="#ef4444" />
+                  </TouchableOpacity>
+                </TouchableOpacity>
+              ))}
+            </View>
+          )}
+          <FältFel text={fel.pass} />
+
+          <View style={styles.passKnappRad}>
+            <TouchableOpacity style={styles.passKnapp} onPress={öppnaNyttPass} activeOpacity={0.8}>
+              <Ionicons name="add" size={18} color="#fff" />
+              <Text style={styles.passKnappText}>Lägg till pass</Text>
+            </TouchableOpacity>
+            {pass.length > 0 && (
+              <TouchableOpacity style={styles.kopieraKnapp} onPress={öppnaKopieraFöregående} activeOpacity={0.8}>
+                <Ionicons name="copy-outline" size={17} color="#2563eb" />
+                <Text style={styles.kopieraText}>Kopiera föregående</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+
+          {/* Löneavdrag */}
+          <Text style={[styles.label, { marginTop: 24 }]}>Löneavdrag</Text>
+          <Text style={styles.hjälp}>
+            Dras från personens lön, t.ex. för boende eller kost. Fakturan till er påverkas inte.
+          </Text>
+
+          {avdrag.map((a, i) => (
+            <View key={i} style={styles.avdragRad}>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.avdragNamn}>{a.namn}</Text>
+                <Text style={styles.avdragDetalj}>
+                  {a.belopp} kr {a.typ === 'totalt' ? 'totalt för perioden' : 'per pass'}
+                </Text>
+              </View>
+              <TouchableOpacity onPress={() => setAvdrag(prev => prev.filter((_, j) => j !== i))} style={{ padding: 4 }}>
+                <Ionicons name="close-circle" size={20} color="#ef4444" />
+              </TouchableOpacity>
+            </View>
+          ))}
+
+          {avdragFormVisas ? (
+            <View style={styles.avdragForm}>
+              <TextInput
+                style={styles.input}
+                placeholder="Namn, t.ex. Boende"
+                value={avdragNamn}
+                onChangeText={setAvdragNamn}
+                maxLength={40}
+              />
+              <TextInput
+                style={[styles.input, { marginTop: 8 }]}
+                placeholder="Belopp i kr"
+                value={avdragBelopp}
+                onChangeText={setAvdragBelopp}
+                keyboardType="numeric"
+              />
+              <View style={styles.typVäljare}>
+                {[['per_dag', 'Per pass'], ['totalt', 'Totalt']].map(([v, etikett]) => (
+                  <TouchableOpacity
+                    key={v}
+                    style={[styles.typKnapp, avdragTyp === v && styles.typKnappAktiv]}
+                    onPress={() => setAvdragTyp(v)}
+                  >
+                    <Text style={[styles.typText, avdragTyp === v && styles.typTextAktiv]}>{etikett}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+              <Text style={styles.hjälp}>
+                {avdragTyp === 'totalt'
+                  ? 'Fördelas jämnt över schemats pass.'
+                  : 'Dras per pass – två pass samma dag ger två avdrag.'}
+              </Text>
+              <View style={styles.avdragKnappar}>
+                <TouchableOpacity style={styles.avdragAvbryt} onPress={() => setAvdragFormVisas(false)}>
+                  <Text style={styles.avdragAvbrytText}>Avbryt</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.avdragLäggTill} onPress={läggTillAvdrag}>
+                  <Text style={styles.avdragLäggTillText}>Lägg till</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          ) : (
+            <TouchableOpacity style={styles.avdragAddKnapp} onPress={() => setAvdragFormVisas(true)} activeOpacity={0.7}>
+              <Ionicons name="add-circle-outline" size={18} color="#dc2626" />
+              <Text style={styles.avdragAddText}>Lägg till avdrag</Text>
+            </TouchableOpacity>
+          )}
+          <FältFel text={fel.avdrag} />
+
+          {avdragPerPass > 0 && pass.length > 0 && (
+            <View style={styles.avdragSummering}>
+              <Text style={styles.avdragSummeringText}>
+                Vid {pass.length} pass dras {formateraPris(avdragPerPass)} kr per pass,
+                totalt {formateraPris(avdragPerPass * pass.length)} kr från lönen.
+              </Text>
+            </View>
+          )}
 
           <TouchableOpacity style={[styles.knapp, laddar && styles.knappInaktiv]} onPress={hanteraPublicering} disabled={laddar}>
             {laddar ? <ActivityIndicator color="#fff" /> : <Text style={styles.knappText}>Publicera schema</Text>}
@@ -454,58 +426,27 @@ export default function PubliceraSchemaScreen({ navigation }) {
         </ScrollView>
       </KeyboardAvoidingView>
 
+      <SchemaPassModal
+        visible={passModalVisas}
+        onStäng={() => setPassModalVisas(false)}
+        onSpara={sparaPass}
+        initialPass={passUtkast}
+        egnaKategorier={egnaKategorier}
+        standardKategorier={KATEGORIER}
+        timlön={timlönTal}
+        paslag={gällandePåslag}
+        rubrik={redigerarIndex == null ? 'Nytt pass' : 'Redigera pass'}
+      />
+
       <PrenumerationModal
         visible={planModalVisas}
         onClose={() => setPlanModalVisas(false)}
-        timlön={parseFloat(timlon) || 0}
+        timlön={timlönTal}
         laddar={betalningLaddar}
         onUppgradera={uppgraderaTillPro}
         onFortsattUtan={fortsattUtanAbonnemang}
       />
 
-      {/* Datumväljare – Android */}
-      {Platform.OS === 'android' && datumVäljare !== null && (
-        <DateTimePicker
-          value={tempDatum}
-          mode="date"
-          display="default"
-          minimumDate={new Date()}
-          onChange={(_, date) => {
-            const vilken = datumVäljare;
-            setDatumVäljare(null);
-            if (date) sparaDatum(vilken, date);
-          }}
-        />
-      )}
-
-      {/* Datumväljare – iOS */}
-      <Modal visible={Platform.OS === 'ios' && datumVäljare !== null} transparent animationType="slide" statusBarTranslucent>
-        <View style={styles.pickerBackdrop}>
-          <View style={styles.pickerPanel}>
-            <View style={styles.pickerRubrikRad}>
-              <TouchableOpacity onPress={() => setDatumVäljare(null)}>
-                <Text style={styles.pickerAvbryt}>Avbryt</Text>
-              </TouchableOpacity>
-              <Text style={styles.pickerRubrik}>Välj datum</Text>
-              <TouchableOpacity onPress={bekräftaDatum}>
-                <Text style={styles.pickerKlar}>Klar</Text>
-              </TouchableOpacity>
-            </View>
-            <DateTimePicker
-              value={tempDatum}
-              mode="date"
-              display="spinner"
-              minimumDate={new Date()}
-              onChange={(_, date) => date && setTempDatum(date)}
-              locale="sv-SE"
-              themeVariant="light"
-              textColor="#1a1a1a"
-            />
-          </View>
-        </View>
-      </Modal>
-
-      {/* Kategoriväljare */}
       <Modal visible={kategoriModalVisas} animationType="slide" transparent statusBarTranslucent>
         <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
           <TouchableOpacity
@@ -515,7 +456,7 @@ export default function PubliceraSchemaScreen({ navigation }) {
           />
           <View style={styles.panel}>
             <View style={styles.handtag} />
-            <Text style={styles.panelTitel}>Välj kategori</Text>
+            <Text style={styles.panelTitel}>Välj huvudkategori</Text>
             <TextInput
               style={styles.sokInput}
               placeholder="Sök kategori..."
@@ -556,6 +497,7 @@ const styles = StyleSheet.create({
   input: { borderWidth: 1, borderColor: '#ddd', borderRadius: 10, padding: 14, fontSize: 15, backgroundColor: '#fafafa' },
   textArea: { height: 120 },
   inputFel: { borderColor: '#dc2626', borderWidth: 1.5, backgroundColor: '#fef2f2' },
+  hjälp: { fontSize: 12, color: '#9ca3af', marginTop: 6 },
 
   infoRuta: { flexDirection: 'row', gap: 8, backgroundColor: '#f0f9ff', borderRadius: 10, padding: 12, marginTop: 16, borderWidth: 1, borderColor: '#bae6fd' },
   infoText: { flex: 1, fontSize: 13, color: '#0369a1', lineHeight: 18 },
@@ -569,58 +511,50 @@ const styles = StyleSheet.create({
   prisFet: { fontWeight: '700', color: '#0369a1' },
   prisFetBlå: { fontWeight: '700', color: '#1d4ed8' },
 
-  periodRad: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  datumKnapp: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 6 },
-  datumText: { fontSize: 15, color: '#1a1a1a' },
-  datumPlaceholder: { color: '#aaa' },
-  tidStreck: { fontSize: 16, color: '#9ca3af' },
-
-  generator: { borderWidth: 1, borderColor: '#e5e7eb', borderRadius: 12, padding: 14, backgroundColor: '#fafafa' },
-  generatorHjälp: { fontSize: 13, color: '#6b7280', marginBottom: 10 },
-  dagKnappar: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: 12 },
-  dagKnapp: { paddingHorizontal: 12, paddingVertical: 8, borderRadius: 8, borderWidth: 1, borderColor: '#d1d5db', backgroundColor: '#fff' },
-  dagKnappAktiv: { backgroundColor: '#2563eb', borderColor: '#2563eb' },
-  dagKnappText: { fontSize: 13, fontWeight: '600', color: '#6b7280' },
-  dagKnappTextAktiv: { color: '#fff' },
-  generatorTider: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 12 },
-  generatorKnapp: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: '#2563eb', borderRadius: 10, paddingVertical: 12 },
-  generatorKnappText: { color: '#fff', fontWeight: '600', fontSize: 15 },
-
+  passRubrikRad: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between' },
+  periodText: { fontSize: 13, color: '#2563eb', fontWeight: '600', marginBottom: 6 },
   tomPass: { fontSize: 14, color: '#9ca3af', fontStyle: 'italic', paddingVertical: 8 },
-  passLista: { borderWidth: 1, borderColor: '#e5e7eb', borderRadius: 12, padding: 10, backgroundColor: '#fafafa', gap: 8 },
-  passRad: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  passDatum: { width: 74 },
+  passLista: { borderWidth: 1, borderColor: '#e5e7eb', borderRadius: 12, overflow: 'hidden' },
+  passRad: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 12, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: '#f3f4f6', backgroundColor: '#fafafa' },
+  passDatum: { width: 66 },
   passVeckodag: { fontSize: 11, color: '#9ca3af', textTransform: 'uppercase', fontWeight: '600' },
   passDatumText: { fontSize: 14, color: '#1a1a1a', fontWeight: '500' },
+  passTid: { fontSize: 14, color: '#374151', fontWeight: '500' },
+  passBrickor: { flexDirection: 'row', flexWrap: 'wrap', gap: 5, marginTop: 3 },
+  rollBricka: { backgroundColor: '#eff6ff', borderRadius: 6, paddingHorizontal: 7, paddingVertical: 2 },
+  rollBrickaText: { fontSize: 11, color: '#2563eb', fontWeight: '700' },
+  obBricka: { backgroundColor: '#fff7ed', borderRadius: 6, paddingHorizontal: 7, paddingVertical: 2 },
+  obBrickaText: { fontSize: 11, color: '#c2410c', fontWeight: '700' },
 
-  typVäljare: { flexDirection: 'row', gap: 8, marginBottom: 8 },
-  typKnapp: { flex: 1, padding: 12, borderRadius: 10, borderWidth: 1, borderColor: '#ddd', alignItems: 'center' },
-  typKnappAktiv: { backgroundColor: '#2563eb', borderColor: '#2563eb' },
-  typText: { color: '#555', fontWeight: '500', fontSize: 14 },
+  passKnappRad: { flexDirection: 'row', gap: 8, marginTop: 12 },
+  passKnapp: { flex: 1, flexDirection: 'row', gap: 6, backgroundColor: '#2563eb', borderRadius: 10, paddingVertical: 12, alignItems: 'center', justifyContent: 'center' },
+  passKnappText: { fontSize: 14, color: '#fff', fontWeight: '600' },
+  kopieraKnapp: { flex: 1, flexDirection: 'row', gap: 6, borderWidth: 1.5, borderColor: '#2563eb', borderRadius: 10, paddingVertical: 12, alignItems: 'center', justifyContent: 'center' },
+  kopieraText: { fontSize: 14, color: '#2563eb', fontWeight: '600' },
+
+  avdragRad: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#fef2f2', borderRadius: 10, padding: 12, marginBottom: 8, borderWidth: 1, borderColor: '#fecaca' },
+  avdragNamn: { fontSize: 14, fontWeight: '600', color: '#991b1b' },
+  avdragDetalj: { fontSize: 12, color: '#b91c1c', marginTop: 2 },
+  avdragForm: { backgroundColor: '#fef2f2', borderRadius: 12, padding: 12, borderWidth: 1, borderColor: '#fecaca' },
+  avdragKnappar: { flexDirection: 'row', gap: 8, marginTop: 10 },
+  avdragAvbryt: { flex: 1, borderWidth: 1, borderColor: '#d1d5db', borderRadius: 8, paddingVertical: 10, alignItems: 'center' },
+  avdragAvbrytText: { fontSize: 13, color: '#666', fontWeight: '600' },
+  avdragLäggTill: { flex: 1, backgroundColor: '#dc2626', borderRadius: 8, paddingVertical: 10, alignItems: 'center' },
+  avdragLäggTillText: { fontSize: 13, color: '#fff', fontWeight: '600' },
+  avdragAddKnapp: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 10 },
+  avdragAddText: { fontSize: 14, color: '#dc2626', fontWeight: '600' },
+  avdragSummering: { backgroundColor: '#fef2f2', borderRadius: 10, padding: 12, marginTop: 8, borderWidth: 1, borderColor: '#fecaca' },
+  avdragSummeringText: { fontSize: 13, color: '#991b1b', lineHeight: 18 },
+
+  typVäljare: { flexDirection: 'row', gap: 8, marginTop: 8 },
+  typKnapp: { flex: 1, padding: 10, borderRadius: 8, borderWidth: 1, borderColor: '#fecaca', alignItems: 'center', backgroundColor: '#fff' },
+  typKnappAktiv: { backgroundColor: '#dc2626', borderColor: '#dc2626' },
+  typText: { color: '#991b1b', fontWeight: '600', fontSize: 13 },
   typTextAktiv: { color: '#fff' },
-
-  obRad: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: '#fff7ed', borderRadius: 10, padding: 12, marginBottom: 8, borderWidth: 1, borderColor: '#fed7aa' },
-  obRadText: { fontSize: 14, color: '#9a3412', flex: 1 },
-  obForm: { backgroundColor: '#fff7ed', borderRadius: 12, padding: 14, marginBottom: 8, borderWidth: 1, borderColor: '#fed7aa' },
-  obFormTider: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 10 },
-  obFormKnappar: { flexDirection: 'row', gap: 10, marginTop: 8 },
-  obAvbryt: { flex: 1, borderWidth: 1, borderColor: '#d1d5db', borderRadius: 10, padding: 12, alignItems: 'center' },
-  obAvbrytText: { fontSize: 14, color: '#666', fontWeight: '600' },
-  obLäggTillKnapp: { flex: 1, backgroundColor: '#ea580c', borderRadius: 10, padding: 12, alignItems: 'center' },
-  obLäggTillText: { fontSize: 14, color: '#fff', fontWeight: '600' },
-  obAddKnapp: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 10, paddingHorizontal: 4, marginBottom: 4 },
-  obAddText: { fontSize: 14, color: '#ea580c', fontWeight: '600' },
 
   knapp: { backgroundColor: '#2563eb', borderRadius: 12, padding: 16, alignItems: 'center', marginTop: 28, marginBottom: 40 },
   knappInaktiv: { backgroundColor: '#93c5fd' },
   knappText: { color: '#fff', fontWeight: '600', fontSize: 16 },
-
-  pickerBackdrop: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.4)' },
-  pickerPanel: { backgroundColor: '#fff', borderTopLeftRadius: 20, borderTopRightRadius: 20, paddingBottom: 32 },
-  pickerRubrikRad: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: '#f0f0f0' },
-  pickerRubrik: { fontSize: 16, fontWeight: '700', color: '#1a1a1a' },
-  pickerAvbryt: { fontSize: 16, color: '#9ca3af' },
-  pickerKlar: { fontSize: 16, color: '#2563eb', fontWeight: '600' },
 
   backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)' },
   panel: { backgroundColor: '#fff', borderTopLeftRadius: 20, borderTopRightRadius: 20, paddingHorizontal: 20, paddingTop: 12, paddingBottom: 32, maxHeight: '80%' },

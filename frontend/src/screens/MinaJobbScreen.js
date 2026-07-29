@@ -321,6 +321,12 @@ export default function MinaJobbScreen({ navigation }) {
                     <Text style={styles.passEtikett}>Totalt</Text>
                     <Text style={[styles.passVärde, { color: '#2563eb' }]}>{item.totalt_belopp?.toLocaleString('sv-SE')} kr</Text>
                   </View>
+                  {item.avdrag_belopp > 0 && (
+                    <View style={styles.passDetalj}>
+                      <Text style={styles.passEtikett}>Avdrag</Text>
+                      <Text style={[styles.passVärde, { color: '#dc2626' }]}>−{item.avdrag_belopp.toLocaleString('sv-SE')} kr</Text>
+                    </View>
+                  )}
                 </View>
                 <HandlingsKnapp
                   text="Öppna chatt →"

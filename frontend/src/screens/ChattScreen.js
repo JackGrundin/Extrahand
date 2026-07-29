@@ -122,10 +122,42 @@ function TidrapportKort({ rapport, ärPrivatperson, ärSenaste, onUppdaterad }) 
             </View>
           );
         })()}
+        {/* Löneavdrag. Privatpersonen måste se dem här – det är enda stället de kan
+            granska rapporten innan de godkänner den. */}
+        {(() => {
+          const avdrag = Array.isArray(rapport.avdrag) ? rapport.avdrag : [];
+          if (!avdrag.length) return null;
+          return (
+            <View style={styles.avdragSektion}>
+              <Text style={styles.avdragRubrik}>Löneavdrag</Text>
+              {avdrag.map((a, i) => (
+                <View key={i} style={styles.avdragRad}>
+                  <Text style={styles.avdragNamn}>
+                    {a.namn}
+                    {a.typ === 'totalt' ? ` (del av ${Number(a.belopp).toLocaleString('sv-SE')} kr)` : ''}
+                  </Text>
+                  <Text style={styles.avdragBelopp}>
+                    −{Number(a.avdraget).toLocaleString('sv-SE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} kr
+                  </Text>
+                </View>
+              ))}
+            </View>
+          );
+        })()}
+
         <View style={[styles.rapportRad, styles.totalRad]}>
           <Text style={styles.totalEtikett}>Totalt</Text>
           <Text style={styles.totalVärde}>{rapport.totalt_belopp?.toLocaleString('sv-SE')} kr</Text>
         </View>
+
+        {rapport.avdrag_belopp > 0 && (
+          <View style={styles.rapportRad}>
+            <Text style={styles.utbetalningEtikett}>Att betala ut</Text>
+            <Text style={styles.utbetalningVärde}>
+              {((rapport.totalt_belopp ?? 0) - rapport.avdrag_belopp).toLocaleString('sv-SE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} kr
+            </Text>
+          </View>
+        )}
       </View>
 
       {ärPrivatperson && rapport.status === 'väntar' && (
@@ -529,6 +561,13 @@ const styles = StyleSheet.create({
   korrigeraKnapp: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, borderWidth: 1, borderColor: '#2563eb', borderRadius: 10, paddingVertical: 10 },
   korrigeraText: { color: '#2563eb', fontWeight: '600', fontSize: 14 },
   autoNot: { fontSize: 12, color: '#9ca3af', fontStyle: 'italic', marginTop: 6 },
+  avdragSektion: { backgroundColor: '#fef2f2', borderRadius: 10, padding: 10, marginTop: 8, borderWidth: 1, borderColor: '#fecaca' },
+  avdragRubrik: { fontSize: 12, fontWeight: '700', color: '#991b1b', marginBottom: 6 },
+  avdragRad: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 3 },
+  avdragNamn: { fontSize: 13, color: '#991b1b', flex: 1 },
+  avdragBelopp: { fontSize: 13, fontWeight: '700', color: '#dc2626' },
+  utbetalningEtikett: { fontSize: 14, fontWeight: '700', color: '#16a34a' },
+  utbetalningVärde: { fontSize: 15, fontWeight: '700', color: '#16a34a' },
   modalBakgrund: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'center', padding: 24 },
   modalKort: { backgroundColor: '#fff', borderRadius: 16, padding: 20 },
   modalRubrik: { fontSize: 17, fontWeight: '700', color: '#1a1a1a', marginBottom: 8 },

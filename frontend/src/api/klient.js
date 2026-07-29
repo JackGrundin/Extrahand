@@ -118,6 +118,11 @@ export const api = {
   hoppaAvSchema: (id) => anrop('POST', `/scheman/${id}/hoppa-av`, {}),
   avbrytSchema: (id) => anrop('POST', `/scheman/${id}/avbryt`, {}),
   schemaKalender: (från, till) => anrop('GET', `/scheman/kalender?from=${från}&till=${till}`),
+  // Företagets egna tidigare passkategorier – förslag för fri text i pass-modalen.
+  schemaKategorier: () => anrop('GET', '/scheman/kategorier'),
+  hämtaSchemaAvdrag: (id) => anrop('GET', `/scheman/${id}/avdrag`),
+  skapaSchemaAvdrag: (id, kropp) => anrop('POST', `/scheman/${id}/avdrag`, kropp),
+  taBortSchemaAvdrag: (id, avdragId) => anrop('DELETE', `/scheman/${id}/avdrag/${avdragId}`),
 
   // Korrigerar en automatiskt skapad tidrapport som ännu väntar på svar (övertid/rast).
   // Efter ett bestridande skickas i stället en ny rapport via skapaRapport.
