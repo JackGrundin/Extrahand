@@ -2,11 +2,16 @@ import { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { SVENSKA_ORTER } from '../utils/svenskaOrter';
+import { normalisera } from '../utils/konstanter';
 
 // Kontrollerar om ett värde är en giltig stad vald från listan
 export function ärGiltigStad(värde) {
   return SVENSKA_ORTER.includes((värde ?? '').trim());
 }
+
+// Förberäknas en gång i stället för per tangenttryckning – listan är ~1400 orter och
+// normalisera() gör en NFD-normalisering per post.
+const NORMALISERADE = SVENSKA_ORTER.map(ort => [normalisera(ort), ort]);
 
 // Återanvändbart sökfält för städer med autocomplete som tvingar val från listan
 export default function StadInput({
@@ -22,14 +27,19 @@ export default function StadInput({
   const [förslag, setFörslag] = useState([]);
   const [öppen, setÖppen] = useState(false);
 
-  // Filtrerar fram matchande orter när användaren skriver
+  // Filtrerar fram matchande orter när användaren skriver. Jämförelsen är
+  // diakritokänslig via normalisera(), samma hjälpare som kategorisökningen använder:
+  // "malmo" hittar Malmö och "vaxjo" hittar Växjö. Utan detta skulle listan behöva
+  // innehålla felstavade ASCII-varianter, som då blir valbara och sparas i databasen –
+  // och splittrar stadsmatchningen så att jobbnotiser missar folk.
   function hanteraInput(text) {
     onÄndra(text);
     if (text.trim().length >= 1) {
-      const sökterm = text.trim().toLowerCase();
-      const träffar = SVENSKA_ORTER
-        .filter(o => o.toLowerCase().startsWith(sökterm))
-        .slice(0, 8);
+      const sökterm = normalisera(text.trim());
+      const träffar = NORMALISERADE
+        .filter(([normaliserad]) => normaliserad.startsWith(sökterm))
+        .slice(0, 8)
+        .map(([, ort]) => ort);
       setFörslag(träffar);
       setÖppen(träffar.length > 0);
     } else {
