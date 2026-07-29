@@ -156,6 +156,10 @@ async function sättSchemaTilldelning(id, { anvandare_id, paslag }) {
   if (error) throw error;
 }
 
+// Uppdaterar ett ännu inte tillsatt schema. Returnerar null när inget matchade – schemat
+// finns inte, ägs av någon annan, eller är redan tillsatt. maybeSingle i stället för single
+// så att anropande route kan svara begripligt i stället för att single kastar PGRST116 och
+// blir ett 500.
 async function uppdateraSchema(id, foretag_id, fält) {
   const { data, error } = await supabase
     .from('scheman')
@@ -164,10 +168,38 @@ async function uppdateraSchema(id, foretag_id, fält) {
     .eq('foretag_id', foretag_id)
     .eq('status', 'publicerat')
     .select()
-    .single();
+    .maybeSingle();
 
   if (error) throw error;
   return data;
+}
+
+// Speglar schemats fält till dess annons-jobb.
+//
+// Annons-jobbet är en riktig Jobb-rad och det är DEN som visas i chatten, i personens
+// Mina pass och som läses av routes/tidrapporter.js (Jobb.Lon). Utan den här synkningen
+// låg gamla värden kvar på jobbet efter en redigering, så titeln kunde säga en sak i
+// schemat och en annan i chatten – och en ändrad timlön slog aldrig igenom.
+//
+// db/jobb.js uppdateraJobb kan inte användas: den filtrerar medvetet bort schemajobb med
+// .is('schema_id', null) så att de inte går att ändra via jobb-API:t.
+async function synkaAnnonsJobb(schema) {
+  if (!schema?.annons_jobb_id) return;
+
+  const { error } = await supabase
+    .from('Jobb')
+    .update({
+      Titel: schema.titel,
+      Beskrivning: schema.beskrivning,
+      Plats: schema.plats,
+      adress: schema.adress,
+      Lon: schema.timlon,
+      Kategori: schema.kategori,
+    })
+    .eq('id', schema.annons_jobb_id)
+    .eq('schema_id', schema.id);
+
+  if (error) throw error;
 }
 
 // ------------------------------------------------------------ Schema_pass
@@ -477,6 +509,7 @@ module.exports = {
   sättSchemaStatus,
   sättSchemaTilldelning,
   uppdateraSchema,
+  synkaAnnonsJobb,
   skapaSchemaPass,
   hämtaPassFörSchema,
   hämtaPassAttTilldela,

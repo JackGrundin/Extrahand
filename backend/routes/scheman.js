@@ -13,6 +13,7 @@ const {
   hämtaKalenderPass,
   passMedArv,
   hämtaEgnaKategorier,
+  synkaAnnonsJobb,
 } = require('../db/scheman');
 const { GILTIGA_TYPER: AVDRAGSTYPER, skapaAvdrag, hämtaAktivaAvdrag, avaktiveraAvdrag } = require('../db/schemaAvdrag');
 const { tilldelaSchema, frigörFramtidaPass, återställSchema } = require('../db/schemaTilldelning');
@@ -574,6 +575,21 @@ router.put('/:id', kräverInloggning, kräverTyp('företag'), async (req, res) =
       kategori: kategori?.trim() ?? null,
       ...(timlon != null ? { timlon: Number(timlon) } : {}),
     });
+
+    // Inget matchade: schemat finns inte, ägs av någon annan, eller är redan tillsatt.
+    if (!schema) {
+      const befintligt = await hämtaSchemaViaId(req.params.id);
+      if (!befintligt) return res.status(404).json({ fel: 'Schemat hittades inte' });
+      if (String(befintligt.foretag_id) !== String(req.användare.id)) {
+        return res.status(403).json({ fel: 'Åtkomst nekad' });
+      }
+      return res.status(409).json({ fel: 'Ett tillsatt schema kan inte redigeras' });
+    }
+
+    // Annons-jobbet är en riktig Jobb-rad och det är den som syns i chatten och i
+    // personens Mina pass. Utan synkningen låg gamla värden kvar där efter en redigering.
+    await synkaAnnonsJobb(schema);
+
     res.json(schema);
   } catch (fel) {
     console.error('Fel vid uppdatering av schema:', fel);
