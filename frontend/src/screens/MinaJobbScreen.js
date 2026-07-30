@@ -8,6 +8,7 @@ import { STATUSFÄRGER_TIDRAPPORT as statusFärger } from '../utils/konstanter';
 import { useAttAvsluta } from '../context/AttAvslutaContext';
 import { useRealtidsPing } from '../context/RealtidsContext';
 import HandlingsKnapp from '../components/HandlingsKnapp';
+import RollBrickor from '../components/RollBrickor';
 
 export default function MinaJobbScreen({ navigation }) {
   const [jobb, setJobb] = useState([]);
@@ -238,6 +239,8 @@ export default function MinaJobbScreen({ navigation }) {
                   <Text style={styles.lön}>{Number(item.timlon).toLocaleString('sv-SE')} kr/tim</Text>
                 )}
               </View>
+              {/* Rollerna i schemat, vanligast först – samma färger som kalendern. */}
+              <RollBrickor roller={item.kategorier} style={{ marginBottom: 8 }} />
               <View style={styles.schemaRad}>
                 <View style={styles.schemaChip}>
                   <Text style={styles.schemaChipText}>{item.antalPass} pass</Text>

@@ -5,18 +5,40 @@ import { api } from '../api/klient';
 import { useRealtidsPing } from '../context/RealtidsContext';
 import MånadsKalender from '../components/MånadsKalender';
 import { datumTillIso, formatDagDatum, veckodagsNamn } from '../utils/datumHelper';
+import { rollFärg } from '../utils/konstanter';
 
-// Grupperar dagens pass per roll. Rubriken visas bara när dagen faktiskt har mer än en
-// roll – har alla samma (eller ingen) kategori vore en rubrik bara brus.
+// Grupperar dagens pass per roll. Rubriken visas ALLTID för en namngiven roll, även när
+// dagen bara har en – tidigare krävdes två roller, vilket gjorde att rollen i praktiken
+// aldrig syntes för ett schema med en avdelning.
+//
+// Pass utan roll hamnar i en grupp utan rubrik i stället för under en påhittad
+// "Övrigt"-rubrik: ett schema där ingen roll angetts ska inte få en meningslös rubrik
+// över varje dag.
 function grupperaPerKategori(pass) {
   const grupper = {};
   for (const p of pass) {
-    const kategori = p.kategori || 'Övrigt';
-    (grupper[kategori] ??= []).push(p);
+    const kategori = p.kategori || null;
+    (grupper[kategori ?? ''] ??= { kategori, pass: [] }).pass.push(p);
   }
-  const namn = Object.keys(grupper).sort((a, b) => a.localeCompare(b, 'sv'));
-  const visaRubrik = namn.length > 1;
-  return namn.map(kategori => ({ kategori, pass: grupper[kategori], visaRubrik }));
+  return Object.values(grupper).sort((a, b) => {
+    if (!a.kategori) return 1;   // namnlösa sist
+    if (!b.kategori) return -1;
+    return a.kategori.localeCompare(b.kategori, 'sv');
+  });
+}
+
+// Rollerna i den visade månaden, vanligast först. Matar förklaringsraden som kopplar
+// kalenderns färgprickar till namn – utan den är färgerna obegripliga.
+function rollerIMånaden(pass, år, månad) {
+  const prefix = `${år}-${String(månad + 1).padStart(2, '0')}`;
+  const antal = {};
+  for (const p of pass) {
+    if (!p.datum?.startsWith(prefix) || !p.kategori) continue;
+    antal[p.kategori] = (antal[p.kategori] || 0) + 1;
+  }
+  return Object.entries(antal)
+    .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], 'sv'))
+    .map(([namn, n]) => ({ namn, antal: n, färg: rollFärg(namn) }));
 }
 
 // Företagets bemanningsöversikt: vilka dagar de har personal och vem som jobbar när.
@@ -60,6 +82,7 @@ export default function SchemaKalenderScreen() {
     setMånad(ny.getMonth());
   }
 
+  const rollerIVisadMånad = useMemo(() => rollerIMånaden(pass, år, månad), [pass, år, månad]);
   const dagensPass = passPerDatum[valtDatum] ?? [];
   const bemannadeDagar = Object.keys(passPerDatum).filter(d => {
     const [y, m] = d.split('-').map(Number);
@@ -82,6 +105,20 @@ export default function SchemaKalenderScreen() {
         onBytMånad={bytMånad}
       />
 
+      {/* Förklaring till kalenderns färgprickar. Utan den säger färgerna ingenting, och
+          färgen får aldrig vara enda signalen. */}
+      {rollerIVisadMånad.length > 0 && (
+        <View style={styles.förklaring}>
+          {rollerIVisadMånad.map(r => (
+            <View key={r.namn} style={styles.förklaringPost}>
+              <View style={[styles.förklaringPrick, { backgroundColor: r.färg }]} />
+              <Text style={styles.förklaringText}>{r.namn}</Text>
+              <Text style={styles.förklaringAntal}>{r.antal}</Text>
+            </View>
+          ))}
+        </View>
+      )}
+
       <View style={styles.sammanfattning}>
         <Ionicons name="people-outline" size={16} color="#2563eb" />
         <Text style={styles.sammanfattningText}>
@@ -102,10 +139,13 @@ export default function SchemaKalenderScreen() {
           // Grupperat per roll så att företaget ser vilka avdelningar som är bemannade –
           // det är hela poängen med kategori per pass.
           grupperaPerKategori(dagensPass).map(grupp => (
-            <View key={grupp.kategori}>
-              {grupp.visaRubrik && (
+            <View key={grupp.kategori ?? 'utan-roll'}>
+              {grupp.kategori && (
                 <View style={styles.kategoriRubrikRad}>
-                  <Text style={styles.kategoriRubrik}>{grupp.kategori}</Text>
+                  <View style={[styles.kategoriPrick, { backgroundColor: rollFärg(grupp.kategori) }]} />
+                  <Text style={[styles.kategoriRubrik, { color: rollFärg(grupp.kategori) }]}>
+                    {grupp.kategori}
+                  </Text>
                   <Text style={styles.kategoriAntal}>{grupp.pass.length} st</Text>
                 </View>
               )}
@@ -150,9 +190,16 @@ const styles = StyleSheet.create({
   dagSektion: { padding: 16 },
   dagRubrik: { fontSize: 15, fontWeight: '700', color: '#1a1a1a', marginBottom: 12, textTransform: 'capitalize' },
   tomText: { fontSize: 14, color: '#9ca3af', fontStyle: 'italic' },
-  kategoriRubrikRad: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 6, marginBottom: 8 },
-  kategoriRubrik: { fontSize: 12, fontWeight: '700', color: '#2563eb', letterSpacing: 0.5, textTransform: 'uppercase' },
+  kategoriRubrikRad: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 6, marginBottom: 8 },
+  kategoriPrick: { width: 7, height: 7, borderRadius: 4 },
+  kategoriRubrik: { flex: 1, fontSize: 12, fontWeight: '700', letterSpacing: 0.5, textTransform: 'uppercase' },
   kategoriAntal: { fontSize: 12, color: '#9ca3af' },
+
+  förklaring: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, backgroundColor: '#fff', paddingHorizontal: 16, paddingBottom: 12 },
+  förklaringPost: { flexDirection: 'row', alignItems: 'center', gap: 5 },
+  förklaringPrick: { width: 8, height: 8, borderRadius: 4 },
+  förklaringText: { fontSize: 12, color: '#374151', fontWeight: '600' },
+  förklaringAntal: { fontSize: 11, color: '#9ca3af' },
 
   passKort: { backgroundColor: '#fff', borderRadius: 12, padding: 14, marginBottom: 10, shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 4, elevation: 2 },
   passHuvud: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 },

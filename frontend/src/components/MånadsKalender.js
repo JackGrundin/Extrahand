@@ -1,6 +1,24 @@
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { datumTillIso } from '../utils/datumHelper';
+import { rollFärg } from '../utils/konstanter';
+
+// Cellen är 38×38 px. Tre 5px-prickar med 3px mellanrum är ~21px och får plats under
+// dagsiffran; fler än så blir en "+N".
+const MAX_PRICKAR = 3;
+
+// Distinkta roller en given dag, med färg och om alla pass i rollen är genomförda.
+// Sorterad på namn så att prickarnas ordning är stabil mellan renderingar.
+function rollerFörDag(pass) {
+  const grupper = {};
+  for (const p of pass) {
+    const namn = p.kategori || null;
+    (grupper[namn ?? ''] ??= { namn, färg: rollFärg(namn), pass: [] }).pass.push(p);
+  }
+  return Object.values(grupper)
+    .sort((a, b) => (a.namn ?? '').localeCompare(b.namn ?? '', 'sv'))
+    .map(g => ({ ...g, alltGenomfört: g.pass.every(p => p.status === 'rapporterad') }));
+}
 
 // Måndagsbaserad månadskalender byggd av vanliga View:er. Appen har inget
 // kalenderbibliotek och all datumlogik ligger i datumHelper.js, så ett nytt beroende
@@ -55,8 +73,7 @@ export default function MånadsKalender({ år, månad, passPerDatum, valtDatum, 
           const pass = passPerDatum[datum] ?? [];
           const ärIdag = datum === idag;
           const ärVald = datum === valtDatum;
-          // En dag där allt är genomfört markeras grönt, annars blått för planerat.
-          const alltGenomfört = pass.length > 0 && pass.every(p => p.status === 'rapporterad');
+          const roller = rollerFörDag(pass);
 
           return (
             <TouchableOpacity
@@ -77,12 +94,27 @@ export default function MånadsKalender({ år, månad, passPerDatum, valtDatum, 
                 ]}>
                   {dag}
                 </Text>
-                {pass.length > 0 && (
-                  <View style={[
-                    styles.prick,
-                    alltGenomfört && styles.prickGenomförd,
-                    ärVald && styles.prickVald,
-                  ]} />
+                {roller.length > 0 && (
+                  <View style={styles.prickRad}>
+                    {roller.slice(0, MAX_PRICKAR).map(roll => (
+                      <View
+                        key={roll.namn ?? 'utan'}
+                        style={[
+                          styles.prick,
+                          // Fylld = planerad, ring = allt genomfört. Statusen får inte
+                          // konkurrera med rollfärgen, därför form i stället för färg.
+                          roll.alltGenomfört
+                            ? { borderColor: ärVald ? '#fff' : roll.färg, borderWidth: 1.5, backgroundColor: 'transparent' }
+                            : { backgroundColor: ärVald ? '#fff' : roll.färg },
+                        ]}
+                      />
+                    ))}
+                    {roller.length > MAX_PRICKAR && (
+                      <Text style={[styles.fler, ärVald && styles.flerVald]}>
+                        +{roller.length - MAX_PRICKAR}
+                      </Text>
+                    )}
+                  </View>
                 )}
               </View>
             </TouchableOpacity>
@@ -111,7 +143,8 @@ const styles = StyleSheet.create({
   dagText: { fontSize: 15, color: '#1a1a1a', fontWeight: '500' },
   dagTextVald: { color: '#fff', fontWeight: '700' },
   dagTextTom: { color: '#9ca3af', fontWeight: '400' },
-  prick: { width: 5, height: 5, borderRadius: 3, backgroundColor: '#2563eb', marginTop: 2 },
-  prickGenomförd: { backgroundColor: '#16a34a' },
-  prickVald: { backgroundColor: '#fff' },
+  prickRad: { flexDirection: 'row', alignItems: 'center', gap: 3, marginTop: 2 },
+  prick: { width: 5, height: 5, borderRadius: 3 },
+  fler: { fontSize: 8, color: '#6b7280', fontWeight: '700' },
+  flerVald: { color: '#fff' },
 });

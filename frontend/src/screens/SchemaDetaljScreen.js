@@ -8,6 +8,7 @@ import { api } from '../api/klient';
 import { parsaObTillagg, beräknaObBelopp, formatDagDatum, veckodagsNamn } from '../utils/datumHelper';
 import { beräknaFakturapris, formateraPris, beräknaAvdragFörPass } from '../utils/konstanter';
 import { useJobbPåslag } from '../utils/useJobbPåslag';
+import RollBrickor from '../components/RollBrickor';
 
 const PASSFÄRGER = {
   planerad: { bg: '#eff6ff', text: '#2563eb', etikett: 'Planerad' },
@@ -264,7 +265,12 @@ export default function SchemaDetaljScreen({ route, navigation }) {
       >
         {schema.foretagNamn && <Text style={styles.foretagNamn}>{schema.foretagNamn}</Text>}
         <Text style={styles.titel}>{schema.titel}</Text>
-        <Text style={styles.info}>{schema.plats} · {schema.kategori}</Text>
+        {/* Huvudkategorin är valfri sedan rollen flyttades till passnivå – utan villkoret
+            blir det en hängande " · " på nya scheman. */}
+        <Text style={styles.info}>
+          {[schema.plats, schema.kategori].filter(Boolean).join(' · ')}
+        </Text>
+        {schema.kategorier?.length > 0 && <RollBrickor roller={schema.kategorier} style={{ marginBottom: 8 }} />}
         <Text style={styles.lön}>{Number(schema.timlon).toLocaleString('sv-SE')} kr/tim</Text>
 
         <View style={styles.periodKort}>

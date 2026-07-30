@@ -1,6 +1,7 @@
 import { View, Text, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { parsaArbetstider, formatDagDatum } from '../utils/datumHelper';
+import RollBrickor from './RollBrickor';
 
 const STATUS = {
   godkänd:  { bg: '#dcfce7', text: '#16a34a', etikett: 'Bekräftat pass' },
@@ -12,6 +13,9 @@ export default function PassKort({ pass }) {
   const färg = STATUS[pass.status] ?? STATUS.väntande;
   const schema = parsaArbetstider(pass.arbetstider);
   const datum = schema ? schema.map(d => d.datum).filter(Boolean) : [];
+  // Rollen ligger per dag i arbetstider för schemapass. Vanliga pass och scheman skapade
+  // före rollen infördes saknar fältet – då renderas ingen bricka.
+  const roller = [...new Set((schema ?? []).map(d => d.kategori).filter(Boolean))];
 
   return (
     <View style={styles.kort}>
@@ -22,6 +26,8 @@ export default function PassKort({ pass }) {
           <Text style={[styles.statusText, { color: färg.text }]}>{färg.etikett}</Text>
         </View>
       </View>
+
+      {roller.length > 0 && <RollBrickor roller={roller} style={{ marginTop: 10 }} />}
 
       {datum.length > 0 ? (
         <View style={styles.datumRad}>

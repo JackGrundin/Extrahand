@@ -109,6 +109,19 @@ async function hämtaSchemanFörFöretag(foretag_id) {
   return berikaMedPassOchFöretag(scheman);
 }
 
+// Distinkta roller i en passlista, sorterade på hur många pass som har dem. Samma mönster
+// som hämtaEgnaKategorier använder för företagets förslagslista.
+function räknaKategorier(pass) {
+  const antal = {};
+  for (const p of pass) {
+    const namn = p.kategori ? String(p.kategori).trim() : '';
+    if (namn) antal[namn] = (antal[namn] || 0) + 1;
+  }
+  return Object.entries(antal)
+    .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], 'sv'))
+    .map(([namn]) => namn);
+}
+
 // Lägger på antal pass, nästa kommande datum och namn (företag + tilldelad person).
 // Inga joins – samma lookup-map-mönster som resten av db-lagret.
 async function berikaMedPassOchFöretag(scheman) {
@@ -131,8 +144,9 @@ async function berikaMedPassOchFöretag(scheman) {
     return {
       ...s,
       pass: egnaPass,
-      // Rollerna som förekommer i schemat – schemakortet visar dem som brickor.
-      kategorier: [...new Set(egnaPass.map(p => p.kategori).filter(Boolean))],
+      // Rollerna som förekommer i schemat, VANLIGAST FÖRST – schemakortet visar de tre
+      // första som brickor, så ordningen avgör vad företaget faktiskt får se.
+      kategorier: räknaKategorier(egnaPass),
       antalPass: egnaPass.length,
       foretagNamn: namnMap[s.foretag_id] ?? null,
       personNamn: s.anvandare_id != null ? (namnMap[s.anvandare_id] ?? null) : null,
@@ -498,6 +512,7 @@ async function räknaPassFörSchema(schema_id) {
 
 module.exports = {
   passMedArv,
+  räknaKategorier,
   hämtaEgnaKategorier,
   räknaPassFörSchema,
   skapaSchema,

@@ -7,12 +7,13 @@ import { ärGiltigStad } from '../components/StadInput';
 //
 // Perioden valideras INTE längre: den härleds ur passens datum på servern. När pass läggs
 // ett i taget finns ingen period att validera mot innan passen finns.
-export function valideraSchema({ titel, beskrivning, kategori, plats, adress, timlon, pass, avdrag }) {
+// Ingen huvudkategori valideras: rollen sätts per pass i stället, och schemats egen
+// kategori nådde aldrig jobbfiltret ändå (schemajobb filtreras bort i db/jobb.js).
+export function valideraSchema({ titel, beskrivning, plats, adress, timlon, pass, avdrag }) {
   const fel = {};
 
   if (!titel?.trim()) fel.titel = 'Ange en titel';
   if (!beskrivning?.trim()) fel.beskrivning = 'Ange en beskrivning';
-  if (!kategori?.trim()) fel.kategori = 'Välj en huvudkategori';
   if (!adress?.trim()) fel.adress = 'Ange en adress';
 
   if (!plats?.trim()) {

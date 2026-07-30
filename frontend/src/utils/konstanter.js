@@ -93,6 +93,39 @@ export function proBesparing(belopp, paslag) {
   return { proPris, besparing: nuPris - proPris };
 }
 
+// Färger för schemapassens roller. Rollerna är fri text och obegränsat många, så färgen
+// härleds ur namnet i stället för att tilldelas – samma roll får då alltid samma färg i
+// kalenderrutnätet, i förklaringsraden ovanför det och på schemakorten. Utan det går de
+// vyerna inte att läsa ihop.
+//
+// Färgen är ALDRIG enda signalen: förklaringsraden och dagslistan har alltid rollnamnet i
+// klartext, så kollisioner vid fler än åtta roller är ofarliga.
+const ROLLPALETT = ['#2563eb', '#16a34a', '#ea580c', '#9333ea', '#0891b2', '#db2777', '#ca8a04', '#dc2626'];
+
+// Grått för pass utan angiven roll.
+export const ROLL_UTAN_NAMN = '#9ca3af';
+
+export function rollFärg(namn) {
+  const nyckel = normalisera(namn).trim();
+  if (!nyckel) return ROLL_UTAN_NAMN;
+
+  // FNV-1a med avslutande avalanche-steg. Behöver inte vara kryptografisk, men den måste
+  // fördela sig jämnt över en palett på ÅTTA färger – och det gör inte en enkel
+  // hash * 31-summa: 31 ≡ −1 (mod 8), så resultatet mod 8 beror bara på en alternerande
+  // summa av tecknens koder och svenska rollnamn av liknande längd hamnar då på samma färg.
+  // Avalanche-stegen sprider de höga bitarna ner i de låga, vilket är de som modulo läser.
+  let h = 2166136261;
+  for (let i = 0; i < nyckel.length; i++) {
+    h ^= nyckel.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  h ^= h >>> 13;
+  h = Math.imul(h, 0x5bd1e995);
+  h ^= h >>> 15;
+
+  return ROLLPALETT[Math.abs(h) % ROLLPALETT.length];
+}
+
 // Hur ett löneavdrag påverkar beloppen. Speglar beräknaBelopp i backend/utils/pris.js –
 // ändra alltid på båda ställena.
 //

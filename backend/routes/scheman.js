@@ -12,6 +12,7 @@ const {
   hämtaSchemaPassFörAnvändare,
   hämtaKalenderPass,
   passMedArv,
+  räknaKategorier,
   hämtaEgnaKategorier,
   synkaAnnonsJobb,
 } = require('../db/scheman');
@@ -48,7 +49,8 @@ function valideraSchemaInput({ titel, beskrivning, typ, plats, adress, kategori,
   if (typ && !GILTIGA_TYPER.includes(typ)) return 'Ogiltig typ';
   if (!plats || !String(plats).trim()) return 'Stad krävs';
   if (!adress || !String(adress).trim()) return 'Adress till arbetsplatsen krävs';
-  if (!kategori || !String(kategori).trim()) return 'Kategori krävs';
+  // Ingen huvudkategori krävs: rollen sätts per pass. Fältet finns kvar i databasen för
+  // scheman som skapades när det var obligatoriskt – deras pass utan egen roll ärver det.
   if (timlon == null || !(Number(timlon) > 0)) return 'Giltig timlön krävs';
 
   if (!Array.isArray(pass) || !pass.length) return 'Schemat måste innehålla minst ett pass';
@@ -129,9 +131,12 @@ router.post('/', kräverInloggning, kräverTyp('företag'), async (req, res) => 
       beskrivning: beskrivning.trim(),
       plats: plats.trim(),
       adress: adress.trim(),
-      // Schemats kategori är fortfarande en listkategori: den går vidare till annons-jobbets
-      // Kategori och därmed till jobbfiltret. Passens kategorier är fri text.
-      kategori: kategori.trim(),
+      // Valfri. Rollen sätts per pass, och huvudkategorin når aldrig jobbfiltret ändå:
+      // hämtaAllaJobb, hämtaJobbFörFöretag och hämtaTidigareJobbFörFöretag i db/jobb.js
+      // filtrerar alla bort schemajobb med .is('schema_id', null), och schemalistans eget
+      // filter i JobbScreen går bara på stad. Optional chaining är inte kosmetiskt här –
+      // utan det kastar raden TypeError och ger 500 så fort ett schema saknar kategori.
+      kategori: kategori?.trim() || null,
       typ: typ || 'sommarjobb',
       startdatum,
       slutdatum,
@@ -344,7 +349,8 @@ router.get('/:id', kräverInloggning, async (req, res) => {
       pass,
       antalPass: pass.length,
       avdrag,
-      kategorier: [...new Set(pass.map(p => p.kategori).filter(Boolean))],
+      // Vanligast först, samma ordning som schemalistan använder.
+      kategorier: räknaKategorier(pass),
     };
 
     if (ärÄgare && schema.annons_jobb_id) {

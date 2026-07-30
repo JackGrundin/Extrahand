@@ -7,6 +7,7 @@ import { useJobblistaPing } from '../context/RealtidsContext';
 import { TYPER_FILTER as TYPER, KATEGORIER, normalisera } from '../utils/konstanter';
 import { parsaArbetstider, formatDagDatum, parsaObTillagg } from '../utils/datumHelper';
 import StadInput from '../components/StadInput';
+import RollBrickor from '../components/RollBrickor';
 
 const SORTERING = ['Närmast datum', 'Nyast', 'Högst lön', 'Flest dagar'];
 
@@ -207,9 +208,11 @@ export default function JobbScreen({ navigation }) {
             >
               <View style={styles.kortTopp}>
                 <Text style={styles.titel} numberOfLines={1}>{item.foretagNamn ?? 'Okänt företag'}</Text>
-                {item.kategori && <Text style={styles.kategoriTag}>{item.kategori}</Text>}
               </View>
               <Text style={styles.jobbTitel} numberOfLines={1}>{item.titel}</Text>
+              {/* Ett schema har ingen egen kategori – rollerna sätts per pass. Visa de
+                  vanligaste i stället (backend sorterar dem på frekvens). */}
+              <RollBrickor roller={item.kategorier} style={{ marginBottom: 6 }} />
 
               <View style={styles.datumRad}>
                 <Ionicons name="calendar" size={14} color="#2563eb" />

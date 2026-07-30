@@ -11,7 +11,7 @@ import { useAppStateAktiv } from '../utils/useAppStateAktiv';
 import { valideraSchema } from '../utils/schemaValidering';
 import { formatDagDatum, veckodagsNamn, nästaDatumIso } from '../utils/datumHelper';
 import { api } from '../api/klient';
-import { KATEGORIER, PÅSLAG_GRATIS, beräknaFakturapris, formateraPris, normalisera, beräknaAvdragFörPass } from '../utils/konstanter';
+import { KATEGORIER, PÅSLAG_GRATIS, beräknaFakturapris, formateraPris, beräknaAvdragFörPass } from '../utils/konstanter';
 
 export default function PubliceraSchemaScreen({ navigation }) {
   const [titel, setTitel] = useState('');
@@ -19,7 +19,6 @@ export default function PubliceraSchemaScreen({ navigation }) {
   const [plats, setPlats] = useState('');
   const [adress, setAdress] = useState('');
   const [timlon, setTimlon] = useState('');
-  const [kategori, setKategori] = useState('');
   const [pass, setPass] = useState([]);
   const [avdrag, setAvdrag] = useState([]);
 
@@ -38,8 +37,6 @@ export default function PubliceraSchemaScreen({ navigation }) {
   const [laddar, setLaddar] = useState(false);
   const [fel, setFel] = useState({});
   const scrollRef = useRef(null);
-  const [kategoriModalVisas, setKategoriModalVisas] = useState(false);
-  const [sokKategori, setSokKategori] = useState('');
   const [prenumeration, setPrenumeration] = useState(null);
   const [planModalVisas, setPlanModalVisas] = useState(false);
   const [betalningLaddar, setBetalningLaddar] = useState(false);
@@ -125,10 +122,6 @@ export default function PubliceraSchemaScreen({ navigation }) {
 
   // ------------------------------------------------------------ Publicera
 
-  const filtreradeKategorier = KATEGORIER.filter(k =>
-    normalisera(k).includes(normalisera(sokKategori))
-  );
-
   // Perioden härleds ur passen – samma regel som servern använder.
   const period = pass.length
     ? { start: pass[0].datum, slut: pass[pass.length - 1].datum }
@@ -142,7 +135,6 @@ export default function PubliceraSchemaScreen({ navigation }) {
       beskrivning: beskrivning.trim(),
       plats: plats.trim(),
       adress: adress.trim(),
-      kategori,
       typ: 'sommarjobb',
       timlon: timlönTal,
       pass,
@@ -156,7 +148,7 @@ export default function PubliceraSchemaScreen({ navigation }) {
   }
 
   async function hanteraPublicering() {
-    const nyaFel = valideraSchema({ titel, beskrivning, kategori, plats, adress, timlon, pass, avdrag });
+    const nyaFel = valideraSchema({ titel, beskrivning, plats, adress, timlon, pass, avdrag });
     if (Object.keys(nyaFel).length) {
       setFel(nyaFel);
       scrollRef.current?.scrollTo({ y: 0, animated: true });
@@ -272,19 +264,8 @@ export default function PubliceraSchemaScreen({ navigation }) {
             </View>
           )}
 
-          <Text style={styles.label}>Huvudkategori *</Text>
-          <TouchableOpacity style={[styles.väljarKnapp, fel.kategori && styles.inputFel]} onPress={() => setKategoriModalVisas(true)} activeOpacity={0.7}>
-            <Text style={[styles.väljarText, !kategori && styles.väljarPlaceholder]}>
-              {kategori || 'Välj kategori...'}
-            </Text>
-            <Ionicons name="chevron-forward" size={18} color="#9ca3af" />
-          </TouchableOpacity>
-          <FältFel text={fel.kategori} />
-          <Text style={styles.hjälp}>
-            Beskriver annonsen. Varje pass kan sedan få en egen roll, t.ex. Liftvärd eller Garderob.
-          </Text>
-
-          {/* Passlistan. Perioden räknas ur passen – inga egna datumfält för den. */}
+          {/* Ingen huvudkategori: rollen sätts per pass i pass-modalen nedan.
+              Passlistan. Perioden räknas ur passen – inga egna datumfält för den. */}
           <View style={styles.passRubrikRad}>
             <Text style={[styles.label, { marginTop: 24 }]}>Pass *</Text>
             {period && (
@@ -447,46 +428,6 @@ export default function PubliceraSchemaScreen({ navigation }) {
         onFortsattUtan={fortsattUtanAbonnemang}
       />
 
-      <Modal visible={kategoriModalVisas} animationType="slide" transparent statusBarTranslucent>
-        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
-          <TouchableOpacity
-            style={styles.backdrop}
-            activeOpacity={1}
-            onPress={() => { setKategoriModalVisas(false); setSokKategori(''); }}
-          />
-          <View style={styles.panel}>
-            <View style={styles.handtag} />
-            <Text style={styles.panelTitel}>Välj huvudkategori</Text>
-            <TextInput
-              style={styles.sokInput}
-              placeholder="Sök kategori..."
-              placeholderTextColor="#9ca3af"
-              value={sokKategori}
-              onChangeText={setSokKategori}
-              autoCorrect={false}
-              autoCapitalize="none"
-              clearButtonMode="while-editing"
-            />
-            <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
-              {filtreradeKategorier.length === 0 ? (
-                <Text style={styles.ingaResultat}>Inga kategorier hittades</Text>
-              ) : (
-                filtreradeKategorier.map((k) => (
-                  <TouchableOpacity
-                    key={k}
-                    style={styles.kategoriRad}
-                    activeOpacity={0.7}
-                    onPress={() => { setKategori(k); rensaFel('kategori'); setKategoriModalVisas(false); setSokKategori(''); }}
-                  >
-                    <Text style={styles.kategoriRadText}>{k}</Text>
-                    {kategori === k && <Ionicons name="checkmark" size={20} color="#2563eb" />}
-                  </TouchableOpacity>
-                ))
-              )}
-            </ScrollView>
-          </View>
-        </KeyboardAvoidingView>
-      </Modal>
     </>
   );
 }

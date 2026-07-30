@@ -4,6 +4,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import { api } from '../api/klient';
 import { useRealtidsPing } from '../context/RealtidsContext';
 import HandlingsKnapp from '../components/HandlingsKnapp';
+import RollBrickor from '../components/RollBrickor';
 
 import { parsaArbetstider, formatDagDatum, formatBricka, passSlutTidpunkt } from '../utils/datumHelper';
 
@@ -155,6 +156,15 @@ export default function MinaPassScreen({ navigation }) {
                     )}
                   </View>
                   <Text style={styles.passForetag} numberOfLines={1}>{item.foretagNamn ?? 'Okänt företag'}</Text>
+                  {/* Vilken avdelning personen är bokad på. Rollen ligger per dag i
+                      arbetstider; det samlade schemakortet visar alla förekommande, ett
+                      enskilt pass sin egen. */}
+                  {(() => {
+                    const roller = [...new Set((schema ?? []).map(d => d.kategori).filter(Boolean))];
+                    return roller.length > 0
+                      ? <RollBrickor roller={roller} max={2} style={{ marginTop: 4 }} />
+                      : null;
+                  })()}
                   {allaDatum.length > 0 ? (
                     <View style={styles.passDetaljer}>
                       {visaDatum.map((d, i) => (
