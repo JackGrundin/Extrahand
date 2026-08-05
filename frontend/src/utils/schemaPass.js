@@ -3,8 +3,8 @@
 
 let räknare = 0;
 
-// Stabilt lokalt id per pass. Markeringarna i steg 3 pekar på id, inte på index – annars
-// följer kryssrutorna fel pass så fort ett pass tas bort eller listan sorteras om.
+// Stabilt lokalt id per pass. Steg 3 pekar ut det öppna passet med id, inte med index –
+// annars fälls fel pass ut så fort ett pass tas bort eller listan sorteras om.
 export function nyttPassId() {
   räknare += 1;
   return `p${räknare}`;
@@ -75,31 +75,12 @@ export function uppdateraFält(pass, idn, fält, värde) {
   });
 }
 
-// Kopierar ett passs tider, roll och OB till andra pass. Datumet rörs aldrig.
-// Ett pass har redan formen { starttid, sluttid, kategori, ob_tillagg }, så källan kan vara
-// ett annat pass rakt av. Tomma fält i källan lämnar målets värde orört.
-export function kopieraTillPass(pass, källa, idn) {
-  const mål = idn instanceof Set ? idn : new Set(idn);
-  if (mål.size === 0 || !källa) return pass;
-
-  return pass.map(p => {
-    if (!mål.has(p.id) || p.id === källa.id) return p;
-    return {
-      ...p,
-      starttid: källa.starttid || p.starttid,
-      sluttid: källa.sluttid || p.sluttid,
-      kategori: källa.kategori?.trim() ? källa.kategori : p.kategori,
-      ob_tillagg: källa.ob_tillagg?.length ? källa.ob_tillagg.map(o => ({ ...o })) : p.ob_tillagg,
-    };
-  });
-}
-
 // Pass-id som krockar på datum + starttid. Backend och valideraSchema avvisar dubbletter,
 // men felet skulle annars dyka upp först vid publicering som ett generiskt meddelande utan
 // att peka ut raden.
 //
 // Krocken är lätt att råka skapa: har en dag två pass (Liftvärd 08–12, Garderob 18–23) och
-// man trycker "Tillämpa på alla" med starttid 08:00 får båda samma starttid.
+// man fyller i samma starttid på båda.
 export function hittaKrockar(pass) {
   const perNyckel = {};
   for (const p of pass) {

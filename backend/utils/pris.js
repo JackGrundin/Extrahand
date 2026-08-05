@@ -65,9 +65,10 @@ function beräknaAvdragFörPass(avdrag, antalPass) {
   const pass = Math.max(Number(antalPass) || 0, 1);
   const rader = (Array.isArray(avdrag) ? avdrag : []).map(a => {
     const belopp = Number(a?.belopp) || 0;
-    const avdraget = a?.typ === 'totalt'
-      ? Math.round((belopp / pass) * 100) / 100
-      : belopp;
+    // Kvoten avrundas INTE till hela ören. Avrundar man här blir summan över passen inte
+    // det företaget skrev in: 5000 / 14 = 357,142857 -> 357,14, gånger 14 = 4999,96.
+    // avdrag_belopp är numeric utan angiven precision, så databasen avrundar inte heller.
+    const avdraget = a?.typ === 'totalt' ? belopp / pass : belopp;
     return {
       avdrag_id: a?.id ?? null,
       namn: a?.namn ?? 'Avdrag',

@@ -14,9 +14,9 @@ import StegIndikator from '../components/StegIndikator';
 import { useAppStateAktiv } from '../utils/useAppStateAktiv';
 import { valideraSchema } from '../utils/schemaValidering';
 import { formatDagDatum, veckodagsNamn, datumIntervall, veckodagsIndex } from '../utils/datumHelper';
-import { synkaPassMotDatum, uppdateraFält, kopieraTillPass, ärKomplett, tillPayload, nyttPassId, sorteraPass, hittaKrockar, harNolltid, antalPassEfterSynk } from '../utils/schemaPass';
+import { synkaPassMotDatum, uppdateraFält, ärKomplett, tillPayload, nyttPassId, sorteraPass, hittaKrockar, harNolltid, antalPassEfterSynk } from '../utils/schemaPass';
 import { api } from '../api/klient';
-import { KATEGORIER, PÅSLAG_GRATIS, beräknaFakturapris, formateraPris, beräknaAvdragFörPass } from '../utils/konstanter';
+import { KATEGORIER, PÅSLAG_GRATIS, beräknaFakturapris, formateraPris, beräknaAvdragFörPass, beräknaAvdragTotalt } from '../utils/konstanter';
 
 const STEG_ETIKETTER = ['Grunduppgifter', 'Period och datum', 'Detaljer per pass', 'Avdrag och publicering'];
 const VECKODAGAR = ['Mån', 'Tis', 'Ons', 'Tors', 'Fre', 'Lör', 'Sön'];
@@ -49,7 +49,6 @@ export default function PubliceraSchemaScreen({ navigation }) {
 
   // Steg 3
   const [pass, setPass] = useState([]);
-  const [markerade, setMarkerade] = useState(() => new Set());
   const [öppetPassId, setÖppetPassId] = useState(null);
   const [egnaKategorier, setEgnaKategorier] = useState([]);
   const [passModalVisas, setPassModalVisas] = useState(false);
@@ -190,25 +189,13 @@ export default function PubliceraSchemaScreen({ navigation }) {
   const nolltider = useMemo(() => new Set(pass.filter(harNolltid).map(p => p.id)), [pass]);
   const ofullständiga = useMemo(() => pass.filter(p => !ärKomplett(p)).length, [pass]);
 
-  // Härled ur pass i stället för att lita på markerade-mängden. Tas ett pass bort när
-  // perioden krymps ligger dess id kvar i markerade, och en räknare byggd på markerade.size
-  // skulle då visa spöken. Härledningen gör döda id harmlösa per konstruktion.
-  const markeradePass = useMemo(() => pass.filter(p => markerade.has(p.id)), [pass, markerade]);
-  const alltMarkerat = pass.length > 0 && markeradePass.length === pass.length;
+  // Härled ur pass i stället för att lita på öppetPassId. Tas passet bort när perioden
+  // krymps blir öppetPass null av sig självt, och editorn slutar renderas utan upprensning.
   const öppetPass = pass.find(p => p.id === öppetPassId) ?? null;
-  const kanKopiera = Boolean(öppetPass) && markeradePass.some(p => p.id !== öppetPassId);
 
   // Fälls editorn ut långt ner hamnar den bakom tangentbordet. Skrolla fram den.
   function scrollaFramEditor(y) {
     if (y > 0) scrollRef.current?.scrollTo({ y: Math.max(y - 120, 0), animated: true });
-  }
-
-  function växlaMarkerad(id) {
-    setMarkerade(prev => {
-      const nästa = new Set(prev);
-      if (nästa.has(id)) nästa.delete(id); else nästa.add(id);
-      return nästa;
-    });
   }
 
   // Skriver ett fält till ETT pass. Sorterar medvetet INTE om listan: starttiden ingår i
@@ -217,28 +204,6 @@ export default function PubliceraSchemaScreen({ navigation }) {
   function ändraPass(id, fält, värde) {
     setPass(prev => uppdateraFält(prev, [id], fält, värde));
     rensaFel('pass');
-  }
-
-  // Kopierar det öppna passets tider, roll och OB till de markerade. Explicit knapptryck,
-  // inte livesparande – det är det som gör att en massändring aldrig sker av misstag.
-  function kopieraTillMarkerade() {
-    if (!öppetPass) return;
-    const mål = markeradePass.filter(p => p.id !== öppetPassId);
-    if (!mål.length) return;
-
-    const uppdaterade = kopieraTillPass(pass, öppetPass, mål.map(p => p.id));
-    setPass(uppdaterade);
-    rensaFel('pass');
-
-    // Att ge flera pass samma starttid är den troligaste vägen till en krock när två pass
-    // ligger samma dag. Säg det direkt i stället för att låta det dyka upp i steg 4.
-    const nyaKrockar = hittaKrockar(uppdaterade);
-    Alert.alert(
-      `${mål.length} pass uppdaterade`,
-      nyaKrockar.size > 0
-        ? `${nyaKrockar.size} pass har nu samma datum och starttid som ett annat. De är rödmarkerade i listan.`
-        : 'Tider, roll och OB kopierades.'
-    );
   }
 
   function öppnaRedigera(p) {
@@ -267,7 +232,6 @@ export default function PubliceraSchemaScreen({ navigation }) {
 
   function taBortPass(id) {
     setPass(prev => prev.filter(p => p.id !== id));
-    setMarkerade(prev => { const n = new Set(prev); n.delete(id); return n; });
     // Datumet ska också bort ur kalendern om det var dagens sista pass.
     setValdaDatum(prev => {
       const kvar = pass.filter(p => p.id !== id);
@@ -292,6 +256,7 @@ export default function PubliceraSchemaScreen({ navigation }) {
   }
 
   const avdragPerPass = beräknaAvdragFörPass(avdrag, pass.length);
+  const avdragTotalt = beräknaAvdragTotalt(avdrag, pass.length);
 
   // ------------------------------------------------------- Navigering
 
@@ -327,9 +292,6 @@ export default function PubliceraSchemaScreen({ navigation }) {
       const nyaPass = synkaPassMotDatum(valdaDatum, pass);
       const fortsätt = () => {
         setPass(nyaPass);
-        // Markeringar som pekar på borttagna pass ska inte ligga kvar och räknas.
-        const kvar = new Set(nyaPass.map(p => p.id));
-        setMarkerade(prev => new Set([...prev].filter(id => kvar.has(id))));
         gåVidare();
       };
 
@@ -583,8 +545,7 @@ export default function PubliceraSchemaScreen({ navigation }) {
               <View style={styles.hjälpRuta}>
                 <Ionicons name="information-circle-outline" size={18} color="#0369a1" />
                 <Text style={styles.hjälpText}>
-                  Tryck på ett pass för att fylla i tider, roll och OB. Vill du ge flera pass
-                  samma innehåll: kryssa i dem och tryck "Kopiera till markerade".
+                  Tryck på ett pass för att fylla i tider, roll och OB.
                 </Text>
               </View>
 
@@ -596,26 +557,6 @@ export default function PubliceraSchemaScreen({ navigation }) {
                 </View>
               </View>
 
-              <View style={styles.massRad}>
-                <TouchableOpacity
-                  style={styles.massKnapp}
-                  onPress={() => setMarkerade(alltMarkerat ? new Set() : new Set(pass.map(p => p.id)))}
-                  activeOpacity={0.8}
-                >
-                  <Text style={styles.massText}>{alltMarkerat ? 'Avmarkera alla' : 'Markera alla'}</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={[styles.massKnapp, styles.massPrimär, !kanKopiera && styles.massInaktiv]}
-                  onPress={kopieraTillMarkerade}
-                  disabled={!kanKopiera}
-                  activeOpacity={0.8}
-                >
-                  <Text style={[styles.massText, styles.massPrimärText]}>
-                    Kopiera till markerade ({markeradePass.length})
-                  </Text>
-                </TouchableOpacity>
-              </View>
-
               <View style={styles.passLista}>
                 {pass.map(p => {
                   const fel = krockar.has(p.id) || nolltider.has(p.id);
@@ -623,12 +564,6 @@ export default function PubliceraSchemaScreen({ navigation }) {
                   return (
                     <View key={p.id}>
                       <View style={[styles.passRad, fel && styles.passRadFel, öppet && styles.passRadÖppen]}>
-                        <TouchableOpacity onPress={() => växlaMarkerad(p.id)} hitSlop={8} style={styles.kryssruta}>
-                          <View style={[styles.kryss, markerade.has(p.id) && styles.kryssAktiv]}>
-                            {markerade.has(p.id) && <Ionicons name="checkmark" size={13} color="#fff" />}
-                          </View>
-                        </TouchableOpacity>
-
                         <TouchableOpacity
                           style={styles.passInnehåll}
                           onPress={() => setÖppetPassId(öppet ? null : p.id)}
@@ -778,7 +713,7 @@ export default function PubliceraSchemaScreen({ navigation }) {
                 <View style={styles.avdragSummering}>
                   <Text style={styles.avdragSummeringText}>
                     Vid {pass.length} pass dras {formateraPris(avdragPerPass)} kr per pass,
-                    totalt {formateraPris(avdragPerPass * pass.length)} kr från lönen.
+                    totalt {formateraPris(avdragTotalt)} kr från lönen.
                   </Text>
                 </View>
               )}
@@ -883,12 +818,6 @@ const styles = StyleSheet.create({
   hjälpText: { flex: 1, fontSize: 13, color: '#0369a1', lineHeight: 18 },
 
   rubrikHöger: { flexDirection: 'row', gap: 10 },
-  massRad: { flexDirection: 'row', gap: 8, marginBottom: 10 },
-  massKnapp: { flex: 1, borderWidth: 1.5, borderColor: '#2563eb', borderRadius: 10, paddingVertical: 11, alignItems: 'center' },
-  massText: { fontSize: 13, color: '#2563eb', fontWeight: '600' },
-  massPrimär: { backgroundColor: '#2563eb', borderColor: '#2563eb' },
-  massPrimärText: { color: '#fff' },
-  massInaktiv: { opacity: 0.4 },
 
   passRadÖppen: { backgroundColor: '#eff6ff' },
   editor: { backgroundColor: '#f8faff', paddingHorizontal: 12, paddingBottom: 14, borderBottomWidth: 1, borderBottomColor: '#e5e7eb' },
@@ -900,9 +829,6 @@ const styles = StyleSheet.create({
   varning: { fontSize: 12, color: '#c2410c', fontWeight: '700', marginBottom: 6 },
   passLista: { borderWidth: 1, borderColor: '#e5e7eb', borderRadius: 12, overflow: 'hidden' },
   passRad: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 8, paddingVertical: 9, borderBottomWidth: 1, borderBottomColor: '#f3f4f6', backgroundColor: '#fafafa' },
-  kryssruta: { padding: 6 },
-  kryss: { width: 20, height: 20, borderRadius: 5, borderWidth: 2, borderColor: '#2563eb', alignItems: 'center', justifyContent: 'center' },
-  kryssAktiv: { backgroundColor: '#2563eb' },
   passInnehåll: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 10 },
   passDatum: { width: 66 },
   passVeckodag: { fontSize: 11, color: '#9ca3af', textTransform: 'uppercase', fontWeight: '600' },

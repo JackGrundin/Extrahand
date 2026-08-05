@@ -145,7 +145,22 @@ export function beräknaAvdragFörPass(avdrag, antalPass) {
   const pass = Math.max(Number(antalPass) || 0, 1);
   return (Array.isArray(avdrag) ? avdrag : []).reduce((sum, a) => {
     const belopp = Number(a?.belopp) || 0;
-    return sum + (a?.typ === 'totalt' ? Math.round((belopp / pass) * 100) / 100 : belopp);
+    // Kvoten avrundas INTE till hela ören – se backend/utils/pris.js. Avrundar man här blir
+    // summan över passen inte det företaget skrev in: 5000 / 14 gånger 14 = 4999,96.
+    return sum + (a?.typ === 'totalt' ? belopp / pass : belopp);
+  }, 0);
+}
+
+// Vad avdragen summerar till över HELA schemat, räknat ur de inskrivna beloppen.
+//
+// Räkna aldrig ut totalen genom att multiplicera tillbaka avdraget per pass. Det var
+// precis så "5000 kr" blev "4999,96 kr" i steg 4, och det blir fel igen så fort någon
+// återinför en avrundning i fördelningen.
+export function beräknaAvdragTotalt(avdrag, antalPass) {
+  const pass = Math.max(Number(antalPass) || 0, 1);
+  return (Array.isArray(avdrag) ? avdrag : []).reduce((sum, a) => {
+    const belopp = Number(a?.belopp) || 0;
+    return sum + (a?.typ === 'totalt' ? belopp : belopp * pass);
   }, 0);
 }
 
