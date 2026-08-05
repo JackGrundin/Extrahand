@@ -205,7 +205,7 @@ export default function MinaJobbScreen({ navigation, route }) {
           onPress={() => setAktivFlik('aktiva')}
         >
           <Text style={[styles.flikText, aktivFlik === 'aktiva' && styles.flikTextAktiv]}>
-            Aktiva ({huvudAktiva.length})
+            Pass ({huvudAktiva.length})
           </Text>
         </TouchableOpacity>
         <TouchableOpacity
@@ -221,7 +221,7 @@ export default function MinaJobbScreen({ navigation, route }) {
           onPress={() => setAktivFlik('tidigare')}
         >
           <Text style={[styles.flikText, aktivFlik === 'tidigare' && styles.flikTextAktiv]}>
-            Tidigare pass ({tidigareLista.length})
+            Historik ({tidigareLista.length})
           </Text>
         </TouchableOpacity>
       </View>
