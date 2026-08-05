@@ -38,6 +38,21 @@ export function synkaPassMotDatum(valdaDatum, befintligaPass) {
   return sorteraPass([...kvar, ...nya]);
 }
 
+// Hur många pass synkaPassMotDatum SKULLE ge, utan att skapa dem. Samma regel: bevarade
+// pass plus valda datum som ännu inte har något pass.
+//
+// Behövs eftersom antalet valda DATUM inte är antalet PASS – en dag kan ha två pass, så
+// efter en tur till passteget och tillbaka skiljer sig talen åt.
+//
+// Räkna ALDRIG genom att anropa synkaPassMotDatum. Den kallar nyttPassId(), som räknar upp
+// en modulnivåräknare, så ett anrop i en useMemo skulle bränna id vid varje omrendering.
+export function antalPassEfterSynk(valdaDatum, befintligaPass) {
+  const valda = valdaDatum instanceof Set ? valdaDatum : new Set(valdaDatum);
+  const kvar = befintligaPass.filter(p => valda.has(p.datum));
+  const datumMedPass = new Set(kvar.map(p => p.datum));
+  return kvar.length + [...valda].filter(d => !datumMedPass.has(d)).length;
+}
+
 // Skriver ETT fält till ett eller flera pass. Övriga fält och övriga pass rörs inte.
 // Används av inline-editorn, som alltid skriver till exakt ett pass.
 //

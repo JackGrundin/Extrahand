@@ -14,7 +14,7 @@ import StegIndikator from '../components/StegIndikator';
 import { useAppStateAktiv } from '../utils/useAppStateAktiv';
 import { valideraSchema } from '../utils/schemaValidering';
 import { formatDagDatum, veckodagsNamn, datumIntervall, veckodagsIndex } from '../utils/datumHelper';
-import { synkaPassMotDatum, uppdateraFält, kopieraTillPass, ärKomplett, tillPayload, nyttPassId, sorteraPass, hittaKrockar, harNolltid } from '../utils/schemaPass';
+import { synkaPassMotDatum, uppdateraFält, kopieraTillPass, ärKomplett, tillPayload, nyttPassId, sorteraPass, hittaKrockar, harNolltid, antalPassEfterSynk } from '../utils/schemaPass';
 import { api } from '../api/klient';
 import { KATEGORIER, PÅSLAG_GRATIS, beräknaFakturapris, formateraPris, beräknaAvdragFörPass } from '../utils/konstanter';
 
@@ -179,6 +179,10 @@ export default function PubliceraSchemaScreen({ navigation }) {
       return { år: ny.getFullYear(), månad: ny.getMonth() };
     });
   }
+
+  // Antalet pass steg 3 kommer att innehålla. Inte samma sak som valdaDatum.size, eftersom
+  // en dag kan ha flera pass – därför visar Nästa-knappen det här talet, inte antalet datum.
+  const antalPass = useMemo(() => antalPassEfterSynk(valdaDatum, pass), [valdaDatum, pass]);
 
   // ---------------------------------------------------------- Steg 3: pass
 
@@ -522,6 +526,16 @@ export default function PubliceraSchemaScreen({ navigation }) {
 
               {periodDatum.length > 0 && (
                 <>
+                  <View style={styles.rubrikRad}>
+                    <Text style={[styles.label, styles.labelIRad]}>Välj passdatum *</Text>
+                    <View style={[styles.räknarePill, valdaDatum.size > 0 && styles.räknarePillAktiv]}>
+                      <Text style={[styles.räknareText, valdaDatum.size > 0 && styles.räknareTextAktiv]}>
+                        {valdaDatum.size === 0 ? 'Inga datum valda' : `${valdaDatum.size} datum valda`}
+                      </Text>
+                    </View>
+                  </View>
+                  <Text style={styles.datumHjälpText}>Tryck på de datum du vill ha pass.</Text>
+
                   <Text style={styles.label}>Snabbval</Text>
                   <View style={styles.chipRad}>
                     {VECKODAGAR.map((namn, i) => (
@@ -554,9 +568,6 @@ export default function PubliceraSchemaScreen({ navigation }) {
                     />
                   </View>
 
-                  <Text style={styles.räknare}>
-                    {valdaDatum.size === 0 ? 'Inga datum valda ännu' : `${valdaDatum.size} datum valda`}
-                  </Text>
                   <FältFel text={fel.datum} />
                 </>
               )}
@@ -792,7 +803,11 @@ export default function PubliceraSchemaScreen({ navigation }) {
           )}
           {steg < 4 ? (
             <TouchableOpacity style={styles.nästaKnapp} onPress={nästa} activeOpacity={0.8}>
-              <Text style={styles.nästaText}>Nästa</Text>
+              {/* Antalet bara i datumsteget, där det säger något. "(0 pass)" vore
+                  meningslöst – nästa blockerar ändå med fel.datum. */}
+              <Text style={styles.nästaText}>
+                {steg === 2 && antalPass > 0 ? `Nästa (${antalPass} pass)` : 'Nästa'}
+              </Text>
               <Ionicons name="chevron-forward" size={18} color="#fff" />
             </TouchableOpacity>
           ) : (
@@ -855,7 +870,14 @@ const styles = StyleSheet.create({
   chipRensa: { backgroundColor: '#f3f4f6', borderRadius: 8, paddingHorizontal: 16, paddingVertical: 7 },
   chipRensaText: { fontSize: 13, color: '#6b7280', fontWeight: '600' },
   kalenderRam: { borderWidth: 1, borderColor: '#e5e7eb', borderRadius: 12, overflow: 'hidden', marginTop: 14 },
-  räknare: { fontSize: 13, color: '#2563eb', fontWeight: '700', marginTop: 10, textAlign: 'center' },
+  rubrikRad: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
+  labelIRad: { marginBottom: 0 },
+  datumHjälpText: { fontSize: 13, color: '#6b7280', marginTop: 4 },
+  // Neutral när inget är valt, så en tom räknare inte ser ut som ett ifyllt tillstånd.
+  räknarePill: { backgroundColor: '#f3f4f6', borderRadius: 20, paddingHorizontal: 12, paddingVertical: 6, marginTop: 16 },
+  räknarePillAktiv: { backgroundColor: '#eff6ff' },
+  räknareText: { fontSize: 13, color: '#9ca3af', fontWeight: '700' },
+  räknareTextAktiv: { color: '#2563eb' },
 
   hjälpRuta: { flexDirection: 'row', gap: 8, backgroundColor: '#f0f9ff', borderRadius: 10, padding: 12, marginTop: 16, borderWidth: 1, borderColor: '#bae6fd' },
   hjälpText: { flex: 1, fontSize: 13, color: '#0369a1', lineHeight: 18 },

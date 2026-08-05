@@ -114,6 +114,11 @@ export default function MånadsKalender({
               <View style={[
                 styles.dagRuta,
                 ärIdag && styles.dagRutaIdag,
+                // Ljus fyllning på allt valbart, bara i flervalsläge. Utan den syns det
+                // inte att rutnätet går att trycka i – en ovald dag vore enbart en siffra.
+                // De släckta datumen utanför perioden får medvetet ingen fyllning, så
+                // kontrasten mot dem visar var man kan trycka.
+                valda && !släckt && !ärVald && styles.dagRutaValbar,
                 ärVald && styles.dagRutaVald,
               ]}>
                 <Text style={[
@@ -126,6 +131,14 @@ export default function MånadsKalender({
                 ]}>
                   {dag}
                 </Text>
+                {/* Bockraden har fast höjd och renderas för ALLA celler i flervalsläge.
+                    dagRuta centrerar sitt innehåll, så om raden bara fanns på valda dagar
+                    skulle dagsiffran hoppa uppåt vid varje tryck. */}
+                {valda && (
+                  <View style={styles.bockRad}>
+                    {ärVald && <Ionicons name="checkmark" size={10} color="#fff" />}
+                  </View>
+                )}
                 {roller.length > 0 && (
                   <View style={styles.prickRad}>
                     {roller.slice(0, MAX_PRICKAR).map(roll => (
@@ -171,7 +184,9 @@ const styles = StyleSheet.create({
   cell: { flexBasis: '14.2857%', aspectRatio: 1, alignItems: 'center', justifyContent: 'center' },
   dagRuta: { width: 38, height: 38, borderRadius: 19, alignItems: 'center', justifyContent: 'center' },
   dagRutaIdag: { borderWidth: 1.5, borderColor: '#2563eb' },
+  dagRutaValbar: { backgroundColor: '#f1f5f9' },
   dagRutaVald: { backgroundColor: '#2563eb' },
+  bockRad: { height: 12, justifyContent: 'center' },
   dagText: { fontSize: 15, color: '#1a1a1a', fontWeight: '500' },
   dagTextVald: { color: '#fff', fontWeight: '700' },
   dagTextTom: { color: '#9ca3af', fontWeight: '400' },
