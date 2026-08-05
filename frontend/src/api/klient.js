@@ -112,6 +112,7 @@ export const api = {
   hämtaScheman: () => anrop('GET', '/scheman'),
   hämtaSchema: (id) => anrop('GET', `/scheman/${id}`),
   minaScheman: () => anrop('GET', '/scheman/mina'),
+  markeraSchemaAnsökningarSedda: (schemaId) => anrop('POST', `/scheman/${schemaId}/markera-ansokningar-sedda`, {}),
   minaSchemaPass: () => anrop('GET', '/scheman/mina-pass'),
   uppdateraSchema: (id, kropp) => anrop('PUT', `/scheman/${id}`, kropp),
   ersättPersonISchema: (id, nyAnvandareId) => anrop('PATCH', `/scheman/${id}/ersatt`, { ny_anvandare_id: nyAnvandareId }),

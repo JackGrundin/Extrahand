@@ -106,7 +106,47 @@ async function hämtaSchemanFörFöretag(foretag_id) {
   if (error) throw error;
   if (!scheman || !scheman.length) return [];
 
-  return berikaMedPassOchFöretag(scheman);
+  return berikaMedNyaAnsökningar(await berikaMedPassOchFöretag(scheman));
+}
+
+// Antal olästa ansökningar per schema, med samma regel som filtreraAktivaJobb i db/jobb.js:
+// ny = ansökans created_at är senare än företagets stämpel, och NULL-stämpel (aldrig öppnat)
+// betyder att alla är nya.
+//
+// Ingen egen kolumn behövs: schemats ansökningar ligger på annons-jobbet, som är en vanlig
+// Jobb-rad, så Jobb.ansokningar_sedda_at gäller redan för dem.
+//
+// Tillsatta scheman räknas inte alls. Ett vanligt jobb försvinner ur listan så fort någon
+// godkänts, men schemat ligger kvar – utan villkoret hade badgen tjatat om ansökningar på
+// scheman som redan är bemannade. Hoppar personen av nollas anvandare_id och räkningen
+// börjar om av sig själv.
+//
+// Separat steg, inte inbakat i berikaMedPassOchFöretag: den delas med hämtaÖppnaScheman och
+// andra vyer där ett ansökningsantal inte hör hemma.
+async function berikaMedNyaAnsökningar(scheman) {
+  const sökande = scheman.filter(s => s.annons_jobb_id && s.anvandare_id == null);
+  if (!sökande.length) return scheman.map(s => ({ ...s, nyaAnsökningar: 0 }));
+
+  const jobbIds = sökande.map(s => s.annons_jobb_id);
+  const [{ data: annonsJobb }, { data: ansokningar }] = await Promise.all([
+    supabase.from('Jobb').select('id, ansokningar_sedda_at').in('id', jobbIds),
+    supabase.from('ansokningar').select('jobb_id, created_at').in('jobb_id', jobbIds),
+  ]);
+
+  const seddMap = Object.fromEntries((annonsJobb || []).map(j => [j.id, j.ansokningar_sedda_at]));
+  const nyaPerJobb = {};
+  for (const a of (ansokningar || [])) {
+    const sedd = seddMap[a.jobb_id];
+    if (!sedd || new Date(a.created_at) > new Date(sedd)) {
+      nyaPerJobb[a.jobb_id] = (nyaPerJobb[a.jobb_id] || 0) + 1;
+    }
+  }
+
+  const sökandeIds = new Set(sökande.map(s => s.id));
+  return scheman.map(s => ({
+    ...s,
+    nyaAnsökningar: sökandeIds.has(s.id) ? (nyaPerJobb[s.annons_jobb_id] || 0) : 0,
+  }));
 }
 
 // Distinkta roller i en passlista, sorterade på hur många pass som har dem. Samma mönster

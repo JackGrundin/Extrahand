@@ -19,16 +19,22 @@ export function AttAvslutaProvider({ children }) {
   // Självständig hämtning som kan seedas vid inloggning, innan Mina jobb-fliken öppnats.
   const uppdateraAttAvsluta = useCallback(async () => {
     try {
-      const [jobb, tidigareJobb, rapporter] = await Promise.all([
+      const [jobb, tidigareJobb, rapporter, scheman] = await Promise.all([
         api.minaJobb(),
         api.minaTidigareJobb(),
         api.tidrapporterFörFöretag(),
+        api.minaScheman(),
       ]);
       const avslutadeJobbIds = new Set((rapporter ?? []).map(p => p.jobbId).filter(Boolean));
       const aktiva = [...(jobb ?? []), ...(tidigareJobb ?? [])].filter(j => !avslutadeJobbIds.has(j.id));
       setAntalAttAvsluta(aktiva.filter(j => behöverAvslutas(j.arbetstider) && j.harGodkänd).length);
-      // Nya ansökningar räknas per jobb av backend (nyaAnsökningar) – summera för badgen.
-      setAntalNyaAnsökningar((jobb ?? []).reduce((sum, j) => sum + (j.nyaAnsökningar || 0), 0));
+      // Nya ansökningar räknas per jobb och per schema av backend (nyaAnsökningar) – summera
+      // för badgen. Ingen dubbelräkning: schemats annons-jobb filtreras bort ur minaJobb()
+      // med .is('schema_id', null), så det kan bara komma in via scheman-listan.
+      setAntalNyaAnsökningar(
+        (jobb ?? []).reduce((sum, j) => sum + (j.nyaAnsökningar || 0), 0) +
+        (scheman ?? []).reduce((sum, s) => sum + (s.nyaAnsökningar || 0), 0)
+      );
     } catch {
       // Behåll tidigare värde vid fel så badgen inte blinkar bort.
     }

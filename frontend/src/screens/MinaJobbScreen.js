@@ -243,6 +243,16 @@ export default function MinaJobbScreen({ navigation, route }) {
               onPress={() => navigation.navigate('SchemaDetalj', { schemaId: item.id })}
               activeOpacity={0.85}
             >
+              {/* Samma markering som jobbkortet under Pass – backend räknar bara nya
+                  ansökningar på scheman som fortfarande söker person. */}
+              {item.nyaAnsökningar > 0 && (
+                <View style={styles.nyaAnsBadge}>
+                  <Ionicons name="person-add" size={13} color="#fff" />
+                  <Text style={styles.nyaAnsBadgeText}>
+                    {item.nyaAnsökningar} {item.nyaAnsökningar === 1 ? 'ny ansökan' : 'nya ansökningar'}
+                  </Text>
+                </View>
+              )}
               <Text style={styles.titel} numberOfLines={1}>{item.titel}</Text>
               <View style={styles.infoRad}>
                 <Text style={styles.info}>

@@ -18,7 +18,7 @@ const {
 } = require('../db/scheman');
 const { GILTIGA_TYPER: AVDRAGSTYPER, skapaAvdrag, hämtaAktivaAvdrag, avaktiveraAvdrag } = require('../db/schemaAvdrag');
 const { tilldelaSchema, frigörFramtidaPass, återställSchema } = require('../db/schemaTilldelning');
-const { skapaJobb, räknaJobbDennaMånad, sättJobbPåslag, hämtaJobbFörFöretag } = require('../db/jobb');
+const { skapaJobb, räknaJobbDennaMånad, sättJobbPåslag, hämtaJobbFörFöretag, markeraAnsökningarSedda } = require('../db/jobb');
 const { hämtaAnsökningarFörJobb, uppdateraStatus, hämtaGodkändaFörFleraJobb, hämtaNamnFörAnvändare } = require('../db/ansokningar');
 const { hämtaPrenumeration, ärPro, harGjortPlanval, sättPlanvalGjort, minskaPassDennaManad } = require('../db/prenumeration');
 const { hämtaPrivatpersonerIStad, hämtaPushToken, hämtaAnvändareViaId } = require('../db/användare');
@@ -373,6 +373,29 @@ router.get('/:id/avdrag', kräverInloggning, async (req, res) => {
   } catch (fel) {
     console.error('Fel vid hämtning av avdrag:', fel);
     res.status(500).json({ fel: 'Serverfel vid hämtning av avdrag' });
+  }
+});
+
+// POST /api/scheman/:id/markera-ansokningar-sedda — nollställer räknaren för nya
+// ansökningar på ett schema (anropas när företaget öppnar schemat och ser ansökningarna).
+//
+// Stämpeln sitter på annons-jobbet, inte på schemat: schemats ansökningar är vanliga rader
+// mot den Jobb-raden, så samma markeraAnsökningarSedda som vanliga jobb använder gäller här.
+router.post('/:id/markera-ansokningar-sedda', kräverInloggning, kräverTyp('företag'), async (req, res) => {
+  try {
+    const schema = await hämtaSchemaViaId(req.params.id);
+    if (!schema) return res.status(404).json({ fel: 'Schemat hittades inte' });
+    if (String(schema.foretag_id) !== String(req.användare.id)) {
+      return res.status(403).json({ fel: 'Åtkomst nekad' });
+    }
+    // Utan annons kan schemat inte ha några ansökningar – inget att stämpla.
+    if (schema.annons_jobb_id) {
+      await markeraAnsökningarSedda(schema.annons_jobb_id, req.användare.id);
+    }
+    res.json({ ok: true });
+  } catch (fel) {
+    console.error('Fel vid markering av sedda schemaansökningar:', fel);
+    res.status(500).json({ fel: 'Serverfel' });
   }
 });
 

@@ -4,6 +4,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../context/AuthContext';
 import { useRealtidsPing } from '../context/RealtidsContext';
+import { useAttAvsluta } from '../context/AttAvslutaContext';
 import { api } from '../api/klient';
 import { parsaObTillagg, beräknaObBelopp, formatDagDatum, veckodagsNamn } from '../utils/datumHelper';
 import { beräknaFakturapris, formateraPris, beräknaAvdragFörPass } from '../utils/konstanter';
@@ -31,6 +32,8 @@ export default function SchemaDetaljScreen({ route, navigation }) {
   const [avdragBelopp, setAvdragBelopp] = useState('');
   const [avdragTyp, setAvdragTyp] = useState('per_dag');
 
+  const { uppdateraAttAvsluta } = useAttAvsluta();
+
   const ärFöretag = användare?.typ === 'företag';
   const påslag = useJobbPåslag(schema?.paslag, ärFöretag);
 
@@ -47,6 +50,16 @@ export default function SchemaDetaljScreen({ route, navigation }) {
 
   useFocusEffect(useCallback(() => { hämta(); }, [hämta]));
   useRealtidsPing(() => { hämta(); });
+
+  // Att företaget öppnar schemat räknas som att ansökningarna setts – de visas här nere på
+  // sidan. Nollställ räknaren och uppdatera badgen direkt, i stället för att vänta på nästa
+  // hämtning. Bara för företag: backend avvisar ändå andra, så anropet vore meningslöst.
+  useFocusEffect(useCallback(() => {
+    if (!ärFöretag) return;
+    api.markeraSchemaAnsökningarSedda(schemaId)
+      .then(() => uppdateraAttAvsluta())
+      .catch(() => {});
+  }, [schemaId, ärFöretag, uppdateraAttAvsluta]));
 
   function öppnaKarta() {
     if (!schema?.adress) return;
