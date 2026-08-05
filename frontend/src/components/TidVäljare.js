@@ -18,14 +18,20 @@ function datumTillSträng(date) {
 export default function TidVäljare({ value, onChange, placeholder = 'HH:MM', style }) {
   const [visas, setVisas] = useState(false);
   const [tempTid, setTempTid] = useState(() => strängTillDatum(value));
+  // Spåra om användaren faktiskt rört hjulet. Ett tomt fält seedas till 08:00
+  // (strängTillDatum), så utan den här flaggan skulle "öppna och trycka Klar utan att
+  // ändra något" tyst sätta 08:00 – vilket blir riktigt illa när ett tryck skriver till
+  // flera pass samtidigt.
+  const [rördes, setRördes] = useState(false);
 
   function öppna() {
     setTempTid(strängTillDatum(value));
+    setRördes(false);
     setVisas(true);
   }
 
   function bekräfta() {
-    onChange(datumTillSträng(tempTid));
+    if (rördes) onChange(datumTillSträng(tempTid));
     setVisas(false);
   }
 
@@ -65,7 +71,7 @@ export default function TidVäljare({ value, onChange, placeholder = 'HH:MM', st
               mode="time"
               display="spinner"
               is24Hour
-              onChange={(_, date) => date && setTempTid(date)}
+              onChange={(_, date) => { if (date) { setTempTid(date); setRördes(true); } }}
               locale="sv-SE"
               // Utan detta blir spinnern vit text mot den vita panelen i mörkt läge.
               themeVariant="light"

@@ -14,7 +14,7 @@ import StegIndikator from '../components/StegIndikator';
 import { useAppStateAktiv } from '../utils/useAppStateAktiv';
 import { valideraSchema } from '../utils/schemaValidering';
 import { formatDagDatum, veckodagsNamn, datumIntervall, veckodagsIndex } from '../utils/datumHelper';
-import { synkaPassMotDatum, tillämpaStandard, ärKomplett, tillPayload, nyttPassId, sorteraPass, hittaKrockar, harNolltid } from '../utils/schemaPass';
+import { synkaPassMotDatum, uppdateraFält, kopieraTillPass, ärKomplett, tillPayload, nyttPassId, sorteraPass, hittaKrockar, harNolltid } from '../utils/schemaPass';
 import { api } from '../api/klient';
 import { KATEGORIER, PÅSLAG_GRATIS, beräknaFakturapris, formateraPris, beräknaAvdragFörPass } from '../utils/konstanter';
 
@@ -50,7 +50,7 @@ export default function PubliceraSchemaScreen({ navigation }) {
   // Steg 3
   const [pass, setPass] = useState([]);
   const [markerade, setMarkerade] = useState(() => new Set());
-  const [standard, setStandard] = useState({ starttid: '', sluttid: '', kategori: '', ob_tillagg: [] });
+  const [öppetPassId, setÖppetPassId] = useState(null);
   const [egnaKategorier, setEgnaKategorier] = useState([]);
   const [passModalVisas, setPassModalVisas] = useState(false);
   const [redigerarId, setRedigerarId] = useState(null);
@@ -184,7 +184,20 @@ export default function PubliceraSchemaScreen({ navigation }) {
 
   const krockar = useMemo(() => hittaKrockar(pass), [pass]);
   const nolltider = useMemo(() => new Set(pass.filter(harNolltid).map(p => p.id)), [pass]);
-  const ofullständiga = pass.filter(p => !ärKomplett(p)).length;
+  const ofullständiga = useMemo(() => pass.filter(p => !ärKomplett(p)).length, [pass]);
+
+  // Härled ur pass i stället för att lita på markerade-mängden. Tas ett pass bort när
+  // perioden krymps ligger dess id kvar i markerade, och en räknare byggd på markerade.size
+  // skulle då visa spöken. Härledningen gör döda id harmlösa per konstruktion.
+  const markeradePass = useMemo(() => pass.filter(p => markerade.has(p.id)), [pass, markerade]);
+  const alltMarkerat = pass.length > 0 && markeradePass.length === pass.length;
+  const öppetPass = pass.find(p => p.id === öppetPassId) ?? null;
+  const kanKopiera = Boolean(öppetPass) && markeradePass.some(p => p.id !== öppetPassId);
+
+  // Fälls editorn ut långt ner hamnar den bakom tangentbordet. Skrolla fram den.
+  function scrollaFramEditor(y) {
+    if (y > 0) scrollRef.current?.scrollTo({ y: Math.max(y - 120, 0), animated: true });
+  }
 
   function växlaMarkerad(id) {
     setMarkerade(prev => {
@@ -194,27 +207,34 @@ export default function PubliceraSchemaScreen({ navigation }) {
     });
   }
 
-  function tillämpa(påMarkerade) {
-    if (!standard.starttid && !standard.sluttid && !standard.kategori?.trim() && !standard.ob_tillagg?.length) {
-      return Alert.alert('Inget att tillämpa', 'Fyll i tider, roll eller OB i standardrutan först.');
-    }
-    if (påMarkerade && markerade.size === 0) {
-      return Alert.alert('Inga pass markerade', 'Kryssa i de pass du vill ändra.');
-    }
-    const antal = påMarkerade ? markerade.size : pass.length;
-    const uppdaterade = tillämpaStandard(pass, standard, påMarkerade ? [...markerade] : null);
+  // Skriver ett fält till ETT pass. Sorterar medvetet INTE om listan: starttiden ingår i
+  // sorteringen, så en omsortering mitt i redigeringen skulle få raden att hoppa bort under
+  // fingret. tillPayload sorterar ändå innan schemat skickas.
+  function ändraPass(id, fält, värde) {
+    setPass(prev => uppdateraFält(prev, [id], fält, värde));
+    rensaFel('pass');
+  }
+
+  // Kopierar det öppna passets tider, roll och OB till de markerade. Explicit knapptryck,
+  // inte livesparande – det är det som gör att en massändring aldrig sker av misstag.
+  function kopieraTillMarkerade() {
+    if (!öppetPass) return;
+    const mål = markeradePass.filter(p => p.id !== öppetPassId);
+    if (!mål.length) return;
+
+    const uppdaterade = kopieraTillPass(pass, öppetPass, mål.map(p => p.id));
     setPass(uppdaterade);
     rensaFel('pass');
 
-    // En dag med två pass får samma starttid av "Tillämpa på alla" och blir opublicerbar.
-    // Säg det direkt i stället för att låta det dyka upp som ett generiskt fel i steg 4.
+    // Att ge flera pass samma starttid är den troligaste vägen till en krock när två pass
+    // ligger samma dag. Säg det direkt i stället för att låta det dyka upp i steg 4.
     const nyaKrockar = hittaKrockar(uppdaterade);
-    if (nyaKrockar.size > 0) {
-      Alert.alert(
-        `${antal} pass uppdaterade`,
-        `${nyaKrockar.size} pass har nu samma datum och starttid som ett annat. Justera dem i listan – de är rödmarkerade.`
-      );
-    }
+    Alert.alert(
+      `${mål.length} pass uppdaterade`,
+      nyaKrockar.size > 0
+        ? `${nyaKrockar.size} pass har nu samma datum och starttid som ett annat. De är rödmarkerade i listan.`
+        : 'Tider, roll och OB kopierades.'
+    );
   }
 
   function öppnaRedigera(p) {
@@ -549,90 +569,133 @@ export default function PubliceraSchemaScreen({ navigation }) {
 
           {steg === 3 && (
             <>
-              <View style={styles.standardPanel}>
-                <Text style={styles.standardRubrik}>Standard för alla pass</Text>
-                <PassDetaljFält
-                  starttid={standard.starttid}
-                  sluttid={standard.sluttid}
-                  kategori={standard.kategori}
-                  obTillagg={standard.ob_tillagg}
-                  onStarttid={(v) => setStandard(s => ({ ...s, starttid: v }))}
-                  onSluttid={(v) => setStandard(s => ({ ...s, sluttid: v }))}
-                  onKategori={(v) => setStandard(s => ({ ...s, kategori: v }))}
-                  onObTillagg={(v) => setStandard(s => ({ ...s, ob_tillagg: v }))}
-                  egnaKategorier={egnaKategorier}
-                  standardKategorier={KATEGORIER}
-                  timlön={timlönTal}
-                  paslag={gällandePåslag}
-                  obRubrik="OB-tillägg för alla pass"
-                />
-                <View style={styles.tillämpaRad}>
-                  <TouchableOpacity style={styles.tillämpaKnapp} onPress={() => tillämpa(false)} activeOpacity={0.8}>
-                    <Text style={styles.tillämpaText}>Tillämpa på alla</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={[styles.tillämpaKnapp, styles.tillämpaSekundär, markerade.size === 0 && styles.tillämpaInaktiv]}
-                    onPress={() => tillämpa(true)}
-                    activeOpacity={0.8}
-                  >
-                    <Text style={[styles.tillämpaText, styles.tillämpaSekundärText]}>
-                      På markerade ({markerade.size})
-                    </Text>
-                  </TouchableOpacity>
-                </View>
+              <View style={styles.hjälpRuta}>
+                <Ionicons name="information-circle-outline" size={18} color="#0369a1" />
+                <Text style={styles.hjälpText}>
+                  Tryck på ett pass för att fylla i tider, roll och OB. Vill du ge flera pass
+                  samma innehåll: kryssa i dem och tryck "Kopiera till markerade".
+                </Text>
               </View>
 
               <View style={styles.passRubrikRad}>
                 <Text style={styles.label}>Pass ({pass.length})</Text>
-                {ofullständiga > 0 && (
-                  <Text style={styles.varning}>{ofullständiga} saknar tider</Text>
-                )}
+                <View style={styles.rubrikHöger}>
+                  {ofullständiga > 0 && <Text style={styles.varning}>{ofullständiga} saknar tider</Text>}
+                  {krockar.size > 0 && <Text style={styles.varning}>{krockar.size} krockar</Text>}
+                </View>
+              </View>
+
+              <View style={styles.massRad}>
+                <TouchableOpacity
+                  style={styles.massKnapp}
+                  onPress={() => setMarkerade(alltMarkerat ? new Set() : new Set(pass.map(p => p.id)))}
+                  activeOpacity={0.8}
+                >
+                  <Text style={styles.massText}>{alltMarkerat ? 'Avmarkera alla' : 'Markera alla'}</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.massKnapp, styles.massPrimär, !kanKopiera && styles.massInaktiv]}
+                  onPress={kopieraTillMarkerade}
+                  disabled={!kanKopiera}
+                  activeOpacity={0.8}
+                >
+                  <Text style={[styles.massText, styles.massPrimärText]}>
+                    Kopiera till markerade ({markeradePass.length})
+                  </Text>
+                </TouchableOpacity>
               </View>
 
               <View style={styles.passLista}>
-                {pass.map(p => (
-                  <View key={p.id} style={[styles.passRad, (krockar.has(p.id) || nolltider.has(p.id)) && styles.passRadFel]}>
-                    <TouchableOpacity onPress={() => växlaMarkerad(p.id)} hitSlop={8} style={styles.kryssruta}>
-                      <View style={[styles.kryss, markerade.has(p.id) && styles.kryssAktiv]}>
-                        {markerade.has(p.id) && <Ionicons name="checkmark" size={13} color="#fff" />}
-                      </View>
-                    </TouchableOpacity>
+                {pass.map(p => {
+                  const fel = krockar.has(p.id) || nolltider.has(p.id);
+                  const öppet = öppetPassId === p.id;
+                  return (
+                    <View key={p.id}>
+                      <View style={[styles.passRad, fel && styles.passRadFel, öppet && styles.passRadÖppen]}>
+                        <TouchableOpacity onPress={() => växlaMarkerad(p.id)} hitSlop={8} style={styles.kryssruta}>
+                          <View style={[styles.kryss, markerade.has(p.id) && styles.kryssAktiv]}>
+                            {markerade.has(p.id) && <Ionicons name="checkmark" size={13} color="#fff" />}
+                          </View>
+                        </TouchableOpacity>
 
-                    <TouchableOpacity style={styles.passInnehåll} onPress={() => öppnaRedigera(p)} activeOpacity={0.7}>
-                      <View style={styles.passDatum}>
-                        <Text style={styles.passVeckodag}>{veckodagsNamn(p.datum)}</Text>
-                        <Text style={styles.passDatumText}>{formatDagDatum(p.datum)}</Text>
-                      </View>
-                      <View style={{ flex: 1 }}>
-                        {ärKomplett(p) ? (
-                          <>
-                            <Text style={[styles.passTid, (krockar.has(p.id) || nolltider.has(p.id)) && styles.passTidFel]}>
-                              {p.starttid}–{p.sluttid}
-                              {krockar.has(p.id) ? '  · krockar' : nolltider.has(p.id) ? '  · 0 timmar' : ''}
-                            </Text>
+                        <TouchableOpacity
+                          style={styles.passInnehåll}
+                          onPress={() => setÖppetPassId(öppet ? null : p.id)}
+                          activeOpacity={0.7}
+                        >
+                          <View style={styles.passDatum}>
+                            <Text style={styles.passVeckodag}>{veckodagsNamn(p.datum)}</Text>
+                            <Text style={styles.passDatumText}>{formatDagDatum(p.datum)}</Text>
+                          </View>
+                          <View style={{ flex: 1 }}>
+                            {/* Tiderna visas så snart NÅGON av dem är satt, så att ifyllnaden
+                                syns direkt i listan utan att man öppnar passet. */}
+                            {p.starttid || p.sluttid ? (
+                              <Text style={[styles.passTid, fel && styles.passTidFel]}>
+                                {p.starttid || '?'} – {p.sluttid || '?'}
+                                {krockar.has(p.id) ? '  · krockar' : nolltider.has(p.id) ? '  · 0 timmar' : ''}
+                              </Text>
+                            ) : (
+                              <Text style={styles.fyllI}>— fyll i tider —</Text>
+                            )}
                             <View style={styles.passBrickor}>
-                              {p.kategori ? (
+                              {p.kategori?.trim() ? (
                                 <View style={styles.rollBricka}><Text style={styles.rollBrickaText}>{p.kategori}</Text></View>
                               ) : null}
                               {p.ob_tillagg?.length > 0 && (
                                 <View style={styles.obBricka}><Text style={styles.obBrickaText}>OB ×{p.ob_tillagg.length}</Text></View>
                               )}
                             </View>
-                          </>
-                        ) : (
-                          <Text style={styles.fyllI}>— fyll i tider —</Text>
-                        )}
-                      </View>
-                    </TouchableOpacity>
+                          </View>
+                          <Ionicons name={öppet ? 'chevron-up' : 'chevron-down'} size={18} color="#9ca3af" />
+                        </TouchableOpacity>
 
-                    <TouchableOpacity onPress={() => läggTillPassSammaDag(p)} hitSlop={8} style={{ padding: 4 }}>
-                      <Ionicons name="add-circle-outline" size={20} color="#2563eb" />
-                    </TouchableOpacity>
-                    <TouchableOpacity onPress={() => taBortPass(p.id)} hitSlop={8} style={{ padding: 4 }}>
-                      <Ionicons name="close-circle" size={20} color="#ef4444" />
-                    </TouchableOpacity>
-                  </View>
-                ))}
+                        <TouchableOpacity onPress={() => läggTillPassSammaDag(p)} hitSlop={8} style={{ padding: 4 }}>
+                          <Ionicons name="add-circle-outline" size={20} color="#2563eb" />
+                        </TouchableOpacity>
+                        <TouchableOpacity onPress={() => taBortPass(p.id)} hitSlop={8} style={{ padding: 4 }}>
+                          <Ionicons name="close-circle" size={20} color="#ef4444" />
+                        </TouchableOpacity>
+                      </View>
+
+                      {/* Editorn ligger I raden, så den är alltid vid passet oavsett hur lång
+                          listan är. key={p.id} nollställer ObRedigerares eget formulärstate
+                          när man byter pass – annars kan ett halvifyllt OB-intervall
+                          committas på fel pass. */}
+                      {öppet && (
+                        <View
+                          key={p.id}
+                          style={styles.editor}
+                          onLayout={e => scrollaFramEditor(e.nativeEvent.layout.y)}
+                        >
+                          <View style={styles.editorDatumRad}>
+                            <Text style={styles.editorRubrik}>
+                              {veckodagsNamn(p.datum)} {formatDagDatum(p.datum)}
+                            </Text>
+                            <TouchableOpacity onPress={() => öppnaRedigera(p)} hitSlop={8}>
+                              <Text style={styles.bytDatum}>Byt datum</Text>
+                            </TouchableOpacity>
+                          </View>
+                          <PassDetaljFält
+                            starttid={p.starttid}
+                            sluttid={p.sluttid}
+                            kategori={p.kategori ?? ''}
+                            obTillagg={p.ob_tillagg ?? []}
+                            onStarttid={(v) => ändraPass(p.id, 'starttid', v)}
+                            onSluttid={(v) => ändraPass(p.id, 'sluttid', v)}
+                            onKategori={(v) => ändraPass(p.id, 'kategori', v)}
+                            onObTillagg={(v) => ändraPass(p.id, 'ob_tillagg', v)}
+                            egnaKategorier={egnaKategorier}
+                            standardKategorier={KATEGORIER}
+                            timlön={timlönTal}
+                            paslag={gällandePåslag}
+                            obRubrik="OB-tillägg för det här passet"
+                          />
+                        </View>
+                      )}
+                    </View>
+                  );
+                })}
               </View>
               <FältFel text={fel.pass} />
             </>
@@ -794,14 +857,22 @@ const styles = StyleSheet.create({
   kalenderRam: { borderWidth: 1, borderColor: '#e5e7eb', borderRadius: 12, overflow: 'hidden', marginTop: 14 },
   räknare: { fontSize: 13, color: '#2563eb', fontWeight: '700', marginTop: 10, textAlign: 'center' },
 
-  standardPanel: { backgroundColor: '#f8faff', borderRadius: 12, padding: 14, marginTop: 16, borderWidth: 1, borderColor: '#bfdbfe' },
-  standardRubrik: { fontSize: 15, fontWeight: '700', color: '#1d4ed8' },
-  tillämpaRad: { flexDirection: 'row', gap: 8, marginTop: 16 },
-  tillämpaKnapp: { flex: 1, backgroundColor: '#2563eb', borderRadius: 10, paddingVertical: 12, alignItems: 'center' },
-  tillämpaText: { fontSize: 14, color: '#fff', fontWeight: '600' },
-  tillämpaSekundär: { backgroundColor: '#fff', borderWidth: 1.5, borderColor: '#2563eb' },
-  tillämpaSekundärText: { color: '#2563eb' },
-  tillämpaInaktiv: { opacity: 0.45 },
+  hjälpRuta: { flexDirection: 'row', gap: 8, backgroundColor: '#f0f9ff', borderRadius: 10, padding: 12, marginTop: 16, borderWidth: 1, borderColor: '#bae6fd' },
+  hjälpText: { flex: 1, fontSize: 13, color: '#0369a1', lineHeight: 18 },
+
+  rubrikHöger: { flexDirection: 'row', gap: 10 },
+  massRad: { flexDirection: 'row', gap: 8, marginBottom: 10 },
+  massKnapp: { flex: 1, borderWidth: 1.5, borderColor: '#2563eb', borderRadius: 10, paddingVertical: 11, alignItems: 'center' },
+  massText: { fontSize: 13, color: '#2563eb', fontWeight: '600' },
+  massPrimär: { backgroundColor: '#2563eb', borderColor: '#2563eb' },
+  massPrimärText: { color: '#fff' },
+  massInaktiv: { opacity: 0.4 },
+
+  passRadÖppen: { backgroundColor: '#eff6ff' },
+  editor: { backgroundColor: '#f8faff', paddingHorizontal: 12, paddingBottom: 14, borderBottomWidth: 1, borderBottomColor: '#e5e7eb' },
+  editorDatumRad: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingTop: 10 },
+  editorRubrik: { fontSize: 13, fontWeight: '700', color: '#1d4ed8', textTransform: 'capitalize' },
+  bytDatum: { fontSize: 13, color: '#2563eb', fontWeight: '600' },
 
   passRubrikRad: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between' },
   varning: { fontSize: 12, color: '#c2410c', fontWeight: '700', marginBottom: 6 },

@@ -38,23 +38,43 @@ export function synkaPassMotDatum(valdaDatum, befintligaPass) {
   return sorteraPass([...kvar, ...nya]);
 }
 
-// Skriver standardvärdena till valda pass. Tomma fält i standarden lämnar passets
-// befintliga värde orört, så man kan tillämpa bara tiderna utan att nolla rollerna.
+// Skriver ETT fält till ett eller flera pass. Övriga fält och övriga pass rörs inte.
+// Används av inline-editorn, som alltid skriver till exakt ett pass.
 //
-// OB djupkopieras – delas arrayen mellan tjugo pass blir en redigering i ett av dem svår
-// att resonera om, även om ObRedigerare i praktiken alltid returnerar en ny array.
-export function tillämpaStandard(pass, standard, passIdn = null) {
-  const mål = passIdn ? new Set(passIdn) : null;
+// Kategorin trimmas INTE här. En trim i skrivvägen gör att markören hoppar så fort man
+// skriver ett mellanslag mitt i ett rollnamn – tomt blir null först i tillPayload, och
+// backend trimmar ändå (routes/scheman.js).
+//
+// OB djupkopieras. Delas arrayen mellan flera pass blir en senare redigering i ett av dem
+// svår att resonera om, även om ObRedigerare i praktiken alltid returnerar en ny array.
+export function uppdateraFält(pass, idn, fält, värde) {
+  const mål = idn instanceof Set ? idn : new Set(idn);
+  if (mål.size === 0) return pass;
+
   return pass.map(p => {
-    if (mål && !mål.has(p.id)) return p;
+    if (!mål.has(p.id)) return p;
+    if (fält === 'ob_tillagg') {
+      return { ...p, ob_tillagg: (Array.isArray(värde) ? värde : []).map(o => ({ ...o })) };
+    }
+    return { ...p, [fält]: värde };
+  });
+}
+
+// Kopierar ett passs tider, roll och OB till andra pass. Datumet rörs aldrig.
+// Ett pass har redan formen { starttid, sluttid, kategori, ob_tillagg }, så källan kan vara
+// ett annat pass rakt av. Tomma fält i källan lämnar målets värde orört.
+export function kopieraTillPass(pass, källa, idn) {
+  const mål = idn instanceof Set ? idn : new Set(idn);
+  if (mål.size === 0 || !källa) return pass;
+
+  return pass.map(p => {
+    if (!mål.has(p.id) || p.id === källa.id) return p;
     return {
       ...p,
-      starttid: standard.starttid || p.starttid,
-      sluttid: standard.sluttid || p.sluttid,
-      kategori: standard.kategori?.trim() ? standard.kategori.trim() : p.kategori,
-      ob_tillagg: standard.ob_tillagg?.length
-        ? standard.ob_tillagg.map(o => ({ ...o }))
-        : p.ob_tillagg,
+      starttid: källa.starttid || p.starttid,
+      sluttid: källa.sluttid || p.sluttid,
+      kategori: källa.kategori?.trim() ? källa.kategori : p.kategori,
+      ob_tillagg: källa.ob_tillagg?.length ? källa.ob_tillagg.map(o => ({ ...o })) : p.ob_tillagg,
     };
   });
 }
@@ -88,6 +108,11 @@ export function ärKomplett(p) {
 }
 
 // Passen som ska skickas till API:t – utan det lokala id:t, som backend inte känner till.
+// Kategorin trimmas och tomma blir null först här, eftersom en trim under skrivandet
+// får markören att hoppa. null betyder "ärv schemats kategori" (se passMedArv i backend).
 export function tillPayload(pass) {
-  return sorteraPass(pass).map(({ id, ...p }) => p);
+  return sorteraPass(pass).map(({ id, ...p }) => ({
+    ...p,
+    kategori: p.kategori?.trim() || null,
+  }));
 }
