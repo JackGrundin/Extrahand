@@ -196,19 +196,19 @@ export default function MinaJobbScreen({ navigation }) {
           </Text>
         </TouchableOpacity>
         <TouchableOpacity
-          style={[styles.flik, aktivFlik === 'tidigare' && styles.flikAktiv]}
-          onPress={() => setAktivFlik('tidigare')}
-        >
-          <Text style={[styles.flikText, aktivFlik === 'tidigare' && styles.flikTextAktiv]}>
-            Tidigare pass ({tidigareLista.length})
-          </Text>
-        </TouchableOpacity>
-        <TouchableOpacity
           style={[styles.flik, aktivFlik === 'scheman' && styles.flikAktiv]}
           onPress={() => setAktivFlik('scheman')}
         >
           <Text style={[styles.flikText, aktivFlik === 'scheman' && styles.flikTextAktiv]}>
             Scheman ({scheman.length})
+          </Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.flik, aktivFlik === 'tidigare' && styles.flikAktiv]}
+          onPress={() => setAktivFlik('tidigare')}
+        >
+          <Text style={[styles.flikText, aktivFlik === 'tidigare' && styles.flikTextAktiv]}>
+            Tidigare pass ({tidigareLista.length})
           </Text>
         </TouchableOpacity>
       </View>
