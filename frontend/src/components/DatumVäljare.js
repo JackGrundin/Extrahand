@@ -15,6 +15,7 @@ export default function DatumVäljare({
   onÄndra,
   placeholder = 'Välj datum',
   minimumDate,
+  maximumDate,
   style,
   fel = false,
 }) {
@@ -47,6 +48,7 @@ export default function DatumVäljare({
           mode="date"
           display="default"
           minimumDate={minimumDate}
+          maximumDate={maximumDate}
           onChange={(_, date) => {
             setÖppen(false);
             if (date) onÄndra(datumTillIso(date));
@@ -71,6 +73,7 @@ export default function DatumVäljare({
               mode="date"
               display="spinner"
               minimumDate={minimumDate}
+          maximumDate={maximumDate}
               onChange={(_, date) => date && setTemp(date)}
               locale="sv-SE"
               // Spinnern följer annars systemets mörka läge och blir vit text mot den vita

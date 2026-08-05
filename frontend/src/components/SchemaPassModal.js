@@ -1,10 +1,8 @@
 import { useEffect, useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, Modal, ScrollView, KeyboardAvoidingView, Platform, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import TidVäljare from './TidVäljare';
 import DatumVäljare from './DatumVäljare';
-import ObRedigerare from './ObRedigerare';
-import { normalisera } from '../utils/konstanter';
+import PassDetaljFält from './PassDetaljFält';
 
 // Lägg till eller redigera ETT schemapass. Ett pass har datum, två tider, en roll och en
 // egen OB-lista – inline i formuläret gånger tjugo pass blir det oanvändbart, så passet
@@ -23,6 +21,8 @@ export default function SchemaPassModal({
   timlön = 0,
   paslag,
   rubrik = 'Nytt pass',
+  minDatum,
+  maxDatum,
 }) {
   const [datum, setDatum] = useState('');
   const [starttid, setStarttid] = useState('');
@@ -40,17 +40,6 @@ export default function SchemaPassModal({
     setKategori(initialPass?.kategori ?? '');
     setObTillagg(Array.isArray(initialPass?.ob_tillagg) ? initialPass.ob_tillagg : []);
   }, [visible, initialPass]);
-
-  // Egna kategorier först – de är nästan alltid det företaget vill ha – sedan
-  // standardlistan, filtrerad på det som skrivits. Diakritokänsligt via normalisera.
-  const sökterm = normalisera(kategori);
-  const förslag = [
-    ...egnaKategorier,
-    ...standardKategorier.filter(k => !egnaKategorier.includes(k)),
-  ]
-    .filter(k => sökterm.length === 0 || normalisera(k).includes(sökterm))
-    .filter(k => normalisera(k) !== sökterm)
-    .slice(0, 6);
 
   function spara() {
     if (!datum) return Alert.alert('Fel', 'Välj ett datum för passet.');
@@ -74,46 +63,30 @@ export default function SchemaPassModal({
 
           <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
             <Text style={styles.etikett}>Datum *</Text>
-            <DatumVäljare värde={datum} onÄndra={setDatum} minimumDate={new Date()} />
-
-            <Text style={styles.etikett}>Tider *</Text>
-            <View style={styles.tidRad}>
-              <TidVäljare style={{ flex: 1 }} placeholder="08:00" value={starttid} onChange={setStarttid} />
-              <Text style={styles.streck}>–</Text>
-              <TidVäljare style={{ flex: 1 }} placeholder="17:00" value={sluttid} onChange={setSluttid} />
-            </View>
-
-            <Text style={styles.etikett}>Roll / avdelning</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="t.ex. Liftvärd"
-              value={kategori}
-              onChangeText={setKategori}
-              maxLength={40}
-              autoCorrect={false}
+            <DatumVäljare
+              värde={datum}
+              onÄndra={setDatum}
+              // Gränserna kommer från schemats period när modalen öppnas från steg 3 –
+              // annars går det att flytta ett pass utanför perioden och kringgå kalendern.
+              minimumDate={minDatum ? new Date(minDatum + 'T12:00:00') : new Date()}
+              maximumDate={maxDatum ? new Date(maxDatum + 'T12:00:00') : undefined}
             />
-            {förslag.length > 0 && (
-              <View style={styles.chipRad}>
-                {förslag.map(k => (
-                  <TouchableOpacity key={k} style={styles.chip} onPress={() => setKategori(k)} activeOpacity={0.7}>
-                    <Text style={styles.chipText}>{k}</Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            )}
-            <Text style={styles.hjälp}>
-              Egen text går bra – rollen visas i schemat och i kalendern.
-            </Text>
 
-            <View style={{ marginTop: 16 }}>
-              <ObRedigerare
-                värde={obTillagg}
-                onÄndra={setObTillagg}
-                timlön={timlön}
-                paslag={paslag}
-                rubrik="OB-tillägg för det här passet"
-              />
-            </View>
+            <PassDetaljFält
+              starttid={starttid}
+              sluttid={sluttid}
+              kategori={kategori}
+              obTillagg={obTillagg}
+              onStarttid={setStarttid}
+              onSluttid={setSluttid}
+              onKategori={setKategori}
+              onObTillagg={setObTillagg}
+              egnaKategorier={egnaKategorier}
+              standardKategorier={standardKategorier}
+              timlön={timlön}
+              paslag={paslag}
+              obRubrik="OB-tillägg för det här passet"
+            />
 
             <View style={styles.knappRad}>
               <TouchableOpacity style={styles.avbryt} onPress={onStäng}>

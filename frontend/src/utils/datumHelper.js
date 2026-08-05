@@ -36,6 +36,36 @@ export function nästaDatumIso(isoStr) {
   return d.toISOString().slice(0, 10);
 }
 
+// Alla datum mellan två ISO-datum, båda ändarna inkluderade. Stegar i UTC precis som
+// nästaDatumIso, så sommartidsskiften varken hoppar över eller dubblerar en dag.
+// Bakvänd period ger tom lista i stället för att loopa i evighet.
+//
+// Matar både kalenderns avgränsning och veckodagsgenvägarna i schemapubliceringen.
+export function datumIntervall(startIso, slutIso) {
+  if (!startIso || !slutIso || slutIso < startIso) return [];
+
+  const [år, mån, dag] = startIso.split('-').map(Number);
+  const datum = [];
+  const d = new Date(Date.UTC(år, mån - 1, dag));
+
+  let iso = d.toISOString().slice(0, 10);
+  while (iso <= slutIso) {
+    datum.push(iso);
+    d.setUTCDate(d.getUTCDate() + 1);
+    iso = d.toISOString().slice(0, 10);
+  }
+  return datum;
+}
+
+// Veckodag för ett ISO-datum som 0 = måndag ... 6 = söndag. Samma numrering som
+// MånadsKalender använder när rutnätet byggs, så veckodagsgenvägarna och kolumnerna
+// stämmer överens.
+export function veckodagsIndex(isoStr) {
+  if (!isoStr) return null;
+  const [år, mån, dag] = isoStr.split('-').map(Number);
+  return (new Date(Date.UTC(år, mån - 1, dag)).getUTCDay() + 6) % 7;
+}
+
 // Veckodagens korta namn för ett ISO-datum, t.ex. 'mån'. Används i schemats passlista.
 export function veckodagsNamn(isoStr) {
   if (!isoStr) return '';

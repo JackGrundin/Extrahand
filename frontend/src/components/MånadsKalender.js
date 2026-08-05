@@ -43,19 +43,45 @@ function byggCeller(år, månad) {
   return celler;
 }
 
-export default function MånadsKalender({ år, månad, passPerDatum, valtDatum, onVäljDag, onBytMånad }) {
+// Kalendern har två lägen:
+//   Läsvy (SchemaKalenderScreen): valtDatum = EN dag, prickar visar bemanningen.
+//   Flerval (schemapubliceringen): valdaDatum = Set med alla valda datum, inga prickar.
+// Flervalet är additivt – valtDatum-vägen och prickfärgslogiken är orörda, eftersom
+// kalenderskärmens förklaringsrad är beroende av dem.
+//
+// minDatum/maxDatum släcker datum utanför perioden. Läsvyn skickar dem inte och kan därför
+// fortsätta visa bakåt i tiden.
+export default function MånadsKalender({
+  år,
+  månad,
+  passPerDatum = {},
+  valtDatum,
+  valdaDatum,
+  minDatum,
+  maxDatum,
+  onVäljDag,
+  onBytMånad = () => {},
+}) {
   const celler = byggCeller(år, månad);
   const idag = datumTillIso(new Date());
+  // Tål att en anropare skickar en array i stället för ett Set – annars smäller .has().
+  const valda = valdaDatum == null ? null : (valdaDatum instanceof Set ? valdaDatum : new Set(valdaDatum));
+
+  // Pilarna släcks när hela grannmånaden ligger utanför perioden.
+  const förstaIMånaden = `${år}-${String(månad + 1).padStart(2, '0')}-01`;
+  const sistaIMånaden = `${år}-${String(månad + 1).padStart(2, '0')}-${String(new Date(år, månad + 1, 0).getDate()).padStart(2, '0')}`;
+  const kanBakåt = !minDatum || minDatum < förstaIMånaden;
+  const kanFramåt = !maxDatum || maxDatum > sistaIMånaden;
 
   return (
     <View style={styles.container}>
       <View style={styles.rubrikRad}>
-        <TouchableOpacity onPress={() => onBytMånad(-1)} hitSlop={12} style={styles.pil}>
-          <Ionicons name="chevron-back" size={22} color="#2563eb" />
+        <TouchableOpacity onPress={() => onBytMånad(-1)} hitSlop={12} style={styles.pil} disabled={!kanBakåt}>
+          <Ionicons name="chevron-back" size={22} color={kanBakåt ? '#2563eb' : '#e5e7eb'} />
         </TouchableOpacity>
         <Text style={styles.månadRubrik}>{MÅNADER[månad]} {år}</Text>
-        <TouchableOpacity onPress={() => onBytMånad(1)} hitSlop={12} style={styles.pil}>
-          <Ionicons name="chevron-forward" size={22} color="#2563eb" />
+        <TouchableOpacity onPress={() => onBytMånad(1)} hitSlop={12} style={styles.pil} disabled={!kanFramåt}>
+          <Ionicons name="chevron-forward" size={22} color={kanFramåt ? '#2563eb' : '#e5e7eb'} />
         </TouchableOpacity>
       </View>
 
@@ -72,7 +98,9 @@ export default function MånadsKalender({ år, månad, passPerDatum, valtDatum, 
           const datum = `${år}-${String(månad + 1).padStart(2, '0')}-${String(dag).padStart(2, '0')}`;
           const pass = passPerDatum[datum] ?? [];
           const ärIdag = datum === idag;
-          const ärVald = datum === valtDatum;
+          // I flervalsläge avgör Set:et, annars den enskilt valda dagen.
+          const ärVald = valda ? valda.has(datum) : datum === valtDatum;
+          const släckt = (minDatum && datum < minDatum) || (maxDatum && datum > maxDatum);
           const roller = rollerFörDag(pass);
 
           return (
@@ -81,6 +109,7 @@ export default function MånadsKalender({ år, månad, passPerDatum, valtDatum, 
               style={styles.cell}
               onPress={() => onVäljDag(datum)}
               activeOpacity={0.7}
+              disabled={släckt}
             >
               <View style={[
                 styles.dagRuta,
@@ -90,7 +119,10 @@ export default function MånadsKalender({ år, månad, passPerDatum, valtDatum, 
                 <Text style={[
                   styles.dagText,
                   ärVald && styles.dagTextVald,
-                  pass.length === 0 && styles.dagTextTom,
+                  // Blek text betyder olika saker i de två lägena: i läsvyn "ingen
+                  // bemanning", i flervalsläge "utanför perioden".
+                  !valda && pass.length === 0 && styles.dagTextTom,
+                  släckt && styles.dagTextSläckt,
                 ]}>
                   {dag}
                 </Text>
@@ -143,6 +175,7 @@ const styles = StyleSheet.create({
   dagText: { fontSize: 15, color: '#1a1a1a', fontWeight: '500' },
   dagTextVald: { color: '#fff', fontWeight: '700' },
   dagTextTom: { color: '#9ca3af', fontWeight: '400' },
+  dagTextSläckt: { color: '#e5e7eb', fontWeight: '400' },
   prickRad: { flexDirection: 'row', alignItems: 'center', gap: 3, marginTop: 2 },
   prick: { width: 5, height: 5, borderRadius: 3 },
   fler: { fontSize: 8, color: '#6b7280', fontWeight: '700' },
