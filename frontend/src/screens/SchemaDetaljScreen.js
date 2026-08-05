@@ -27,14 +27,13 @@ export default function SchemaDetaljScreen({ route, navigation }) {
   const [meddelande, setMeddelande] = useState('');
   const [sökt, setSökt] = useState(false);
   const [avtalsModalSynlig, setAvtalsModalSynlig] = useState(false);
-  const [avdragFormVisas, setAvdragFormVisas] = useState(false);
-  const [avdragNamn, setAvdragNamn] = useState('');
-  const [avdragBelopp, setAvdragBelopp] = useState('');
-  const [avdragTyp, setAvdragTyp] = useState('per_dag');
-
   const { uppdateraAttAvsluta } = useAttAvsluta();
 
   const ärFöretag = användare?.typ === 'företag';
+  // Företaget öppnar schemat för att se sökande, den godkända personen för att se sina pass.
+  // Därför olika utgångsläge – inte ett godtyckligt default. ärFöretag härleds ur
+  // användare?.typ och finns redan vid första renderingen, så ingen effekt behövs.
+  const [passUtfällt, setPassUtfällt] = useState(!ärFöretag);
   const påslag = useJobbPåslag(schema?.paslag, ärFöretag);
 
   const hämta = useCallback(async () => {
@@ -163,28 +162,9 @@ export default function SchemaDetaljScreen({ route, navigation }) {
     );
   }
 
-  // Eget formulär i stället för Alert.prompt – den finns bara på iOS, och företag på
-  // Android hade annars inte kunnat lägga till avdrag alls.
-  async function sparaAvdrag() {
-    const belopp = parseFloat(String(avdragBelopp).replace(',', '.'));
-    if (!avdragNamn.trim()) return Alert.alert('Fel', 'Ge avdraget ett namn, t.ex. Boende.');
-    if (!(belopp > 0)) return Alert.alert('Fel', 'Ange ett belopp större än noll.');
-
-    setSparar(true);
-    try {
-      await api.skapaSchemaAvdrag(schema.id, { namn: avdragNamn.trim(), belopp, typ: avdragTyp });
-      setAvdragNamn('');
-      setAvdragBelopp('');
-      setAvdragTyp('per_dag');
-      setAvdragFormVisas(false);
-      await hämta();
-    } catch (fel) {
-      Alert.alert('Fel', fel.message);
-    } finally {
-      setSparar(false);
-    }
-  }
-
+  // Avdrag LÄGGS TILL bara i steg 4 när schemat skapas. Formuläret som fanns här togs bort
+  // för att sökandelistan ska få plats överst. Att ta bort ett felaktigt avdrag går dock
+  // fortfarande – asymmetrin är avsiktlig.
   async function taBortAvdrag(a) {
     Alert.alert(
       'Ta bort avdraget?',
@@ -302,6 +282,68 @@ export default function SchemaDetaljScreen({ route, navigation }) {
           </View>
         )}
 
+        {/* Företagets sökande ligger HÖGST UPP – det är det man öppnar schemat för. Låg de
+            kvar sist hamnade de efter en passlista som kan vara 60+ rader lång. */}
+        {ärFöretag && (
+          <>
+            {godkändAnsökan && (
+              <>
+                <Text style={styles.sektionsRubrik}>Godkänd person</Text>
+                <View style={styles.sökandeKort}>
+                  <Text style={styles.sökandeNamn}>{godkändAnsökan.sökandeNamn ?? 'Okänd'}</Text>
+                  <TouchableOpacity
+                    style={styles.chattKnapp}
+                    onPress={() => navigation.navigate('Chatt', { ansokningId: godkändAnsökan.id })}
+                  >
+                    <Ionicons name="chatbubble-outline" size={15} color="#2563eb" />
+                    <Text style={styles.chattKnappText}>Chatt</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity style={styles.avvisaKnapp} onPress={() => återkalla(godkändAnsökan)} disabled={sparar}>
+                    <Text style={styles.avvisaText}>Ta tillbaka</Text>
+                  </TouchableOpacity>
+                </View>
+              </>
+            )}
+
+            <View style={styles.sökandeRubrikRad}>
+              <Text style={styles.sektionsRubrik}>
+                {godkändAnsökan ? 'Övriga sökande' : 'Sökande'}
+              </Text>
+              {övrigaAnsökningar.length > 0 && (
+                <View style={styles.sökandeAntal}>
+                  <Text style={styles.sökandeAntalText}>{övrigaAnsökningar.length}</Text>
+                </View>
+              )}
+            </View>
+            {övrigaAnsökningar.length === 0 ? (
+              <Text style={styles.tomText}>Inga sökande ännu.</Text>
+            ) : (
+              övrigaAnsökningar.map(a => (
+                <View key={a.id} style={styles.sökandeKort}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.sökandeNamn}>{a.sökandeNamn ?? 'Okänd'}</Text>
+                    {a.meddelande ? <Text style={styles.sökandeMeddelande} numberOfLines={2}>{a.meddelande}</Text> : null}
+                  </View>
+                  <TouchableOpacity
+                    style={styles.chattKnapp}
+                    onPress={() => navigation.navigate('Chatt', { ansokningId: a.id })}
+                  >
+                    <Ionicons name="chatbubble-outline" size={15} color="#2563eb" />
+                    <Text style={styles.chattKnappText}>Chatt</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.godkännKnapp}
+                    onPress={() => (godkändAnsökan ? ersätt(a) : godkänn(a))}
+                    disabled={sparar}
+                  >
+                    <Text style={styles.godkännText}>{godkändAnsökan ? 'Ersätt' : 'Godkänn'}</Text>
+                  </TouchableOpacity>
+                </View>
+              ))
+            )}
+          </>
+        )}
+
         {obTillagg.length > 0 && schema.timlon ? (
           <View style={styles.obSektion}>
             <View style={styles.obRubrikRad}>
@@ -380,56 +422,17 @@ export default function SchemaDetaljScreen({ route, navigation }) {
           </View>
         )}
 
-        {ärFöretag && (avdragFormVisas ? (
-          <View style={styles.avdragForm}>
-            <TextInput
-              style={styles.avdragInput}
-              placeholder="Namn, t.ex. Boende"
-              value={avdragNamn}
-              onChangeText={setAvdragNamn}
-              maxLength={40}
-            />
-            <TextInput
-              style={[styles.avdragInput, { marginTop: 8 }]}
-              placeholder="Belopp i kr"
-              value={avdragBelopp}
-              onChangeText={setAvdragBelopp}
-              keyboardType="numeric"
-            />
-            <View style={styles.typVäljare}>
-              {[['per_dag', 'Per pass'], ['totalt', 'Totalt']].map(([v, etikett]) => (
-                <TouchableOpacity
-                  key={v}
-                  style={[styles.typKnapp, avdragTyp === v && styles.typKnappAktiv]}
-                  onPress={() => setAvdragTyp(v)}
-                >
-                  <Text style={[styles.typText, avdragTyp === v && styles.typTextAktiv]}>{etikett}</Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-            <Text style={styles.avdragHjälp}>
-              {avdragTyp === 'totalt'
-                ? 'Fördelas jämnt över schemats pass.'
-                : 'Dras per pass – två pass samma dag ger två avdrag.'}
-              {' '}Gäller från nästa rapporterade pass; redan rapporterade påverkas inte.
-            </Text>
-            <View style={styles.avdragKnappar}>
-              <TouchableOpacity style={styles.avdragAvbryt} onPress={() => setAvdragFormVisas(false)} disabled={sparar}>
-                <Text style={styles.avdragAvbrytText}>Avbryt</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.avdragSpara} onPress={sparaAvdrag} disabled={sparar}>
-                <Text style={styles.avdragSparaText}>Lägg till</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        ) : (
-          <TouchableOpacity style={styles.avdragAddKnapp} onPress={() => setAvdragFormVisas(true)} disabled={sparar} activeOpacity={0.7}>
-            <Ionicons name="add-circle-outline" size={18} color="#dc2626" />
-            <Text style={styles.avdragAddText}>Lägg till löneavdrag</Text>
-          </TouchableOpacity>
-        ))}
-
-        <Text style={styles.sektionsRubrik}>Pass ({schema.pass?.length ?? 0})</Text>
+        {/* Passen fälls ihop för företaget, som öppnar schemat för att se sökande, men står
+            utfällda för privatpersonen, för vilken passen är hela poängen med sidan. */}
+        <TouchableOpacity
+          style={styles.passRubrikRad}
+          onPress={() => setPassUtfällt(v => !v)}
+          activeOpacity={0.7}
+        >
+          <Text style={styles.sektionsRubrik}>Pass ({schema.pass?.length ?? 0})</Text>
+          <Ionicons name={passUtfällt ? 'chevron-up' : 'chevron-down'} size={18} color="#9ca3af" />
+        </TouchableOpacity>
+        {passUtfällt && (
         <View style={styles.passLista}>
           {(schema.pass ?? []).map(p => {
             const färg = PASSFÄRGER[p.status] ?? PASSFÄRGER.planerad;
@@ -457,65 +460,14 @@ export default function SchemaDetaljScreen({ route, navigation }) {
             );
           })}
         </View>
+        )}
 
-        {/* Företagets vy: sökande, godkänn, ersätt, avbryt */}
-        {ärFöretag && (
-          <>
-            {godkändAnsökan && (
-              <>
-                <Text style={styles.sektionsRubrik}>Godkänd person</Text>
-                <View style={styles.sökandeKort}>
-                  <Text style={styles.sökandeNamn}>{godkändAnsökan.sökandeNamn ?? 'Okänd'}</Text>
-                  <TouchableOpacity
-                    style={styles.chattKnapp}
-                    onPress={() => navigation.navigate('Chatt', { ansokningId: godkändAnsökan.id })}
-                  >
-                    <Ionicons name="chatbubble-outline" size={15} color="#2563eb" />
-                    <Text style={styles.chattKnappText}>Chatt</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity style={styles.avvisaKnapp} onPress={() => återkalla(godkändAnsökan)} disabled={sparar}>
-                    <Text style={styles.avvisaText}>Ta tillbaka</Text>
-                  </TouchableOpacity>
-                </View>
-              </>
-            )}
-
-            <Text style={styles.sektionsRubrik}>
-              {godkändAnsökan ? 'Övriga sökande' : `Sökande (${övrigaAnsökningar.length})`}
-            </Text>
-            {övrigaAnsökningar.length === 0 ? (
-              <Text style={styles.tomText}>Inga sökande ännu.</Text>
-            ) : (
-              övrigaAnsökningar.map(a => (
-                <View key={a.id} style={styles.sökandeKort}>
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.sökandeNamn}>{a.sökandeNamn ?? 'Okänd'}</Text>
-                    {a.meddelande ? <Text style={styles.sökandeMeddelande} numberOfLines={2}>{a.meddelande}</Text> : null}
-                  </View>
-                  <TouchableOpacity
-                    style={styles.chattKnapp}
-                    onPress={() => navigation.navigate('Chatt', { ansokningId: a.id })}
-                  >
-                    <Ionicons name="chatbubble-outline" size={15} color="#2563eb" />
-                    <Text style={styles.chattKnappText}>Chatt</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={styles.godkännKnapp}
-                    onPress={() => (godkändAnsökan ? ersätt(a) : godkänn(a))}
-                    disabled={sparar}
-                  >
-                    <Text style={styles.godkännText}>{godkändAnsökan ? 'Ersätt' : 'Godkänn'}</Text>
-                  </TouchableOpacity>
-                </View>
-              ))
-            )}
-
-            {schema.status !== 'avbrutet' && (
-              <TouchableOpacity style={styles.avbrytSchemaKnapp} onPress={avbryt} disabled={sparar}>
-                <Text style={styles.avbrytSchemaText}>Avbryt schemat</Text>
-              </TouchableOpacity>
-            )}
-          </>
+        {/* Avbryt schemat står kvar sist, INTE uppe hos sökandelistan: den är destruktiv
+            och ska inte ligga bredvid Godkänn-knapparna. */}
+        {ärFöretag && schema.status !== 'avbrutet' && (
+          <TouchableOpacity style={styles.avbrytSchemaKnapp} onPress={avbryt} disabled={sparar}>
+            <Text style={styles.avbrytSchemaText}>Avbryt schemat</Text>
+          </TouchableOpacity>
         )}
 
         {/* Privatpersonens vy: ansök eller hoppa av */}
@@ -594,6 +546,10 @@ const styles = StyleSheet.create({
   kartaKnappText: { fontSize: 14, color: '#2563eb', fontWeight: '600' },
 
   sektionsRubrik: { fontSize: 16, fontWeight: '600', color: '#1a1a1a', marginBottom: 8, marginTop: 12 },
+  passRubrikRad: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  sökandeRubrikRad: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  sökandeAntal: { backgroundColor: '#2563eb', borderRadius: 11, minWidth: 22, paddingHorizontal: 7, paddingVertical: 2, alignItems: 'center', marginTop: 4 },
+  sökandeAntalText: { fontSize: 13, color: '#fff', fontWeight: '700' },
   beskrivning: { fontSize: 15, color: '#444', lineHeight: 22, marginBottom: 12 },
 
   passLista: { borderWidth: 1, borderColor: '#e5e7eb', borderRadius: 12, overflow: 'hidden' },
@@ -615,21 +571,6 @@ const styles = StyleSheet.create({
   avdragNamn: { fontSize: 14, color: '#991b1b', fontWeight: '600' },
   avdragDetalj: { fontSize: 13, color: '#b91c1c', marginTop: 1 },
   avdragSumma: { fontSize: 12, color: '#b91c1c', marginTop: 8, lineHeight: 17, borderTopWidth: 1, borderTopColor: '#fecaca', paddingTop: 8 },
-  avdragAddKnapp: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 10, marginTop: 4 },
-  avdragAddText: { fontSize: 14, color: '#dc2626', fontWeight: '600' },
-  avdragForm: { backgroundColor: '#fef2f2', borderRadius: 12, padding: 12, marginTop: 10, borderWidth: 1, borderColor: '#fecaca' },
-  avdragInput: { borderWidth: 1, borderColor: '#fecaca', borderRadius: 10, padding: 12, fontSize: 15, backgroundColor: '#fff' },
-  avdragHjälp: { fontSize: 12, color: '#b91c1c', marginTop: 8, lineHeight: 17 },
-  avdragKnappar: { flexDirection: 'row', gap: 8, marginTop: 10 },
-  avdragAvbryt: { flex: 1, borderWidth: 1, borderColor: '#d1d5db', borderRadius: 8, paddingVertical: 10, alignItems: 'center' },
-  avdragAvbrytText: { fontSize: 13, color: '#666', fontWeight: '600' },
-  avdragSpara: { flex: 1, backgroundColor: '#dc2626', borderRadius: 8, paddingVertical: 10, alignItems: 'center' },
-  avdragSparaText: { fontSize: 13, color: '#fff', fontWeight: '600' },
-  typVäljare: { flexDirection: 'row', gap: 8, marginTop: 8 },
-  typKnapp: { flex: 1, padding: 10, borderRadius: 8, borderWidth: 1, borderColor: '#fecaca', alignItems: 'center', backgroundColor: '#fff' },
-  typKnappAktiv: { backgroundColor: '#dc2626', borderColor: '#dc2626' },
-  typText: { color: '#991b1b', fontWeight: '600', fontSize: 13 },
-  typTextAktiv: { color: '#fff' },
   statusBricka: { borderRadius: 8, paddingHorizontal: 8, paddingVertical: 3 },
   statusText: { fontSize: 12, fontWeight: '700' },
 
