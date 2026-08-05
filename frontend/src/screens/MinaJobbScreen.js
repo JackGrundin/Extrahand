@@ -10,12 +10,12 @@ import { useRealtidsPing } from '../context/RealtidsContext';
 import HandlingsKnapp from '../components/HandlingsKnapp';
 import RollBrickor from '../components/RollBrickor';
 
-export default function MinaJobbScreen({ navigation }) {
+export default function MinaJobbScreen({ navigation, route }) {
   const [jobb, setJobb] = useState([]);
   const [tidigareJobb, setTidigareJobb] = useState([]);
   const [tidigarePass, setTidigarePass] = useState([]);
   const [scheman, setScheman] = useState([]);
-  const [aktivFlik, setAktivFlik] = useState('aktiva');
+  const [aktivFlik, setAktivFlik] = useState(route.params?.flik ?? 'aktiva');
   const [laddar, setLaddar] = useState(true);
   const [uppdaterar, setUppdaterar] = useState(false);
   const { setAntalAttAvsluta } = useAttAvsluta();
@@ -82,6 +82,19 @@ export default function MinaJobbScreen({ navigation }) {
   }
 
   useFocusEffect(useCallback(() => { hämta(); }, []));
+
+  // Fliken kan styras utifrån, t.ex. när ett schema just publicerats. Skärmen ligger kvar
+  // monterad i sin flik, så initialvärdet ovan sätts bara första gången – därför effekten.
+  //
+  // Parametern NOLLSTÄLLS efter att den använts. Annars ignoreras nästa navigering hit med
+  // samma flik: värdet är oförändrat, effekten kör inte, och har man bytt flik under tiden
+  // blir man kvar på fel flik.
+  useEffect(() => {
+    const flik = route.params?.flik;
+    if (!flik) return;
+    setAktivFlik(flik);
+    navigation.setParams({ flik: undefined });
+  }, [route.params?.flik, navigation]);
 
   // Realtid: uppdatera listan direkt när en ansökan inkommer eller byter status. Vi filtrerar
   // på 'ansokan' eftersom hämta() gör flera API-anrop och inte ska trigga på t.ex. chattpingar.

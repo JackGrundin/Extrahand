@@ -85,11 +85,19 @@ export default function PubliceraSchemaScreen({ navigation }) {
   useFocusEffect(useCallback(() => { hämtaStartdata(); }, [hämtaStartdata]));
   useAppStateAktiv(hämtaStartdata);
 
+  // Ref, inte state: vakten nedan läser flaggan när den anropas, och en omrendering hinner
+  // inte påverka den bort-navigering vi just startat.
+  const harPublicerat = useRef(false);
+
   // Android-bakåt (och svep tillbaka på iOS) ska gå ett steg bakåt i flödet, inte lämna
   // skärmen med ett halvfyllt schema. Först på steg 1 släpper vi igenom.
   useFocusEffect(
     useCallback(() => {
       const av = navigation.addListener('beforeRemove', e => {
+        // Efter en lyckad publicering ska skärmen lämnas på riktigt. Utan den här raden
+        // fångar vakten bort-navigeringen och backar till steg 3, eftersom man står på
+        // steg 4 när schemat publicerats.
+        if (harPublicerat.current) return;
         if (steg === 1) return;
         e.preventDefault();
         tillbaka();
@@ -342,8 +350,18 @@ export default function PubliceraSchemaScreen({ navigation }) {
     });
 
     Alert.alert('Klart!', `Schemat har publicerats med ${pass.length} pass.`, [
-      { text: 'OK', onPress: () => navigation.goBack() },
+      { text: 'OK', onPress: tillMinaScheman },
     ]);
+  }
+
+  // Efter publicering hör schemat hemma under Mina annonser, inte i guiden man just lämnat.
+  function tillMinaScheman() {
+    harPublicerat.current = true;
+    // MinaJobb ligger i en annan flik, så navigate bubblar upp till tab-navigatorn.
+    navigation.navigate('MinaJobbTab', { screen: 'MinaJobb', params: { flik: 'scheman' } });
+    // Töm guidens stack, annars ligger det publicerade schemat kvar ifyllt på steg 4 nästa
+    // gång Publicera-fliken öppnas – skärmen avmonteras inte av ett flikbyte.
+    navigation.popToTop();
   }
 
   async function hanteraPublicering() {
