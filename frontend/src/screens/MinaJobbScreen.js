@@ -4,7 +4,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { api } from '../api/klient';
 import { parsaArbetstider, formatDagDatum, behöverAvslutas, harStartat } from '../utils/datumHelper';
-import { STATUSFÄRGER_TIDRAPPORT as statusFärger } from '../utils/konstanter';
+import { STATUSFÄRGER_TIDRAPPORT as statusFärger, schematypEtikett } from '../utils/konstanter';
 import { useAttAvsluta } from '../context/AttAvslutaContext';
 import { useRealtidsPing } from '../context/RealtidsContext';
 import HandlingsKnapp from '../components/HandlingsKnapp';
@@ -265,6 +265,9 @@ export default function MinaJobbScreen({ navigation, route }) {
               {/* Rollerna i schemat, vanligast först – samma färger som kalendern. */}
               <RollBrickor roller={item.kategorier} style={{ marginBottom: 8 }} />
               <View style={styles.schemaRad}>
+                <View style={styles.schemaChip}>
+                  <Text style={styles.schemaChipText}>{schematypEtikett(item.typ)}</Text>
+                </View>
                 <View style={styles.schemaChip}>
                   <Text style={styles.schemaChipText}>{item.antalPass} pass</Text>
                 </View>

@@ -1,5 +1,20 @@
 export const TYPER = ['gig', 'sommarjobb'];
-export const TYPER_FILTER = ['Alla', 'gig', 'sommarjobb'];
+
+// Schematyper. Lagrade värden är ASCII-slugar som resten av typvärdena i databasen
+// ('gig', 'sommarjobb') – etiketten är det enda som visas för användaren.
+// Speglas av GILTIGA_TYPER i backend/routes/scheman.js.
+export const SCHEMATYPER = [
+  { värde: 'sommarjobb',    etikett: 'Sommarjobb' },
+  { värde: 'sasongsarbete', etikett: 'Säsongsarbete' },
+  { värde: 'deltidsjobb',   etikett: 'Deltidsjobb' },
+  { värde: 'periodsarbete', etikett: 'Periodsarbete' },
+];
+
+// Faller tillbaka på 'Schema' i stället för att visa råvärdet. Scheman som skapades när
+// valideringen tillät 'gig', 'deltid', 'heltid' och 'uppdrag' kan bära de värdena.
+export function schematypEtikett(värde) {
+  return SCHEMATYPER.find(t => t.värde === värde)?.etikett ?? 'Schema';
+}
 
 // Jobbkategorier grupperade per bransch. Kategorisökningen (normalisera) gör listan
 // lätt att navigera trots längden. Ordningen styr hur de visas i väljaren.

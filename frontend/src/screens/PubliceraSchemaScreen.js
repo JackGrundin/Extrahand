@@ -16,7 +16,7 @@ import { valideraSchema } from '../utils/schemaValidering';
 import { formatDagDatum, veckodagsNamn, datumIntervall, veckodagsIndex } from '../utils/datumHelper';
 import { synkaPassMotDatum, uppdateraFält, ärKomplett, tillPayload, nyttPassId, sorteraPass, hittaKrockar, harNolltid, antalPassEfterSynk } from '../utils/schemaPass';
 import { api } from '../api/klient';
-import { KATEGORIER, PÅSLAG_GRATIS, beräknaFakturapris, formateraPris, beräknaAvdragFörPass, beräknaAvdragTotalt } from '../utils/konstanter';
+import { KATEGORIER, SCHEMATYPER, PÅSLAG_GRATIS, beräknaFakturapris, formateraPris, beräknaAvdragFörPass, beräknaAvdragTotalt } from '../utils/konstanter';
 
 const STEG_ETIKETTER = ['Grunduppgifter', 'Period och datum', 'Detaljer per pass', 'Avdrag och publicering'];
 const VECKODAGAR = ['Mån', 'Tis', 'Ons', 'Tors', 'Fre', 'Lör', 'Sön'];
@@ -35,6 +35,8 @@ export default function PubliceraSchemaScreen({ navigation }) {
   const [beskrivning, setBeskrivning] = useState('');
   const [plats, setPlats] = useState('');
   const [adress, setAdress] = useState('');
+  // Inget förvalt: typen ska vara ett aktivt val, inte något man råkar publicera med.
+  const [typ, setTyp] = useState('');
   const [timlon, setTimlon] = useState('');
 
   // Steg 2 – perioden är ren UI-ställning. Servern härleder schemats period ur passens
@@ -278,11 +280,11 @@ export default function PubliceraSchemaScreen({ navigation }) {
     // EN valideringskälla: valideraSchema körs i sin helhet och rätt nycklar plockas ut per
     // steg. Egna regler här skulle bli en andra sanning vid sidan av den som speglar
     // backends valideraSchemaInput.
-    const alla = valideraSchema({ titel, beskrivning, plats, adress, timlon, pass, avdrag });
+    const alla = valideraSchema({ titel, beskrivning, plats, adress, typ, timlon, pass, avdrag });
 
     if (steg === 1) {
       const f = {};
-      for (const nyckel of ['titel', 'beskrivning', 'plats', 'adress', 'timlon']) {
+      for (const nyckel of ['titel', 'beskrivning', 'plats', 'adress', 'typ', 'timlon']) {
         if (alla[nyckel]) f[nyckel] = alla[nyckel];
       }
       if (Object.keys(f).length) { setFel(f); return; }
@@ -342,7 +344,7 @@ export default function PubliceraSchemaScreen({ navigation }) {
       beskrivning: beskrivning.trim(),
       plats: plats.trim(),
       adress: adress.trim(),
-      typ: 'sommarjobb',
+      typ,
       timlon: timlönTal,
       pass: tillPayload(pass),
       avdrag,
@@ -366,7 +368,7 @@ export default function PubliceraSchemaScreen({ navigation }) {
 
   async function hanteraPublicering() {
     // Full validering som sista grind – samma regler som backends valideraSchemaInput.
-    const nyaFel = valideraSchema({ titel, beskrivning, plats, adress, timlon, pass, avdrag });
+    const nyaFel = valideraSchema({ titel, beskrivning, plats, adress, typ, timlon, pass, avdrag });
     if (Object.keys(nyaFel).length) {
       setFel(nyaFel);
       scrollRef.current?.scrollTo({ y: 0, animated: true });
@@ -460,6 +462,23 @@ export default function PubliceraSchemaScreen({ navigation }) {
                 autoCorrect={false}
               />
               <FältFel text={fel.adress} />
+
+              <Text style={styles.label}>Schematyp *</Text>
+              <View style={styles.chipRad}>
+                {SCHEMATYPER.map(t => (
+                  <TouchableOpacity
+                    key={t.värde}
+                    style={[styles.typChip, typ === t.värde && styles.typChipAktiv]}
+                    onPress={() => { setTyp(t.värde); rensaFel('typ'); }}
+                    activeOpacity={0.7}
+                  >
+                    <Text style={[styles.typChipText, typ === t.värde && styles.typChipTextAktiv]}>
+                      {t.etikett}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+              <FältFel text={fel.typ} />
 
               <Text style={styles.label}>Timlön (kr/tim) *</Text>
               <TextInput
@@ -817,6 +836,10 @@ const styles = StyleSheet.create({
   periodRad: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   streck: { fontSize: 16, color: '#9ca3af' },
   chipRad: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 8 },
+  typChip: { borderWidth: 1.5, borderColor: '#ddd', borderRadius: 20, paddingHorizontal: 14, paddingVertical: 9, backgroundColor: '#fff' },
+  typChipAktiv: { backgroundColor: '#2563eb', borderColor: '#2563eb' },
+  typChipText: { fontSize: 14, color: '#444', fontWeight: '600' },
+  typChipTextAktiv: { color: '#fff' },
   chip: { backgroundColor: '#eff6ff', borderRadius: 8, paddingHorizontal: 11, paddingVertical: 7 },
   chipBred: { backgroundColor: '#eff6ff', borderRadius: 8, paddingHorizontal: 16, paddingVertical: 7 },
   chipText: { fontSize: 13, color: '#2563eb', fontWeight: '600' },

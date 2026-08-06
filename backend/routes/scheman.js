@@ -32,7 +32,9 @@ const { sändJobblistaPing, sändRealtidsPing } = require('../realtid');
 
 const router = express.Router();
 
-const GILTIGA_TYPER = ['gig', 'sommarjobb', 'deltid', 'heltid', 'uppdrag'];
+// Speglas av SCHEMATYPER i frontend/src/utils/konstanter.js – ändra alltid på båda ställena.
+// 'sommarjobb' fanns i den gamla listan, så befintliga scheman förblir giltiga.
+const GILTIGA_TYPER = ['sommarjobb', 'sasongsarbete', 'deltidsjobb', 'periodsarbete'];
 const DATUM_MÖNSTER = /^\d{4}-\d{2}-\d{2}$/;
 const TID_MÖNSTER = /^\d{2}:\d{2}$/;
 

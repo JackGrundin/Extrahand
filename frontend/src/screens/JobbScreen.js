@@ -4,7 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { api } from '../api/klient';
 import { useJobblistaPing } from '../context/RealtidsContext';
 
-import { TYPER_FILTER as TYPER, KATEGORIER, normalisera } from '../utils/konstanter';
+import { KATEGORIER, SCHEMATYPER, schematypEtikett, normalisera } from '../utils/konstanter';
 import { parsaArbetstider, formatDagDatum, parsaObTillagg } from '../utils/datumHelper';
 import StadInput from '../components/StadInput';
 import RollBrickor from '../components/RollBrickor';
@@ -59,7 +59,8 @@ export default function JobbScreen({ navigation }) {
   const [läge, setLäge] = useState('pass');
   const [laddar, setLaddar] = useState(true);
   const [uppdaterar, setUppdaterar] = useState(false);
-  const [valtTyp, setValtTyp] = useState('Alla');
+  // Tom lista = alla typer, precis som valtaKategorier fungerar.
+  const [valdaSchematyper, setValdaSchematyper] = useState([]);
   const [valtaKategorier, setValtaKategorier] = useState([]);
   const [stadFilter, setStadFilter] = useState('');
   const [minLön, setMinLön] = useState('');
@@ -92,7 +93,6 @@ export default function JobbScreen({ navigation }) {
   useJobblistaPing(() => { hämta(); });
 
   const aktivaFilter = [
-    valtTyp !== 'Alla',
     valtaKategorier.length > 0,
     minLön !== '',
     minDagar !== '',
@@ -101,12 +101,11 @@ export default function JobbScreen({ navigation }) {
 
   const filtrerade = jobb
     .filter((j) => {
-      const typOk = valtTyp === 'Alla' || j.Typ === valtTyp;
       const kategoriOk = valtaKategorier.length === 0 || valtaKategorier.includes(j.Kategori);
       const stadOk = !stadFilter.trim() || (j.Plats ?? '').toLowerCase().includes(stadFilter.trim().toLowerCase());
       const lönOk = !minLön || (j.Lon != null && j.Lon >= parseInt(minLön));
       const dagarOk = !minDagar || (j.antal_dagar != null && j.antal_dagar >= parseInt(minDagar));
-      return typOk && kategoriOk && stadOk && lönOk && dagarOk;
+      return kategoriOk && stadOk && lönOk && dagarOk;
     })
     .sort((a, b) => {
       if (sortering === 'Högst lön') return (b.Lon ?? 0) - (a.Lon ?? 0);
@@ -127,7 +126,6 @@ export default function JobbScreen({ navigation }) {
   }
 
   function återställFilter() {
-    setValtTyp('Alla');
     setValtaKategorier([]);
     setMinLön('');
     setMinDagar('');
@@ -154,7 +152,8 @@ export default function JobbScreen({ navigation }) {
   if (laddar) return <ActivityIndicator style={{ flex: 1 }} size="large" />;
 
   const filtreradeScheman = scheman.filter(s =>
-    !stadFilter.trim() || (s.plats ?? '').toLowerCase().includes(stadFilter.trim().toLowerCase())
+    (!stadFilter.trim() || (s.plats ?? '').toLowerCase().includes(stadFilter.trim().toLowerCase())) &&
+    (valdaSchematyper.length === 0 || valdaSchematyper.includes(s.typ))
   );
 
   return (
@@ -187,17 +186,54 @@ export default function JobbScreen({ navigation }) {
           contentContainerStyle={styles.lista}
           refreshControl={<RefreshControl refreshing={uppdaterar} onRefresh={() => { setUppdaterar(true); hämta(); }} />}
           ListHeaderComponent={
-            <View style={styles.schemaHeader}>
-              <StadInput
-                värde={stadFilter}
-                onÄndra={setStadFilter}
-                placeholder="Sök på stad..."
-                inputStyle={styles.stadInput}
-                containerStyle={{ flex: 1 }}
-                absolutLista
-                autoCapitalize="none"
-              />
-            </View>
+            <>
+              <View style={styles.schemaHeader}>
+                <StadInput
+                  värde={stadFilter}
+                  onÄndra={setStadFilter}
+                  placeholder="Sök på stad..."
+                  inputStyle={styles.stadInput}
+                  containerStyle={{ flex: 1 }}
+                  absolutLista
+                  autoCapitalize="none"
+                />
+              </View>
+              {/* Utanför filtermodalen med flit: den är byggd för pass-läget, och dess
+                  lön-, dagar- och kategorifält gäller inte scheman. */}
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.typChipRad}
+              >
+                <TouchableOpacity
+                  style={[styles.typChip, valdaSchematyper.length === 0 && styles.typChipAktiv]}
+                  onPress={() => setValdaSchematyper([])}
+                  activeOpacity={0.7}
+                >
+                  <Text style={[styles.typChipText, valdaSchematyper.length === 0 && styles.typChipTextAktiv]}>
+                    Alla
+                  </Text>
+                </TouchableOpacity>
+                {SCHEMATYPER.map(t => {
+                  const vald = valdaSchematyper.includes(t.värde);
+                  return (
+                    <TouchableOpacity
+                      key={t.värde}
+                      style={[styles.typChip, vald && styles.typChipAktiv]}
+                      onPress={() => setValdaSchematyper(prev =>
+                        prev.includes(t.värde) ? prev.filter(x => x !== t.värde) : [...prev, t.värde]
+                      )}
+                      activeOpacity={0.7}
+                    >
+                      {vald && <Ionicons name="checkmark" size={13} color="#fff" />}
+                      <Text style={[styles.typChipText, vald && styles.typChipTextAktiv]}>
+                        {t.etikett}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </ScrollView>
+            </>
           }
           ListEmptyComponent={<Text style={styles.tom}>Inga längre uppdrag just nu</Text>}
           renderItem={({ item }) => (
@@ -224,7 +260,7 @@ export default function JobbScreen({ navigation }) {
                 <Text style={styles.flerDatumText}>{item.antalPass} pass</Text>
               </View>
 
-              <Text style={styles.info}>{item.plats} · {item.typ}</Text>
+              <Text style={styles.info}>{item.plats} · {schematypEtikett(item.typ)}</Text>
               <View style={styles.extraRad}>
                 {item.timlon != null && (
                   <Text style={styles.lön}>{Number(item.timlon).toLocaleString('sv-SE')} kr/tim</Text>
@@ -326,11 +362,6 @@ export default function JobbScreen({ navigation }) {
                     onPress={() => setAktivSektion('sortering')}
                   />
                   <KategoriRad
-                    label="Typ"
-                    värde={valtTyp !== 'Alla' ? valtTyp.charAt(0).toUpperCase() + valtTyp.slice(1) : null}
-                    onPress={() => setAktivSektion('typ')}
-                  />
-                  <KategoriRad
                     label="Kategori"
                     värde={valtaKategorier.length > 0 ? valtaKategorier.join(', ') : null}
                     onPress={() => setAktivSektion('kategori')}
@@ -360,7 +391,6 @@ export default function JobbScreen({ navigation }) {
                   <Ionicons name="chevron-back" size={20} color="#2563eb" />
                   <Text style={styles.tillbakaText}>
                     {aktivSektion === 'sortering' ? 'Sortering'
-                      : aktivSektion === 'typ' ? 'Typ'
                       : aktivSektion === 'kategori' ? 'Kategori'
                       : 'Lön och tid'}
                   </Text>
@@ -382,15 +412,6 @@ export default function JobbScreen({ navigation }) {
                 <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
                   {aktivSektion === 'sortering' && SORTERING.map((s) => (
                     <FilterVal key={s} label={s} vald={sortering === s} onPress={() => setSortering(s)} />
-                  ))}
-
-                  {aktivSektion === 'typ' && TYPER.map((t) => (
-                    <FilterVal
-                      key={t}
-                      label={t === 'Alla' ? 'Alla typer' : t.charAt(0).toUpperCase() + t.slice(1)}
-                      vald={valtTyp === t}
-                      onPress={() => setValtTyp(t)}
-                    />
                   ))}
 
                   {aktivSektion === 'kategori' && (
@@ -463,6 +484,11 @@ const styles = StyleSheet.create({
   lägeText: { fontSize: 14, fontWeight: '600', color: '#6b7280' },
   lägeTextAktiv: { color: '#fff' },
   schemaHeader: { flexDirection: 'row', marginBottom: 12, zIndex: 30 },
+  typChipRad: { flexDirection: 'row', gap: 8, paddingBottom: 12, paddingRight: 4 },
+  typChip: { flexDirection: 'row', alignItems: 'center', gap: 5, borderWidth: 1.5, borderColor: '#ddd', borderRadius: 20, paddingHorizontal: 14, paddingVertical: 8, backgroundColor: '#fff' },
+  typChipAktiv: { backgroundColor: '#2563eb', borderColor: '#2563eb' },
+  typChipText: { fontSize: 13, color: '#444', fontWeight: '600' },
+  typChipTextAktiv: { color: '#fff' },
 
   headerContainer: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: '#fff', paddingHorizontal: 16, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: '#eee', zIndex: 30 },
   stadInputWrapper: { flex: 1, zIndex: 30 },

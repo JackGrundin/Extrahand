@@ -1,4 +1,5 @@
 import { ärGiltigStad } from '../components/StadInput';
+import { SCHEMATYPER } from './konstanter';
 
 // Validerar ett schemaformulär. Returnerar ett objekt med bara de fält som saknas,
 // t.ex. { timlon: 'Ange en timlön', pass: '...' }. Tomt objekt = allt giltigt.
@@ -9,12 +10,13 @@ import { ärGiltigStad } from '../components/StadInput';
 // ett i taget finns ingen period att validera mot innan passen finns.
 // Ingen huvudkategori valideras: rollen sätts per pass i stället, och schemats egen
 // kategori nådde aldrig jobbfiltret ändå (schemajobb filtreras bort i db/jobb.js).
-export function valideraSchema({ titel, beskrivning, plats, adress, timlon, pass, avdrag }) {
+export function valideraSchema({ titel, beskrivning, plats, adress, typ, timlon, pass, avdrag }) {
   const fel = {};
 
   if (!titel?.trim()) fel.titel = 'Ange en titel';
   if (!beskrivning?.trim()) fel.beskrivning = 'Ange en beskrivning';
   if (!adress?.trim()) fel.adress = 'Ange en adress';
+  if (!SCHEMATYPER.some(t => t.värde === typ)) fel.typ = 'Välj en schematyp';
 
   if (!plats?.trim()) {
     fel.plats = 'Ange en stad';
