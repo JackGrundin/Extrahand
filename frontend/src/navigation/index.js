@@ -32,6 +32,7 @@ import RapporterScreen from '../screens/RapporterScreen';
 import VerifieraEmailScreen from '../screens/VerifieraEmailScreen';
 import PubliceraSchemaScreen from '../screens/PubliceraSchemaScreen';
 import SchemaDetaljScreen from '../screens/SchemaDetaljScreen';
+import RedigeraSchemaScreen from '../screens/RedigeraSchemaScreen';
 import SchemaKalenderScreen from '../screens/SchemaKalenderScreen';
 
 const Stack = createNativeStackNavigator();
@@ -151,6 +152,9 @@ function MinaJobbNavigator() {
     >
       <Stack.Screen name="MinaJobb" component={MinaJobbScreen} options={{ title: 'Mina annonser' }} />
       <Stack.Screen name="SchemaDetalj" component={SchemaDetaljScreen} options={{ title: 'Schema' }} />
+      {/* Bara i företagets navigator – privatpersonernas vägar till SchemaDetalj ska inte
+          kunna nå redigeringen. */}
+      <Stack.Screen name="RedigeraSchema" component={RedigeraSchemaScreen} options={{ title: 'Redigera schema' }} />
       <Stack.Screen name="RedigeraJobb" component={RedigeraJobbScreen} options={{ title: 'Redigera annons' }} />
       <Stack.Screen name="JobbAnsokningar" component={JobbAnsokningarScreen} options={({ route }) => ({ title: route.params?.titel ?? 'Ansökningar' })} />
       <Stack.Screen name="SökanadeProfil" component={SökandeProfilScreen} options={{ title: 'Sökandes profil' }} />

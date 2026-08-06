@@ -282,6 +282,19 @@ export default function SchemaDetaljScreen({ route, navigation }) {
           </View>
         )}
 
+        {/* Redigering bara för ägaren och bara så länge schemat lever. Ett avbrutet schema
+            går inte att ändra – backend avvisar det ändå. */}
+        {ärFöretag && schema.status !== 'avbrutet' && (
+          <TouchableOpacity
+            style={styles.redigeraKnapp}
+            onPress={() => navigation.navigate('RedigeraSchema', { schemaId: schema.id })}
+            activeOpacity={0.7}
+          >
+            <Ionicons name="create-outline" size={16} color="#2563eb" />
+            <Text style={styles.redigeraText}>Redigera schema</Text>
+          </TouchableOpacity>
+        )}
+
         {/* Företagets sökande ligger HÖGST UPP – det är det man öppnar schemat för. Låg de
             kvar sist hamnade de efter en passlista som kan vara 60+ rader lång. */}
         {ärFöretag && (
@@ -547,6 +560,8 @@ const styles = StyleSheet.create({
 
   sektionsRubrik: { fontSize: 16, fontWeight: '600', color: '#1a1a1a', marginBottom: 8, marginTop: 12 },
   passRubrikRad: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  redigeraKnapp: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, borderWidth: 1.5, borderColor: '#2563eb', borderRadius: 10, paddingVertical: 11, marginBottom: 4 },
+  redigeraText: { fontSize: 14, color: '#2563eb', fontWeight: '600' },
   sökandeRubrikRad: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   sökandeAntal: { backgroundColor: '#2563eb', borderRadius: 11, minWidth: 22, paddingHorizontal: 7, paddingVertical: 2, alignItems: 'center', marginTop: 4 },
   sökandeAntalText: { fontSize: 13, color: '#fff', fontWeight: '700' },

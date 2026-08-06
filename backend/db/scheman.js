@@ -220,7 +220,10 @@ async function uppdateraSchema(id, foretag_id, fält) {
     .update(fält)
     .eq('id', id)
     .eq('foretag_id', foretag_id)
-    .eq('status', 'publicerat')
+    // Även tillsatta scheman får redigeras – titel, beskrivning och timlön kan behöva
+    // rättas efter att någon godkänts. Passens datum och tider ändras däremot aldrig här.
+    // Avbrutna scheman är fortfarande låsta.
+    .in('status', ['publicerat', 'tillsatt'])
     .select()
     .maybeSingle();
 
@@ -237,23 +240,61 @@ async function uppdateraSchema(id, foretag_id, fält) {
 //
 // db/jobb.js uppdateraJobb kan inte användas: den filtrerar medvetet bort schemajobb med
 // .is('schema_id', null) så att de inte går att ändra via jobb-API:t.
-async function synkaAnnonsJobb(schema) {
+// pass är valfritt: skickas det med speglas även arbetstiderna, vilket behövs när pass
+// lagts till eller ställts in. Annons-jobbets arbetstider är det privatpersonens Mina
+// pass-kort läser, så utan den synkningen visar kortet en gammal passlista.
+async function synkaAnnonsJobb(schema, pass) {
   if (!schema?.annons_jobb_id) return;
+
+  const fält = {
+    Titel: schema.titel,
+    Beskrivning: schema.beskrivning,
+    Plats: schema.plats,
+    adress: schema.adress,
+    Lon: schema.timlon,
+    Kategori: schema.kategori,
+  };
+
+  if (Array.isArray(pass)) {
+    // Inställda pass hör inte hemma i annonsen – de ska inte dyka upp som arbetstid.
+    const aktiva = pass.filter(p => p.status !== 'installt');
+    fält.antal_dagar = aktiva.length;
+    fält.arbetstider = JSON.stringify(aktiva.map(p => ({
+      datum: p.datum,
+      start: p.starttid,
+      slut: p.sluttid,
+      kategori: p.kategori?.trim() || null,
+    })));
+  }
 
   const { error } = await supabase
     .from('Jobb')
-    .update({
-      Titel: schema.titel,
-      Beskrivning: schema.beskrivning,
-      Plats: schema.plats,
-      adress: schema.adress,
-      Lon: schema.timlon,
-      Kategori: schema.kategori,
-    })
+    .update(fält)
     .eq('id', schema.annons_jobb_id)
     .eq('schema_id', schema.id);
 
   if (error) throw error;
+}
+
+// Perioden räknas om när pass läggs till eller ställs in. Egen funktion i stället för
+// uppdateraSchema, som filtrerar på status och ägare och returnerar raden.
+async function sättSchemaPeriod(id, { startdatum, slutdatum }) {
+  const { error } = await supabase
+    .from('scheman')
+    .update({ startdatum, slutdatum })
+    .eq('id', id);
+  if (error) throw error;
+}
+
+// Ett enskilt pass, för kontrollerna innan det ställs in.
+async function hämtaPassViaId(id) {
+  const { data, error } = await supabase
+    .from('schema_pass')
+    .select('*')
+    .eq('id', id)
+    .maybeSingle();
+  if (error) throw error;
+  return data;
 }
 
 // ------------------------------------------------------------ Schema_pass
@@ -565,6 +606,8 @@ module.exports = {
   sättSchemaTilldelning,
   uppdateraSchema,
   synkaAnnonsJobb,
+  sättSchemaPeriod,
+  hämtaPassViaId,
   skapaSchemaPass,
   hämtaPassFörSchema,
   hämtaPassAttTilldela,

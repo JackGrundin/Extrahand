@@ -15,6 +15,9 @@ const {
   räknaKategorier,
   hämtaEgnaKategorier,
   synkaAnnonsJobb,
+  sättSchemaPeriod,
+  hämtaPassViaId,
+  sättPassInställt,
 } = require('../db/scheman');
 const { GILTIGA_TYPER: AVDRAGSTYPER, skapaAvdrag, hämtaAktivaAvdrag, avaktiveraAvdrag } = require('../db/schemaAvdrag');
 const { tilldelaSchema, frigörFramtidaPass, återställSchema } = require('../db/schemaTilldelning');
@@ -43,19 +46,18 @@ const MAX_KATEGORI_LÄNGD = 40;
 // Perioden skickas INTE in längre – den härleds ur passens datum (se härledPeriod). När
 // pass läggs ett i taget finns ingen period att validera mot innan passen finns, och
 // regeln "alla pass måste ligga inom perioden" blev bara en felkälla.
-function valideraSchemaInput({ titel, beskrivning, typ, plats, adress, kategori, timlon, pass, avdrag }) {
-  if (!titel || !String(titel).trim()) return 'Titel krävs';
-  if (!beskrivning || !String(beskrivning).trim()) return 'Beskrivning krävs';
-  if (typ && !GILTIGA_TYPER.includes(typ)) return 'Ogiltig typ';
-  if (!plats || !String(plats).trim()) return 'Stad krävs';
-  if (!adress || !String(adress).trim()) return 'Adress till arbetsplatsen krävs';
-  // Ingen huvudkategori krävs: rollen sätts per pass. Fältet finns kvar i databasen för
-  // scheman som skapades när det var obligatoriskt – deras pass utan egen roll ärver det.
-  if (timlon == null || !(Number(timlon) > 0)) return 'Giltig timlön krävs';
-
+// Validerar en passlista. Delas av publiceringen och av POST /:id/pass, som lägger till
+// pass i efterhand – reglerna måste vara identiska på båda vägarna.
+//
+// befintliga är pass som redan finns i schemat. Krockkontrollen måste omfatta dem, annars
+// kan ett tillagt pass få samma datum + starttid som ett befintligt och ge två tidrapporter
+// för samma arbetspass.
+function valideraPassLista(pass, befintliga = []) {
   if (!Array.isArray(pass) || !pass.length) return 'Schemat måste innehålla minst ett pass';
 
-  const sedda = new Set();
+  const sedda = new Set(
+    befintliga.filter(p => p.status !== 'installt').map(p => `${p.datum} ${p.starttid}`)
+  );
   for (const p of pass) {
     if (!DATUM_MÖNSTER.test(p?.datum || '')) return 'Varje pass måste ha ett datum';
     if (!TID_MÖNSTER.test(p?.starttid || '') || !TID_MÖNSTER.test(p?.sluttid || '')) {
@@ -77,6 +79,21 @@ function valideraSchemaInput({ titel, beskrivning, typ, plats, adress, kategori,
     if (sedda.has(nyckel)) return 'Samma pass förekommer flera gånger';
     sedda.add(nyckel);
   }
+  return null;
+}
+
+function valideraSchemaInput({ titel, beskrivning, typ, plats, adress, kategori, timlon, pass, avdrag }) {
+  if (!titel || !String(titel).trim()) return 'Titel krävs';
+  if (!beskrivning || !String(beskrivning).trim()) return 'Beskrivning krävs';
+  if (typ && !GILTIGA_TYPER.includes(typ)) return 'Ogiltig typ';
+  if (!plats || !String(plats).trim()) return 'Stad krävs';
+  if (!adress || !String(adress).trim()) return 'Adress till arbetsplatsen krävs';
+  // Ingen huvudkategori krävs: rollen sätts per pass. Fältet finns kvar i databasen för
+  // scheman som skapades när det var obligatoriskt – deras pass utan egen roll ärver det.
+  if (timlon == null || !(Number(timlon) > 0)) return 'Giltig timlön krävs';
+
+  const passFel = valideraPassLista(pass);
+  if (passFel) return passFel;
 
   for (const a of (Array.isArray(avdrag) ? avdrag : [])) {
     if (!a?.namn || !String(a.namn).trim()) return 'Varje avdrag måste ha ett namn';
@@ -376,6 +393,114 @@ router.get('/:id/avdrag', kräverInloggning, async (req, res) => {
   }
 });
 
+// POST /api/scheman/:id/pass — lägger till pass i ett redan publicerat schema.
+//
+// Befintliga pass rörs aldrig här: deras datum och tider är låsta efter publicering. Att
+// LÄGGA TILL går däremot även på ett tillsatt schema, och då materialiseras de nya passen
+// direkt för den godkända personen.
+router.post('/:id/pass', kräverInloggning, kräverTyp('företag'), async (req, res) => {
+  const { pass } = req.body;
+
+  try {
+    const schema = await hämtaSchemaViaId(req.params.id);
+    if (!schema) return res.status(404).json({ fel: 'Schemat hittades inte' });
+    if (String(schema.foretag_id) !== String(req.användare.id)) {
+      return res.status(403).json({ fel: 'Åtkomst nekad' });
+    }
+    if (schema.status === 'avbrutet') {
+      return res.status(409).json({ fel: 'Ett avbrutet schema kan inte ändras' });
+    }
+
+    const befintliga = await hämtaPassFörSchema(schema.id);
+    const fel = valideraPassLista(pass, befintliga);
+    if (fel) return res.status(400).json({ fel });
+
+    await skapaSchemaPass(pass.map(p => ({
+      schema_id: schema.id,
+      datum: p.datum,
+      starttid: p.starttid,
+      sluttid: p.sluttid,
+      // NULL betyder "ärv schemats värde" – se passMedArv. Tom sträng blir alltså null,
+      // inte '', annars ärver passet inte längre.
+      kategori: p.kategori?.trim() || null,
+      ob_tillagg: p.ob_tillagg ?? null,
+      status: 'planerad',
+    })));
+
+    // Perioden härleds ur passens datum, precis som vid publicering.
+    const allaPass = await hämtaPassFörSchema(schema.id);
+    const aktiva = allaPass.filter(p => p.status !== 'installt');
+    if (aktiva.length) await sättSchemaPeriod(schema.id, härledPeriod(aktiva));
+
+    const uppdaterat = await hämtaSchemaViaId(schema.id);
+    await synkaAnnonsJobb(uppdaterat, allaPass);
+
+    // Är schemat tillsatt ska de nya passen tilldelas samma person direkt. tilldelaSchema
+    // är idempotent – hämtaPassAttTilldela plockar bara pass utan ansokan_id, alltså exakt
+    // de nyss tillagda. Påslaget som redan är fryst på schemat återanvänds; det får aldrig
+    // räknas om, och pass_denna_manad ska inte öka: schemat är redan räknat som ett pass.
+    if (uppdaterat.anvandare_id) {
+      await tilldelaSchema(schema.id, uppdaterat.anvandare_id, uppdaterat.paslag);
+      try {
+        const token = await hämtaPushToken(uppdaterat.anvandare_id);
+        await skickaNotifikation(
+          token,
+          'Nya pass i ditt schema',
+          `${pass.length} ${pass.length === 1 ? 'nytt pass' : 'nya pass'} har lagts till i "${uppdaterat.titel}".`
+        );
+      } catch (pushFel) {
+        console.error('Kunde inte skicka notis om nya pass:', pushFel);
+      }
+    }
+
+    res.status(201).json({ antalPass: aktiva.length, tillagda: pass.length });
+  } catch (fel) {
+    console.error('Fel vid tillägg av schemapass:', fel);
+    res.status(500).json({ fel: 'Serverfel vid tillägg av pass' });
+  }
+});
+
+// DELETE /api/scheman/:id/pass/:passId — ställer in ett kommande pass.
+//
+// Passet RADERAS aldrig och ansökan inte heller: chattmeddelanden hänger på
+// meddelanden.ansokan_id, så en radering skulle slita bort historiken. Samma mönster som
+// frigörFramtidaPass använder när någon hoppar av. Ett pass med tidrapport rörs inte alls –
+// arbetet är utfört och ska betalas.
+router.delete('/:id/pass/:passId', kräverInloggning, kräverTyp('företag'), async (req, res) => {
+  try {
+    const schema = await hämtaSchemaViaId(req.params.id);
+    if (!schema) return res.status(404).json({ fel: 'Schemat hittades inte' });
+    if (String(schema.foretag_id) !== String(req.användare.id)) {
+      return res.status(403).json({ fel: 'Åtkomst nekad' });
+    }
+
+    const passet = await hämtaPassViaId(req.params.passId);
+    if (!passet || String(passet.schema_id) !== String(schema.id)) {
+      return res.status(404).json({ fel: 'Passet hittades inte' });
+    }
+    if (passet.tidrapport_id) {
+      return res.status(409).json({ fel: 'Passet är redan rapporterat och kan inte tas bort' });
+    }
+    if (passet.status !== 'planerad') {
+      return res.status(409).json({ fel: 'Bara planerade pass kan tas bort' });
+    }
+
+    if (passet.ansokan_id) await uppdateraStatus(passet.ansokan_id, 'avvisad');
+    await sättPassInställt(passet.id);
+
+    const allaPass = await hämtaPassFörSchema(schema.id);
+    const aktiva = allaPass.filter(p => p.status !== 'installt');
+    if (aktiva.length) await sättSchemaPeriod(schema.id, härledPeriod(aktiva));
+
+    await synkaAnnonsJobb(await hämtaSchemaViaId(schema.id), allaPass);
+
+    res.json({ ok: true, antalPass: aktiva.length });
+  } catch (fel) {
+    console.error('Fel vid borttagning av schemapass:', fel);
+    res.status(500).json({ fel: 'Serverfel vid borttagning av pass' });
+  }
+});
+
 // POST /api/scheman/:id/markera-ansokningar-sedda — nollställer räknaren för nya
 // ansökningar på ett schema (anropas när företaget öppnar schemat och ser ansökningarna).
 //
@@ -596,12 +721,18 @@ router.put('/:id', kräverInloggning, kräverTyp('företag'), async (req, res) =
   if (timlon != null && !(Number(timlon) > 0)) return res.status(400).json({ fel: 'Giltig timlön krävs' });
 
   try {
+    // Läs timlönen före uppdateringen – jämförelsen efteråt avgör om personen ska notifieras.
+    const tidigareTimlon = (await hämtaSchemaViaId(req.params.id))?.timlon;
+
+    // Bara fält som faktiskt skickats uppdateras. Tidigare nollades plats, adress och
+    // kategori så fort de utelämnades, vilket gjorde en delvis uppdatering till tyst
+    // dataförlust – en redigering av bara titeln raderade adressen.
     const schema = await uppdateraSchema(req.params.id, req.användare.id, {
       titel: titel.trim(),
-      beskrivning: beskrivning?.trim() ?? null,
-      plats: plats?.trim() ?? null,
-      adress: adress?.trim() ?? null,
-      kategori: kategori?.trim() ?? null,
+      ...(beskrivning !== undefined ? { beskrivning: beskrivning?.trim() ?? null } : {}),
+      ...(plats !== undefined ? { plats: plats?.trim() ?? null } : {}),
+      ...(adress !== undefined ? { adress: adress?.trim() ?? null } : {}),
+      ...(kategori !== undefined ? { kategori: kategori?.trim() ?? null } : {}),
       ...(timlon != null ? { timlon: Number(timlon) } : {}),
     });
 
@@ -618,6 +749,22 @@ router.put('/:id', kräverInloggning, kräverTyp('företag'), async (req, res) =
     // Annons-jobbet är en riktig Jobb-rad och det är den som syns i chatten och i
     // personens Mina pass. Utan synkningen låg gamla värden kvar där efter en redigering.
     await synkaAnnonsJobb(schema);
+
+    // En ändrad timlön på ett tillsatt schema ändrar vad någon får betalt för arbete de
+    // redan tackat ja till. Det får inte ske tyst.
+    if (schema.anvandare_id && timlon != null && Number(timlon) !== Number(tidigareTimlon)) {
+      try {
+        const token = await hämtaPushToken(schema.anvandare_id);
+        await skickaNotifikation(
+          token,
+          'Timlönen har ändrats',
+          `Timlönen för "${schema.titel}" är nu ${Number(timlon).toLocaleString('sv-SE')} kr/tim.`
+        );
+      } catch (pushFel) {
+        // En utebliven notis får aldrig fälla själva redigeringen.
+        console.error('Kunde inte skicka notis om ändrad timlön:', pushFel);
+      }
+    }
 
     res.json(schema);
   } catch (fel) {
