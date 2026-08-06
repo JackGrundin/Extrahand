@@ -539,6 +539,11 @@ async function hämtaKalenderPass(foretag_id, från, till) {
       datum: p.datum,
       starttid: p.starttid,
       sluttid: p.sluttid,
+      // Behövs för att kalenderns passkort ska kunna öppna schemat.
+      schemaId: p.schema_id,
+      // null när passet ännu inte är tillsatt. Kalendern skiljer bemannat från obemannat
+      // på just det – obemannade pass kommer med här med flit, de är det företaget
+      // behöver agera på.
       personId: p.anvandare_id,
       personNamn: p.anvandare_id != null ? (namnMap[p.anvandare_id] ?? null) : null,
       titel: schemaMap[p.schema_id]?.titel ?? null,

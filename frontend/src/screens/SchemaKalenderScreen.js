@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { View, Text, ScrollView, StyleSheet, ActivityIndicator, RefreshControl } from 'react-native';
+import { View, Text, ScrollView, StyleSheet, ActivityIndicator, RefreshControl, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { api } from '../api/klient';
 import { useRealtidsPing } from '../context/RealtidsContext';
@@ -14,6 +14,9 @@ import { rollFärg } from '../utils/konstanter';
 // Pass utan roll hamnar i en grupp utan rubrik i stället för under en påhittad
 // "Övrigt"-rubrik: ett schema där ingen roll angetts ska inte få en meningslös rubrik
 // över varje dag.
+//
+// Ordningen MÅSTE vara densamma som rollerFörDag i components/MånadsKalender.js, annars
+// radar kalenderns prickar och den här listan upp rollerna olika för samma dag.
 function grupperaPerKategori(pass) {
   const grupper = {};
   for (const p of pass) {
@@ -41,10 +44,26 @@ function rollerIMånaden(pass, år, månad) {
     .map(([namn, n]) => ({ namn, antal: n, färg: rollFärg(namn) }));
 }
 
+// Räknar dagar som är bemannade respektive väntar på personal. En dag med både och räknas
+// i BÅDA talen – den är delvis bemannad, och att tvinga in den i ett av talen skulle dölja
+// att där finns pass kvar att tillsätta.
+function räknaDagar(passPerDatum, år, månad) {
+  const prefix = `${år}-${String(månad + 1).padStart(2, '0')}`;
+  let bemannade = 0;
+  let väntande = 0;
+  for (const [datum, dagensPass] of Object.entries(passPerDatum)) {
+    if (!datum.startsWith(prefix)) continue;
+    if (dagensPass.some(p => p.personId != null)) bemannade += 1;
+    if (dagensPass.some(p => p.personId == null)) väntande += 1;
+  }
+  return { bemannade, väntande };
+}
+
 // Företagets bemanningsöversikt: vilka dagar de har personal och vem som jobbar när.
-// Hämtar en månad i taget med en månads marginal åt varje håll, så att månadsbyte känns
-// direkt i stället för att trigga ett nytt API-anrop.
-export default function SchemaKalenderScreen() {
+// Hämtar tre månader åt gången (föregående, visad, nästa) så att grannmånadernas data
+// redan finns medan en ny hämtning pågår. Varje månadsbyte hämtar om – marginalen ger
+// överlappande data, inte färre anrop.
+export default function SchemaKalenderScreen({ navigation }) {
   const idag = new Date();
   const [år, setÅr] = useState(idag.getFullYear());
   const [månad, setMånad] = useState(idag.getMonth());
@@ -68,7 +87,9 @@ export default function SchemaKalenderScreen() {
   }, [år, månad]);
 
   useEffect(() => { hämta(); }, [hämta]);
-  useRealtidsPing(() => { hämta(); });
+  // Filtrera på 'ansokan': hämta() drar tre månaders kalenderdata, och ska inte köras om
+  // för varje chattping. Samma resonemang som i MinaJobbScreen.
+  useRealtidsPing((payload) => { if (payload?.typ === 'ansokan') hämta(); });
 
   const passPerDatum = useMemo(() => {
     const grupper = {};
@@ -80,14 +101,20 @@ export default function SchemaKalenderScreen() {
     const ny = new Date(år, månad + steg, 1);
     setÅr(ny.getFullYear());
     setMånad(ny.getMonth());
+    // Valt datum MÅSTE följa med. Annars matchar ingen dag i den nya månaden och kalendern
+    // ser omarkerad ut, samtidigt som dagslistan står kvar på den gamla dagen. Landar man i
+    // innevarande månad väljs idag, annars den 1:a.
+    const nu = new Date();
+    const ärDennaMånad = ny.getFullYear() === nu.getFullYear() && ny.getMonth() === nu.getMonth();
+    setValtDatum(datumTillIso(ärDennaMånad ? nu : ny));
   }
 
   const rollerIVisadMånad = useMemo(() => rollerIMånaden(pass, år, månad), [pass, år, månad]);
   const dagensPass = passPerDatum[valtDatum] ?? [];
-  const bemannadeDagar = Object.keys(passPerDatum).filter(d => {
-    const [y, m] = d.split('-').map(Number);
-    return y === år && m === månad + 1;
-  }).length;
+  const { bemannade, väntande } = useMemo(
+    () => räknaDagar(passPerDatum, år, månad),
+    [passPerDatum, år, månad]
+  );
 
   if (laddar) return <ActivityIndicator style={{ flex: 1 }} size="large" />;
 
@@ -122,9 +149,12 @@ export default function SchemaKalenderScreen() {
       <View style={styles.sammanfattning}>
         <Ionicons name="people-outline" size={16} color="#2563eb" />
         <Text style={styles.sammanfattningText}>
-          {bemannadeDagar === 0
-            ? 'Ingen personal inbokad den här månaden'
-            : `${bemannadeDagar} ${bemannadeDagar === 1 ? 'dag' : 'dagar'} med personal den här månaden`}
+          {bemannade === 0 && väntande === 0
+            ? 'Inga pass inbokade den här månaden'
+            : [
+                bemannade > 0 && `${bemannade} ${bemannade === 1 ? 'dag' : 'dagar'} bemannade`,
+                väntande > 0 && `${väntande} ${väntande === 1 ? 'dag' : 'dagar'} väntar på personal`,
+              ].filter(Boolean).join(' · ')}
         </Text>
       </View>
 
@@ -150,9 +180,16 @@ export default function SchemaKalenderScreen() {
                 </View>
               )}
               {grupp.pass.map((p, i) => (
-                <View key={`${p.datum}-${p.personId}-${i}`} style={styles.passKort}>
+                <TouchableOpacity
+                  key={`${p.datum}-${p.personId}-${i}`}
+                  style={styles.passKort}
+                  onPress={() => p.schemaId && navigation.navigate('SchemaDetalj', { schemaId: p.schemaId })}
+                  activeOpacity={0.7}
+                >
                   <View style={styles.passHuvud}>
-                    <Text style={styles.passNamn}>{p.personNamn ?? 'Ej tillsatt'}</Text>
+                    <Text style={[styles.passNamn, !p.personNamn && styles.passNamnTom]}>
+                      {p.personNamn ?? 'Ej tillsatt'}
+                    </Text>
                     {p.status === 'rapporterad' && (
                       <View style={styles.genomfördBricka}>
                         <Text style={styles.genomfördText}>Genomfört</Text>
@@ -162,14 +199,11 @@ export default function SchemaKalenderScreen() {
                   <View style={styles.passRad}>
                     <Ionicons name="time-outline" size={14} color="#6b7280" />
                     <Text style={styles.passTid}>{p.starttid ?? '–'} – {p.sluttid ?? '–'}</Text>
-                    {p.typ === 'schema' && (
-                      <View style={styles.schemaBricka}>
-                        <Text style={styles.schemaBrickaText}>Schema</Text>
-                      </View>
-                    )}
+                    <View style={{ flex: 1 }} />
+                    <Ionicons name="chevron-forward" size={16} color="#c7ccd4" />
                   </View>
                   {p.titel ? <Text style={styles.passTitel} numberOfLines={1}>{p.titel}</Text> : null}
-                </View>
+                </TouchableOpacity>
               ))}
             </View>
           ))
@@ -204,11 +238,10 @@ const styles = StyleSheet.create({
   passKort: { backgroundColor: '#fff', borderRadius: 12, padding: 14, marginBottom: 10, shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 4, elevation: 2 },
   passHuvud: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 },
   passNamn: { fontSize: 15, fontWeight: '600', color: '#1a1a1a', flex: 1 },
+  passNamnTom: { color: '#9ca3af', fontStyle: 'italic' },
   genomfördBricka: { backgroundColor: '#dcfce7', borderRadius: 8, paddingHorizontal: 8, paddingVertical: 3 },
   genomfördText: { fontSize: 11, fontWeight: '700', color: '#16a34a' },
   passRad: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   passTid: { fontSize: 14, color: '#374151' },
-  schemaBricka: { backgroundColor: '#eff6ff', borderRadius: 6, paddingHorizontal: 6, paddingVertical: 2 },
-  schemaBrickaText: { fontSize: 11, fontWeight: '600', color: '#2563eb' },
   passTitel: { fontSize: 13, color: '#9ca3af', marginTop: 4 },
 });

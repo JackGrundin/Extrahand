@@ -7,8 +7,13 @@ import { rollFärg } from '../utils/konstanter';
 // dagsiffran; fler än så blir en "+N".
 const MAX_PRICKAR = 3;
 
-// Distinkta roller en given dag, med färg och om alla pass i rollen är genomförda.
-// Sorterad på namn så att prickarnas ordning är stabil mellan renderingar.
+// Distinkta roller en given dag, med färg, om alla pass i rollen är genomförda och om
+// någon av dem saknar person.
+//
+// Sorteringen MÅSTE vara densamma som grupperaPerKategori i SchemaKalenderScreen.js:
+// namnlösa sist. Tidigare gav `(a.namn ?? '')` motsatt ordning här, så prickarna och
+// dagslistan under kalendern radade upp rollerna olika – och med MAX_PRICKAR kunde den
+// namnlösa gruppen tränga undan en namngiven roll till "+N".
 function rollerFörDag(pass) {
   const grupper = {};
   for (const p of pass) {
@@ -16,8 +21,16 @@ function rollerFörDag(pass) {
     (grupper[namn ?? ''] ??= { namn, färg: rollFärg(namn), pass: [] }).pass.push(p);
   }
   return Object.values(grupper)
-    .sort((a, b) => (a.namn ?? '').localeCompare(b.namn ?? '', 'sv'))
-    .map(g => ({ ...g, alltGenomfört: g.pass.every(p => p.status === 'rapporterad') }));
+    .sort((a, b) => {
+      if (!a.namn) return 1;
+      if (!b.namn) return -1;
+      return a.namn.localeCompare(b.namn, 'sv');
+    })
+    .map(g => ({
+      ...g,
+      alltGenomfört: g.pass.every(p => p.status === 'rapporterad'),
+      saknarPerson: g.pass.some(p => p.personId == null),
+    }));
 }
 
 // Måndagsbaserad månadskalender byggd av vanliga View:er. Appen har inget
@@ -146,11 +159,14 @@ export default function MånadsKalender({
                         key={roll.namn ?? 'utan'}
                         style={[
                           styles.prick,
-                          // Fylld = planerad, ring = allt genomfört. Statusen får inte
-                          // konkurrera med rollfärgen, därför form i stället för färg.
-                          roll.alltGenomfört
+                          // Tre tillstånd, i prioritetsordning: ring = rollen saknar person
+                          // (hålet som ska fyllas), nedtonad fylld = allt genomfört, fylld =
+                          // bemannad och planerad. Ett genomfört pass är alltid bemannat, så
+                          // de två första kan aldrig krocka. Statusen får inte konkurrera med
+                          // rollfärgen, därför form och opacitet i stället för egen färg.
+                          roll.saknarPerson
                             ? { borderColor: ärVald ? '#fff' : roll.färg, borderWidth: 1.5, backgroundColor: 'transparent' }
-                            : { backgroundColor: ärVald ? '#fff' : roll.färg },
+                            : { backgroundColor: ärVald ? '#fff' : roll.färg, opacity: roll.alltGenomfört ? 0.4 : 1 },
                         ]}
                       />
                     ))}

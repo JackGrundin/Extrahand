@@ -139,6 +139,13 @@ function ProfilNavigator() {
       <Stack.Screen name="ProfilHuvud" component={ProfilScreen} options={{ title: 'Profil' }} />
       <Stack.Screen name="RedigeraProfil" component={RedigeraProfilScreen} options={{ title: 'Redigera profil' }} />
       <Stack.Screen name="SchemaKalender" component={SchemaKalenderScreen} options={{ title: 'Schemaöversikt' }} />
+      {/* Kalenderns passkort öppnar schemat, och SchemaDetalj har i sin tur en
+          redigeraknapp – båda måste finnas i den här stacken, annars leder de ingenstans.
+          Redigeringen är fortfarande oåtkomlig för privatpersoner: ingången till kalendern
+          är gated på !ärPrivatperson i ProfilScreen, och redigeraknappen renderas bara
+          när ärFöretag. */}
+      <Stack.Screen name="SchemaDetalj" component={SchemaDetaljScreen} options={{ title: 'Schema' }} />
+      <Stack.Screen name="RedigeraSchema" component={RedigeraSchemaScreen} options={{ title: 'Redigera schema' }} />
     </Stack.Navigator>
   );
 }
