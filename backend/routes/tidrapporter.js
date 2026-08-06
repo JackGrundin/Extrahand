@@ -5,7 +5,7 @@ const { hämtaAnsökanViaId } = require('../db/ansokningar');
 const { hämtaJobbViaId } = require('../db/jobb');
 const { hämtaAnvändareViaEmail, hämtaAnvändareViaId, hämtaPushToken } = require('../db/användare');
 const { skickaNotifikation } = require('../utils/pushNotifikation');
-const { påslagEller40, beräknaObBelopp, beräknaBelopp } = require('../utils/pris');
+const { påslagEller40, beräknaObBelopp, beräknaBelopp, valideraObTillagg } = require('../utils/pris');
 const { sändRealtidsPing } = require('../realtid');
 
 const router = express.Router();
@@ -23,6 +23,13 @@ router.post('/', kräverInloggning, kräverTyp('företag'), async (req, res) => 
     const ansökan = await hämtaAnsökanViaId(ansokan_id);
     if (!ansökan) return res.status(404).json({ fel: 'Ansökan hittades inte' });
     if (ansökan.status !== 'godkänd') return res.status(400).json({ fel: 'Ansökan måste vara godkänd' });
+
+    // OB från klienten MÅSTE valideras innan beräknaObBelopp: den gör start.split(':') och
+    // kastar på trasig data, vilket skulle ge 500 i stället för 400. Ett OB utan gränser
+    // (obegränsat värde, sluttid före starttid) skulle dessutom frysas på rapporten och
+    // följa med till fakturan.
+    const obFel = valideraObTillagg(obTillaggOverride);
+    if (obFel) return res.status(400).json({ fel: obFel });
 
     const jobb = await hämtaJobbViaId(ansökan.jobb_id);
     const timlon = jobb?.Lon ?? 0;
@@ -104,6 +111,13 @@ router.patch('/:id/status', kräverInloggning, kräverTyp('privatperson'), async
     if (rapport.anvandare_id !== req.användare.id) {
       return res.status(403).json({ fel: 'Åtkomst nekad' });
     }
+    // En rapport besvaras EN gång. Utan vakten kan en redan godkänd rapport bestridas i
+    // efterhand – även efter att den fakturerats, eftersom fakturaunderlaget plockar
+    // rapporter med status 'godkänd' (se hämtaOfaktureradeRapporter). En korrigering efter
+    // bestridande är en ny rapport via POST, inte en statusändring på den gamla.
+    if (rapport.status !== 'väntar') {
+      return res.status(409).json({ fel: 'Tidrapporten är redan besvarad' });
+    }
 
     await uppdateraTidrapportStatus(req.params.id, status, förklaring);
     res.json({ ok: true });
@@ -147,6 +161,11 @@ router.patch('/:id/korrigera', kräverInloggning, kräverTyp('företag'), async 
     if (!rapport.auto_skapad || rapport.status !== 'väntar') {
       return res.status(400).json({ fel: 'Bara en automatisk tidrapport som väntar på svar kan korrigeras' });
     }
+
+    // Samma skäl som i POST: beräknaObBelopp kastar på trasig indata, och ett ovaliderat
+    // OB fryses på rapporten och går vidare till fakturan.
+    const obFel = valideraObTillagg(obTillaggOverride);
+    if (obFel) return res.status(400).json({ fel: obFel });
 
     const obTillagg = Array.isArray(obTillaggOverride)
       ? obTillaggOverride

@@ -36,6 +36,8 @@ const router = express.Router();
 // 'sommarjobb' fanns i den gamla listan, så befintliga scheman förblir giltiga.
 const GILTIGA_TYPER = ['sommarjobb', 'sasongsarbete', 'deltidsjobb', 'periodsarbete'];
 const DATUM_MÖNSTER = /^\d{4}-\d{2}-\d{2}$/;
+// Speglas av MAX_ANTAL_PASS i frontend/src/screens/PubliceraSchemaScreen.js.
+const MAX_ANTAL_PASS = 200;
 const TID_MÖNSTER = /^\d{2}:\d{2}$/;
 
 // Validerar ett inkommande schema. Returnerar felmeddelande (sträng) eller null.
@@ -57,14 +59,32 @@ const MAX_KATEGORI_LÄNGD = 40;
 function valideraPassLista(pass, befintliga = []) {
   if (!Array.isArray(pass) || !pass.length) return 'Schemat måste innehålla minst ett pass';
 
-  const sedda = new Set(
-    befintliga.filter(p => p.status !== 'installt').map(p => `${p.datum} ${p.starttid}`)
-  );
+  const aktivaBefintliga = befintliga.filter(p => p.status !== 'installt');
+
+  // Varje pass blir en Jobb-rad och en ansökan, kopplade i en sekventiell loop i
+  // schemaTilldelning. Utan tak kan ett anrop förbi appen skapa tiotusentals rader.
+  // Speglas av MAX_ANTAL_PASS i frontend/src/screens/PubliceraSchemaScreen.js.
+  if (pass.length + aktivaBefintliga.length > MAX_ANTAL_PASS) {
+    return `Ett schema kan ha högst ${MAX_ANTAL_PASS} pass`;
+  }
+
+  const idag = idagStockholm();
+  const sedda = new Set(aktivaBefintliga.map(p => `${p.datum} ${p.starttid}`));
   for (const p of pass) {
     if (!DATUM_MÖNSTER.test(p?.datum || '')) return 'Varje pass måste ha ett datum';
+    // Ett pass daterat före idag blir permanent dött: hämtaPassAttTilldela filtrerar på
+    // .gte('datum', idag) så det tilldelas aldrig, och cronen kräver ansokan_id så det
+    // rapporteras aldrig. Det räknas ändå av räknaPassFörSchema, som är divisorn i
+    // beräknaAvdragFörPass – ett dött pass späder alltså ut löneavdraget så att summan
+    // aldrig når det inskrivna beloppet. Dagens datum är däremot giltigt.
+    if (p.datum < idag) return 'Pass kan inte läggas på ett datum som redan passerat';
     if (!TID_MÖNSTER.test(p?.starttid || '') || !TID_MÖNSTER.test(p?.sluttid || '')) {
       return 'Varje pass måste ha start- och sluttid';
     }
+    // Identiska tider ger noll timmar. Cronen markerar då passet rapporterat UTAN
+    // tidrapport, så personen får inget betalt medan företaget ser "Genomfört".
+    // Blockera ALDRIG "sluttid före starttid" – pass över midnatt (22:00–06:00) är giltiga.
+    if (p.starttid === p.sluttid) return 'Start- och sluttid kan inte vara samma';
     // Kategori per pass är fri text – företaget namnger sina egna avdelningar och är inte
     // bundet till KATEGORIER-listan. Bara längden begränsas.
     if (p.kategori != null && String(p.kategori).trim().length > MAX_KATEGORI_LÄNGD) {
@@ -492,6 +512,9 @@ router.delete('/:id/pass/:passId', kräverInloggning, kräverTyp('företag'), as
 
     const allaPass = await hämtaPassFörSchema(schema.id);
     const aktiva = allaPass.filter(p => p.status !== 'installt');
+    // Perioden nollas INTE när sista passet ställs in: startdatum/slutdatum är not null,
+    // och en period utan pass är ändå meningslös att visa. Annons-jobbet får däremot noll
+    // pass via synkaAnnonsJobb, vilket är det som syns för den som söker.
     if (aktiva.length) await sättSchemaPeriod(schema.id, härledPeriod(aktiva));
 
     await synkaAnnonsJobb(await hämtaSchemaViaId(schema.id), allaPass);
