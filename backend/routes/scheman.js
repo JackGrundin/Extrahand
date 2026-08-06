@@ -718,9 +718,11 @@ router.post('/:id/avbryt', kräverInloggning, kräverTyp('företag'), async (req
 
 // PUT /api/scheman/:id — företag redigerar ett ännu inte tillsatt schema
 router.put('/:id', kräverInloggning, kräverTyp('företag'), async (req, res) => {
-  const { titel, beskrivning, plats, adress, kategori, timlon } = req.body;
+  const { titel, beskrivning, plats, adress, kategori, typ, timlon } = req.body;
   if (!titel || !String(titel).trim()) return res.status(400).json({ fel: 'Titel krävs' });
   if (timlon != null && !(Number(timlon) > 0)) return res.status(400).json({ fel: 'Giltig timlön krävs' });
+  // Samma GILTIGA_TYPER som POST använder – ingen andra sanning om vilka typer som finns.
+  if (typ !== undefined && !GILTIGA_TYPER.includes(typ)) return res.status(400).json({ fel: 'Ogiltig typ' });
 
   try {
     // Läs timlönen före uppdateringen – jämförelsen efteråt avgör om personen ska notifieras.
@@ -735,6 +737,7 @@ router.put('/:id', kräverInloggning, kräverTyp('företag'), async (req, res) =
       ...(plats !== undefined ? { plats: plats?.trim() ?? null } : {}),
       ...(adress !== undefined ? { adress: adress?.trim() ?? null } : {}),
       ...(kategori !== undefined ? { kategori: kategori?.trim() ?? null } : {}),
+      ...(typ !== undefined ? { typ } : {}),
       ...(timlon != null ? { timlon: Number(timlon) } : {}),
     });
 

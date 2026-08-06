@@ -7,7 +7,7 @@ import FältFel from '../components/FältFel';
 import DatumVäljare from '../components/DatumVäljare';
 import PassDetaljFält from '../components/PassDetaljFält';
 import { formatDagDatum, veckodagsNamn } from '../utils/datumHelper';
-import { KATEGORIER, formateraPris, beräknaAvdragFörPass } from '../utils/konstanter';
+import { KATEGORIER, SCHEMATYPER, formateraPris, beräknaAvdragFörPass } from '../utils/konstanter';
 
 const TOMT_PASS = { datum: '', starttid: '', sluttid: '', kategori: '', ob_tillagg: [] };
 
@@ -23,6 +23,7 @@ export default function RedigeraSchemaScreen({ route, navigation }) {
 
   const [titel, setTitel] = useState('');
   const [beskrivning, setBeskrivning] = useState('');
+  const [typ, setTyp] = useState('');
   const [timlon, setTimlon] = useState('');
 
   const [avdrag, setAvdrag] = useState([]);
@@ -40,6 +41,7 @@ export default function RedigeraSchemaScreen({ route, navigation }) {
       setSchema(data);
       setTitel(data.titel ?? '');
       setBeskrivning(data.beskrivning ?? '');
+      setTyp(data.typ ?? '');
       setTimlon(data.timlon != null ? String(data.timlon) : '');
       setAvdrag(data.avdrag ?? []);
     } catch (f) {
@@ -61,6 +63,9 @@ export default function RedigeraSchemaScreen({ route, navigation }) {
     const nya = {};
     if (!titel.trim()) nya.titel = 'Titel krävs';
     if (!beskrivning.trim()) nya.beskrivning = 'Beskrivning krävs';
+    // Samma regel som valideraSchema, men inline: skärmen äger inte pass och avdrag och
+    // kan därför inte köra hela valideraSchema.
+    if (!SCHEMATYPER.some(t => t.värde === typ)) nya.typ = 'Välj en schematyp';
     const lön = parseFloat(String(timlon).replace(',', '.'));
     if (!(lön > 0)) nya.timlon = 'Ange en timlön större än noll';
     if (Object.keys(nya).length) return setFel(nya);
@@ -73,6 +78,7 @@ export default function RedigeraSchemaScreen({ route, navigation }) {
         // plats, adress och kategori står kvar orörda.
         titel: titel.trim(),
         beskrivning: beskrivning.trim(),
+        typ,
         timlon: lön,
       });
       Alert.alert('Sparat', 'Schemat har uppdaterats.');
@@ -210,6 +216,23 @@ export default function RedigeraSchemaScreen({ route, navigation }) {
           multiline
         />
         <FältFel text={fel.beskrivning} />
+
+        <Text style={styles.label}>Schematyp *</Text>
+        <View style={styles.typRad}>
+          {SCHEMATYPER.map(t => (
+            <TouchableOpacity
+              key={t.värde}
+              style={[styles.typChip, typ === t.värde && styles.typChipAktiv]}
+              onPress={() => { setTyp(t.värde); rensaFel('typ'); }}
+              activeOpacity={0.7}
+            >
+              <Text style={[styles.typChipText, typ === t.värde && styles.typChipTextAktiv]}>
+                {t.etikett}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+        <FältFel text={fel.typ} />
 
         <Text style={styles.label}>Timlön (kr) *</Text>
         <TextInput
@@ -386,6 +409,12 @@ const styles = StyleSheet.create({
   input: { borderWidth: 1, borderColor: '#ddd', borderRadius: 10, padding: 14, fontSize: 15, backgroundColor: '#fafafa' },
   inputFel: { borderColor: '#ef4444' },
   textArea: { height: 110, textAlignVertical: 'top' },
+
+  typRad: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
+  typChip: { borderWidth: 1.5, borderColor: '#ddd', borderRadius: 20, paddingHorizontal: 14, paddingVertical: 9, backgroundColor: '#fff' },
+  typChipAktiv: { backgroundColor: '#2563eb', borderColor: '#2563eb' },
+  typChipText: { fontSize: 14, color: '#444', fontWeight: '600' },
+  typChipTextAktiv: { color: '#fff' },
 
   sparaKnapp: { backgroundColor: '#2563eb', borderRadius: 12, paddingVertical: 15, alignItems: 'center', marginTop: 20 },
   sparaText: { fontSize: 16, color: '#fff', fontWeight: '600' },

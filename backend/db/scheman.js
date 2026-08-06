@@ -253,6 +253,9 @@ async function synkaAnnonsJobb(schema, pass) {
     adress: schema.adress,
     Lon: schema.timlon,
     Kategori: schema.kategori,
+    // Typ saknades här tills schematypen blev redigerbar. Utan raden behåller annons-jobbet
+    // den typ det skapades med, och glider isär från schemat vid varje typändring.
+    Typ: schema.typ,
   };
 
   if (Array.isArray(pass)) {
