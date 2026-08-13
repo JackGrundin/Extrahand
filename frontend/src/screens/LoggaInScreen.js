@@ -106,8 +106,8 @@ const styles = StyleSheet.create({
   underrubrik: { fontSize: 18, textAlign: 'center', marginBottom: 32, color: '#666' },
   input: { borderWidth: 1, borderColor: '#ddd', borderRadius: 10, padding: 14, marginBottom: 12, fontSize: 16, color: '#1a1a1a', letterSpacing: 0 },
   knapp: { backgroundColor: '#2563eb', borderRadius: 10, padding: 16, alignItems: 'center', marginBottom: 16 },
-  // Högerställd ovanför inloggningsknappen, med generös tryckyta.
-  glömtKnapp: { alignSelf: 'flex-end', paddingVertical: 6, paddingHorizontal: 4, marginBottom: 10 },
+  // Centrerad ovanför inloggningsknappen, med generös tryckyta.
+  glömtKnapp: { alignSelf: 'center', paddingVertical: 6, paddingHorizontal: 12, marginBottom: 10 },
   glömtText: { color: '#2563eb', fontSize: 14, fontWeight: '600' },
   knappText: { color: '#fff', fontWeight: '600', fontSize: 16 },
   länk: { textAlign: 'center', color: '#2563eb', fontSize: 15 },
