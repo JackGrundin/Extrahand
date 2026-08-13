@@ -185,6 +185,18 @@ export default function RedigeraSchemaScreen({ route, navigation }) {
   const ärTillsatt = schema.anvandare_id != null;
   const kommandePass = (schema.pass ?? []).filter(p => p.status === 'planerad');
 
+  // Knappen sparar BARA de fyra fälten här nedanför – avdrag och pass sparas direkt när de
+  // ändras. Nu när knappen sitter i foten och inte längre står precis under fälten är det
+  // släckta läget det som visar räckvidden: den tänds bara när ett av dem rörts.
+  //
+  // Jämförelserna måste normalisera EXAKT som hämta() gör när fälten seedas, annars ser
+  // knappen ändrad ut direkt vid inladdning.
+  const ärÄndrat =
+    titel !== (schema.titel ?? '') ||
+    beskrivning !== (schema.beskrivning ?? '') ||
+    typ !== (schema.typ ?? '') ||
+    timlon !== (schema.timlon != null ? String(schema.timlon) : '');
+
   return (
     <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <ScrollView style={styles.container} keyboardShouldPersistTaps="handled">
@@ -242,15 +254,6 @@ export default function RedigeraSchemaScreen({ route, navigation }) {
           keyboardType="numeric"
         />
         <FältFel text={fel.timlon} />
-
-        <TouchableOpacity
-          style={[styles.sparaKnapp, sparar && styles.knappInaktiv]}
-          onPress={sparaGrunduppgifter}
-          disabled={sparar}
-          activeOpacity={0.8}
-        >
-          <Text style={styles.sparaText}>Spara ändringar</Text>
-        </TouchableOpacity>
 
         {/* ------------------------------------------------------ Löneavdrag */}
 
@@ -395,6 +398,20 @@ export default function RedigeraSchemaScreen({ route, navigation }) {
 
         <View style={{ height: 40 }} />
       </ScrollView>
+
+      {/* Utanför ScrollView men innanför KeyboardAvoidingView, samma som navRad i
+          PubliceraSchemaScreen: foten ligger då kvar längst ned och åker upp ovanför
+          tangentbordet i stället för att hamna bakom det. */}
+      <View style={styles.fot}>
+        <TouchableOpacity
+          style={[styles.sparaKnapp, (sparar || !ärÄndrat) && styles.knappInaktiv]}
+          onPress={sparaGrunduppgifter}
+          disabled={sparar || !ärÄndrat}
+          activeOpacity={0.8}
+        >
+          <Text style={styles.sparaText}>Spara ändringar</Text>
+        </TouchableOpacity>
+      </View>
     </KeyboardAvoidingView>
   );
 }
@@ -416,7 +433,10 @@ const styles = StyleSheet.create({
   typChipText: { fontSize: 14, color: '#444', fontWeight: '600' },
   typChipTextAktiv: { color: '#fff' },
 
-  sparaKnapp: { backgroundColor: '#2563eb', borderRadius: 12, paddingVertical: 15, alignItems: 'center', marginTop: 20 },
+  // paddingBottom 28 är appens manuella marginal för hemindikatorn – samma värde som
+  // navRad i PubliceraSchemaScreen. Projektet har inget safe-area-bibliotek.
+  fot: { paddingHorizontal: 20, paddingTop: 12, paddingBottom: 28, borderTopWidth: 1, borderTopColor: '#f0f0f0', backgroundColor: '#fff' },
+  sparaKnapp: { backgroundColor: '#2563eb', borderRadius: 12, paddingVertical: 15, alignItems: 'center' },
   sparaText: { fontSize: 16, color: '#fff', fontWeight: '600' },
   knappInaktiv: { opacity: 0.5 },
 
