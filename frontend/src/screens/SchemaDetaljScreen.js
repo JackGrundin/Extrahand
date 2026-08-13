@@ -7,7 +7,7 @@ import { useRealtidsPing } from '../context/RealtidsContext';
 import { useAttAvsluta } from '../context/AttAvslutaContext';
 import { api } from '../api/klient';
 import { parsaObTillagg, beräknaObBelopp, formatDagDatum, veckodagsNamn } from '../utils/datumHelper';
-import { beräknaFakturapris, formateraPris, beräknaAvdragFörPass } from '../utils/konstanter';
+import { beräknaFakturapris } from '../utils/konstanter';
 import { useJobbPåslag } from '../utils/useJobbPåslag';
 import RollBrickor from '../components/RollBrickor';
 
@@ -243,9 +243,20 @@ export default function SchemaDetaljScreen({ route, navigation }) {
 
         <View style={styles.periodKort}>
           <Ionicons name="calendar" size={16} color="#2563eb" />
-          <Text style={styles.periodText}>
-            {formatDagDatum(schema.startdatum)} – {formatDagDatum(schema.slutdatum)} · {schema.antalPass} pass
-          </Text>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.periodText}>
+              {formatDagDatum(schema.startdatum)} – {formatDagDatum(schema.slutdatum)} · {schema.antalPass} pass
+            </Text>
+            {/* Totalen kommer färdigräknad från servern (GET /api/scheman/:id). Räkna den
+                aldrig här: pass över midnatt och sommartidsskiften måste ge exakt samma
+                siffra som tidrapporterna, och telefonens tidszon behöver inte vara
+                Europe/Stockholm. Villkoret tål att fältet saknas mot en äldre backend. */}
+            {schema.totaltTimmar > 0 && (
+              <Text style={styles.periodTimmar}>
+                Totalt: {schema.totaltTimmar.toLocaleString('sv-SE', { maximumFractionDigits: 1 })} timmar
+              </Text>
+            )}
+          </View>
         </View>
 
         {ärTilldelad && (
@@ -392,20 +403,13 @@ export default function SchemaDetaljScreen({ route, navigation }) {
             </View>
             {avdrag.map(a => (
               <View key={a.id} style={styles.avdragRad}>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.avdragNamn}>{a.namn}</Text>
-                  <Text style={styles.avdragDetalj}>
-                    {Number(a.belopp).toLocaleString('sv-SE')} kr {a.typ === 'totalt' ? 'totalt för perioden' : 'per pass'}
-                  </Text>
-                </View>
+                <Text style={styles.avdragNamn} numberOfLines={1}>{a.namn}</Text>
+                <Text style={styles.avdragBelopp}>
+                  −{Number(a.belopp).toLocaleString('sv-SE')} kr
+                  <Text style={styles.avdragEnhet}>{a.typ === 'totalt' ? ' totalt' : ' /pass'}</Text>
+                </Text>
               </View>
             ))}
-            {schema.pass?.length > 0 && (
-              <Text style={styles.avdragSumma}>
-                Dras från lönen: {formateraPris(beräknaAvdragFörPass(avdrag, schema.pass.length))} kr per pass.
-                Fakturan till företaget påverkas inte.
-              </Text>
-            )}
           </View>
         )}
 
@@ -522,6 +526,7 @@ const styles = StyleSheet.create({
 
   periodKort: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: '#f8faff', borderRadius: 12, padding: 14, marginBottom: 12, borderWidth: 1, borderColor: '#bfdbfe' },
   periodText: { fontSize: 14, fontWeight: '600', color: '#2563eb' },
+  periodTimmar: { fontSize: 13, fontWeight: '500', color: '#3b82f6', marginTop: 2 },
 
   tilldeladKort: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: '#f0fdf4', borderRadius: 12, padding: 14, marginBottom: 12, borderWidth: 1, borderColor: '#bbf7d0' },
   tilldeladText: { fontSize: 14, fontWeight: '600', color: '#15803d', flex: 1 },
@@ -553,13 +558,17 @@ const styles = StyleSheet.create({
   obBricka: { backgroundColor: '#fff7ed', borderRadius: 6, paddingHorizontal: 7, paddingVertical: 2 },
   obBrickaText: { fontSize: 11, color: '#c2410c', fontWeight: '700' },
 
-  avdragKort: { backgroundColor: '#fef2f2', borderRadius: 12, padding: 14, marginTop: 12, borderWidth: 1, borderColor: '#fecaca' },
-  avdragRubrikRad: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 8 },
-  avdragRubrik: { fontSize: 14, fontWeight: '700', color: '#991b1b' },
-  avdragRad: { flexDirection: 'row', alignItems: 'center', paddingVertical: 5 },
-  avdragNamn: { fontSize: 14, color: '#991b1b', fontWeight: '600' },
-  avdragDetalj: { fontSize: 13, color: '#b91c1c', marginTop: 1 },
-  avdragSumma: { fontSize: 12, color: '#b91c1c', marginTop: 8, lineHeight: 17, borderTopWidth: 1, borderTopColor: '#fecaca', paddingTop: 8 },
+  // Neutral yta som resten av sidan, med rött bara på ikonen och beloppet. Kortet bar
+  // tidigare rött på fem nivåer (bakgrund, ram, rubrik, namn, detaljrad) och skrek mer
+  // än det informerade. Minustecknet och den röda summan räcker för att raden ska läsas
+  // som ett avdrag.
+  avdragKort: { backgroundColor: '#fff', borderRadius: 12, padding: 14, marginTop: 12, borderWidth: 1, borderColor: '#e5e7eb' },
+  avdragRubrikRad: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 4 },
+  avdragRubrik: { fontSize: 14, fontWeight: '700', color: '#374151' },
+  avdragRad: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12, paddingVertical: 6 },
+  avdragNamn: { fontSize: 14, color: '#374151', flexShrink: 1 },
+  avdragBelopp: { fontSize: 14, fontWeight: '700', color: '#dc2626' },
+  avdragEnhet: { fontSize: 12, fontWeight: '500', color: '#9ca3af' },
   statusBricka: { borderRadius: 8, paddingHorizontal: 8, paddingVertical: 3 },
   statusText: { fontSize: 12, fontWeight: '700' },
 

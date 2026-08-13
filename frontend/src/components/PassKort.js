@@ -1,6 +1,6 @@
 import { View, Text, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { parsaArbetstider, formatDagDatum } from '../utils/datumHelper';
+import { parsaArbetstider, formatPeriod } from '../utils/datumHelper';
 import RollBrickor from './RollBrickor';
 
 const STATUS = {
@@ -29,14 +29,17 @@ export default function PassKort({ pass }) {
 
       {roller.length > 0 && <RollBrickor roller={roller} style={{ marginTop: 10 }} />}
 
+      {/* Perioden i stället för en uppräkning av datumen. Antalet pass står kvar
+          bredvid: det gick tidigare att läsa ur "+19 till", och utan siffran säger
+          en period på två månader inget om hur mycket arbete den rymmer. */}
       {datum.length > 0 ? (
         <View style={styles.datumRad}>
-          {datum.slice(0, 4).map((d, i) => (
-            <View key={i} style={styles.datumChip}>
-              <Text style={styles.datumChipText}>{formatDagDatum(d)}</Text>
-            </View>
-          ))}
-          {datum.length > 4 && <Text style={styles.fler}>+{datum.length - 4} till</Text>}
+          <View style={styles.datumChip}>
+            <Text style={styles.datumChipText}>{formatPeriod(datum)}</Text>
+          </View>
+          {datum.length > 1 && (
+            <Text style={styles.antal}>{datum.length} pass</Text>
+          )}
         </View>
       ) : null}
     </View>
@@ -52,5 +55,5 @@ const styles = StyleSheet.create({
   datumRad: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 6, marginTop: 12 },
   datumChip: { backgroundColor: '#eff6ff', borderRadius: 8, paddingHorizontal: 8, paddingVertical: 4, borderWidth: 1, borderColor: '#bfdbfe' },
   datumChipText: { fontSize: 13, fontWeight: '700', color: '#2563eb' },
-  fler: { fontSize: 13, color: '#6b7280', fontWeight: '500' },
+  antal: { fontSize: 13, color: '#6b7280', fontWeight: '500' },
 });

@@ -27,7 +27,7 @@ const { hämtaPrenumeration, ärPro, harGjortPlanval, sättPlanvalGjort, minskaP
 const { hämtaPrivatpersonerIStad, hämtaPushToken, hämtaAnvändareViaId } = require('../db/användare');
 const { GRATIS_PASS_PER_MANAD, valideraObTillagg } = require('../utils/pris');
 const { skickaNotifikation } = require('../utils/pushNotifikation');
-const { idagStockholm, parsaArbetstider } = require('../utils/tid');
+const { idagStockholm, parsaArbetstider, passTimmar } = require('../utils/tid');
 const { sändJobblistaPing, sändRealtidsPing } = require('../realtid');
 
 const router = express.Router();
@@ -383,10 +383,30 @@ router.get('/:id', kräverInloggning, async (req, res) => {
     // Avdragen följer med för alla, inte bara ägaren – den som söker måste se dem först.
     const avdrag = await hämtaAktivaAvdrag(schema.id);
 
+    // Schemats totala längd i timmar, till den som överväger att söka. Räknas HÄR och
+    // inte i appen: passTimmar hanterar både pass över midnatt (22:00–06:00 = 8 h, inte
+    // −16) och svenska sommartidsskiften, och är exakt samma funktion som
+    // cron/schemaTidrapport använder för timmarna som faktiskt betalas ut. Telefonens
+    // tidszon behöver inte vara Europe/Stockholm, så en spegling i frontend hade kunnat
+    // visa en annan siffra än lönen.
+    //
+    // Inställda pass räknas inte – de ger aldrig någon tidrapport och ingen lön, samma
+    // regel som räknaPassFörSchema. antalPass nedan räknar däremot ALLA pass, oförändrat,
+    // så ett schema med inställda pass visar fler pass än timmarna motsvarar.
+    //
+    // Summan avrundas igen: passTimmar avrundar per pass, och sextio termer flyter annars
+    // till 464.99999999999994.
+    const totaltTimmar = Math.round(
+      pass
+        .filter(p => p.status !== 'installt')
+        .reduce((sum, p) => sum + passTimmar(p), 0) * 100
+    ) / 100;
+
     const svar = {
       ...schema,
       pass,
       antalPass: pass.length,
+      totaltTimmar,
       avdrag,
       // Vanligast först, samma ordning som schemalistan använder.
       kategorier: räknaKategorier(pass),

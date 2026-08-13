@@ -15,6 +15,57 @@ export function formatDagDatum(isoStr) {
   return new Date(isoStr + 'T12:00:00').toLocaleDateString('sv-SE', { day: 'numeric', month: 'short' });
 }
 
+// Sammanfattar en lista ISO-datum som EN period, t.ex. '15 jun – 15 aug 2026'.
+// Ett schema kan ha 60 pass, och att räkna upp de första datumen och lägga på
+// "+55 till" säger mindre om uppdraget än var det börjar och slutar.
+//
+// Året skrivs bara ut en gång när perioden ligger inom samma år – '15 jun 2026 –
+// 15 aug 2026' är brusigt. Sträcker den sig över ett årsskifte måste båda årtalen
+// stå kvar, annars går det inte att läsa ut vilket år som är vilket.
+//
+// Utgår från MIN och MAX, inte från listans första och sista element: datumen kommer
+// från arbetstider och är inte garanterat sorterade.
+//
+// Månadsnamnen kommer från MÅNAD_KORT och INTE från toLocaleDateString('sv-SE',
+// { month: 'short' }), som resten av appen använder. Den ger korrekt svenska men
+// ojämna former – 'juni' och 'juli' skrivs ut helt medan övriga får punkt – och
+// '15 juni – 15 aug. 2026' blir rörigt i en period där de två månaderna står
+// bredvid varandra. Tre bokstäver rakt igenom håller ihop.
+const MÅNAD_KORT = ['jan', 'feb', 'mar', 'apr', 'maj', 'jun', 'jul', 'aug', 'sep', 'okt', 'nov', 'dec'];
+
+export function formatPeriod(allaDatum) {
+  const datum = (allaDatum ?? []).filter(Boolean);
+  if (!datum.length) return null;
+
+  const start = datum.reduce((a, b) => (a < b ? a : b));
+  const slut = datum.reduce((a, b) => (a > b ? a : b));
+
+  const dag = (iso) => new Date(iso + 'T12:00:00');
+  const månad = (d) => MÅNAD_KORT[d.getMonth()];
+
+  const s = dag(start);
+  const e = dag(slut);
+
+  if (start === slut) return `${s.getDate()} ${månad(s)} ${s.getFullYear()}`;
+
+  if (s.getFullYear() !== e.getFullYear()) {
+    return `${s.getDate()} ${månad(s)} ${s.getFullYear()} – ${e.getDate()} ${månad(e)} ${e.getFullYear()}`;
+  }
+  if (s.getMonth() === e.getMonth()) {
+    return `${s.getDate()}–${e.getDate()} ${månad(e)} ${e.getFullYear()}`;
+  }
+  return `${s.getDate()} ${månad(s)} – ${e.getDate()} ${månad(e)} ${e.getFullYear()}`;
+}
+
+// Första arbetsdatumet (ISO) i ett arbetstider-schema, eller null om inga datum finns.
+// Datumen är INTE garanterat sorterade – de speglas ur passlistan – så både
+// månadsgrupperingen och sorteringen av kommande pass måste gå på det MINSTA datumet
+// och aldrig på arrayens första element. Samma princip som formatPeriod ovan.
+export function förstaArbetsdatum(arbetstider) {
+  const datum = (parsaArbetstider(arbetstider) ?? []).map(d => d?.datum).filter(Boolean);
+  return datum.length ? datum.reduce((a, b) => (a < b ? a : b)) : null;
+}
+
 // Ett Date från en datumväljare till 'YYYY-MM-DD' i LOKAL tid.
 // toISOString() konverterar till UTC och ger fel dag för svenska datum valda före
 // 02:00 på sommaren – ett pass den 3:e kan då sparas som den 2:a.
@@ -80,9 +131,17 @@ export function passSlutTidpunkt(arbetstider) {
   if (dagar.length === 0) return null;
   // Sista arbetsdagen avgör när hela passet är slut.
   const sista = dagar.reduce((a, b) => (b.datum > a.datum ? b : a));
+  const giltigTid = (t) => (/^\d{1,2}:\d{2}$/.test(t ?? '') ? t.padStart(5, '0') : null);
+  const start = giltigTid(sista.start);
   // Saknas sluttid antar vi dygnets slut så vi inte flaggar passet för tidigt.
-  const slut = /^\d{1,2}:\d{2}$/.test(sista.slut ?? '') ? sista.slut.padStart(5, '0') : '23:59';
-  return new Date(`${sista.datum}T${slut}:00`);
+  const slut = giltigTid(sista.slut) ?? '23:59';
+  // Sluttid <= starttid betyder att passet går över midnatt och slutar DAGEN EFTER –
+  // exakt samma regel som slutEpochFörPass i backend/utils/tid.js, som styr när
+  // auto-tidrapporten skapas. Utan den räknades 22:00–06:00 som avslutat 06:00 samma
+  // dag, alltså 16 timmar innan passet ens börjat: passet låg under "Genomförda" hos
+  // personen och gav "att avsluta"-badge hos företaget medan arbetet pågick.
+  const slutDatum = start && slut <= start ? nästaDatumIso(sista.datum) : sista.datum;
+  return new Date(`${slutDatum}T${slut}:00`);
 }
 
 // Första starttidpunkten för ett pass (Date), eller null om inga datum finns.

@@ -3,10 +3,11 @@ import { View, Text, SectionList, TouchableOpacity, StyleSheet, ActivityIndicato
 import { useFocusEffect } from '@react-navigation/native';
 import { api } from '../api/klient';
 import { useRealtidsPing } from '../context/RealtidsContext';
+import { useAppStateAktiv } from '../utils/useAppStateAktiv';
 import HandlingsKnapp from '../components/HandlingsKnapp';
 import RollBrickor from '../components/RollBrickor';
 
-import { parsaArbetstider, formatDagDatum, formatBricka, passSlutTidpunkt } from '../utils/datumHelper';
+import { parsaArbetstider, formatDagDatum, formatBricka, passSlutTidpunkt, förstaArbetsdatum } from '../utils/datumHelper';
 
 // Ett pass räknas som genomfört när dess sista sluttid redan passerat, eller när
 // företaget skapat en tidrapport för passet. Vi jämför mot exakt sluttidpunkt (samma
@@ -25,7 +26,7 @@ function ärGenomfört(ansökan) {
 function grupperaPerMånad(pass) {
   const grupper = {};
   pass.forEach(p => {
-    const arbetsdatum = parsaArbetstider(p.arbetstider)?.map(d => d.datum).filter(Boolean).sort()[0];
+    const arbetsdatum = förstaArbetsdatum(p.arbetstider);
     const datum = arbetsdatum ? new Date(arbetsdatum + 'T12:00:00') : new Date(p.created_at);
     const nyckel = datum.toLocaleDateString('sv-SE', { year: 'numeric', month: 'long' });
     if (!grupper[nyckel]) grupper[nyckel] = { titel: nyckel, sortering: datum.getTime(), data: [] };
@@ -57,6 +58,25 @@ export default function MinaPassScreen({ navigation }) {
   // Realtid: passlistan uppdateras direkt vid statusändringar och nya tidrapporter
   useRealtidsPing(() => { hämta(); });
 
+  // Bara till för att tvinga fram en omrendering – värdet läses aldrig.
+  const [, setTick] = useState(0);
+
+  // ärGenomfört jämför sluttiden mot Date.now() VID RENDERING. Ligger skärmen öppen över
+  // ett passslut flyttas passet annars inte förrän användaren drar ned eller byter flik.
+  // En tom state-bump räcker: datan har inte ändrats, bara klockan, så ingen hämtning
+  // behövs. Intervallet ligger i useFocusEffect så timern rivs när skärmen lämnas och
+  // inget snurrar i bakgrunden. Minutupplösning matchar sluttidernas HH:MM – tätare
+  // intervall kan inte flytta något tidigare.
+  useFocusEffect(useCallback(() => {
+    const intervall = setInterval(() => setTick(t => t + 1), 60_000);
+    return () => clearInterval(intervall);
+  }, []));
+
+  // Timern står still medan appen ligger i bakgrunden (JS suspenderas på iOS), och under
+  // tiden kan cron ha hunnit skapa tidrapporter – rapportStatus är den andra halvan av
+  // ärGenomfört. Vid återkomst hämtas därför på riktigt i stället för att bara ticka.
+  useAppStateAktiv(() => { hämta(); });
+
   const godkända = ansökningar.filter(a => a.status === 'godkänd');
   // Ett pass är genomfört när dess sista arbetsdatum passerat, eller när en tidrapport
   // skapats för passet (rapportStatus finns). Övriga godkända pass är kommande.
@@ -71,13 +91,18 @@ export default function MinaPassScreen({ navigation }) {
   const kommande = godkända
     .filter(a => !ärGenomfört(a))
     .filter(a => !a.schemaPassId)
+    // Närmaste pass överst. Sorteringen går på MINSTA arbetsdatumet, samma värde som
+    // månadsgrupperingen ovan använder – tidigare lästes arrayens första element, och
+    // eftersom arbetstider inte är garanterat sorterade kunde ett kort hamna i
+    // juni-sektionen men sorteras som om det började i augusti. ISO-datum jämförs som
+    // strängar; ingen Date behövs och tidszonen kan inte störa. Pass utan datum sist.
     .sort((a, b) => {
-      const datumA = parsaArbetstider(a.arbetstider)?.[0]?.datum;
-      const datumB = parsaArbetstider(b.arbetstider)?.[0]?.datum;
+      const datumA = förstaArbetsdatum(a.arbetstider);
+      const datumB = förstaArbetsdatum(b.arbetstider);
       if (!datumA && !datumB) return 0;
       if (!datumA) return 1;
       if (!datumB) return -1;
-      return new Date(datumA) - new Date(datumB);
+      return datumA < datumB ? -1 : datumA > datumB ? 1 : 0;
     });
 
   const sektioner = grupperaPerMånad(aktivFlik === 'kommande' ? kommande : genomförda);
@@ -180,7 +205,7 @@ export default function MinaPassScreen({ navigation }) {
                 </View>
               </View>
               <HandlingsKnapp
-                text={ärSchemaKort ? `Visa alla ${allaDatum.length} pass →` : 'Öppna chatt →'}
+                text={ärSchemaKort ? 'Visa schema →' : 'Öppna chatt →'}
                 onPress={öppna}
               />
             </TouchableOpacity>
