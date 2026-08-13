@@ -8,6 +8,8 @@ import { valideraJobb } from '../utils/jobbValidering';
 import { parsaObTillagg } from '../utils/datumHelper';
 import TidVäljare from '../components/TidVäljare';
 import FältFel from '../components/FältFel';
+import StadInput from '../components/StadInput';
+import AdressInput from '../components/AdressInput';
 
 function parsaArbetstiderTider(arbetstider) {
   if (!arbetstider) return { start: '', slut: '' };
@@ -72,11 +74,11 @@ export default function RedigeraJobbScreen({ route, navigation }) {
   }
 
   async function hanteraSpara() {
-    // Redigeringsformuläret har fri stad (ingen ortlista) och platta tidfält i stället
-    // för dag-schemat, så staden och schemat valideras inte via den delade funktionen.
+    // Redigeringsformuläret har platta tidfält i stället för dag-schemat, så schemat
+    // valideras separat. Staden går numera genom ortlistan här också.
     const nyaFel = valideraJobb(
       { titel, beskrivning, kategori, plats, adress, lon },
-      { kräverStadFrånLista: false, kräverSchema: false }
+      { kräverSchema: false }
     );
     if (!arbetstiderStart || !arbetstiderSlut) {
       nyaFel.arbetstider = 'Ange både start- och sluttid';
@@ -131,17 +133,22 @@ export default function RedigeraJobbScreen({ route, navigation }) {
           />
           <FältFel text={fel.beskrivning} />
 
+          {/* Stad och adress står tillsammans, och staden väljs ur ortlistan även här.
+              Fri text splittrar stadsmatchningen så att jobbnotiser missar folk. */}
           <Text style={styles.label}>Stad *</Text>
-          <TextInput style={[styles.input, fel.plats && styles.inputFel]} value={plats} onChangeText={(t) => { setPlats(t); rensaFel('plats'); }} />
+          <StadInput
+            värde={plats}
+            onÄndra={(t) => { setPlats(t); rensaFel('plats'); }}
+            fel={!!fel.plats}
+          />
           <FältFel text={fel.plats} />
 
           <Text style={styles.label}>Adress till arbetsplatsen *</Text>
-          <TextInput
-            style={[styles.input, fel.adress && styles.inputFel]}
-            placeholder="t.ex. Storgatan 12, Stockholm"
-            value={adress}
-            onChangeText={(t) => { setAdress(t); rensaFel('adress'); }}
-            autoCorrect={false}
+          <AdressInput
+            värde={adress}
+            onÄndra={(t) => { setAdress(t); rensaFel('adress'); }}
+            stad={plats}
+            fel={!!fel.adress}
           />
           <FältFel text={fel.adress} />
 

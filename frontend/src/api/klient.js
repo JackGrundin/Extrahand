@@ -111,6 +111,10 @@ export const api = {
   skapaSchema: (kropp) => anrop('POST', '/scheman', kropp),
   hämtaScheman: () => anrop('GET', '/scheman'),
   hämtaSchema: (id) => anrop('GET', `/scheman/${id}`),
+  // Adressförslag via backend-proxyn (Nominatim). Tom lista vid fel eller nedtid.
+  sökAdress: (q, stad) =>
+    anrop('GET', `/adress/sok?q=${encodeURIComponent(q)}&stad=${encodeURIComponent(stad ?? '')}`),
+
   minaScheman: () => anrop('GET', '/scheman/mina'),
   markeraSchemaAnsökningarSedda: (schemaId) => anrop('POST', `/scheman/${schemaId}/markera-ansokningar-sedda`, {}),
   minaSchemaPass: () => anrop('GET', '/scheman/mina-pass'),

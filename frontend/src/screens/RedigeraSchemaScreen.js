@@ -4,6 +4,8 @@ import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { api } from '../api/klient';
 import FältFel from '../components/FältFel';
+import StadInput, { ärGiltigStad } from '../components/StadInput';
+import AdressInput from '../components/AdressInput';
 import DatumVäljare from '../components/DatumVäljare';
 import PassDetaljFält from '../components/PassDetaljFält';
 import { formatDagDatum, veckodagsNamn } from '../utils/datumHelper';
@@ -23,6 +25,8 @@ export default function RedigeraSchemaScreen({ route, navigation }) {
 
   const [titel, setTitel] = useState('');
   const [beskrivning, setBeskrivning] = useState('');
+  const [plats, setPlats] = useState('');
+  const [adress, setAdress] = useState('');
   const [typ, setTyp] = useState('');
   const [timlon, setTimlon] = useState('');
 
@@ -41,6 +45,8 @@ export default function RedigeraSchemaScreen({ route, navigation }) {
       setSchema(data);
       setTitel(data.titel ?? '');
       setBeskrivning(data.beskrivning ?? '');
+      setPlats(data.plats ?? '');
+      setAdress(data.adress ?? '');
       setTyp(data.typ ?? '');
       setTimlon(data.timlon != null ? String(data.timlon) : '');
       setAvdrag(data.avdrag ?? []);
@@ -63,6 +69,11 @@ export default function RedigeraSchemaScreen({ route, navigation }) {
     const nya = {};
     if (!titel.trim()) nya.titel = 'Titel krävs';
     if (!beskrivning.trim()) nya.beskrivning = 'Beskrivning krävs';
+    // Samma krav som vid publicering. Staden måste väljas ur ortlistan – fri text
+    // splittrar stadsmatchningen så att jobbnotiser missar folk.
+    if (!plats.trim()) nya.plats = 'Ange en stad';
+    else if (!ärGiltigStad(plats)) nya.plats = 'Välj en stad från listan';
+    if (!adress.trim()) nya.adress = 'Adress krävs';
     // Samma regel som valideraSchema, men inline: skärmen äger inte pass och avdrag och
     // kan därför inte köra hela valideraSchema.
     if (!SCHEMATYPER.some(t => t.värde === typ)) nya.typ = 'Välj en schematyp';
@@ -75,9 +86,11 @@ export default function RedigeraSchemaScreen({ route, navigation }) {
     try {
       await api.uppdateraSchema(schemaId, {
         // Bara de fält som redigeras här skickas. PUT rör inte fält som utelämnas, så
-        // plats, adress och kategori står kvar orörda.
+        // kategorin står kvar orörd.
         titel: titel.trim(),
         beskrivning: beskrivning.trim(),
+        plats: plats.trim(),
+        adress: adress.trim(),
         typ,
         timlon: lön,
       });
@@ -194,6 +207,8 @@ export default function RedigeraSchemaScreen({ route, navigation }) {
   const ärÄndrat =
     titel !== (schema.titel ?? '') ||
     beskrivning !== (schema.beskrivning ?? '') ||
+    plats !== (schema.plats ?? '') ||
+    adress !== (schema.adress ?? '') ||
     typ !== (schema.typ ?? '') ||
     timlon !== (schema.timlon != null ? String(schema.timlon) : '');
 
@@ -228,6 +243,25 @@ export default function RedigeraSchemaScreen({ route, navigation }) {
           multiline
         />
         <FältFel text={fel.beskrivning} />
+
+        {/* Stad och adress står tillsammans så att det syns vilken stad adressen hör
+            till, och staden styr adressökningen. */}
+        <Text style={styles.label}>Stad *</Text>
+        <StadInput
+          värde={plats}
+          onÄndra={t => { setPlats(t); rensaFel('plats'); }}
+          fel={!!fel.plats}
+        />
+        <FältFel text={fel.plats} />
+
+        <Text style={styles.label}>Adress till arbetsplatsen *</Text>
+        <AdressInput
+          värde={adress}
+          onÄndra={t => { setAdress(t); rensaFel('adress'); }}
+          stad={plats}
+          fel={!!fel.adress}
+        />
+        <FältFel text={fel.adress} />
 
         <Text style={styles.label}>Schematyp *</Text>
         <View style={styles.typRad}>

@@ -12,6 +12,7 @@ import { valideraJobb } from '../utils/jobbValidering';
 import { api } from '../api/klient';
 import { KATEGORIER, PÅSLAG_GRATIS, beräknaFakturapris, formateraPris, normalisera } from '../utils/konstanter';
 import StadInput from '../components/StadInput';
+import AdressInput from '../components/AdressInput';
 
 function formatDatum(isoStr) {
   if (!isoStr) return null;
@@ -277,12 +278,11 @@ export default function PubliceraJobbScreen({ navigation }) {
           <FältFel text={fel.plats} />
 
           <Text style={styles.label}>Adress till arbetsplatsen *</Text>
-          <TextInput
-            style={[styles.input, fel.adress && styles.inputFel]}
-            placeholder="t.ex. Storgatan 12, Stockholm"
-            value={adress}
-            onChangeText={(t) => { setAdress(t); rensaFel('adress'); }}
-            autoCorrect={false}
+          <AdressInput
+            värde={adress}
+            onÄndra={(t) => { setAdress(t); rensaFel('adress'); }}
+            stad={plats}
+            fel={!!fel.adress}
           />
           <FältFel text={fel.adress} />
 

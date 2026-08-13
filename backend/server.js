@@ -13,6 +13,7 @@ const faktureringRoutes = require('./routes/fakturering');
 const jobbforfraganRoutes = require('./routes/jobbforfragan');
 const prenumerationRoutes = require('./routes/prenumeration');
 const schemanRoutes = require('./routes/scheman');
+const adressRoutes = require('./routes/adress');
 const { stripeWebhook } = require('./routes/stripeWebhook');
 const { startaPassPåminnelse } = require('./cron/passPaminnelse');
 const { startaNollställPass } = require('./cron/nollstallPass');
@@ -82,6 +83,7 @@ app.use('/api/fakturering', faktureringRoutes);
 app.use('/api/jobbforfragan', jobbforfraganRoutes);
 app.use('/api/prenumeration', prenumerationRoutes);
 app.use('/api/scheman', schemanRoutes);
+app.use('/api/adress', adressRoutes);
 
 process.on('uncaughtException', (err) => {
   console.error('Ohanterat undantag:', err);

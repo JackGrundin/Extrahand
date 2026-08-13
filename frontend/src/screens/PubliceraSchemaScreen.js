@@ -6,6 +6,7 @@ import PrenumerationModal from '../components/PrenumerationModal';
 import ProBesparing from '../components/ProBesparing';
 import FältFel from '../components/FältFel';
 import StadInput from '../components/StadInput';
+import AdressInput from '../components/AdressInput';
 import SchemaPassModal from '../components/SchemaPassModal';
 import PassDetaljFält from '../components/PassDetaljFält';
 import MånadsKalender from '../components/MånadsKalender';
@@ -454,12 +455,11 @@ export default function PubliceraSchemaScreen({ navigation }) {
               <FältFel text={fel.plats} />
 
               <Text style={styles.label}>Adress till arbetsplatsen *</Text>
-              <TextInput
-                style={[styles.input, fel.adress && styles.inputFel]}
-                placeholder="t.ex. Storgatan 12, Stockholm"
-                value={adress}
-                onChangeText={(t) => { setAdress(t); rensaFel('adress'); }}
-                autoCorrect={false}
+              <AdressInput
+                värde={adress}
+                onÄndra={(t) => { setAdress(t); rensaFel('adress'); }}
+                stad={plats}
+                fel={!!fel.adress}
               />
               <FältFel text={fel.adress} />
 
