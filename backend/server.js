@@ -14,6 +14,7 @@ const jobbforfraganRoutes = require('./routes/jobbforfragan');
 const prenumerationRoutes = require('./routes/prenumeration');
 const schemanRoutes = require('./routes/scheman');
 const adressRoutes = require('./routes/adress');
+const aterstallningSidaRoutes = require('./routes/aterstallningSida');
 const { stripeWebhook } = require('./routes/stripeWebhook');
 const { startaPassPåminnelse } = require('./cron/passPaminnelse');
 const { startaNollställPass } = require('./cron/nollstallPass');
@@ -71,6 +72,10 @@ app.get('/prenumeration/klar', (req, res) => {
   </body>
 </html>`);
 });
+
+// Webbsidan som återställningslänken i mejlet öppnar. Ligger utanför /api eftersom
+// den öppnas i en webbläsare, inte av appen.
+app.use('/', aterstallningSidaRoutes);
 
 app.use('/api/auth', authRoutes);
 app.use('/api/users', användareRoutes);

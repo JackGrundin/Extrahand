@@ -4,20 +4,91 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 const API_URL = 'https://api.fastgig.se/api';
 // Produktion: const API_URL = 'https://api.fastgig.se/api';
 
+// Meddelandet som visas när telefonen inte når servern. Samlat på ett ställe så att
+// alla skärmar säger samma sak – de flesta visar bara fel.message i en Alert.
+export const INGEN_ANSLUTNING_TEXT =
+  'Ingen internetanslutning – kontrollera din anslutning och försök igen';
+
+// Felkod som skärmar kan känna igen om de vill särbehandla nätverksfel (t.ex. visa
+// en "Försök igen"-knapp i stället för ett rött felmeddelande).
+export const INGEN_ANSLUTNING = 'INGEN_ANSLUTNING';
+
+// Efter så här lång tid utan svar ger vi upp. Utan gräns hänger fetch kvar i minuter
+// på ett dåligt mobilnät, och användaren ser bara en snurra som aldrig tar slut.
+const TIMEOUT_MS = 20000;
+
+// Prenumeranter som vill veta när anslutningen tappas eller kommer tillbaka.
+// AnslutningsContext hakar på här och visar bannern; klienten känner inte till
+// React och kan användas likadant utanför komponentträdet.
+const anslutningsLyssnare = new Set();
+let harAnslutning = true;
+
+function rapporteraAnslutning(uppkopplad) {
+  if (uppkopplad === harAnslutning) return;
+  harAnslutning = uppkopplad;
+  for (const lyssnare of anslutningsLyssnare) lyssnare(uppkopplad);
+}
+
+export function lyssnaPåAnslutning(lyssnare) {
+  anslutningsLyssnare.add(lyssnare);
+  return () => anslutningsLyssnare.delete(lyssnare);
+}
+
+export function harInternetanslutning() {
+  return harAnslutning;
+}
+
+function nätverksfel(meddelande) {
+  const err = new Error(meddelande);
+  err.kod = INGEN_ANSLUTNING;
+  return err;
+}
+
 async function anrop(metod, sökväg, kropp) {
   const token = await AsyncStorage.getItem('token');
 
-  const svar = await fetch(`${API_URL}${sökväg}`, {
-    method: metod,
-    headers: {
-      'Content-Type': 'application/json',
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-    },
-    ...(kropp ? { body: JSON.stringify(kropp) } : {}),
-  });
+  // AbortController i stället för Promise.race: annars fortsätter det övergivna
+  // anropet i bakgrunden och håller kvar sockeln.
+  const kontroller = new AbortController();
+  const timeout = setTimeout(() => kontroller.abort(), TIMEOUT_MS);
+
+  let svar;
+  try {
+    svar = await fetch(`${API_URL}${sökväg}`, {
+      method: metod,
+      signal: kontroller.signal,
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      ...(kropp ? { body: JSON.stringify(kropp) } : {}),
+    });
+  } catch (fel) {
+    // fetch kastar bara vid nätverksfel eller avbrott – aldrig på HTTP-statuskoder.
+    // Bägge fallen betyder samma sak för användaren: appen når inte servern.
+    rapporteraAnslutning(false);
+    throw nätverksfel(
+      fel.name === 'AbortError'
+        ? 'Servern svarar inte just nu – kontrollera din anslutning och försök igen'
+        : INGEN_ANSLUTNING_TEXT
+    );
+  } finally {
+    clearTimeout(timeout);
+  }
+
+  // Vi fick ett svar, alltså finns det en anslutning – även om svaret är ett fel.
+  rapporteraAnslutning(true);
 
   // Läs som text först så vi inte kraschar på icke-JSON-svar (t.ex. 404/502 HTML)
-  const rå = await svar.text();
+  let rå;
+  try {
+    rå = await svar.text();
+  } catch {
+    // Kopplingen bröts mitt i svaret.
+    rapporteraAnslutning(false);
+    throw nätverksfel(INGEN_ANSLUTNING_TEXT);
+  }
+
   let data = null;
   if (rå) {
     try {
@@ -42,10 +113,19 @@ export const api = {
   loggaIn: (kropp) => anrop('POST', '/auth/logga-in', kropp),
   skickaVerifieringsmail: (email) => anrop('POST', '/auth/skicka-verifieringsmail', { email }),
   verifieraKod: (email, kod) => anrop('POST', '/auth/verifiera-kod', { email, kod }),
+  // Svarar alltid ok, även för okända adresser – servern avslöjar inte vilka som har
+  // konto. Själva lösenordet byts sedan på webbsidan som länken i mejlet öppnar.
+  glömtLösenord: (email) => anrop('POST', '/auth/glomt-losenord', { email }),
+
+  // Lättaste möjliga anrop – används av AnslutningsContext för att märka när servern
+  // kommer tillbaka efter ett avbrott.
+  hälsokontroll: () => anrop('GET', '/health'),
 
   // Användare
   hämtaProfil: () => anrop('GET', '/users/profil'),
   hämtaAnvändareProfil: (id) => anrop('GET', `/users/${id}/profil`),
+  // Markerar kontot som inaktivt och raderar all personuppgift (krav från App Store).
+  taBortKonto: () => anrop('DELETE', '/users/konto'),
 
   // Jobb
   hämtaJobb: () => anrop('GET', '/jobb'),

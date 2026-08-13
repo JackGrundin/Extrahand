@@ -92,7 +92,11 @@ async function hämtaÖppnaScheman(idag) {
   if (error) throw error;
   if (!scheman || !scheman.length) return [];
 
-  return berikaMedPassOchFöretag(scheman);
+  const berikade = await berikaMedPassOchFöretag(scheman);
+  // Samma regel som för enstaka pass i hämtaAllaJobb: scheman från raderade konton
+  // ska inte gå att söka. foretagAktiv === false, inte !foretagAktiv – NULL betyder
+  // konto från före kolumnen fanns.
+  return berikade.filter(s => s.foretagAktiv !== false);
 }
 
 async function hämtaSchemanFörFöretag(foretag_id) {
@@ -172,12 +176,13 @@ async function berikaMedPassOchFöretag(scheman) {
 
   const [{ data: pass }, { data: användare }] = await Promise.all([
     supabase.from('schema_pass').select('schema_id, datum, starttid, sluttid, status, kategori, ob_tillagg').in('schema_id', schemaIds).order('datum', { ascending: true }),
-    supabase.from('användare').select('id, Namn').in('id', användarIds),
+    supabase.from('användare').select('id, Namn, aktiv').in('id', användarIds),
   ]);
 
   const passPerSchema = {};
   for (const p of (pass || [])) (passPerSchema[p.schema_id] ??= []).push(p);
   const namnMap = Object.fromEntries((användare || []).map(u => [u.id, u.Namn]));
+  const aktivMap = Object.fromEntries((användare || []).map(u => [u.id, u.aktiv]));
 
   return scheman.map(s => {
     const egnaPass = (passPerSchema[s.id] ?? []).map(p => passMedArv(s, p));
@@ -189,6 +194,9 @@ async function berikaMedPassOchFöretag(scheman) {
       kategorier: räknaKategorier(egnaPass),
       antalPass: egnaPass.length,
       foretagNamn: namnMap[s.foretag_id] ?? null,
+      // Bara till för hämtaÖppnaScheman, som filtrerar bort raderade företags scheman
+      // ur den publika listan. Övriga vyer ignorerar fältet.
+      foretagAktiv: aktivMap[s.foretag_id] ?? null,
       personNamn: s.anvandare_id != null ? (namnMap[s.anvandare_id] ?? null) : null,
     };
   });

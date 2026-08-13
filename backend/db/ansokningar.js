@@ -174,6 +174,19 @@ async function uppdateraStatus(id, status) {
   if (error) throw error;
 }
 
+// Avvisar alla ansökningar som fortfarande väntar på svar. Används när en
+// privatperson raderar sitt konto: företaget ska inte sitta kvar med ansökningar
+// från någon som inte längre finns. GODKÄNDA ansökningar rörs inte – de hänger
+// ihop med utfört arbete, tidrapporter och fakturaunderlag.
+async function avvisaVäntandeAnsökningar(sokande_id) {
+  const { error } = await supabase
+    .from('ansokningar')
+    .update({ status: 'avvisad' })
+    .eq('sokande_id', sokande_id)
+    .eq('status', 'väntande');
+  if (error) throw error;
+}
+
 async function hämtaAnsökanViaId(id) {
   const { data, error } = await supabase
     .from('ansokningar')
@@ -506,4 +519,4 @@ async function hämtaPågåendePassFörPåminnelse() {
     .filter(p => p.foretagId != null && p.arbetstider != null);
 }
 
-module.exports = { skapaAnsökan, hämtaAnsökningarFörSökande, hämtaAnsökningarFörJobb, finnsDubblettAnsökan, hämtaTotalTimmar, uppdateraStatus, hämtaAnsökanViaId, avvisaAllaUtomEn, återställAllaFörJobb, hämtaAllaKonversationerFörFöretag, hämtaGodkändaFörJobb, hämtaGodkändaFörFleraJobb, hämtaNamnFörAnvändare, ångraAnsökan, hämtaAnsökanMedJobbInfo, hämtaKonversationMellan, hämtaGrupperadeKonversationer, hämtaPågåendePassFörPåminnelse };
+module.exports = { skapaAnsökan, hämtaAnsökningarFörSökande, hämtaAnsökningarFörJobb, finnsDubblettAnsökan, hämtaTotalTimmar, uppdateraStatus, avvisaVäntandeAnsökningar, hämtaAnsökanViaId, avvisaAllaUtomEn, återställAllaFörJobb, hämtaAllaKonversationerFörFöretag, hämtaGodkändaFörJobb, hämtaGodkändaFörFleraJobb, hämtaNamnFörAnvändare, ångraAnsökan, hämtaAnsökanMedJobbInfo, hämtaKonversationMellan, hämtaGrupperadeKonversationer, hämtaPågåendePassFörPåminnelse };

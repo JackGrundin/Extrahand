@@ -2,8 +2,8 @@ const express = require('express');
 const { createClient } = require('@supabase/supabase-js');
 const ws = require('ws');
 const { kräverInloggning } = require('../middleware/auth');
-const { hämtaAnvändareViaEmail, hämtaAnvändareViaId, uppdateraProfil, uppdateraProfilBild, uppdateraStad, sparaPushToken, hämtaPushToken, hämtaAllaPrivatpersoner, godkännAvtal, hämtaAllaFöretag } = require('../db/användare');
-const { hämtaTotalTimmar } = require('../db/ansokningar');
+const { hämtaAnvändareViaEmail, hämtaAnvändareViaId, uppdateraProfil, uppdateraProfilBild, uppdateraStad, sparaPushToken, hämtaPushToken, hämtaAllaPrivatpersoner, godkännAvtal, hämtaAllaFöretag, raderaKonto } = require('../db/användare');
+const { hämtaTotalTimmar, avvisaVäntandeAnsökningar } = require('../db/ansokningar');
 const { ärPro } = require('../db/prenumeration');
 const { skickaNotifikation } = require('../utils/pushNotifikation');
 const { hämtaJobbFörFöretag } = require('../db/jobb');
@@ -175,6 +175,47 @@ router.put('/push-token', kräverInloggning, async (req, res) => {
   } catch (fel) {
     console.error('Push-token fel:', fel);
     res.status(500).json({ fel: 'Serverfel' });
+  }
+});
+
+// DELETE /api/users/konto — användaren raderar sitt eget konto (krav från App Store).
+//
+// Kontot markeras som inaktivt och all personuppgift nollas på användarraden, men
+// RADEN RADERAS ALDRIG. Tidrapporter, fakturaunderlag, betyg och chattmeddelanden
+// pekar på användarens id, och en borttagen rad hade slitit sönder både bokföringen
+// och motpartens historik. Utfört arbete ska fortfarande gå att betala ut och
+// fakturera efter att personen lämnat plattformen.
+//
+// Väntande ansökningar avvisas först, så att företag inte blir sittande med
+// ansökningar från ett konto som inte längre finns. Godkända ansökningar rörs inte.
+router.delete('/konto', kräverInloggning, async (req, res) => {
+  try {
+    const användare = await hämtaAnvändareViaEmail(req.användare.email);
+    if (!användare) return res.status(404).json({ fel: 'Användaren hittades inte' });
+    if (användare.aktiv === false) return res.json({ ok: true });
+
+    if (användare.Typ === 'privatperson') {
+      await avvisaVäntandeAnsökningar(användare.id);
+    }
+
+    // Profilbilden ligger utanför databasen och måste tas bort separat – annars
+    // blir en publik URL med användarens ansikte kvar. Icke-kritiskt: raderingen
+    // ska gå igenom även om Storage strular. Storage-klienten RETURNERAR sina fel
+    // i stället för att kasta, så felet måste läsas ur svaret.
+    try {
+      const { error: bildFel } = await supabase.storage
+        .from('profilbilder')
+        .remove([`${användare.id}.jpg`]);
+      if (bildFel) throw bildFel;
+    } catch (bildFel) {
+      console.error('Kunde inte ta bort profilbild vid kontoradering:', bildFel);
+    }
+
+    await raderaKonto(användare.id);
+    res.json({ ok: true });
+  } catch (fel) {
+    console.error('Kontoradering fel:', fel);
+    res.status(500).json({ fel: 'Serverfel vid radering av konto' });
   }
 });
 

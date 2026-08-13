@@ -151,16 +151,22 @@ async function hämtaAllaJobb() {
   const foretagIds = [...new Set(
     aktivaJobb.map(j => j.Foretag_id ?? j.foretag_id).filter(id => id != null)
   )];
-  const { data: foretag } = await supabase.from('användare').select('id, Namn').in('id', foretagIds);
+  const { data: foretag } = await supabase.from('användare').select('id, Namn, aktiv').in('id', foretagIds);
   const foretagMap = Object.fromEntries((foretag || []).map(f => [f.id, f]));
 
-  return aktivaJobb.map(j => ({
-    ...j,
-    foretagNamn: (() => {
-      const fid = j.Foretag_id ?? j.foretag_id;
-      return foretagMap[fid]?.Namn ?? null;
-    })(),
-  }));
+  return aktivaJobb
+    // Annonser från raderade konton ska inte gå att söka. Jobbraderna blir kvar
+    // (de bär ansökningar och chatt), men företaget finns inte längre och kan
+    // varken svara eller godkänna. aktiv === false, inte !aktiv: NULL betyder
+    // konto från före kolumnen fanns och är aktivt.
+    .filter(j => foretagMap[j.Foretag_id ?? j.foretag_id]?.aktiv !== false)
+    .map(j => ({
+      ...j,
+      foretagNamn: (() => {
+        const fid = j.Foretag_id ?? j.foretag_id;
+        return foretagMap[fid]?.Namn ?? null;
+      })(),
+    }));
 }
 
 async function hämtaJobbViaId(id) {

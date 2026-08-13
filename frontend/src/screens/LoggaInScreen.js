@@ -82,6 +82,13 @@ export default function LoggaInScreen({ navigation }) {
         </View>
       )}
 
+      <TouchableOpacity
+        style={styles.glömtKnapp}
+        onPress={() => navigation.navigate('GlömtLösenord')}
+      >
+        <Text style={styles.glömtText}>Glömt lösenord?</Text>
+      </TouchableOpacity>
+
       <TouchableOpacity style={styles.knapp} onPress={hanteraInloggning} disabled={laddar}>
         {laddar ? <ActivityIndicator color="#fff" /> : <Text style={styles.knappText}>Logga in</Text>}
       </TouchableOpacity>
@@ -99,6 +106,9 @@ const styles = StyleSheet.create({
   underrubrik: { fontSize: 18, textAlign: 'center', marginBottom: 32, color: '#666' },
   input: { borderWidth: 1, borderColor: '#ddd', borderRadius: 10, padding: 14, marginBottom: 12, fontSize: 16, color: '#1a1a1a', letterSpacing: 0 },
   knapp: { backgroundColor: '#2563eb', borderRadius: 10, padding: 16, alignItems: 'center', marginBottom: 16 },
+  // Högerställd ovanför inloggningsknappen, med generös tryckyta.
+  glömtKnapp: { alignSelf: 'flex-end', paddingVertical: 6, paddingHorizontal: 4, marginBottom: 10 },
+  glömtText: { color: '#2563eb', fontSize: 14, fontWeight: '600' },
   knappText: { color: '#fff', fontWeight: '600', fontSize: 16 },
   länk: { textAlign: 'center', color: '#2563eb', fontSize: 15 },
   verifieringsRuta: { backgroundColor: '#fef9c3', borderRadius: 10, padding: 14, marginBottom: 14, borderWidth: 1, borderColor: '#fde68a' },

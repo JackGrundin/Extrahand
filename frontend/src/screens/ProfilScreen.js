@@ -36,6 +36,47 @@ export default function ProfilScreen({ navigation }) {
   const [laddar, setLaddar] = useState(true);
   const [laddaUppBild, setLaddaUppBild] = useState(false);
   const [prenumerationLaddar, setPrenumerationLaddar] = useState(false);
+  const [raderar, setRaderar] = useState(false);
+
+  // Radering av konto i två steg. Det är ett oåterkalleligt val som ligger direkt
+  // under "Logga ut", så den första dialogen förklarar konsekvensen och den andra
+  // fångar feltryck.
+  function bekräftaRadering() {
+    Alert.alert(
+      'Ta bort konto',
+      ärPrivatperson
+        ? 'Ditt konto stängs och alla dina personuppgifter raderas: namn, e-post, telefonnummer, profilbild och CV.\n\nRedan utförda pass och dina tidrapporter sparas, eftersom de behövs för att du ska få betalt. Ansökningar som väntar på svar dras tillbaka.\n\nDu kan inte logga in igen efteråt.'
+        : 'Ert konto stängs och alla era uppgifter raderas: kontaktuppgifter, fakturauppgifter, beskrivning och logotyp. Era annonser och scheman försvinner ur appen.\n\nRedan utfört arbete och underlag för fakturering sparas.\n\nNi kan inte logga in igen efteråt.',
+      [
+        { text: 'Avbryt', style: 'cancel' },
+        { text: 'Fortsätt', style: 'destructive', onPress: bekräftaSlutgiltigt },
+      ]
+    );
+  }
+
+  function bekräftaSlutgiltigt() {
+    Alert.alert(
+      'Är du helt säker?',
+      'Det går inte att ångra.',
+      [
+        { text: 'Avbryt', style: 'cancel' },
+        { text: 'Ta bort mitt konto', style: 'destructive', onPress: taBortKonto },
+      ]
+    );
+  }
+
+  async function taBortKonto() {
+    setRaderar(true);
+    try {
+      await api.taBortKonto();
+      // Loggar ut direkt: token i telefonen gäller annars tills den går ut, och
+      // appen skulle visa ett konto som inte längre finns.
+      await loggaUt();
+    } catch (fel) {
+      Alert.alert('Fel', fel.message);
+      setRaderar(false);
+    }
+  }
 
   // Öppnar Stripe Checkout i webbläsaren. När företaget kommer tillbaka till appen
   // hämtas profilen om (useFocusEffect), och webhooken har då hunnit sätta status.
@@ -283,6 +324,19 @@ export default function ProfilScreen({ navigation }) {
         <Text style={styles.loggaUtText}>Logga ut</Text>
       </TouchableOpacity>
 
+      <TouchableOpacity
+        style={styles.taBortKontoKnapp}
+        onPress={bekräftaRadering}
+        disabled={raderar}
+        accessibilityRole="button"
+        accessibilityLabel="Ta bort konto"
+      >
+        {raderar
+          ? <ActivityIndicator color="#94a3b8" size="small" />
+          : <Text style={styles.taBortKontoText}>Ta bort konto</Text>
+        }
+      </TouchableOpacity>
+
       <Text style={styles.appNamn}>FastGig</Text>
     </ScrollView>
   );
@@ -335,5 +389,9 @@ const styles = StyleSheet.create({
   exempelFramhävd: { fontWeight: '700', color: '#2563eb' },
   exempelÖverstruken: { textDecorationLine: 'line-through', color: '#94a3b8' },
   loggaUtText: { color: '#ef4444', fontWeight: '600', fontSize: 15 },
+  // Nedtonad jämfört med "Logga ut": raderingen ska gå att hitta (App Store kräver
+  // det) utan att bjuda in till feltryck.
+  taBortKontoKnapp: { marginTop: 20, paddingVertical: 10, paddingHorizontal: 16, minHeight: 40, justifyContent: 'center' },
+  taBortKontoText: { color: '#94a3b8', fontSize: 14, textDecorationLine: 'underline' },
   appNamn: { marginTop: 32, fontSize: 13, fontWeight: '700', color: '#2563eb', letterSpacing: 1 },
 });

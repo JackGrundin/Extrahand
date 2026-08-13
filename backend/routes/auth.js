@@ -1,14 +1,37 @@
 const express = require('express');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
-const { skapaAnvändare, hämtaAnvändareViaEmail, sparaVerifieringskod, markeraEmailVerifierad } = require('../db/användare');
-const { skickaVerifieringsMail, testaSmtp } = require('../utils/email');
+const crypto = require('crypto');
+const {
+  skapaAnvändare,
+  hämtaAnvändareViaEmail,
+  sparaVerifieringskod,
+  markeraEmailVerifierad,
+  sparaÅterställningsToken,
+  hämtaAnvändareViaÅterställningsToken,
+  uppdateraLösenord,
+} = require('../db/användare');
+const { skickaVerifieringsMail, skickaÅterställningsMail, testaSmtp } = require('../utils/email');
+const { valideraLösenord } = require('../utils/losenord');
 
 const router = express.Router();
 const JWT_HEMLIG_NYCKEL = process.env.JWT_SECRET || 'hemlig-nyckel-byt-i-produktion';
 
+// Återställningslänken är giltig i en timme. Kort nog att en glömd, oläst länk i
+// inkorgen inte blir en permanent bakdörr in i kontot.
+const ÅTERSTÄLLNING_GILTIG_TIMMAR = 1;
+
+// Basadressen som länken i mejlet pekar på. Samma värd som API:t, eftersom sidan
+// serveras av den här servern.
+const APP_BAS_URL = process.env.APP_BAS_URL || 'https://api.fastgig.se';
+
 function genereraKod() {
   return String(Math.floor(100000 + Math.random() * 900000));
+}
+
+// Token i klartext går bara till mejlet; i databasen ligger SHA-256-hashen.
+function hashaToken(token) {
+  return crypto.createHash('sha256').update(token).digest('hex');
 }
 
 function skapaToken(användare) {
@@ -100,6 +123,13 @@ router.post('/logga-in', async (req, res) => {
       return res.status(401).json({ fel: 'Felaktig email eller lösenord' });
     }
 
+    // Raderat konto. E-postadressen anonymiseras vid raderingen, så uppslaget ovan
+    // hittar normalt ingenting – men kontrollen står kvar som sista försvar ifall
+    // raderingen skulle avbrytas halvvägs. NULL = konto från före kolumnen fanns.
+    if (användare.aktiv === false) {
+      return res.status(401).json({ fel: 'Felaktig email eller lösenord' });
+    }
+
     const lösenordStämmer = await bcrypt.compare(lösenord, användare.Lösenord);
     if (!lösenordStämmer) {
       return res.status(401).json({ fel: 'Felaktig email eller lösenord' });
@@ -179,6 +209,76 @@ router.post('/skicka-verifieringsmail', async (req, res) => {
   } catch (fel) {
     console.error('Resend-fel:', fel);
     res.status(500).json({ fel: 'Kunde inte skicka verifieringsmail' });
+  }
+});
+
+// POST /api/auth/glomt-losenord — skickar en återställningslänk via mejl.
+//
+// Svarar ALLTID { ok: true }, även när adressen inte finns. Ett svar som skiljer
+// på "finns" och "finns inte" gör endpointen till ett verktyg för att kartlägga
+// vilka som har konto hos oss.
+router.post('/glomt-losenord', async (req, res) => {
+  const { email } = req.body;
+  if (!email) return res.status(400).json({ fel: 'Email krävs' });
+
+  try {
+    const användare = await hämtaAnvändareViaEmail(email.trim());
+
+    // Raderade konton får ingen länk – kontot går inte att logga in på ändå.
+    if (användare && användare.aktiv !== false) {
+      const token = crypto.randomBytes(32).toString('hex');
+      const expiresAt = new Date(
+        Date.now() + ÅTERSTÄLLNING_GILTIG_TIMMAR * 60 * 60 * 1000
+      ).toISOString();
+
+      await sparaÅterställningsToken(användare.id, hashaToken(token), expiresAt);
+
+      const länk = `${APP_BAS_URL}/aterstall-losenord?token=${token}`;
+      await skickaÅterställningsMail(användare.Email, länk, ÅTERSTÄLLNING_GILTIG_TIMMAR);
+    }
+
+    res.json({ ok: true });
+  } catch (fel) {
+    console.error('Glömt lösenord-fel:', fel);
+    // Även här utan att avslöja om adressen fanns: felet loggas, användaren får
+    // samma svar som alltid. Går mejlet inte fram kan hen begära en ny länk.
+    res.json({ ok: true });
+  }
+});
+
+// POST /api/auth/aterstall-losenord — sätter nytt lösenord med token från mejlet.
+// Anropas av webbsidan på /aterstall-losenord, inte av appen.
+router.post('/aterstall-losenord', async (req, res) => {
+  const { token, lösenord } = req.body;
+  if (!token) return res.status(400).json({ fel: 'Återställningslänken är ogiltig' });
+
+  const lösenordsFel = valideraLösenord(lösenord);
+  if (lösenordsFel) return res.status(400).json({ fel: lösenordsFel });
+
+  try {
+    const användare = await hämtaAnvändareViaÅterställningsToken(hashaToken(token));
+    if (!användare || användare.aktiv === false) {
+      return res.status(400).json({ fel: 'Länken är ogiltig eller redan använd. Begär en ny.' });
+    }
+
+    if (!användare.aterstallning_expires_at || new Date(användare.aterstallning_expires_at) < new Date()) {
+      return res.status(400).json({ fel: 'Länken har gått ut. Begär en ny i appen.' });
+    }
+
+    const hashatLösenord = await bcrypt.hash(lösenord, 10);
+    await uppdateraLösenord(användare.id, hashatLösenord);
+
+    // Den som kommer åt sin inkorg äger adressen – då är den också verifierad.
+    // Utan detta hamnar en användare som aldrig hann verifiera sig i en låst
+    // position: rätt lösenord men blockerad inloggning.
+    if (användare.email_verifierad === false) {
+      await markeraEmailVerifierad(användare.id);
+    }
+
+    res.json({ ok: true });
+  } catch (fel) {
+    console.error('Återställningsfel:', fel);
+    res.status(500).json({ fel: 'Serverfel vid återställning av lösenord' });
   }
 });
 

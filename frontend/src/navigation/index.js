@@ -34,6 +34,8 @@ import PubliceraSchemaScreen from '../screens/PubliceraSchemaScreen';
 import SchemaDetaljScreen from '../screens/SchemaDetaljScreen';
 import RedigeraSchemaScreen from '../screens/RedigeraSchemaScreen';
 import SchemaKalenderScreen from '../screens/SchemaKalenderScreen';
+import GlömtLösenordScreen from '../screens/GlömtLösenordScreen';
+import OfflineBanner from '../components/OfflineBanner';
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -68,6 +70,7 @@ function AuthNavigator() {
     <Stack.Navigator screenOptions={{ headerShown: false }}>
       <Stack.Screen name="LoggaIn" component={LoggaInScreen} />
       <Stack.Screen name="Registrera" component={RegistreraScreen} />
+      <Stack.Screen name="GlömtLösenord" component={GlömtLösenordScreen} />
       <Stack.Screen name="VerifieraEmail" component={VerifieraEmailScreen} />
     </Stack.Navigator>
   );
@@ -397,8 +400,13 @@ export default function Navigation() {
   }
 
   return (
-    <NavigationContainer>
-      {användare ? <HuvudNavigator /> : <AuthNavigator />}
-    </NavigationContainer>
+    // Bannern ligger utanför NavigationContainer och överlever därför skärmbyten.
+    // Den renderas efter navigationen så att den hamnar överst i staplingsordningen.
+    <View style={{ flex: 1 }}>
+      <NavigationContainer>
+        {användare ? <HuvudNavigator /> : <AuthNavigator />}
+      </NavigationContainer>
+      <OfflineBanner />
+    </View>
   );
 }
