@@ -162,33 +162,8 @@ export default function SchemaDetaljScreen({ route, navigation }) {
     );
   }
 
-  // Avdrag LÄGGS TILL bara i steg 4 när schemat skapas. Formuläret som fanns här togs bort
-  // för att sökandelistan ska få plats överst. Att ta bort ett felaktigt avdrag går dock
-  // fortfarande – asymmetrin är avsiktlig.
-  async function taBortAvdrag(a) {
-    Alert.alert(
-      'Ta bort avdraget?',
-      `${a.namn} slutar dras från kommande pass. Redan rapporterade pass påverkas inte.`,
-      [
-        { text: 'Avbryt', style: 'cancel' },
-        {
-          text: 'Ta bort',
-          style: 'destructive',
-          onPress: async () => {
-            setSparar(true);
-            try {
-              await api.taBortSchemaAvdrag(schema.id, a.id);
-              await hämta();
-            } catch (fel) {
-              Alert.alert('Fel', fel.message);
-            } finally {
-              setSparar(false);
-            }
-          },
-        },
-      ]
-    );
-  }
+  // Avdrag läggs till och tas bort i RedigeraSchemaScreen. Den här vyn visar dem bara, och
+  // bara för den sökande – se avdragsblocket längre ned.
 
   async function avbryt() {
     Alert.alert(
@@ -388,10 +363,14 @@ export default function SchemaDetaljScreen({ route, navigation }) {
               <Ionicons name="location-outline" size={16} color="#2563eb" />
               <Text style={styles.adressText}>{schema.adress}</Text>
             </View>
-            <TouchableOpacity style={styles.kartaKnapp} onPress={öppnaKarta}>
-              <Ionicons name="map-outline" size={15} color="#2563eb" />
-              <Text style={styles.kartaKnappText}>Visa på karta</Text>
-            </TouchableOpacity>
+            {/* Bara för den som överväger att söka – hen behöver veta om arbetsplatsen går
+                att ta sig till. Företaget känner sin egen adress. */}
+            {!ärFöretag && (
+              <TouchableOpacity style={styles.kartaKnapp} onPress={öppnaKarta}>
+                <Ionicons name="map-outline" size={15} color="#2563eb" />
+                <Text style={styles.kartaKnappText}>Visa på karta</Text>
+              </TouchableOpacity>
+            )}
           </View>
         )}
 
@@ -402,10 +381,10 @@ export default function SchemaDetaljScreen({ route, navigation }) {
           </>
         ) : null}
 
-        {/* Löneavdrag – visas för ALLA, inte bara ägaren. Den som funderar på att söka
-            måste se att t.ex. 200 kr/dag dras för boende innan de ansöker, inte först
-            när den första tidrapporten dyker upp. */}
-        {avdrag.length > 0 && (
+        {/* Löneavdrag – bara för den sökande. Hen MÅSTE se att t.ex. 200 kr/dag dras för
+            boende innan hen ansöker, inte först när den första tidrapporten dyker upp.
+            Företaget ser och redigerar avdragen i RedigeraSchemaScreen i stället. */}
+        {!ärFöretag && avdrag.length > 0 && (
           <View style={styles.avdragKort}>
             <View style={styles.avdragRubrikRad}>
               <Ionicons name="remove-circle-outline" size={16} color="#dc2626" />
@@ -419,11 +398,6 @@ export default function SchemaDetaljScreen({ route, navigation }) {
                     {Number(a.belopp).toLocaleString('sv-SE')} kr {a.typ === 'totalt' ? 'totalt för perioden' : 'per pass'}
                   </Text>
                 </View>
-                {ärFöretag && (
-                  <TouchableOpacity onPress={() => taBortAvdrag(a)} disabled={sparar} style={{ padding: 4 }}>
-                    <Ionicons name="close-circle" size={20} color="#dc2626" />
-                  </TouchableOpacity>
-                )}
               </View>
             ))}
             {schema.pass?.length > 0 && (
