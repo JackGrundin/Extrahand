@@ -27,7 +27,7 @@ const { hämtaPrenumeration, ärPro, harGjortPlanval, sättPlanvalGjort, minskaP
 const { hämtaPrivatpersonerIStad, hämtaPushToken, hämtaAnvändareViaId } = require('../db/användare');
 const { GRATIS_PASS_PER_MANAD, valideraObTillagg } = require('../utils/pris');
 const { skickaNotifikation } = require('../utils/pushNotifikation');
-const { idagStockholm, parsaArbetstider, passTimmar } = require('../utils/tid');
+const { idagStockholm, parsaArbetstider, passTimmar, slutEpochFörPass } = require('../utils/tid');
 const { sändJobblistaPing, sändRealtidsPing } = require('../realtid');
 
 const router = express.Router();
@@ -85,6 +85,14 @@ function valideraPassLista(pass, befintliga = []) {
     // tidrapport, så personen får inget betalt medan företaget ser "Genomfört".
     // Blockera ALDRIG "sluttid före starttid" – pass över midnatt (22:00–06:00) är giltiga.
     if (p.starttid === p.sluttid) return 'Start- och sluttid kan inte vara samma';
+    // Ett pass vars sluttid redan passerat kan aldrig arbetas. Datumkontrollen ovan
+    // släpper igenom dagens datum oavsett klockslag, så utan den här raden gick det att
+    // publicera ett pass som var över redan när det skapades. Ett midnattspass (idag
+    // 22:00–06:00) påverkas inte – slutEpochFörPass ger morgondagens 06:00.
+    const passSlut = slutEpochFörPass({ datum: p.datum, starttid: p.starttid, sluttid: p.sluttid });
+    if (passSlut != null && passSlut <= Date.now()) {
+      return 'Pass kan inte läggas på en tid som redan passerat';
+    }
     // Kategori per pass är fri text – företaget namnger sina egna avdelningar och är inte
     // bundet till KATEGORIER-listan. Bara längden begränsas.
     if (p.kategori != null && String(p.kategori).trim().length > MAX_KATEGORI_LÄNGD) {
@@ -268,7 +276,7 @@ async function notifieraPrivatpersonerIStad(schema) {
 // GET /api/scheman — öppna scheman att söka
 router.get('/', kräverInloggning, async (req, res) => {
   try {
-    const scheman = await hämtaÖppnaScheman(idagStockholm());
+    const scheman = await hämtaÖppnaScheman();
     res.json(scheman);
   } catch (fel) {
     console.error('Fel vid hämtning av scheman:', fel);

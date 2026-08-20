@@ -4,7 +4,7 @@ const { skapaAnsökan, hämtaAnsökningarFörSökande, hämtaAnsökningarFörJob
 const { hämtaPushToken, hämtaAnvändareViaId } = require('../db/användare');
 const { hämtaJobbViaId, sättJobbPåslag } = require('../db/jobb');
 const { hämtaPrenumeration, gällandePåslag, ökaPassDennaManad, minskaPassDennaManad } = require('../db/prenumeration');
-const { tilldelaSchema, frigörFramtidaPass, återställSchema } = require('../db/schemaTilldelning');
+const { tilldelaSchema, räknaTilldelbaraPass, frigörFramtidaPass, återställSchema } = require('../db/schemaTilldelning');
 const { skickaNotifikation } = require('../utils/pushNotifikation');
 const { sändRealtidsPing, sändJobblistaPing } = require('../realtid');
 
@@ -144,6 +144,23 @@ router.patch('/:id/status', kräverInloggning, kräverTyp('företag'), async (re
     // Berörda sökande (utöver den vars status ändras direkt) att signalera om
     let övrigaBerörda = [];
     if (status === 'godkänd') {
+      // Ett schema ligger kvar som sökbart tills det tillsätts eller avbryts – aldrig för
+      // att ett datum passerat. Har varje pass hunnit ta slut går schemat inte att bemanna:
+      // tilldelaSchema skulle ställa in samtliga pass, personen få en tom bekräftelse och
+      // företaget ändå förbruka ett pass av gratisgränsen. Avbryt före varje sidoeffekt.
+      //
+      // Bara vid FÖRSTA godkännandet. Byter företaget person på ett redan tillsatt schema
+      // ligger passen kvar på den förra personen (ansokan_id satt), så räkningen vore noll
+      // och ett fullt legitimt byte skulle blockeras. Ett byte ökar inte heller räknaren.
+      if (ärSchemaAnnons && godkändaFöre.length === 0) {
+        if ((await räknaTilldelbaraPass(jobb.schema_id)) === 0) {
+          return res.status(409).json({
+            fel: 'Schemat har inga pass kvar som kan bemannas. Lägg till nya pass eller avbryt schemat.',
+            kod: 'SCHEMA_UTAN_PASS',
+          });
+        }
+      }
+
       await uppdateraStatus(req.params.id, 'godkänd');
       övrigaBerörda = await avvisaAllaUtomEn(ansökan.jobb_id, req.params.id);
 

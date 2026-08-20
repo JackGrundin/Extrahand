@@ -78,15 +78,23 @@ async function hämtaSchemaViaAnnonsJobb(jobb_id) {
   return data;
 }
 
-// Öppna scheman som privatpersoner kan söka: publicerade, ingen tilldelad person, och
-// perioden har inte redan passerat.
-async function hämtaÖppnaScheman(idag) {
+// Öppna scheman som privatpersoner kan söka: publicerade och utan tilldelad person.
+//
+// Ett schema lämnar listan när det TILLSÄTTS (anvandare_id sätts och
+// statusen blir 'tillsatt') eller avbryts – aldrig för att ett datum passerat. Tidigare
+// fanns här ett `.gte('slutdatum', idag)`, men att ett schema tyst försvann ur listan
+// på kalenderns nåder gjorde det omöjligt för företaget att förstå varför ingen sökte.
+// Det är godkännandet som ska stänga annonsen, inte klockan.
+//
+// Motvikten ligger i routes/ansokningar.js: ett schema vars pass alla hunnit ta slut går
+// inte att godkänna någon till, så ett kvarliggande utgånget schema kan inte förbruka
+// företagets gratisgräns.
+async function hämtaÖppnaScheman() {
   const { data: scheman, error } = await supabase
     .from('scheman')
     .select(SCHEMAFÄLT)
     .eq('status', 'publicerat')
     .is('anvandare_id', null)
-    .gte('slutdatum', idag)
     .order('startdatum', { ascending: true });
 
   if (error) throw error;

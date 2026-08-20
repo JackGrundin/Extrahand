@@ -21,7 +21,7 @@ const {
   harGenomförtPass,
   hämtaJobbIdnFörSchema,
 } = require('./scheman');
-const { idagStockholm } = require('../utils/tid');
+const { idagStockholm, slutEpochFörPass } = require('../utils/tid');
 
 const supabase = createClient(
   process.env.SUPABASE_URL,
@@ -50,6 +50,39 @@ async function skapaGodkändaAnsökningar(rader) {
   return skapade;
 }
 
+// Delar upp de ännu omaterialiserade passen i dem som går att bemanna och dem som redan
+// tagit slut.
+//
+// hämtaPassAttTilldela filtrerar på DATUM (.gte('datum', idag)), inte på klockslag, så
+// dagens pass följer med även när de redan tagit slut. Godkänns någon kl. 17:00 för ett
+// pass 08:00–16:00 samma dag hann personen aldrig arbeta det – men passet fick en godkänd
+// ansökan, och cron/schemaTidrapport skapade en tidrapport inom fem minuter eftersom
+// sluttiden faktiskt passerat. Det såg ut som att godkännandet skapade rapporten, och
+// företaget fakturerades för arbete som aldrig utförts.
+//
+// Samma slutEpochFörPass som cronen använder, så de två inte kan hamna i otakt om
+// midnattspass eller sommartid.
+async function delaUppPassAttTilldela(schemaId) {
+  const pass = await hämtaPassAttTilldela(schemaId, idagStockholm());
+  const nu = Date.now();
+  const harTagitSlut = (p) => {
+    const slut = slutEpochFörPass({ datum: p.datum, starttid: p.starttid, sluttid: p.sluttid });
+    return slut != null && slut <= nu;
+  };
+  return {
+    attTilldela: pass.filter(p => !harTagitSlut(p)),
+    avslutade: pass.filter(harTagitSlut),
+  };
+}
+
+// Antal pass som faktiskt går att bemanna just nu. Används av routes/ansokningar.js för
+// att avvisa ett godkännande innan någon sidoeffekt hunnit ske – ett schema ligger kvar
+// som sökbart tills det tillsätts, så det kan mycket väl vara utgånget.
+async function räknaTilldelbaraPass(schemaId) {
+  const { attTilldela } = await delaUppPassAttTilldela(schemaId);
+  return attTilldela.length;
+}
+
 // Materialiserar schemats framtida pass för den godkända personen.
 //
 // Idempotent: bara pass där ansokan_id är null rörs, så ett avbrutet anrop (deploy mitt i,
@@ -62,12 +95,20 @@ async function tilldelaSchema(schemaId, sokandeId, paslag) {
   const schema = await hämtaSchemaViaId(schemaId);
   if (!schema) return { antalPass: 0 };
 
-  const pass = await hämtaPassAttTilldela(schemaId, idagStockholm());
+  const { attTilldela, avslutade } = await delaUppPassAttTilldela(schemaId);
 
-  if (pass.length) {
+  // Ett pass som tagit slut innan någon godkändes kan varken arbetas eller rapporteras.
+  // Det STÄLLS IN i stället för att lämnas 'planerad': räknaPassFörSchema räknar allt utom
+  // installt, och ett dött pass i den divisorn späder ut ett 'totalt'-löneavdrag så att
+  // summan aldrig når det belopp företaget skrev in.
+  for (const p of avslutade) {
+    await sättPassInställt(p.id);
+  }
+
+  if (attTilldela.length) {
     // Pass som redan har ett jobb (från en tidigare person som hoppat av) återanvänder
     // Jobb-raden – den har rätt fryst påslag och rätt innehåll sedan tidigare.
-    const utanJobb = pass.filter(p => !p.jobb_id);
+    const utanJobb = attTilldela.filter(p => !p.jobb_id);
 
     // Varje pass har sin egen roll och sitt eget OB. passMedArv faller tillbaka på schemats
     // värden för pass som lades innan de flyttades till passnivå.
@@ -94,7 +135,7 @@ async function tilldelaSchema(schemaId, sokandeId, paslag) {
     // Matcha jobb mot pass via schema_pass_id, inte via insättningsordning – batchen kan
     // komma tillbaka i annan ordning än den skickades.
     const jobbPerPass = Object.fromEntries(nyaJobb.map(j => [j.schema_pass_id, j.id]));
-    const passMedJobb = pass.map(p => ({ pass: p, jobbId: p.jobb_id ?? jobbPerPass[p.id] }))
+    const passMedJobb = attTilldela.map(p => ({ pass: p, jobbId: p.jobb_id ?? jobbPerPass[p.id] }))
       .filter(x => x.jobbId != null);
 
     const ansökningar = await skapaGodkändaAnsökningar(
@@ -114,7 +155,8 @@ async function tilldelaSchema(schemaId, sokandeId, paslag) {
   await sättSchemaTilldelning(schemaId, { anvandare_id: sokandeId, paslag });
   await sättSchemaStatus(schemaId, 'tillsatt');
 
-  return { antalPass: pass.length };
+  // Antalet pass som faktiskt tilldelades – inställda räknas inte.
+  return { antalPass: attTilldela.length };
 }
 
 // Frigör framtida pass när någon hoppar av eller godkännandet tas tillbaka.
@@ -168,4 +210,4 @@ async function återställSchema(schemaId, { ställInPass = false } = {}) {
   return { harGenomfört };
 }
 
-module.exports = { tilldelaSchema, frigörFramtidaPass, nollaSchemaPåslag, återställSchema };
+module.exports = { tilldelaSchema, räknaTilldelbaraPass, frigörFramtidaPass, nollaSchemaPåslag, återställSchema };
