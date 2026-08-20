@@ -186,17 +186,39 @@ export function beräknaObBelopp(obTillagg, timlön) {
   }, 0);
 }
 
+// '15 jun' – kort dag och månad utan årtal, med jämna trebokstavsmånader ur MÅNAD_KORT.
+// formatDagDatum ger samma sak via locale, men med ojämna former ('15 juni', '15 aug.')
+// som ser skeva ut när två datum staplas i datumbrickan.
+function dagOchMånad(iso) {
+  const d = new Date(iso + 'T12:00:00');
+  return `${d.getDate()} ${MÅNAD_KORT[d.getMonth()]}`;
+}
+
+// Innehållet i den blå datumbrickan på passkorten. Returnerar raderna som ska staplas
+// plus vilken storlek de ska ritas i:
+//   'dag'    – ett datum, eller ett spann inom en månad: stor siffra + liten månad
+//   'period' – ett spann över en månadsgräns: två jämnstora rader, '15 jun' / '– 15 aug'
+//
+// Perioden ersatte en uppräkning av de tre första datumen, som för ett sommarschema med
+// 28 pass sa mindre än var uppdraget börjar och slutar. Årtalet utelämnas: brickan är
+// smal, och månadsrubriken ovanför listan bär redan året.
+//
+// Går på MIN och MAX, inte på listans första och sista element – arbetstiderna är inte
+// garanterat sorterade, samma fälla som förstaArbetsdatum och formatPeriod undviker.
 export function formatBricka(allaDatum) {
-  if (!allaDatum || allaDatum.length === 0) return null;
-  if (allaDatum.length === 1) {
-    const d = new Date(allaDatum[0] + 'T12:00:00');
-    return { rader: [String(d.getDate()), d.toLocaleDateString('sv-SE', { month: 'short' })], stor: true };
+  const datum = (allaDatum ?? []).filter(Boolean);
+  if (!datum.length) return null;
+
+  const start = datum.reduce((a, b) => (a < b ? a : b));
+  const slut = datum.reduce((a, b) => (a > b ? a : b));
+  const s = new Date(start + 'T12:00:00');
+  const e = new Date(slut + 'T12:00:00');
+
+  if (start === slut) {
+    return { rader: [String(s.getDate()), s.toLocaleDateString('sv-SE', { month: 'short' })], variant: 'dag' };
   }
-  const start = new Date(allaDatum[0] + 'T12:00:00');
-  const slut = new Date(allaDatum[allaDatum.length - 1] + 'T12:00:00');
-  const samMånad = start.getMonth() === slut.getMonth() && start.getFullYear() === slut.getFullYear();
-  if (samMånad) {
-    return { rader: [`${start.getDate()}–${slut.getDate()}`, start.toLocaleDateString('sv-SE', { month: 'short' })], stor: true };
+  if (s.getMonth() === e.getMonth() && s.getFullYear() === e.getFullYear()) {
+    return { rader: [`${s.getDate()}–${e.getDate()}`, s.toLocaleDateString('sv-SE', { month: 'short' })], variant: 'dag' };
   }
-  return { rader: allaDatum.slice(0, 3).map(d => formatDagDatum(d)), stor: false };
+  return { rader: [dagOchMånad(start), `– ${dagOchMånad(slut)}`], variant: 'period' };
 }

@@ -154,7 +154,7 @@ export default function MinaPassScreen({ navigation }) {
           const allaDatum = schema ? schema.map(d => d.datum).filter(Boolean) : [];
           const bricka = allaDatum.length > 0
             ? formatBricka(allaDatum)
-            : (() => { const d = new Date(item.created_at); return { rader: [String(d.getDate()), d.toLocaleDateString('sv-SE', { month: 'short' })], stor: true }; })();
+            : (() => { const d = new Date(item.created_at); return { rader: [String(d.getDate()), d.toLocaleDateString('sv-SE', { month: 'short' })], variant: 'dag' }; })();
           const visaDatum = allaDatum.slice(0, 3);
           const fler = allaDatum.length > 3 ? allaDatum.length - 3 : 0;
           // Det samlade schemakortet öppnar schemat med hela passlistan; ett vanligt pass
@@ -167,8 +167,17 @@ export default function MinaPassScreen({ navigation }) {
             <TouchableOpacity style={styles.kort} onPress={öppna} activeOpacity={0.85}>
               <View style={styles.datumRad}>
                 <View style={styles.datumBricka}>
+                  {/* Perioden ritas med två jämnstora rader. Dag-varianten behåller sin
+                      stora siffra över en liten månadsrad. */}
                   {bricka.rader.map((rad, i) => (
-                    <Text key={i} style={i === 0 && bricka.stor ? styles.datumDag : styles.datumMån}>{rad}</Text>
+                    <Text
+                      key={i}
+                      style={
+                        bricka.variant === 'period' ? styles.datumPeriod
+                          : i === 0 ? styles.datumDag
+                          : styles.datumMån
+                      }
+                    >{rad}</Text>
                   ))}
                 </View>
                 <View style={styles.passInfo}>
@@ -190,7 +199,12 @@ export default function MinaPassScreen({ navigation }) {
                       ? <RollBrickor roller={roller} max={2} style={{ marginTop: 4 }} />
                       : null;
                   })()}
-                  {allaDatum.length > 0 ? (
+                  {/* Schemakortets bricka visar redan hela perioden; en uppräkning av de
+                      tre första datumen plus "+25 till" sa varken vad schemat omfattar
+                      eller när det slutar. För ett vanligt pass står chipsen kvar: dess
+                      datum kan vara utspridda (15, 18, 22 jun), och då är listan mer sann
+                      än ett spann. */}
+                  {ärSchemaKort ? null : allaDatum.length > 0 ? (
                     <View style={styles.passDetaljer}>
                       {visaDatum.map((d, i) => (
                         <Text key={i} style={styles.passDetalj}>{formatDagDatum(d)}</Text>
@@ -228,9 +242,14 @@ const styles = StyleSheet.create({
 
   kort: { backgroundColor: '#fff', borderRadius: 12, padding: 14, marginBottom: 10, shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 4, elevation: 2 },
   datumRad: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 8 },
-  datumBricka: { minWidth: 44, paddingHorizontal: 10, paddingVertical: 8, borderRadius: 10, backgroundColor: '#eff6ff', alignItems: 'center', justifyContent: 'center' },
+  // flexShrink: 0 – brickan växer efter innehållet och ska inte kunna tryckas ihop av en
+  // lång titel bredvid.
+  datumBricka: { minWidth: 44, flexShrink: 0, paddingHorizontal: 10, paddingVertical: 8, borderRadius: 10, backgroundColor: '#eff6ff', alignItems: 'center', justifyContent: 'center' },
   datumDag: { fontSize: 18, fontWeight: '700', color: '#2563eb', lineHeight: 22 },
   datumMån: { fontSize: 10, color: '#2563eb', fontWeight: '600', textTransform: 'uppercase' },
+  // Periodens båda rader, mitt emellan datumDag och datumMån. Ingen versalisering –
+  // månadsnamnet står i gemener i '15 jun'.
+  datumPeriod: { fontSize: 13, fontWeight: '700', color: '#2563eb', lineHeight: 17 },
   passInfo: { flex: 1 },
   titelRad: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   passTitel: { fontSize: 15, fontWeight: '600', color: '#1a1a1a', flexShrink: 1 },
