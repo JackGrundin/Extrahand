@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, ActivityIndicator } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, ActivityIndicator, Image } from 'react-native';
 import { useAuth } from '../context/AuthContext';
 import { api } from '../api/klient';
 
@@ -45,6 +45,12 @@ export default function LoggaInScreen({ navigation }) {
 
   return (
     <View style={styles.container}>
+      <Image
+        source={require('../../assets/logotyp.png')}
+        style={styles.logga}
+        resizeMode="contain"
+        accessibilityIgnoresInvertColors
+      />
       <Text style={styles.rubrik}>FastGig</Text>
       <Text style={styles.underrubrik}>Logga in</Text>
 
@@ -102,6 +108,10 @@ export default function LoggaInScreen({ navigation }) {
 
 const styles = StyleSheet.create({
   container: { flex: 1, justifyContent: 'center', padding: 24, backgroundColor: '#fff' },
+  // Mindre än på JS-splashen (96) med flit: skärmen är en vanlig View utan ScrollView,
+  // och med tangentbordet uppe på en liten telefon finns knappt plats för innehållet som
+  // redan finns. En större logga trycker ut registreringslänken utanför skärmkanten.
+  logga: { width: 64, height: 64, alignSelf: 'center', marginBottom: 12 },
   rubrik: { fontSize: 32, fontWeight: 'bold', textAlign: 'center', marginBottom: 4, color: '#2563eb' },
   underrubrik: { fontSize: 18, textAlign: 'center', marginBottom: 32, color: '#666' },
   input: { borderWidth: 1, borderColor: '#ddd', borderRadius: 10, padding: 14, marginBottom: 12, fontSize: 16, color: '#1a1a1a', letterSpacing: 0 },

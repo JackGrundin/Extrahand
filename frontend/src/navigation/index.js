@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { AppState, Modal, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { AppState, Image, Modal, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
 
@@ -377,6 +377,9 @@ const badgeStyles = StyleSheet.create({
 
 const laddningsStyles = StyleSheet.create({
   container: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#ffffff' },
+  // resizeMode 'contain' i JSX:en gör att märket behåller sina proportioner även om
+  // filen inte är kvadratisk – rutan här är bara en övre gräns.
+  logga: { width: 96, height: 96, marginBottom: 20 },
   logotyp: { fontSize: 52, fontWeight: 'bold', color: '#2563eb', letterSpacing: -1, marginBottom: 8 },
   tagline: { fontSize: 15, color: '#9ca3af' },
 });
@@ -393,6 +396,12 @@ export default function Navigation() {
   if (laddar || visaSplash) {
     return (
       <View style={laddningsStyles.container}>
+        <Image
+          source={require('../../assets/logotyp.png')}
+          style={laddningsStyles.logga}
+          resizeMode="contain"
+          accessibilityIgnoresInvertColors
+        />
         <Text style={laddningsStyles.logotyp}>FastGig</Text>
         <Text style={laddningsStyles.tagline}>Flexibla jobb, enkelt</Text>
       </View>
