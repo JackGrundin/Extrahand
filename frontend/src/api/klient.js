@@ -185,6 +185,8 @@ export const api = {
   // Betyg
   sättaBetyg: (ansokningId, kropp) => anrop('POST', `/betyg/${ansokningId}`, kropp),
   hämtaBetyg: (anvandareId) => anrop('GET', `/betyg/anvandare/${anvandareId}`),
+  // Avslutade uppdrag som ännu inte betygsatts – underlaget för betygspopupen.
+  väntandeBetyg: () => anrop('GET', '/betyg/vantande'),
 
   // Scheman (längre uppdrag: sommarjobb, säsongsarbete). Ett schema söks som helhet via
   // sitt annons-jobb, så ansökan går genom sökaJobb ovan med schemats annons_jobb_id.

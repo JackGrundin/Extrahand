@@ -191,6 +191,30 @@ export const STATUSFÄRGER_ANSÖKAN = {
   väntande: { bg: '#f3f4f6', text: '#6b7280' },
 };
 
+// Etikett och färg för en ansökans status.
+//
+// Ett avhopp lagras som status 'avvisad' med avhoppad_at satt (se migrations/ansokan_avhopp.sql):
+// databasen har ingen egen status för det, eftersom statusvärdet styr ett dussin filter i
+// både backend och app. Utan den här särskiljningen får den som själv lämnade ett uppdrag
+// beskedet "Avvisad", vilket är fel besked till fel person.
+//
+// Perspektivet skiljer sig: personen läser sin egen historik ("Hoppat av"), företaget läser
+// om någon annan ("Hoppade av").
+export function ansökanStatusVisning(ansökan, { ärFöretag = false } = {}) {
+  if (!ansökan?.status) return null;
+
+  if (ansökan.avhoppad_at) {
+    return { etikett: ärFöretag ? 'Hoppade av' : 'Hoppat av', bg: '#fef3c7', text: '#b45309' };
+  }
+
+  const färg = STATUSFÄRGER_ANSÖKAN[ansökan.status] ?? { bg: '#f3f4f6', text: '#6b7280' };
+  const etikett = ansökan.status === 'avvisad' && ärFöretag
+    ? 'Nekad'
+    : ansökan.status.charAt(0).toUpperCase() + ansökan.status.slice(1);
+
+  return { ...färg, etikett };
+}
+
 export const STATUSFÄRGER_TIDRAPPORT = {
   väntar:   { bg: '#fef9c3', text: '#854d0e', etikett: 'Väntar' },
   godkänd:  { bg: '#dcfce7', text: '#16a34a', etikett: 'Godkänd' },

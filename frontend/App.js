@@ -6,6 +6,7 @@ import { NotifikationsProvider } from './src/context/NotifikationsContext';
 import { AttAvslutaProvider } from './src/context/AttAvslutaContext';
 import { RealtidsProvider } from './src/context/RealtidsContext';
 import { AnslutningsProvider } from './src/context/AnslutningsContext';
+import { BetygsProvider } from './src/context/BetygsContext';
 import Navigation from './src/navigation';
 
 Notifications.setNotificationHandler({
@@ -28,8 +29,13 @@ export default function App() {
           <NotifikationsProvider>
             <AttAvslutaProvider>
               <RealtidsProvider>
-                <StatusBar style="auto" />
-                <Navigation />
+                {/* Innanför RealtidsProvider: betygsprompten lyssnar på tidrapport-pingen.
+                    Den renderar en Modal utanför navigatorn, vilket är det som gör att
+                    popupen kan komma upp oavsett vilken flik eller skärm man står på. */}
+                <BetygsProvider>
+                  <StatusBar style="auto" />
+                  <Navigation />
+                </BetygsProvider>
               </RealtidsProvider>
             </AttAvslutaProvider>
           </NotifikationsProvider>

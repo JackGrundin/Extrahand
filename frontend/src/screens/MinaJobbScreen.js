@@ -243,13 +243,19 @@ export default function MinaJobbScreen({ navigation, route }) {
               onPress={() => navigation.navigate('SchemaDetalj', { schemaId: item.id })}
               activeOpacity={0.85}
             >
-              {/* Samma markering som jobbkortet under Pass – backend räknar bara nya
-                  ansökningar på scheman som fortfarande söker person. */}
-              {item.nyaAnsökningar > 0 && (
-                <View style={styles.nyaAnsBadge}>
-                  <Ionicons name="person-add" size={13} color="#fff" />
-                  <Text style={styles.nyaAnsBadgeText}>
-                    {item.nyaAnsökningar} {item.nyaAnsökningar === 1 ? 'ny ansökan' : 'nya ansökningar'}
+              {/* Sökande ligger HÖGST UPP i kortet – det är det man öppnar schemat för.
+                  Antalet står kvar även när företaget läst listan; badgen med "nya" är det
+                  som tystnar. Backend räknar bara på scheman som fortfarande söker person. */}
+              {item.antalAnsökningar > 0 && (
+                <View style={[styles.sökandeRad, item.nyaAnsökningar > 0 && styles.sökandeRadNy]}>
+                  <Ionicons
+                    name="person-add"
+                    size={14}
+                    color={item.nyaAnsökningar > 0 ? '#fff' : '#2563eb'}
+                  />
+                  <Text style={[styles.sökandeRadText, item.nyaAnsökningar > 0 && styles.sökandeRadTextNy]}>
+                    {item.antalAnsökningar} {item.antalAnsökningar === 1 ? 'sökande' : 'sökande'}
+                    {item.nyaAnsökningar > 0 ? ` · ${item.nyaAnsökningar} ${item.nyaAnsökningar === 1 ? 'ny' : 'nya'}` : ''}
                   </Text>
                 </View>
               )}
@@ -391,6 +397,10 @@ const styles = StyleSheet.create({
   avslutaBadgeText: { color: '#fff', fontSize: 12, fontWeight: '700' },
   nyaAnsBadge: { flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-start', gap: 4, backgroundColor: '#2563eb', borderRadius: 8, paddingHorizontal: 8, paddingVertical: 4, marginBottom: 8 },
   nyaAnsBadgeText: { color: '#fff', fontSize: 12, fontWeight: '700' },
+  sökandeRad: { flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-start', gap: 5, backgroundColor: '#eff6ff', borderRadius: 8, paddingHorizontal: 9, paddingVertical: 5, marginBottom: 8 },
+  sökandeRadNy: { backgroundColor: '#2563eb' },
+  sökandeRadText: { color: '#2563eb', fontSize: 12, fontWeight: '700' },
+  sökandeRadTextNy: { color: '#fff' },
   titel: { fontSize: 16, fontWeight: '700', color: '#1a1a1a', marginBottom: 6 },
   infoRad: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 8 },
   info: { fontSize: 14, color: '#666' },

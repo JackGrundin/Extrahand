@@ -121,9 +121,13 @@ async function hämtaSchemanFörFöretag(foretag_id) {
   return berikaMedNyaAnsökningar(await berikaMedPassOchFöretag(scheman));
 }
 
-// Antal olästa ansökningar per schema, med samma regel som filtreraAktivaJobb i db/jobb.js:
-// ny = ansökans created_at är senare än företagets stämpel, och NULL-stämpel (aldrig öppnat)
-// betyder att alla är nya.
+// Antal ansökningar per schema: antalAnsökningar (alla som fortfarande väntar på svar) och
+// nyaAnsökningar (de olästa). Två skilda storheter – badgen ska sluta tjata när företaget
+// läst listan, men kortet ska fortfarande visa att det FINNS sökande.
+//
+// Olästa räknas med samma regel som filtreraAktivaJobb i db/jobb.js: ny = ansökans
+// created_at är senare än företagets stämpel, och NULL-stämpel (aldrig öppnat) betyder att
+// alla är nya.
 //
 // Ingen egen kolumn behövs: schemats ansökningar ligger på annons-jobbet, som är en vanlig
 // Jobb-rad, så Jobb.ansokningar_sedda_at gäller redan för dem.
@@ -137,27 +141,36 @@ async function hämtaSchemanFörFöretag(foretag_id) {
 // andra vyer där ett ansökningsantal inte hör hemma.
 async function berikaMedNyaAnsökningar(scheman) {
   const sökande = scheman.filter(s => s.annons_jobb_id && s.anvandare_id == null);
-  if (!sökande.length) return scheman.map(s => ({ ...s, nyaAnsökningar: 0 }));
+  if (!sökande.length) return scheman.map(s => ({ ...s, nyaAnsökningar: 0, antalAnsökningar: 0 }));
 
   const jobbIds = sökande.map(s => s.annons_jobb_id);
   const [{ data: annonsJobb }, { data: ansokningar }] = await Promise.all([
     supabase.from('Jobb').select('id, ansokningar_sedda_at').in('id', jobbIds),
-    supabase.from('ansokningar').select('jobb_id, created_at').in('jobb_id', jobbIds),
+    supabase.from('ansokningar').select('jobb_id, created_at, status').in('jobb_id', jobbIds),
   ]);
 
   const seddMap = Object.fromEntries((annonsJobb || []).map(j => [j.id, j.ansokningar_sedda_at]));
   const nyaPerJobb = {};
+  const antalPerJobb = {};
   for (const a of (ansokningar || [])) {
+    // Olästräkningen går på ALLA ansökningar, oavsett status – exakt som filtreraAktivaJobb
+    // i db/jobb.js. De två måste ge samma svar, annars visar schemabadgen och jobbbadgen
+    // olika siffror för samma sorts händelse.
     const sedd = seddMap[a.jobb_id];
     if (!sedd || new Date(a.created_at) > new Date(sedd)) {
       nyaPerJobb[a.jobb_id] = (nyaPerJobb[a.jobb_id] || 0) + 1;
     }
+
+    // Totalen är däremot "hur många kan jag välja bland just nu". Avvisade och avhoppade
+    // hör inte dit.
+    if (a.status === 'väntande') antalPerJobb[a.jobb_id] = (antalPerJobb[a.jobb_id] || 0) + 1;
   }
 
   const sökandeIds = new Set(sökande.map(s => s.id));
   return scheman.map(s => ({
     ...s,
     nyaAnsökningar: sökandeIds.has(s.id) ? (nyaPerJobb[s.annons_jobb_id] || 0) : 0,
+    antalAnsökningar: sökandeIds.has(s.id) ? (antalPerJobb[s.annons_jobb_id] || 0) : 0,
   }));
 }
 

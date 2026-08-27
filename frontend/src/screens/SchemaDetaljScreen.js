@@ -7,7 +7,7 @@ import { useRealtidsPing } from '../context/RealtidsContext';
 import { useAttAvsluta } from '../context/AttAvslutaContext';
 import { api } from '../api/klient';
 import { parsaObTillagg, beräknaObBelopp, formatDagDatum, veckodagsNamn } from '../utils/datumHelper';
-import { beräknaFakturapris } from '../utils/konstanter';
+import { beräknaFakturapris, ansökanStatusVisning } from '../utils/konstanter';
 import { useJobbPåslag } from '../utils/useJobbPåslag';
 import RollBrickor from '../components/RollBrickor';
 
@@ -189,6 +189,14 @@ export default function SchemaDetaljScreen({ route, navigation }) {
     );
   }
 
+  // Företaget ska kunna läsa CV och erfarenheter innan de godkänner någon – samma väg som
+  // från JobbAnsokningarScreen. SökanadeProfil är registrerad i MinaJobbNavigator och
+  // ProfilNavigator, de två stackar där ett företag når SchemaDetalj.
+  function visaProfil(ansökan) {
+    if (!ansökan?.sokande_id) return;
+    navigation.navigate('SökanadeProfil', { sokandeId: ansökan.sokande_id, ansokningId: ansökan.id });
+  }
+
   async function hoppaAv() {
     Alert.alert(
       'Hoppa av schemat?',
@@ -223,6 +231,9 @@ export default function SchemaDetaljScreen({ route, navigation }) {
   const ansökningar = schema.ansokningar ?? [];
   const godkändAnsökan = ansökningar.find(a => a.status === 'godkänd');
   const övrigaAnsökningar = ansökningar.filter(a => a.status !== 'godkänd');
+  // Antalsbrickan säger "så här många kan du välja bland". Avvisade och avhoppade hör
+  // inte dit, även om de fortfarande listas nedanför med sin status.
+  const antalVäntande = övrigaAnsökningar.filter(a => a.status === 'väntande').length;
   const obTillagg = parsaObTillagg(schema.ob_tillagg);
 
   return (
@@ -289,7 +300,19 @@ export default function SchemaDetaljScreen({ route, navigation }) {
               <>
                 <Text style={styles.sektionsRubrik}>Godkänd person</Text>
                 <View style={styles.sökandeKort}>
-                  <Text style={styles.sökandeNamn}>{godkändAnsökan.sökandeNamn ?? 'Okänd'}</Text>
+                  <TouchableOpacity
+                    style={styles.sökandeInfo}
+                    onPress={() => visaProfil(godkändAnsökan)}
+                    activeOpacity={0.7}
+                  >
+                    <View style={styles.avatar}>
+                      <Text style={styles.avatarText}>{(godkändAnsökan.sökandeNamn ?? '?').charAt(0).toUpperCase()}</Text>
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.sökandeNamn}>{godkändAnsökan.sökandeNamn ?? 'Okänd'}</Text>
+                      <Text style={styles.profilLänk}>Visa profil →</Text>
+                    </View>
+                  </TouchableOpacity>
                   <TouchableOpacity
                     style={styles.chattKnapp}
                     onPress={() => navigation.navigate('Chatt', { ansokningId: godkändAnsökan.id })}
@@ -308,37 +331,62 @@ export default function SchemaDetaljScreen({ route, navigation }) {
               <Text style={styles.sektionsRubrik}>
                 {godkändAnsökan ? 'Övriga sökande' : 'Sökande'}
               </Text>
-              {övrigaAnsökningar.length > 0 && (
+              {antalVäntande > 0 && (
                 <View style={styles.sökandeAntal}>
-                  <Text style={styles.sökandeAntalText}>{övrigaAnsökningar.length}</Text>
+                  <Text style={styles.sökandeAntalText}>{antalVäntande}</Text>
                 </View>
               )}
             </View>
             {övrigaAnsökningar.length === 0 ? (
               <Text style={styles.tomText}>Inga sökande ännu.</Text>
             ) : (
-              övrigaAnsökningar.map(a => (
-                <View key={a.id} style={styles.sökandeKort}>
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.sökandeNamn}>{a.sökandeNamn ?? 'Okänd'}</Text>
-                    {a.meddelande ? <Text style={styles.sökandeMeddelande} numberOfLines={2}>{a.meddelande}</Text> : null}
+              övrigaAnsökningar.map(a => {
+                const status = ansökanStatusVisning(a, { ärFöretag: true });
+                // Bara den som fortfarande väntar går att godkänna. En avhoppare eller en
+                // redan nekad ska inte ha en Godkänn-knapp som ser ut som alla andras.
+                const kanGodkännas = a.status === 'väntande';
+                return (
+                  <View key={a.id} style={styles.sökandeKort}>
+                    <TouchableOpacity
+                      style={styles.sökandeInfo}
+                      onPress={() => visaProfil(a)}
+                      activeOpacity={0.7}
+                    >
+                      <View style={styles.avatar}>
+                        <Text style={styles.avatarText}>{(a.sökandeNamn ?? '?').charAt(0).toUpperCase()}</Text>
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <View style={styles.namnRad}>
+                          <Text style={styles.sökandeNamn}>{a.sökandeNamn ?? 'Okänd'}</Text>
+                          {status && !kanGodkännas && (
+                            <View style={[styles.sökandeStatusBricka, { backgroundColor: status.bg }]}>
+                              <Text style={[styles.sökandeStatusText, { color: status.text }]}>{status.etikett}</Text>
+                            </View>
+                          )}
+                        </View>
+                        {a.meddelande ? <Text style={styles.sökandeMeddelande} numberOfLines={2}>{a.meddelande}</Text> : null}
+                        <Text style={styles.profilLänk}>Visa profil →</Text>
+                      </View>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={styles.chattKnapp}
+                      onPress={() => navigation.navigate('Chatt', { ansokningId: a.id })}
+                    >
+                      <Ionicons name="chatbubble-outline" size={15} color="#2563eb" />
+                      <Text style={styles.chattKnappText}>Chatt</Text>
+                    </TouchableOpacity>
+                    {kanGodkännas && (
+                      <TouchableOpacity
+                        style={styles.godkännKnapp}
+                        onPress={() => (godkändAnsökan ? ersätt(a) : godkänn(a))}
+                        disabled={sparar}
+                      >
+                        <Text style={styles.godkännText}>{godkändAnsökan ? 'Ersätt' : 'Godkänn'}</Text>
+                      </TouchableOpacity>
+                    )}
                   </View>
-                  <TouchableOpacity
-                    style={styles.chattKnapp}
-                    onPress={() => navigation.navigate('Chatt', { ansokningId: a.id })}
-                  >
-                    <Ionicons name="chatbubble-outline" size={15} color="#2563eb" />
-                    <Text style={styles.chattKnappText}>Chatt</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={styles.godkännKnapp}
-                    onPress={() => (godkändAnsökan ? ersätt(a) : godkänn(a))}
-                    disabled={sparar}
-                  >
-                    <Text style={styles.godkännText}>{godkändAnsökan ? 'Ersätt' : 'Godkänn'}</Text>
-                  </TouchableOpacity>
-                </View>
-              ))
+                );
+              })
             )}
           </>
         )}
@@ -573,7 +621,14 @@ const styles = StyleSheet.create({
   statusText: { fontSize: 12, fontWeight: '700' },
 
   sökandeKort: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: '#fafafa', borderRadius: 12, padding: 12, marginBottom: 8, borderWidth: 1, borderColor: '#e5e7eb' },
-  sökandeNamn: { fontSize: 15, fontWeight: '600', color: '#1a1a1a', flex: 1 },
+  sökandeNamn: { fontSize: 15, fontWeight: '600', color: '#1a1a1a' },
+  sökandeInfo: { flexDirection: 'row', alignItems: 'center', flex: 1, gap: 10 },
+  namnRad: { flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' },
+  avatar: { width: 38, height: 38, borderRadius: 19, backgroundColor: '#eff6ff', justifyContent: 'center', alignItems: 'center' },
+  avatarText: { color: '#2563eb', fontWeight: '700', fontSize: 15 },
+  profilLänk: { fontSize: 12, color: '#2563eb', fontWeight: '600', marginTop: 3 },
+  sökandeStatusBricka: { borderRadius: 8, paddingHorizontal: 7, paddingVertical: 2 },
+  sökandeStatusText: { fontSize: 11, fontWeight: '700' },
   sökandeMeddelande: { fontSize: 13, color: '#6b7280', marginTop: 2 },
   chattKnapp: { flexDirection: 'row', alignItems: 'center', gap: 4, borderWidth: 1, borderColor: '#2563eb', borderRadius: 8, paddingHorizontal: 10, paddingVertical: 6 },
   chattKnappText: { fontSize: 13, color: '#2563eb', fontWeight: '600' },

@@ -170,6 +170,7 @@ async function tilldelaSchema(schemaId, sokandeId, paslag) {
 // återanvända den med sitt redan frysta påslag.
 async function frigörFramtidaPass(schemaId, { ställInPass = false } = {}) {
   const pass = await hämtaPassAttFrigöra(schemaId, idagStockholm());
+  const ansökningsIdn = [];
 
   for (const p of pass) {
     if (p.ansokan_id) {
@@ -178,12 +179,16 @@ async function frigörFramtidaPass(schemaId, { ställInPass = false } = {}) {
         .update({ status: 'avvisad' })
         .eq('id', p.ansokan_id);
       if (error) throw error;
+      ansökningsIdn.push(p.ansokan_id);
     }
     if (ställInPass) await sättPassInställt(p.id);
     else await frikopplaPass(p.id);
   }
 
-  return { antalPass: pass.length };
+  // Id:na följer med ut så att avhoppsvägen kan stämpla dem med avhoppad_at. Här vet vi
+  // inte VARFÖR passen frigörs – det kan lika gärna vara företaget som ställer in schemat –
+  // så stämplingen görs av anroparen.
+  return { antalPass: pass.length, ansökningsIdn };
 }
 
 // Nollar påslaget på schemat och alla dess jobb. Anropas bara när INGET pass hunnit
@@ -197,17 +202,18 @@ async function nollaSchemaPåslag(schemaId) {
 
 // Tar tillbaka en tilldelning helt: frigör framtida pass och gör schemat sökbart igen.
 // Returnerar om påslaget nollades, så att anropande route vet om pass-räknaren också ska
-// minskas (det görs av den vanliga godkännandelogiken i routes/ansokningar.js).
+// minskas (det görs av den vanliga godkännandelogiken i routes/ansokningar.js), samt vilka
+// ansökningar som avvisades på vägen – avhoppsvägen stämplar dem med avhoppad_at.
 async function återställSchema(schemaId, { ställInPass = false } = {}) {
   const harGenomfört = await harGenomförtPass(schemaId);
 
-  await frigörFramtidaPass(schemaId, { ställInPass });
+  const { ansökningsIdn } = await frigörFramtidaPass(schemaId, { ställInPass });
   await sättSchemaTilldelning(schemaId, { anvandare_id: null });
 
   if (!harGenomfört) await nollaSchemaPåslag(schemaId);
   await sättSchemaStatus(schemaId, ställInPass ? 'avbrutet' : 'publicerat');
 
-  return { harGenomfört };
+  return { harGenomfört, frigjordaAnsökningar: ansökningsIdn };
 }
 
 module.exports = { tilldelaSchema, räknaTilldelbaraPass, frigörFramtidaPass, nollaSchemaPåslag, återställSchema };

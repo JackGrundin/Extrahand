@@ -3,6 +3,7 @@ import { View, Text, FlatList, TouchableOpacity, StyleSheet, ActivityIndicator, 
 import { useFocusEffect } from '@react-navigation/native';
 import { api } from '../api/klient';
 import { harStartat } from '../utils/datumHelper';
+import { ansökanStatusVisning } from '../utils/konstanter';
 import AvslutaPassModal from '../components/AvslutaPassModal';
 import HandlingsKnapp from '../components/HandlingsKnapp';
 import { useRealtidsPing } from '../context/RealtidsContext';
@@ -61,9 +62,11 @@ function StatusKnappar({ item, onUppdaterad, onAvsluta, navigation, tidigare, st
   }
 
   if (item.status === 'avvisad') {
+    // Hoppade personen av själv ska det inte stå "Nekad" – det är fel besked om vad som hänt.
+    const status = ansökanStatusVisning(item, { ärFöretag: true });
     return (
-      <View style={styles.avvisadBadge}>
-        <Text style={styles.avvisadText}>Nekad</Text>
+      <View style={[styles.avvisadBadge, { backgroundColor: status.bg }]}>
+        <Text style={[styles.avvisadText, { color: status.text }]}>{status.etikett}</Text>
       </View>
     );
   }

@@ -1,6 +1,6 @@
 const express = require('express');
-const { kräverInloggning, kräverTyp } = require('../middleware/auth');
-const { skapaBetyg, finnsDublettBetyg, hämtaBetyg } = require('../db/betyg');
+const { kräverInloggning } = require('../middleware/auth');
+const { skapaBetyg, finnsDublettBetyg, hämtaBetyg, hämtaObetygsatta } = require('../db/betyg');
 const { sändRealtidsPing } = require('../realtid');
 const { createClient } = require('@supabase/supabase-js');
 const ws = require('ws');
@@ -35,7 +35,10 @@ async function hämtaParterFörAnsökan(ansokningId) {
 }
 
 // POST /api/betyg/:ansokningId — sätt betyg på motparten
-router.post('/:ansokningId', kräverInloggning, kräverTyp('företag'), async (req, res) => {
+//
+// Ingen kräverTyp: BÅDA parter betygsätter varandra. Motparten räknas ut ur ansökan längre
+// ner, och åtkomstkontrollen där släpper bara igenom den som faktiskt är part i uppdraget.
+router.post('/:ansokningId', kräverInloggning, async (req, res) => {
   const { stjarnor, kommentar } = req.body;
 
   if (!stjarnor || !Number.isInteger(stjarnor) || stjarnor < 1 || stjarnor > 5) {
@@ -79,6 +82,18 @@ router.post('/:ansokningId', kräverInloggning, kräverTyp('företag'), async (r
   } catch (fel) {
     console.error('Fel vid betygsättning:', fel);
     res.status(500).json({ fel: 'Serverfel vid betygsättning' });
+  }
+});
+
+// GET /api/betyg/vantande — avslutade uppdrag som den inloggade ännu inte betygsatt.
+// Underlaget för betygspopupen; ett schema räknas som ETT uppdrag, inte ett per pass.
+router.get('/vantande', kräverInloggning, async (req, res) => {
+  try {
+    const väntande = await hämtaObetygsatta(req.användare.id, req.användare.typ === 'företag');
+    res.json(väntande);
+  } catch (fel) {
+    console.error('Fel vid hämtning av väntande betyg:', fel);
+    res.status(500).json({ fel: 'Serverfel vid hämtning av väntande betyg' });
   }
 });
 

@@ -9,13 +9,14 @@ import StadInput from '../components/StadInput';
 import AdressInput from '../components/AdressInput';
 import SchemaPassModal from '../components/SchemaPassModal';
 import PassDetaljFält from '../components/PassDetaljFält';
+import MassPassPanel from '../components/MassPassPanel';
 import MånadsKalender from '../components/MånadsKalender';
 import DatumVäljare from '../components/DatumVäljare';
 import StegIndikator from '../components/StegIndikator';
 import { useAppStateAktiv } from '../utils/useAppStateAktiv';
 import { valideraSchema } from '../utils/schemaValidering';
 import { formatDagDatum, veckodagsNamn, datumIntervall, veckodagsIndex } from '../utils/datumHelper';
-import { synkaPassMotDatum, uppdateraFält, ärKomplett, tillPayload, nyttPassId, sorteraPass, hittaKrockar, harNolltid, antalPassEfterSynk } from '../utils/schemaPass';
+import { synkaPassMotDatum, uppdateraFält, tillämpaPåMarkerade, ärKomplett, tillPayload, nyttPassId, sorteraPass, hittaKrockar, harNolltid, antalPassEfterSynk } from '../utils/schemaPass';
 import { api } from '../api/klient';
 import { KATEGORIER, SCHEMATYPER, PÅSLAG_GRATIS, beräknaFakturapris, formateraPris, beräknaAvdragFörPass, beräknaAvdragTotalt } from '../utils/konstanter';
 
@@ -53,6 +54,10 @@ export default function PubliceraSchemaScreen({ navigation }) {
   // Steg 3
   const [pass, setPass] = useState([]);
   const [öppetPassId, setÖppetPassId] = useState(null);
+  // Massmarkering. Ligger vid sidan av öppetPassId, men bara ETT av dem är aktivt åt gången –
+  // se markeraPass/öppnaPass. Två urval i samma vy var precis det som gjorde steget rörigt
+  // förra gången massredigering fanns här.
+  const [markerade, setMarkerade] = useState(() => new Set());
   const [egnaKategorier, setEgnaKategorier] = useState([]);
   const [passModalVisas, setPassModalVisas] = useState(false);
   const [redigerarId, setRedigerarId] = useState(null);
@@ -217,6 +222,38 @@ export default function PubliceraSchemaScreen({ navigation }) {
     rensaFel('pass');
   }
 
+  // Ett urvalsläge i taget: att markera stänger den utfällda editorn, att fälla ut ett pass
+  // rensar markeringen. Annars kan man sitta med ett markerat urval och en öppen editor
+  // samtidigt och inte veta vilken av dem panelen skriver till.
+  function markeraPass(id) {
+    setÖppetPassId(null);
+    setMarkerade(prev => {
+      const n = new Set(prev);
+      if (n.has(id)) n.delete(id); else n.add(id);
+      return n;
+    });
+  }
+
+  function öppnaPass(id) {
+    setMarkerade(new Set());
+    setÖppetPassId(nuvarande => (nuvarande === id ? null : id));
+  }
+
+  function markeraAlla() {
+    setÖppetPassId(null);
+    setMarkerade(new Set(pass.map(p => p.id)));
+  }
+
+  function rensaMarkering() {
+    setMarkerade(new Set());
+  }
+
+  // Skriver utkastet till alla markerade pass. Bara ifyllda fält – se tillämpaPåMarkerade.
+  function tillämpaPåMarkerade_(utkast, { rensaOb = false } = {}) {
+    setPass(prev => tillämpaPåMarkerade(prev, markerade, utkast, { rensaOb }));
+    rensaFel('pass');
+  }
+
   function öppnaRedigera(p) {
     setRedigerarId(p.id);
     setPassUtkast(p);
@@ -243,6 +280,10 @@ export default function PubliceraSchemaScreen({ navigation }) {
 
   function taBortPass(id) {
     setPass(prev => prev.filter(p => p.id !== id));
+    setMarkerade(prev => {
+      if (!prev.has(id)) return prev;
+      const n = new Set(prev); n.delete(id); return n;
+    });
     // Datumet ska också bort ur kalendern om det var dagens sista pass.
     setValdaDatum(prev => {
       const kvar = pass.filter(p => p.id !== id);
@@ -273,6 +314,7 @@ export default function PubliceraSchemaScreen({ navigation }) {
 
   function gåVidare() {
     setFel({});
+    setMarkerade(new Set());
     setSteg(s => Math.min(s + 1, 4));
     scrollRef.current?.scrollTo({ y: 0, animated: false });
   }
@@ -333,6 +375,7 @@ export default function PubliceraSchemaScreen({ navigation }) {
 
   function tillbaka() {
     setFel({});
+    setMarkerade(new Set());
     setSteg(s => Math.max(s - 1, 1));
     scrollRef.current?.scrollTo({ y: 0, animated: false });
   }
@@ -411,7 +454,7 @@ export default function PubliceraSchemaScreen({ navigation }) {
   return (
     <>
       <KeyboardAvoidingView style={{ flex: 1, backgroundColor: '#fff' }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-        <StegIndikator steg={steg} antal={4} etiketter={STEG_ETIKETTER} onVäljSteg={setSteg} />
+        <StegIndikator steg={steg} antal={4} etiketter={STEG_ETIKETTER} onVäljSteg={(n) => { setMarkerade(new Set()); setSteg(n); }} />
 
         <ScrollView ref={scrollRef} style={styles.container} keyboardShouldPersistTaps="handled">
           {steg === 1 && (
@@ -582,7 +625,8 @@ export default function PubliceraSchemaScreen({ navigation }) {
               <View style={styles.hjälpRuta}>
                 <Ionicons name="information-circle-outline" size={18} color="#0369a1" />
                 <Text style={styles.hjälpText}>
-                  Tryck på ett pass för att fylla i tider, roll och OB.
+                  Tryck på ett pass för att fylla i tider, roll och OB. Kryssa i flera pass
+                  för att fylla i dem samtidigt.
                 </Text>
               </View>
 
@@ -591,6 +635,16 @@ export default function PubliceraSchemaScreen({ navigation }) {
                 <View style={styles.rubrikHöger}>
                   {ofullständiga > 0 && <Text style={styles.varning}>{ofullständiga} saknar tider</Text>}
                   {krockar.size > 0 && <Text style={styles.varning}>{krockar.size} krockar</Text>}
+                  {pass.length > 1 && (
+                    <TouchableOpacity
+                      onPress={markerade.size === pass.length ? rensaMarkering : markeraAlla}
+                      hitSlop={8}
+                    >
+                      <Text style={styles.markeraLänk}>
+                        {markerade.size === pass.length ? 'Avmarkera alla' : 'Markera alla'}
+                      </Text>
+                    </TouchableOpacity>
+                  )}
                 </View>
               </View>
 
@@ -598,12 +652,25 @@ export default function PubliceraSchemaScreen({ navigation }) {
                 {pass.map(p => {
                   const fel = krockar.has(p.id) || nolltider.has(p.id);
                   const öppet = öppetPassId === p.id;
+                  const markerad = markerade.has(p.id);
                   return (
                     <View key={p.id}>
-                      <View style={[styles.passRad, fel && styles.passRadFel, öppet && styles.passRadÖppen]}>
+                      <View style={[styles.passRad, fel && styles.passRadFel, öppet && styles.passRadÖppen, markerad && styles.passRadMarkerad]}>
+                        <TouchableOpacity
+                          style={styles.kryssRuteYta}
+                          onPress={() => markeraPass(p.id)}
+                          hitSlop={6}
+                          activeOpacity={0.7}
+                        >
+                          <View style={[styles.kryssRuta, markerad && styles.kryssRutaAktiv]}>
+                            {markerad && <Ionicons name="checkmark" size={13} color="#fff" />}
+                          </View>
+                        </TouchableOpacity>
                         <TouchableOpacity
                           style={styles.passInnehåll}
-                          onPress={() => setÖppetPassId(öppet ? null : p.id)}
+                          /* Finns redan en markering togglar radtrycket kryssrutan i stället
+                             för att fälla ut editorn – samma vana som listor i iOS Mail. */
+                          onPress={() => (markerade.size > 0 ? markeraPass(p.id) : öppnaPass(p.id))}
                           activeOpacity={0.7}
                         >
                           <View style={styles.passDatum}>
@@ -766,6 +833,20 @@ export default function PubliceraSchemaScreen({ navigation }) {
           <View style={{ height: 24 }} />
         </ScrollView>
 
+        {/* Panelen ligger sist i flex-kolumnen, inte över listan: den ska synas medan man
+            scrollar och kryssar i fler rader, utan att skymma stegnavigeringen. */}
+        {steg === 3 && markerade.size > 0 && (
+          <MassPassPanel
+            antal={markerade.size}
+            onTillämpa={tillämpaPåMarkerade_}
+            onRensaMarkering={rensaMarkering}
+            egnaKategorier={egnaKategorier}
+            standardKategorier={KATEGORIER}
+            timlön={timlönTal}
+            paslag={gällandePåslag}
+          />
+        )}
+
         <View style={styles.navRad}>
           {steg > 1 && (
             <TouchableOpacity style={styles.tillbakaKnapp} onPress={tillbaka} activeOpacity={0.8}>
@@ -869,6 +950,11 @@ const styles = StyleSheet.create({
   passRubrikRad: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between' },
   varning: { fontSize: 12, color: '#c2410c', fontWeight: '700', marginBottom: 6 },
   passLista: { borderWidth: 1, borderColor: '#e5e7eb', borderRadius: 12, overflow: 'hidden' },
+  markeraLänk: { fontSize: 13, color: '#2563eb', fontWeight: '600' },
+  kryssRuteYta: { paddingVertical: 10, paddingLeft: 2, paddingRight: 8 },
+  kryssRuta: { width: 20, height: 20, borderRadius: 5, borderWidth: 2, borderColor: '#2563eb', justifyContent: 'center', alignItems: 'center' },
+  kryssRutaAktiv: { backgroundColor: '#2563eb' },
+  passRadMarkerad: { backgroundColor: '#eff6ff' },
   passRad: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 8, paddingVertical: 9, borderBottomWidth: 1, borderBottomColor: '#f3f4f6', backgroundColor: '#fafafa' },
   passInnehåll: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 10 },
   passDatum: { width: 66 },

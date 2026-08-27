@@ -2,7 +2,7 @@ import { useCallback, useState } from 'react';
 import { View, Text, FlatList, TouchableOpacity, StyleSheet, ActivityIndicator, RefreshControl, Alert } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { api } from '../api/klient';
-import { STATUSFÄRGER_ANSÖKAN as STATUSFÄRGER } from '../utils/konstanter';
+import { ansökanStatusVisning } from '../utils/konstanter';
 import { useRealtidsPing } from '../context/RealtidsContext';
 import HandlingsKnapp from '../components/HandlingsKnapp';
 
@@ -14,8 +14,13 @@ export default function MinaAnsokningarScreen({ navigation }) {
   async function hämta() {
     try {
       const data = await api.minaAnsökningar();
-      // Filtrera bort godkända ansökningar – de visas under "Mina pass" istället
-      setAnsökningar(data.filter(a => a.status !== 'godkänd'));
+      // Godkända ansökningar visas under "Mina pass" i stället.
+      //
+      // Schemats PASS-ansökningar hör inte hemma här alls: de skapas automatiskt vid
+      // godkännandet, en per pass, och är inget personen själv har sökt. Så länge de är
+      // godkända föll de bort av sig själva – men hoppar man av ett schema sätts de till
+      // 'avvisad' och listan hade fyllts med ett rött kort per pass.
+      setAnsökningar(data.filter(a => a.status !== 'godkänd' && a.schemaPassId == null));
     } catch (fel) {
       console.error(fel);
     } finally {
@@ -69,13 +74,15 @@ export default function MinaAnsokningarScreen({ navigation }) {
             </View>
             <View style={{ alignItems: 'flex-end', gap: 4 }}>
               <Text style={styles.datum}>{new Date(item.created_at).toLocaleDateString('sv-SE')}</Text>
-              {item.status && (
-                <View style={[styles.statusBadge, { backgroundColor: STATUSFÄRGER[item.status]?.bg ?? '#f3f4f6' }]}>
-                  <Text style={[styles.statusText, { color: STATUSFÄRGER[item.status]?.text ?? '#6b7280' }]}>
-                    {item.status.charAt(0).toUpperCase() + item.status.slice(1)}
-                  </Text>
-                </View>
-              )}
+              {(() => {
+                const status = ansökanStatusVisning(item);
+                if (!status) return null;
+                return (
+                  <View style={[styles.statusBadge, { backgroundColor: status.bg }]}>
+                    <Text style={[styles.statusText, { color: status.text }]}>{status.etikett}</Text>
+                  </View>
+                );
+              })()}
             </View>
           </View>
           {item.meddelande ? (

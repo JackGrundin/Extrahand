@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import StjärnVal from '../components/StjärnVal';
 import { api } from '../api/klient';
 import { useAuth } from '../context/AuthContext';
 
@@ -37,21 +37,8 @@ export default function BetygsattScreen({ route, navigation }) {
         <Text style={styles.rubrik}>{ärFöretag ? 'Betygsätt personen' : 'Betygsätt uppdraget'}</Text>
         <Text style={styles.beskrivning}>Hur upplevde du samarbetet?</Text>
 
-        <View style={styles.stjärnRad}>
-          {[1, 2, 3, 4, 5].map((n) => (
-            <TouchableOpacity key={n} onPress={() => setStjarnor(n)} style={styles.stjärna}>
-              <Ionicons
-                name={n <= stjarnor ? 'star' : 'star-outline'}
-                size={44}
-                color={n <= stjarnor ? '#f59e0b' : '#d1d5db'}
-              />
-            </TouchableOpacity>
-          ))}
-        </View>
-
-        {stjarnor > 0 && (
-          <Text style={styles.betygText}>{['', 'Dåligt', 'Okej', 'Bra', 'Mycket bra', 'Utmärkt'][stjarnor]}</Text>
-        )}
+        <StjärnVal värde={stjarnor} onÄndra={setStjarnor} />
+        <View style={{ height: 16 }} />
 
         <Text style={styles.label}>Kommentar (valfritt)</Text>
         <TextInput
@@ -83,9 +70,6 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#fff', padding: 24 },
   rubrik: { fontSize: 24, fontWeight: 'bold', color: '#1a1a1a', marginBottom: 8, marginTop: 8 },
   beskrivning: { fontSize: 15, color: '#666', marginBottom: 32 },
-  stjärnRad: { flexDirection: 'row', justifyContent: 'center', gap: 8, marginBottom: 12 },
-  stjärna: { padding: 4 },
-  betygText: { textAlign: 'center', fontSize: 16, fontWeight: '600', color: '#f59e0b', marginBottom: 28 },
   label: { fontSize: 14, fontWeight: '600', color: '#444', marginBottom: 8 },
   textArea: { borderWidth: 1, borderColor: '#ddd', borderRadius: 10, padding: 14, fontSize: 15, height: 110, backgroundColor: '#fafafa', marginBottom: 28 },
   knapp: { backgroundColor: '#2563eb', borderRadius: 12, padding: 16, alignItems: 'center', alignSelf: 'center', width: '100%', maxWidth: 400 },

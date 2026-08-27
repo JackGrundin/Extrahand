@@ -174,6 +174,28 @@ async function uppdateraStatus(id, status) {
   if (error) throw error;
 }
 
+// Stämplar ansökningar som avhoppade. Statusen är fortfarande 'avvisad' – kolumnen är bara
+// det som skiljer "jag lämnade uppdraget" från "företaget nekade mig" i UI:t.
+//
+// Anropas BARA från avhoppsvägen. Företaget kan också ta tillbaka ett godkännande via
+// samma återställSchema, och det är inget avhopp.
+//
+// Bitas upp av samma skäl som hämtaIBitar: ett schema med 200 pass ger lika många
+// ansöknings-id, och PostgREST skickar .in()-listan i URL:en.
+async function markeraAvhopp(idn) {
+  const unika = [...new Set((idn || []).filter(id => id != null))];
+  if (!unika.length) return;
+
+  const nu = new Date().toISOString();
+  for (let i = 0; i < unika.length; i += CHUNK) {
+    const { error } = await supabase
+      .from('ansokningar')
+      .update({ avhoppad_at: nu })
+      .in('id', unika.slice(i, i + CHUNK));
+    if (error) throw error;
+  }
+}
+
 // Avvisar alla ansökningar som fortfarande väntar på svar. Används när en
 // privatperson raderar sitt konto: företaget ska inte sitta kvar med ansökningar
 // från någon som inte längre finns. GODKÄNDA ansökningar rörs inte – de hänger
@@ -519,4 +541,4 @@ async function hämtaPågåendePassFörPåminnelse() {
     .filter(p => p.foretagId != null && p.arbetstider != null);
 }
 
-module.exports = { skapaAnsökan, hämtaAnsökningarFörSökande, hämtaAnsökningarFörJobb, finnsDubblettAnsökan, hämtaTotalTimmar, uppdateraStatus, avvisaVäntandeAnsökningar, hämtaAnsökanViaId, avvisaAllaUtomEn, återställAllaFörJobb, hämtaAllaKonversationerFörFöretag, hämtaGodkändaFörJobb, hämtaGodkändaFörFleraJobb, hämtaNamnFörAnvändare, ångraAnsökan, hämtaAnsökanMedJobbInfo, hämtaKonversationMellan, hämtaGrupperadeKonversationer, hämtaPågåendePassFörPåminnelse };
+module.exports = { skapaAnsökan, hämtaAnsökningarFörSökande, hämtaAnsökningarFörJobb, finnsDubblettAnsökan, hämtaTotalTimmar, uppdateraStatus, markeraAvhopp, avvisaVäntandeAnsökningar, hämtaAnsökanViaId, avvisaAllaUtomEn, återställAllaFörJobb, hämtaAllaKonversationerFörFöretag, hämtaGodkändaFörJobb, hämtaGodkändaFörFleraJobb, hämtaNamnFörAnvändare, ångraAnsökan, hämtaAnsökanMedJobbInfo, hämtaKonversationMellan, hämtaGrupperadeKonversationer, hämtaPågåendePassFörPåminnelse };

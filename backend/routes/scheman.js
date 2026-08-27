@@ -22,9 +22,9 @@ const {
 const { GILTIGA_TYPER: AVDRAGSTYPER, skapaAvdrag, hämtaAktivaAvdrag, avaktiveraAvdrag } = require('../db/schemaAvdrag');
 const { tilldelaSchema, frigörFramtidaPass, återställSchema } = require('../db/schemaTilldelning');
 const { skapaJobb, räknaJobbDennaMånad, sättJobbPåslag, hämtaJobbFörFöretag, markeraAnsökningarSedda } = require('../db/jobb');
-const { hämtaAnsökningarFörJobb, uppdateraStatus, hämtaGodkändaFörFleraJobb, hämtaNamnFörAnvändare } = require('../db/ansokningar');
+const { hämtaAnsökningarFörJobb, uppdateraStatus, markeraAvhopp, hämtaGodkändaFörFleraJobb, hämtaNamnFörAnvändare } = require('../db/ansokningar');
 const { hämtaPrenumeration, ärPro, harGjortPlanval, sättPlanvalGjort, minskaPassDennaManad } = require('../db/prenumeration');
-const { hämtaPrivatpersonerIStad, hämtaPushToken, hämtaAnvändareViaId } = require('../db/användare');
+const { hämtaPrivatpersonerIStad, hämtaPushToken } = require('../db/användare');
 const { GRATIS_PASS_PER_MANAD, valideraObTillagg } = require('../utils/pris');
 const { skickaNotifikation } = require('../utils/pushNotifikation');
 const { idagStockholm, parsaArbetstider, passTimmar, slutEpochFörPass } = require('../utils/tid');
@@ -690,7 +690,7 @@ router.post('/:id/hoppa-av', kräverInloggning, kräverTyp('privatperson'), asyn
 
     // Frigör framtida pass och gör schemat sökbart igen. Genomförda pass och deras
     // tidrapporter rörs inte – arbetet är utfört och ska betalas.
-    const { harGenomfört } = await återställSchema(schema.id);
+    const { harGenomfört, frigjordaAnsökningar } = await återställSchema(schema.id);
 
     // Har inget pass genomförts blev schemat aldrig av och ska inte förbruka ett
     // gratispass. Samma regel som när företaget tar tillbaka ett godkännande.
@@ -700,13 +700,23 @@ router.post('/:id/hoppa-av', kräverInloggning, kräverTyp('privatperson'), asyn
     }
 
     // Annons-ansökan sätts tillbaka till väntande så att företaget kan välja en ny person.
+    const avhoppade = [...(frigjordaAnsökningar || [])];
     if (schema.annons_jobb_id) {
       const ansökningar = await hämtaAnsökningarFörJobb(schema.annons_jobb_id);
       for (const a of ansökningar) {
-        if (String(a.sokande_id) === String(req.användare.id)) await uppdateraStatus(a.id, 'avvisad');
-        else if (a.status === 'avvisad') await uppdateraStatus(a.id, 'väntande');
+        if (String(a.sokande_id) === String(req.användare.id)) {
+          await uppdateraStatus(a.id, 'avvisad');
+          avhoppade.push(a.id);
+        } else if (a.status === 'avvisad') {
+          await uppdateraStatus(a.id, 'väntande');
+        }
       }
     }
+
+    // Stämplas här och ingen annanstans: statusen är 'avvisad' precis som när företaget
+    // nekar någon, och utan stämpeln skulle personen få beskedet "Avvisad" om ett uppdrag
+    // hen själv valde att lämna.
+    await markeraAvhopp(avhoppade);
 
     res.json({ ok: true });
 
@@ -714,14 +724,11 @@ router.post('/:id/hoppa-av', kräverInloggning, kräverTyp('privatperson'), asyn
     sändJobblistaPing('schema-ledigt');
 
     (async () => {
-      const [person, token] = await Promise.all([
-        hämtaAnvändareViaId(req.användare.id),
-        hämtaPushToken(schema.foretag_id),
-      ]);
+      const token = await hämtaPushToken(schema.foretag_id);
       await skickaNotifikation(
         token,
-        'Någon har hoppat av',
-        `${person?.Namn ?? 'Personen'} har hoppat av "${schema.titel}". Framtida pass är lediga igen.`
+        'Avhopp från schema',
+        `En person har hoppat av schemat "${schema.titel}". Framtida pass är lediga igen.`
       );
     })().catch(console.error);
   } catch (fel) {

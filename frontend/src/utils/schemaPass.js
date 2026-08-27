@@ -75,6 +75,38 @@ export function uppdateraFält(pass, idn, fält, värde) {
   });
 }
 
+// Skriver ett utkast till FLERA pass samtidigt – massredigeringen i steg 3.
+//
+// Bara ifyllda fält skrivs över. Det är hela poängen: markerar man tio pass och sätter bara
+// rollen ska de tio passens redan ifyllda tider inte nollas. En naiv spread av utkastet
+// hade raderat allt man inte råkade fylla i den här gången.
+//
+// rensaOb är ett eget flagg-argument eftersom en tom ob-lista i utkastet betyder "rör inte
+// OB". Utan flaggan går det inte att TA BORT OB från flera pass på en gång.
+export function tillämpaPåMarkerade(pass, idn, utkast, { rensaOb = false } = {}) {
+  const mål = idn instanceof Set ? idn : new Set(idn);
+  if (mål.size === 0) return pass;
+
+  let resultat = pass;
+  for (const fält of ['starttid', 'sluttid', 'kategori']) {
+    const värde = utkast?.[fält];
+    if (typeof värde === 'string' && värde.trim()) {
+      resultat = uppdateraFält(resultat, mål, fält, värde);
+    }
+  }
+
+  if (rensaOb) {
+    resultat = uppdateraFält(resultat, mål, 'ob_tillagg', []);
+  } else if (Array.isArray(utkast?.ob_tillagg) && utkast.ob_tillagg.length) {
+    resultat = uppdateraFält(resultat, mål, 'ob_tillagg', utkast.ob_tillagg);
+  }
+
+  // Sorteras om här och inte i uppdateraFält: en ny starttid kan flytta passet i listan,
+  // och till skillnad från inline-editorn skriver den här vägen inte tecken för tecken –
+  // ingen rad hoppar under fingret.
+  return sorteraPass(resultat);
+}
+
 // Pass-id som krockar på datum + starttid. Backend och valideraSchema avvisar dubbletter,
 // men felet skulle annars dyka upp först vid publicering som ett generiskt meddelande utan
 // att peka ut raden.

@@ -12,18 +12,23 @@ import JobbforfraganKort from '../components/JobbforfraganKort';
 import PassKort from '../components/PassKort';
 import AvslutaPassModal from '../components/AvslutaPassModal';
 import { useRealtidsPing } from '../context/RealtidsContext';
+import { useBetyg } from '../context/BetygsContext';
 
 function TidrapportKort({ rapport, ärPrivatperson, ärSenaste, onUppdaterad }) {
   const [sparar, setSparar] = useState(false);
   const [bestridVisas, setBestridVisas] = useState(false);
   const [bestridText, setBestridText] = useState('');
   const [korrigeraVisas, setKorrigeraVisas] = useState(false);
+  const { kollaBetyg } = useBetyg();
 
   async function godkänn() {
     setSparar(true);
     try {
       await api.uppdateraTidrapportStatus(rapport.id, 'godkänd');
       onUppdaterad();
+      // Företaget får sin prompt via realtidspingen från backend, men den som själv
+      // godkände får ingen ping till sig själv – och det är precis här popupen ska komma.
+      kollaBetyg();
     } catch (fel) {
       Alert.alert('Fel', fel.message);
     } finally {

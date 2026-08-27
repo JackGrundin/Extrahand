@@ -149,6 +149,9 @@ function ProfilNavigator() {
           när ärFöretag. */}
       <Stack.Screen name="SchemaDetalj" component={SchemaDetaljScreen} options={{ title: 'Schema' }} />
       <Stack.Screen name="RedigeraSchema" component={RedigeraSchemaScreen} options={{ title: 'Redigera schema' }} />
+      {/* Sökandelistan i SchemaDetalj är klickbar, och schemat nås härifrån via
+          Schemaöversikt – utan registreringen leder namnet ingenstans i den här stacken. */}
+      <Stack.Screen name="SökanadeProfil" component={SökandeProfilScreen} options={{ title: 'Sökandes profil' }} />
     </Stack.Navigator>
   );
 }
