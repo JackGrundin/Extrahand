@@ -1,8 +1,17 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-// Lokal utveckling: peka mot din dators LAN-IP så att Expo Go på telefonen når backend
-const API_URL = 'https://api.fastgig.se/api';
-// Produktion: const API_URL = 'https://api.fastgig.se/api';
+// Adressen till backend. Läses ur EXPO_PUBLIC_API_URL så att den går att peka om utan att
+// röra någon spårad fil – lägg din överstyrning i frontend/.env.local (gitignorerad).
+// Produktionsvärdet står i frontend/.env, som är versionerad.
+//
+// EXPO_PUBLIC-variabler INLINEAS av Metro vid byggtid, inte vid körning. Därför måste
+// process.env.EXPO_PUBLIC_API_URL stå ordagrant här: destrukturering eller dynamisk
+// uppslagning ersätts inte, och värdet blir undefined i den byggda appen.
+//
+// Fallbacken är produktionsadressen och inte ett kastat fel: en release-build som saknar
+// .env ska fungera, inte krascha. Ett felstavat variabelnamn ger då produktion, vilket är
+// rätt håll att fela åt.
+const API_URL = process.env.EXPO_PUBLIC_API_URL ?? 'https://api.fastgig.se/api';
 
 // Meddelandet som visas när telefonen inte når servern. Samlat på ett ställe så att
 // alla skärmar säger samma sak – de flesta visar bara fel.message i en Alert.

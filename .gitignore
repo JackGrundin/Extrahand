@@ -1,4 +1,11 @@
+# Ett blankt .env matchar på ALLA nivåer, inte bara i roten. Det är avsiktligt:
+# backend/.env bär Supabase-nyckeln och Stripe-hemligheten. Byt aldrig till /.env –
+# då blir backend/.env spårad.
 .env
+# Undantaget: frontend/.env innehåller bara EXPO_PUBLIC_API_URL och SKA versioneras, så
+# att en fräsch klon och EAS-builds får produktionsadressen. Lokala överstyrningar hör
+# hemma i frontend/.env.local, som frontend/.gitignore fångar med .env*.local.
+!frontend/.env
 node_modules
 
 # macOS

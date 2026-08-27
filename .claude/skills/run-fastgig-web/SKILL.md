@@ -27,15 +27,15 @@ cd .claude/skills/run-fastgig-web && npm install && npx playwright install chrom
 
 ### 1. Peka appen mot lokal backend
 
-`API_URL` i `frontend/src/api/klient.js` är hårdkodad mot produktion. Den **måste**
-pekas om, annars testar du mot Railway och ser inte dina lokala ändringar:
+Appen läser adressen ur `EXPO_PUBLIC_API_URL`. Produktionsvärdet står i den versionerade
+`frontend/.env` – rör den inte. Lägg din överstyrning i `frontend/.env.local`, som är
+gitignorerad:
 
 ```bash
-sed -i '' "s|^const API_URL = 'https://api.fastgig.se/api';|const API_URL = 'http://localhost:3999/api';|" frontend/src/api/klient.js
+printf 'EXPO_PUBLIC_API_URL=http://localhost:3999/api\n' > frontend/.env.local
 ```
 
-⚠️ **Detta är en ändring i produktionskod.** Återställ den innan du committar – se
-Avsluta nedan. `git status` ska vara ren när du är klar.
+Utan detta steg testar du mot Railway och ser inte dina lokala ändringar.
 
 ### 2. Starta backend och Expo
 
@@ -118,7 +118,7 @@ const s = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SECRET_KEY
   process.exit(0);
 })();
 "
-cd .. && git checkout frontend/src/api/klient.js && git status --short
+cd .. && rm -f frontend/.env.local && git status --short
 ```
 
 Databasen är **produktionsdatabasen** – det finns ingen separat testinstans. Därför
@@ -126,6 +126,10 @@ Databasen är **produktionsdatabasen** – det finns ingen separat testinstans. 
 
 ## Gotchas
 
+- **`.env.local` läses bara när Metro startar.** `EXPO_PUBLIC_`-variabler inlineas i bundlen
+  vid byggtid, inte vid körning. Skapar eller ändrar du filen medan Expo redan kör slår det
+  inte igenom – döda `expo start` och starta om. Symptomet är att appen envist pratar med
+  produktion trots en till synes korrekt `.env.local`.
 - **Datumväljaren fungerar inte på webb.** `@react-native-community/datetimepicker` har
   ingen webbimplementation, så knappen "Datum" i publiceringsformuläret gör ingenting.
   Jobb och scheman går därför **inte** att publicera genom formuläret här – seeda dem via
@@ -156,6 +160,6 @@ Databasen är **produktionsdatabasen** – det finns ingen separat testinstans. 
 | `xcrun: error: unable to find utility "simctl"` | Bara Command Line Tools installerat, ingen full Xcode. Simulatorvägen finns inte – använd den här skillen. |
 | `FEL click X: Timeout … waiting for getByText` | Elementet finns inte, eller texten är inte exakt. Kör `text <nyckelord> 400` och läs av den verkliga strängen. |
 | Bara inloggningsskärmen syns efter `login` | Fel lösenord, eller `email_verifierad` är false. Kör steg 3 igen. |
-| `Ingen internetanslutning` i appen | Backend körs inte, eller `API_URL` pekar fortfarande mot produktion. Kolla steg 1 och 2. |
+| `Ingen internetanslutning` i appen | Backend körs inte, eller så pekar appen fortfarande mot produktion. Kontrollera att `frontend/.env.local` finns **och** att Metro startades efter att den skapades. |
 | `web=000` från curl | Metro har inte bundlat klart. `tail /tmp/fastgig-expo.log` och vänta på `Web Bundled`. |
 | `Cannot find package 'playwright'` | Engångsuppsättningen är inte körd, eller så kör du drivern från fel katalog. Kör den från repo-roten. |
