@@ -8,6 +8,8 @@ import { valideraJobb } from '../utils/jobbValidering';
 import { parsaObTillagg } from '../utils/datumHelper';
 import TidVäljare from '../components/TidVäljare';
 import FältFel from '../components/FältFel';
+import BehörighetsKravRedigerare from '../components/BehörighetsKravRedigerare';
+import { normaliseraKrav } from '../utils/behorighet';
 import StadInput from '../components/StadInput';
 import AdressInput from '../components/AdressInput';
 
@@ -42,6 +44,7 @@ export default function RedigeraJobbScreen({ route, navigation }) {
   const [kategoriModalVisas, setKategoriModalVisas] = useState(false);
   const [sokKategori, setSokKategori] = useState('');
   const [obTillagg, setObTillagg] = useState(() => parsaObTillagg(jobb.ob_tillagg));
+  const [behorighetsKrav, setBehorighetsKrav] = useState(() => normaliseraKrav(jobb.behorighets_krav));
   const [obFormVisas, setObFormVisas] = useState(false);
   const [obStart, setObStart] = useState('');
   const [obSlut, setObSlut] = useState('');
@@ -103,6 +106,7 @@ export default function RedigeraJobbScreen({ route, navigation }) {
         antal_dagar: antalDagar ? parseInt(antalDagar) : undefined,
         arbetstider: arbetstiderStart && arbetstiderSlut ? `${arbetstiderStart}-${arbetstiderSlut}` : undefined,
         ob_tillagg: obTillagg,
+        behorighets_krav: behorighetsKrav,
       });
       Alert.alert('Sparat!', 'Annonsen har uppdaterats.', [
         { text: 'OK', onPress: () => navigation.goBack() },
@@ -132,6 +136,11 @@ export default function RedigeraJobbScreen({ route, navigation }) {
             textAlignVertical="top"
           />
           <FältFel text={fel.beskrivning} />
+
+          {/* Krav får läggas till även efter publicering. De som redan sökt får då en notis
+              och måste bekräfta på nytt – se notifieraOmNyaKrav i backend. */}
+          <Text style={styles.label}>Behörighetskrav</Text>
+          <BehörighetsKravRedigerare värde={behorighetsKrav} onÄndra={setBehorighetsKrav} />
 
           {/* Stad och adress står tillsammans, och staden väljs ur ortlistan även här.
               Fri text splittrar stadsmatchningen så att jobbnotiser missar folk. */}

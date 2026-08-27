@@ -34,7 +34,7 @@ function passMedArv(schema, pass) {
 
 // ---------------------------------------------------------------- Scheman
 
-async function skapaSchema({ foretag_id, titel, beskrivning, plats, adress, kategori, typ, startdatum, slutdatum, timlon, ob_tillagg }) {
+async function skapaSchema({ foretag_id, titel, beskrivning, plats, adress, kategori, typ, startdatum, slutdatum, timlon, ob_tillagg, behorighets_krav }) {
   const { data, error } = await supabase
     .from('scheman')
     .insert([{
@@ -42,6 +42,7 @@ async function skapaSchema({ foretag_id, titel, beskrivning, plats, adress, kate
       typ: typ || 'sommarjobb',
       startdatum, slutdatum, timlon,
       ob_tillagg: ob_tillagg || [],
+      behorighets_krav: behorighets_krav || [],
     }])
     .select()
     .single();
@@ -285,6 +286,10 @@ async function synkaAnnonsJobb(schema, pass) {
     // Typ saknades här tills schematypen blev redigerbar. Utan raden behåller annons-jobbet
     // den typ det skapades med, och glider isär från schemat vid varje typändring.
     Typ: schema.typ,
+    // Behörighetskraven MÅSTE speglas. Ansökningsspärren sitter i POST /api/ansokningar och
+    // läser Jobb-raden – en schemaansökan går mot annons-jobbet – så utan den här raden är
+    // ett schemas krav helt verkningslösa. Samma miss som Typ hade ovan.
+    behorighets_krav: schema.behorighets_krav ?? [],
   };
 
   if (Array.isArray(pass)) {

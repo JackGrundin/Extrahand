@@ -6,6 +6,7 @@ import { harStartat } from '../utils/datumHelper';
 import { ansökanStatusVisning } from '../utils/konstanter';
 import AvslutaPassModal from '../components/AvslutaPassModal';
 import HandlingsKnapp from '../components/HandlingsKnapp';
+import IntygandeRad from '../components/IntygandeRad';
 import { useRealtidsPing } from '../context/RealtidsContext';
 import { useAttAvsluta } from '../context/AttAvslutaContext';
 
@@ -175,6 +176,7 @@ export default function JobbAnsokningarScreen({ route, navigation }) {
               <View style={styles.info}>
                 <Text style={styles.sökandeTitel}>{item.sökandeNamn ?? 'Okänd sökande'}</Text>
                 <Text style={styles.datum}>{new Date(item.created_at).toLocaleDateString('sv-SE')}</Text>
+                <IntygandeRad ansökan={item} style={{ marginTop: 4 }} />
               </View>
             </View>
             {item.meddelande ? (

@@ -8,6 +8,9 @@ import { useAttAvsluta } from '../context/AttAvslutaContext';
 import { api } from '../api/klient';
 import { parsaObTillagg, beräknaObBelopp, formatDagDatum, veckodagsNamn } from '../utils/datumHelper';
 import { beräknaFakturapris, ansökanStatusVisning } from '../utils/konstanter';
+import { normaliseraKrav, saknadeKrav } from '../utils/behorighet';
+import BehörighetsKrav from '../components/BehörighetsKrav';
+import IntygandeRad from '../components/IntygandeRad';
 import { useJobbPåslag } from '../utils/useJobbPåslag';
 import RollBrickor from '../components/RollBrickor';
 
@@ -26,6 +29,7 @@ export default function SchemaDetaljScreen({ route, navigation }) {
   const [sparar, setSparar] = useState(false);
   const [meddelande, setMeddelande] = useState('');
   const [sökt, setSökt] = useState(false);
+  const [ikryssade, setIkryssade] = useState(() => new Set());
   const [avtalsModalSynlig, setAvtalsModalSynlig] = useState(false);
   const { uppdateraAttAvsluta } = useAttAvsluta();
 
@@ -79,7 +83,10 @@ export default function SchemaDetaljScreen({ route, navigation }) {
     }
     setSparar(true);
     try {
-      await api.sökaJobb(schema.annons_jobb_id, { meddelande: meddelande.trim() || null });
+      await api.sökaJobb(schema.annons_jobb_id, {
+        meddelande: meddelande.trim() || null,
+        intygade_krav: [...ikryssade],
+      });
       setSökt(true);
       Alert.alert('Klart!', 'Din ansökan om hela schemat har skickats.');
     } catch (fel) {
@@ -231,6 +238,11 @@ export default function SchemaDetaljScreen({ route, navigation }) {
   const ansökningar = schema.ansokningar ?? [];
   const godkändAnsökan = ansökningar.find(a => a.status === 'godkänd');
   const övrigaAnsökningar = ansökningar.filter(a => a.status !== 'godkänd');
+  const krav = normaliseraKrav(schema.behorighets_krav);
+  const kanIntyga = !ärFöretag && !ärTilldelad && !sökt;
+  // Mot kravlistan, inte mot antalet kryss: ett gammalt kryss som inte längre motsvarar
+  // något krav ska inte kunna låsa upp knappen.
+  const kvarAttKryssa = kanIntyga ? saknadeKrav(krav, [...ikryssade]).length : 0;
   // Antalsbrickan säger "så här många kan du välja bland". Avvisade och avhoppade hör
   // inte dit, även om de fortfarande listas nedanför med sin status.
   const antalVäntande = övrigaAnsökningar.filter(a => a.status === 'väntande').length;
@@ -310,6 +322,7 @@ export default function SchemaDetaljScreen({ route, navigation }) {
                     </View>
                     <View style={{ flex: 1 }}>
                       <Text style={styles.sökandeNamn}>{godkändAnsökan.sökandeNamn ?? 'Okänd'}</Text>
+                      <IntygandeRad ansökan={godkändAnsökan} style={{ marginTop: 4 }} />
                       <Text style={styles.profilLänk}>Visa profil →</Text>
                     </View>
                   </TouchableOpacity>
@@ -365,6 +378,7 @@ export default function SchemaDetaljScreen({ route, navigation }) {
                           )}
                         </View>
                         {a.meddelande ? <Text style={styles.sökandeMeddelande} numberOfLines={2}>{a.meddelande}</Text> : null}
+                        <IntygandeRad ansökan={a} style={{ marginTop: 4 }} />
                         <Text style={styles.profilLänk}>Visa profil →</Text>
                       </View>
                     </TouchableOpacity>
@@ -501,6 +515,16 @@ export default function SchemaDetaljScreen({ route, navigation }) {
         </View>
         )}
 
+        {/* Kraven ligger ovanför ansökningsknappen av samma skäl som löneavdragen: den
+            sökande ska se dem INNAN hen söker, inte efteråt. Och ovanför de destruktiva
+            knapparna – ingenting ska stå under "Avbryt schemat". */}
+        <BehörighetsKrav
+          krav={krav}
+          läge={kanIntyga ? 'intyga' : 'visning'}
+          ikryssade={ikryssade}
+          onÄndra={setIkryssade}
+        />
+
         {/* Avbryt schemat står kvar sist, INTE uppe hos sökandelistan: den är destruktiv
             och ska inte ligga bredvid Godkänn-knapparna. */}
         {ärFöretag && schema.status !== 'avbrutet' && (
@@ -534,13 +558,19 @@ export default function SchemaDetaljScreen({ route, navigation }) {
               </>
             )}
             <TouchableOpacity
-              style={[styles.knapp, sökt && styles.knappInaktiv]}
+              style={[styles.knapp, (sökt || kvarAttKryssa > 0) && styles.knappInaktiv]}
               onPress={hanteraSökan}
-              disabled={sparar || sökt}
+              disabled={sparar || sökt || kvarAttKryssa > 0}
             >
               {sparar
                 ? <ActivityIndicator color="#fff" />
-                : <Text style={styles.knappText}>{sökt ? 'Ansökan skickad' : 'Sök hela schemat'}</Text>}
+                : (
+                  <Text style={styles.knappText}>
+                    {sökt ? 'Ansökan skickad'
+                      : kvarAttKryssa > 0 ? `${kvarAttKryssa} krav kvar att kryssa i`
+                      : 'Sök hela schemat'}
+                  </Text>
+                )}
             </TouchableOpacity>
           </>
         )}

@@ -11,10 +11,10 @@ const supabase = createClient(
 // schema_id/schema_pass_id sätts bara av schemafunktionen. schema_id ensamt = schemats
 // annons-jobb (bär ansökningar och chatt), båda satta = ett materialiserat schemapass.
 // Se db/migrations/scheman.sql.
-async function skapaJobb({ titel, beskrivning, plats, adress, lon, typ, kategori, antal_dagar, arbetstider, ob_tillagg, paslag, foretag_id, schema_id = null, schema_pass_id = null }) {
+async function skapaJobb({ titel, beskrivning, plats, adress, lon, typ, kategori, antal_dagar, arbetstider, ob_tillagg, behorighets_krav, paslag, foretag_id, schema_id = null, schema_pass_id = null }) {
   const { data, error } = await supabase
     .from('Jobb')
-    .insert([{ Titel: titel, Beskrivning: beskrivning, Plats: plats, adress, Lon: lon, Typ: typ, Kategori: kategori, antal_dagar, arbetstider, ob_tillagg: ob_tillagg || [], paslag, Foretag_id: foretag_id, schema_id, schema_pass_id }])
+    .insert([{ Titel: titel, Beskrivning: beskrivning, Plats: plats, adress, Lon: lon, Typ: typ, Kategori: kategori, antal_dagar, arbetstider, ob_tillagg: ob_tillagg || [], behorighets_krav: behorighets_krav || [], paslag, Foretag_id: foretag_id, schema_id, schema_pass_id }])
     .select()
     .single();
 
@@ -245,10 +245,10 @@ async function hämtaTidigareJobbFörFöretag(foretag_id) {
 
 // Schemajobb får inte ändras via jobb-API:t – de ägs av schemat och redigeras via
 // /api/scheman. Därför .is('schema_id', null) utöver ägarkontrollen.
-async function uppdateraJobb(id, foretag_id, { titel, beskrivning, plats, adress, lon, typ, kategori, antal_dagar, arbetstider, ob_tillagg }) {
+async function uppdateraJobb(id, foretag_id, { titel, beskrivning, plats, adress, lon, typ, kategori, antal_dagar, arbetstider, ob_tillagg, behorighets_krav }) {
   const { data, error } = await supabase
     .from('Jobb')
-    .update({ Titel: titel, Beskrivning: beskrivning, Plats: plats, adress, Lon: lon, Typ: typ, Kategori: kategori, antal_dagar, arbetstider, ob_tillagg: ob_tillagg || [] })
+    .update({ Titel: titel, Beskrivning: beskrivning, Plats: plats, adress, Lon: lon, Typ: typ, Kategori: kategori, antal_dagar, arbetstider, ob_tillagg: ob_tillagg || [], behorighets_krav: behorighets_krav || [] })
     .eq('id', id)
     .eq('Foretag_id', foretag_id)
     .is('schema_id', null)

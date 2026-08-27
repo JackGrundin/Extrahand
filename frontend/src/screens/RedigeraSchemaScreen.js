@@ -8,6 +8,8 @@ import StadInput, { ärGiltigStad } from '../components/StadInput';
 import AdressInput from '../components/AdressInput';
 import DatumVäljare from '../components/DatumVäljare';
 import PassDetaljFält from '../components/PassDetaljFält';
+import BehörighetsKravRedigerare from '../components/BehörighetsKravRedigerare';
+import { normaliseraKrav } from '../utils/behorighet';
 import { formatDagDatum, veckodagsNamn } from '../utils/datumHelper';
 import { KATEGORIER, SCHEMATYPER, formateraPris, beräknaAvdragFörPass } from '../utils/konstanter';
 
@@ -29,6 +31,7 @@ export default function RedigeraSchemaScreen({ route, navigation }) {
   const [adress, setAdress] = useState('');
   const [typ, setTyp] = useState('');
   const [timlon, setTimlon] = useState('');
+  const [behorighetsKrav, setBehorighetsKrav] = useState([]);
 
   const [avdrag, setAvdrag] = useState([]);
   const [avdragFormVisas, setAvdragFormVisas] = useState(false);
@@ -49,6 +52,7 @@ export default function RedigeraSchemaScreen({ route, navigation }) {
       setAdress(data.adress ?? '');
       setTyp(data.typ ?? '');
       setTimlon(data.timlon != null ? String(data.timlon) : '');
+      setBehorighetsKrav(normaliseraKrav(data.behorighets_krav));
       setAvdrag(data.avdrag ?? []);
     } catch (f) {
       Alert.alert('Fel', f.message);
@@ -93,6 +97,7 @@ export default function RedigeraSchemaScreen({ route, navigation }) {
         adress: adress.trim(),
         typ,
         timlon: lön,
+        behorighets_krav: behorighetsKrav,
       });
       Alert.alert('Sparat', 'Schemat har uppdaterats.');
       await hämta();
@@ -243,6 +248,11 @@ export default function RedigeraSchemaScreen({ route, navigation }) {
           multiline
         />
         <FältFel text={fel.beskrivning} />
+
+        {/* Krav får läggas till även efter publicering. De som redan sökt får en notis och
+            måste bekräfta på nytt – se notifieraOmNyaKrav i backend. */}
+        <Text style={styles.label}>Behörighetskrav</Text>
+        <BehörighetsKravRedigerare värde={behorighetsKrav} onÄndra={setBehorighetsKrav} />
 
         {/* Stad och adress står tillsammans så att det syns vilken stad adressen hör
             till, och staden styr adressökningen. */}

@@ -1,15 +1,22 @@
 import { useCallback, useState } from 'react';
-import { View, Text, FlatList, TouchableOpacity, StyleSheet, ActivityIndicator, RefreshControl, Alert } from 'react-native';
+import { View, Text, FlatList, TouchableOpacity, StyleSheet, ActivityIndicator, RefreshControl, Alert, Modal, ScrollView } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
+import { Ionicons } from '@expo/vector-icons';
 import { api } from '../api/klient';
 import { ansökanStatusVisning } from '../utils/konstanter';
+import { saknadeKrav } from '../utils/behorighet';
 import { useRealtidsPing } from '../context/RealtidsContext';
 import HandlingsKnapp from '../components/HandlingsKnapp';
+import BehörighetsKrav from '../components/BehörighetsKrav';
 
 export default function MinaAnsokningarScreen({ navigation }) {
   const [ansökningar, setAnsökningar] = useState([]);
   const [laddar, setLaddar] = useState(true);
   const [uppdaterar, setUppdaterar] = useState(false);
+  // Ansökan vars nya krav ska bekräftas, plus vad som kryssats i modalen.
+  const [bekräftar, setBekräftar] = useState(null);
+  const [ikryssade, setIkryssade] = useState(() => new Set());
+  const [sparar, setSparar] = useState(false);
 
   async function hämta() {
     try {
@@ -48,9 +55,35 @@ export default function MinaAnsokningarScreen({ navigation }) {
     ]);
   }
 
+  // Företaget har lagt till krav sedan ansökan skickades. Hela den aktuella listan kryssas
+  // om, inte bara de nya: intygandet gäller alltid allt som står i annonsen just nu.
+  function öppnaBekräftelse(ansökan) {
+    setBekräftar(ansökan);
+    setIkryssade(new Set());
+  }
+
+  async function skickaBekräftelse() {
+    if (!bekräftar) return;
+    setSparar(true);
+    try {
+      await api.intygaKrav(bekräftar.id, { intygade_krav: [...ikryssade] });
+      setBekräftar(null);
+      await hämta();
+    } catch (fel) {
+      Alert.alert('Fel', fel.message);
+    } finally {
+      setSparar(false);
+    }
+  }
+
+  const kvarAttKryssa = bekräftar
+    ? saknadeKrav(bekräftar.behorighetsKrav, [...ikryssade]).length
+    : 0;
+
   if (laddar) return <ActivityIndicator style={{ flex: 1 }} size="large" />;
 
   return (
+    <>
     <FlatList
       style={styles.lista}
       data={ansökningar}
@@ -91,6 +124,23 @@ export default function MinaAnsokningarScreen({ navigation }) {
             <Text style={styles.ingetMeddelande}>Ingen ansökningsttext</Text>
           )}
 
+          {/* Företaget har lagt till krav efter att ansökan skickades. Tills de bekräftas
+              ser företaget "Kräver ny bekräftelse" på sitt sökandekort. */}
+          {item.saknadeKrav?.length > 0 && (
+            <View style={styles.kravVarning}>
+              <View style={styles.kravVarningRad}>
+                <Ionicons name="alert-circle" size={15} color="#b45309" />
+                <Text style={styles.kravVarningRubrik}>Nya behörighetskrav</Text>
+              </View>
+              <Text style={styles.kravVarningText}>
+                Bekräfta att du uppfyller kraven för att din ansökan ska förbli giltig.
+              </Text>
+              <TouchableOpacity style={styles.kravKnapp} onPress={() => öppnaBekräftelse(item)} activeOpacity={0.85}>
+                <Text style={styles.kravKnappText}>Bekräfta nya krav</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+
           <View style={styles.kortFot}>
             <HandlingsKnapp
               text="Öppna chatt →"
@@ -105,6 +155,43 @@ export default function MinaAnsokningarScreen({ navigation }) {
         </View>
       )}
     />
+
+    <Modal visible={!!bekräftar} transparent animationType="slide" onRequestClose={() => setBekräftar(null)}>
+      <View style={styles.modalBakgrund}>
+        <View style={styles.modalArk}>
+          <ScrollView keyboardShouldPersistTaps="handled">
+            <Text style={styles.modalRubrik}>Bekräfta behörighetskrav</Text>
+            <Text style={styles.modalUnderrubrik}>{bekräftar?.jobbTitel ?? ''}</Text>
+
+            <BehörighetsKrav
+              krav={bekräftar?.behorighetsKrav}
+              läge="intyga"
+              ikryssade={ikryssade}
+              onÄndra={setIkryssade}
+            />
+
+            <TouchableOpacity
+              style={[styles.modalKnapp, (kvarAttKryssa > 0 || sparar) && styles.modalKnappInaktiv]}
+              onPress={skickaBekräftelse}
+              disabled={kvarAttKryssa > 0 || sparar}
+              activeOpacity={0.85}
+            >
+              {sparar
+                ? <ActivityIndicator color="#fff" />
+                : (
+                  <Text style={styles.modalKnappText}>
+                    {kvarAttKryssa > 0 ? `${kvarAttKryssa} krav kvar att kryssa i` : 'Bekräfta'}
+                  </Text>
+                )}
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => setBekräftar(null)} disabled={sparar} style={styles.avbrytRad} hitSlop={8}>
+              <Text style={styles.avbrytText}>Avbryt</Text>
+            </TouchableOpacity>
+          </ScrollView>
+        </View>
+      </View>
+    </Modal>
+    </>
   );
 }
 
@@ -115,6 +202,21 @@ const styles = StyleSheet.create({
   jobbTitel: { fontSize: 15, fontWeight: '600', color: '#1a1a1a' },
   foretagNamn: { fontSize: 13, color: '#888', marginTop: 2 },
   datum: { fontSize: 13, color: '#999', marginLeft: 8 },
+  kravVarning: { backgroundColor: '#fffbeb', borderWidth: 1, borderColor: '#fde68a', borderRadius: 10, padding: 12, marginBottom: 10, gap: 4 },
+  kravVarningRad: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  kravVarningRubrik: { fontSize: 14, fontWeight: '700', color: '#b45309' },
+  kravVarningText: { fontSize: 13, color: '#92400e', lineHeight: 18 },
+  kravKnapp: { backgroundColor: '#b45309', borderRadius: 8, paddingVertical: 10, alignItems: 'center', marginTop: 6 },
+  kravKnappText: { color: '#fff', fontSize: 14, fontWeight: '700' },
+  modalBakgrund: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'flex-end' },
+  modalArk: { backgroundColor: '#fff', borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 24, paddingBottom: 34, maxHeight: '85%' },
+  modalRubrik: { fontSize: 20, fontWeight: 'bold', color: '#1a1a1a' },
+  modalUnderrubrik: { fontSize: 14, color: '#6b7280', marginTop: 4 },
+  modalKnapp: { backgroundColor: '#2563eb', borderRadius: 12, padding: 16, alignItems: 'center', marginTop: 20 },
+  modalKnappInaktiv: { backgroundColor: '#93c5fd' },
+  modalKnappText: { color: '#fff', fontWeight: '600', fontSize: 16 },
+  avbrytRad: { alignItems: 'center', marginTop: 14 },
+  avbrytText: { fontSize: 14, color: '#6b7280', fontWeight: '500' },
   meddelande: { fontSize: 14, color: '#555', lineHeight: 20, marginBottom: 10 },
   ingetMeddelande: { fontSize: 14, color: '#aaa', fontStyle: 'italic', marginBottom: 10 },
   kortFot: { alignItems: 'center', gap: 10 },

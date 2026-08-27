@@ -10,6 +10,7 @@ import AdressInput from '../components/AdressInput';
 import SchemaPassModal from '../components/SchemaPassModal';
 import PassDetaljFält from '../components/PassDetaljFält';
 import MassPassPanel from '../components/MassPassPanel';
+import BehörighetsKravRedigerare from '../components/BehörighetsKravRedigerare';
 import MånadsKalender from '../components/MånadsKalender';
 import DatumVäljare from '../components/DatumVäljare';
 import StegIndikator from '../components/StegIndikator';
@@ -40,6 +41,7 @@ export default function PubliceraSchemaScreen({ navigation }) {
   // Inget förvalt: typen ska vara ett aktivt val, inte något man råkar publicera med.
   const [typ, setTyp] = useState('');
   const [timlon, setTimlon] = useState('');
+  const [behorighetsKrav, setBehorighetsKrav] = useState([]);
 
   // Steg 2 – perioden är ren UI-ställning. Servern härleder schemats period ur passens
   // datum (se härledPeriod i backend/routes/scheman.js), så den skickas aldrig med.
@@ -392,6 +394,7 @@ export default function PubliceraSchemaScreen({ navigation }) {
       timlon: timlönTal,
       pass: tillPayload(pass),
       avdrag,
+      behorighets_krav: behorighetsKrav,
       ...(accepteraHögrePåslag ? { acceptera_hogre_paslag: true } : {}),
     });
 
@@ -487,6 +490,9 @@ export default function PubliceraSchemaScreen({ navigation }) {
                 textAlignVertical="top"
               />
               <FältFel text={fel.beskrivning} />
+
+              <Text style={styles.label}>Behörighetskrav</Text>
+              <BehörighetsKravRedigerare värde={behorighetsKrav} onÄndra={setBehorighetsKrav} />
 
               <Text style={styles.label}>Stad *</Text>
               <StadInput

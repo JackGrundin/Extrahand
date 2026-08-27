@@ -1,6 +1,7 @@
 const { createClient } = require('@supabase/supabase-js');
 const ws = require('ws');
 const { hämtaVäntandeFörAnvändare } = require('./jobbforfragan');
+const { normaliseraKrav, saknadeKrav } = require('../utils/behorighet');
 
 const supabase = createClient(
   process.env.SUPABASE_URL,
@@ -43,15 +44,36 @@ function vävInTidrapporter(senasteMap, tidrapporter) {
   }
 }
 
-async function skapaAnsökan({ jobb_id, sokande_id, meddelande }) {
+// intygade_krav är JOBBETS kravlista, aldrig den lista klienten skickade – routen har redan
+// kontrollerat att klienten kryssat i allihop. Skrevs klientens lista hit kunde vem som helst
+// posta en egen och få den sparad som "intygad".
+//
+// Listan FRYSES här, precis som påslaget fryses på jobbet och avdragen på tidrapporten:
+// företaget kan lägga till krav i efterhand, och då får det inte se ut som om personen
+// intygat något hen aldrig sett.
+async function skapaAnsökan({ jobb_id, sokande_id, meddelande, intygade_krav }) {
   const { data, error } = await supabase
     .from('ansokningar')
-    .insert([{ jobb_id, sokande_id, meddelande, status: 'väntande' }])
+    .insert([{
+      jobb_id, sokande_id, meddelande, status: 'väntande',
+      intygade_krav: intygade_krav ?? [],
+      intygat_at: new Date().toISOString(),
+    }])
     .select()
     .single();
 
   if (error) throw error;
   return data;
+}
+
+// Skriver om intygandet efter att företaget lagt till krav. Samma frysningsregel som ovan:
+// jobbets aktuella lista sparas, inte klientens.
+async function uppdateraIntygande(id, intygade_krav) {
+  const { error } = await supabase
+    .from('ansokningar')
+    .update({ intygade_krav: intygade_krav ?? [], intygat_at: new Date().toISOString() })
+    .eq('id', id);
+  if (error) throw error;
 }
 
 async function hämtaAnsökningarFörSökande(sokande_id) {
@@ -97,6 +119,11 @@ async function hämtaAnsökningarFörSökande(sokande_id) {
     // (annons-ansökan) och varje genomfört pass för sig under Genomförda.
     schemaId: jobbMap[a.jobb_id]?.schema_id ?? null,
     schemaPassId: jobbMap[a.jobb_id]?.schema_pass_id ?? null,
+    // Jobbets AKTUELLA krav plus de som ännu inte intygats. Har företaget lagt till ett
+    // krav efter ansökan är saknadeKrav icke-tom, och Mina ansökningar visar varningen
+    // med knappen som bekräftar. Jobbraden hämtas redan ovan – ingen extra fråga.
+    behorighetsKrav: normaliseraKrav(jobbMap[a.jobb_id]?.behorighets_krav),
+    saknadeKrav: saknadeKrav(jobbMap[a.jobb_id]?.behorighets_krav, a.intygade_krav),
     rapportStatus: rapportMap[a.id] ?? null,
     senasteMeddelande: senasteMap[a.id] ?? null,
     foretagId: (() => {
@@ -148,9 +175,16 @@ async function hämtaAnsökningarFörJobb(jobb_id) {
   const { data: sökande } = await supabase.from('användare').select('id, Namn').in('id', sokandeIds);
   const sökandeMap = Object.fromEntries((sökande || []).map(s => [s.id, s]));
 
+  // saknadeKrav driver företagets "Kräver ny bekräftelse". Härlett, inte lagrat: brickan
+  // ska försvinna av sig själv när personen bekräftar, utan något statusfält att hålla
+  // i synk.
+  const { data: jobb } = await supabase
+    .from('Jobb').select('behorighets_krav').eq('id', jobb_id).maybeSingle();
+
   return ansökningar.map(a => ({
     ...a,
     sökandeNamn: sökandeMap[a.sokande_id]?.Namn ?? null,
+    saknadeKrav: saknadeKrav(jobb?.behorighets_krav, a.intygade_krav),
   }));
 }
 
@@ -541,4 +575,4 @@ async function hämtaPågåendePassFörPåminnelse() {
     .filter(p => p.foretagId != null && p.arbetstider != null);
 }
 
-module.exports = { skapaAnsökan, hämtaAnsökningarFörSökande, hämtaAnsökningarFörJobb, finnsDubblettAnsökan, hämtaTotalTimmar, uppdateraStatus, markeraAvhopp, avvisaVäntandeAnsökningar, hämtaAnsökanViaId, avvisaAllaUtomEn, återställAllaFörJobb, hämtaAllaKonversationerFörFöretag, hämtaGodkändaFörJobb, hämtaGodkändaFörFleraJobb, hämtaNamnFörAnvändare, ångraAnsökan, hämtaAnsökanMedJobbInfo, hämtaKonversationMellan, hämtaGrupperadeKonversationer, hämtaPågåendePassFörPåminnelse };
+module.exports = { skapaAnsökan, uppdateraIntygande, hämtaAnsökningarFörSökande, hämtaAnsökningarFörJobb, finnsDubblettAnsökan, hämtaTotalTimmar, uppdateraStatus, markeraAvhopp, avvisaVäntandeAnsökningar, hämtaAnsökanViaId, avvisaAllaUtomEn, återställAllaFörJobb, hämtaAllaKonversationerFörFöretag, hämtaGodkändaFörJobb, hämtaGodkändaFörFleraJobb, hämtaNamnFörAnvändare, ångraAnsökan, hämtaAnsökanMedJobbInfo, hämtaKonversationMellan, hämtaGrupperadeKonversationer, hämtaPågåendePassFörPåminnelse };

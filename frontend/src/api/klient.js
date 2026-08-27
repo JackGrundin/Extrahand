@@ -141,6 +141,8 @@ export const api = {
   sökaJobb: (jobbId, kropp) => anrop('POST', `/ansokningar/${jobbId}`, kropp),
   minaAnsökningar: () => anrop('GET', '/ansokningar/mina'),
   ångraAnsökan: (id) => anrop('DELETE', `/ansokningar/${id}`),
+  // Bekräftar behörighetskrav som företaget lagt till efter att ansökan skickades.
+  intygaKrav: (id, kropp) => anrop('POST', `/ansokningar/${id}/intyga`, kropp),
   ansökningarFörJobb: (jobbId) => anrop('GET', `/ansokningar/jobb/${jobbId}`),
   företagsKonversationer: () => anrop('GET', '/ansokningar/foretag'),
   hämtaAnsökanDetaljer: (id) => anrop('GET', `/ansokningar/${id}/detaljer`),

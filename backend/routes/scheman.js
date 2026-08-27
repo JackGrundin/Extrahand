@@ -26,6 +26,8 @@ const { hämtaAnsökningarFörJobb, uppdateraStatus, markeraAvhopp, hämtaGodkä
 const { hämtaPrenumeration, ärPro, harGjortPlanval, sättPlanvalGjort, minskaPassDennaManad } = require('../db/prenumeration');
 const { hämtaPrivatpersonerIStad, hämtaPushToken } = require('../db/användare');
 const { GRATIS_PASS_PER_MANAD, valideraObTillagg } = require('../utils/pris');
+const { normaliseraKrav, valideraBehorighetsKrav } = require('../utils/behorighet');
+const { notifieraOmNyaKrav } = require('../utils/kravNotis');
 const { skickaNotifikation } = require('../utils/pushNotifikation');
 const { idagStockholm, parsaArbetstider, passTimmar, slutEpochFörPass } = require('../utils/tid');
 const { sändJobblistaPing, sändRealtidsPing } = require('../realtid');
@@ -112,7 +114,7 @@ function valideraPassLista(pass, befintliga = []) {
   return null;
 }
 
-function valideraSchemaInput({ titel, beskrivning, typ, plats, adress, kategori, timlon, pass, avdrag }) {
+function valideraSchemaInput({ titel, beskrivning, typ, plats, adress, kategori, timlon, pass, avdrag, behorighets_krav }) {
   if (!titel || !String(titel).trim()) return 'Titel krävs';
   if (!beskrivning || !String(beskrivning).trim()) return 'Beskrivning krävs';
   if (typ && !GILTIGA_TYPER.includes(typ)) return 'Ogiltig typ';
@@ -130,7 +132,10 @@ function valideraSchemaInput({ titel, beskrivning, typ, plats, adress, kategori,
     if (!(Number(a.belopp) > 0)) return 'Varje avdrag måste ha ett belopp större än noll';
     if (a.typ != null && !AVDRAGSTYPER.includes(a.typ)) return 'Ogiltig avdragstyp';
   }
-  return null;
+
+  // Behörighetskrav är frivilliga, men skickas de måste de hålla formatet – annars går de
+  // inte att jämföra mot vad den sökande intygat.
+  return valideraBehorighetsKrav(behorighets_krav);
 }
 
 // Perioden är min/max av passens datum. Ett schema utan pass kan inte publiceras, så
@@ -144,11 +149,11 @@ function härledPeriod(pass) {
 router.post('/', kräverInloggning, kräverTyp('företag'), async (req, res) => {
   const {
     titel, beskrivning, plats, adress, kategori, typ,
-    timlon, pass, avdrag, acceptera_hogre_paslag,
+    timlon, pass, avdrag, behorighets_krav, acceptera_hogre_paslag,
   } = req.body;
 
   const valideringsfel = valideraSchemaInput({
-    titel, beskrivning, typ, plats, adress, kategori, timlon, pass, avdrag,
+    titel, beskrivning, typ, plats, adress, kategori, timlon, pass, avdrag, behorighets_krav,
   });
   if (valideringsfel) return res.status(400).json({ fel: valideringsfel });
 
@@ -191,6 +196,7 @@ router.post('/', kräverInloggning, kräverTyp('företag'), async (req, res) => 
       // OB bor numera på passet. Kolumnen behålls tom för nya scheman och är kvar för
       // gamla, där den fortfarande ärvs av pass utan eget OB.
       ob_tillagg: [],
+      behorighets_krav: normaliseraKrav(behorighets_krav),
     });
 
     // Annons-jobbet. Det bär schemats ansökningar och därmed chatten, och det är här
@@ -216,6 +222,10 @@ router.post('/', kräverInloggning, kräverTyp('företag'), async (req, res) => 
         }))
       ),
       ob_tillagg: [],
+      // Måste med redan här. Annons-jobbet skapas EN gång och synkaAnnonsJobb körs först
+      // vid en senare redigering, så utan raden vore ett nypublicerat schemas krav
+      // verkningslösa: spärren i POST /api/ansokningar läser Jobb-raden, inte schemat.
+      behorighets_krav: schema.behorighets_krav ?? [],
       foretag_id: req.användare.id,
       schema_id: schema.id,
     });
@@ -776,15 +786,20 @@ router.post('/:id/avbryt', kräverInloggning, kräverTyp('företag'), async (req
 
 // PUT /api/scheman/:id — företag redigerar ett ännu inte tillsatt schema
 router.put('/:id', kräverInloggning, kräverTyp('företag'), async (req, res) => {
-  const { titel, beskrivning, plats, adress, kategori, typ, timlon } = req.body;
+  const { titel, beskrivning, plats, adress, kategori, typ, timlon, behorighets_krav } = req.body;
   if (!titel || !String(titel).trim()) return res.status(400).json({ fel: 'Titel krävs' });
   if (timlon != null && !(Number(timlon) > 0)) return res.status(400).json({ fel: 'Giltig timlön krävs' });
   // Samma GILTIGA_TYPER som POST använder – ingen andra sanning om vilka typer som finns.
   if (typ !== undefined && !GILTIGA_TYPER.includes(typ)) return res.status(400).json({ fel: 'Ogiltig typ' });
+  const kravFel = valideraBehorighetsKrav(behorighets_krav);
+  if (kravFel) return res.status(400).json({ fel: kravFel });
 
   try {
-    // Läs timlönen före uppdateringen – jämförelsen efteråt avgör om personen ska notifieras.
-    const tidigareTimlon = (await hämtaSchemaViaId(req.params.id))?.timlon;
+    // Läs timlönen och kravlistan före uppdateringen – jämförelserna efteråt avgör om
+    // personen ska notifieras om ny lön respektive om de sökande måste bekräfta nya krav.
+    const tidigare = await hämtaSchemaViaId(req.params.id);
+    const tidigareTimlon = tidigare?.timlon;
+    const tidigareKrav = tidigare?.behorighets_krav;
 
     // Bara fält som faktiskt skickats uppdateras. Tidigare nollades plats, adress och
     // kategori så fort de utelämnades, vilket gjorde en delvis uppdatering till tyst
@@ -797,6 +812,7 @@ router.put('/:id', kräverInloggning, kräverTyp('företag'), async (req, res) =
       ...(kategori !== undefined ? { kategori: kategori?.trim() ?? null } : {}),
       ...(typ !== undefined ? { typ } : {}),
       ...(timlon != null ? { timlon: Number(timlon) } : {}),
+      ...(behorighets_krav !== undefined ? { behorighets_krav: normaliseraKrav(behorighets_krav) } : {}),
     });
 
     // Inget matchade: schemat finns inte, ägs av någon annan, eller är redan tillsatt.
@@ -830,6 +846,9 @@ router.put('/:id', kräverInloggning, kräverTyp('företag'), async (req, res) =
     }
 
     res.json(schema);
+
+    // Schemats ansökningar ligger på annons-jobbet, så notisen går på det jobb-id:t.
+    notifieraOmNyaKrav(schema.annons_jobb_id, schema.titel, tidigareKrav, schema.behorighets_krav);
   } catch (fel) {
     console.error('Fel vid uppdatering av schema:', fel);
     res.status(500).json({ fel: 'Serverfel vid uppdatering av schema' });

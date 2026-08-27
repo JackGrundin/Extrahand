@@ -1,10 +1,11 @@
 const express = require('express');
 const { kräverInloggning, kräverTyp } = require('../middleware/auth');
-const { skapaAnsökan, hämtaAnsökningarFörSökande, hämtaAnsökningarFörJobb, finnsDubblettAnsökan, uppdateraStatus, hämtaAnsökanViaId, avvisaAllaUtomEn, återställAllaFörJobb, hämtaAllaKonversationerFörFöretag, ångraAnsökan, hämtaAnsökanMedJobbInfo, hämtaKonversationMellan, hämtaGrupperadeKonversationer, hämtaGodkändaFörJobb } = require('../db/ansokningar');
+const { skapaAnsökan, uppdateraIntygande, hämtaAnsökningarFörSökande, hämtaAnsökningarFörJobb, finnsDubblettAnsökan, uppdateraStatus, hämtaAnsökanViaId, avvisaAllaUtomEn, återställAllaFörJobb, hämtaAllaKonversationerFörFöretag, ångraAnsökan, hämtaAnsökanMedJobbInfo, hämtaKonversationMellan, hämtaGrupperadeKonversationer, hämtaGodkändaFörJobb } = require('../db/ansokningar');
 const { hämtaPushToken, hämtaAnvändareViaId } = require('../db/användare');
 const { hämtaJobbViaId, sättJobbPåslag } = require('../db/jobb');
 const { hämtaPrenumeration, gällandePåslag, ökaPassDennaManad, minskaPassDennaManad } = require('../db/prenumeration');
 const { tilldelaSchema, räknaTilldelbaraPass, frigörFramtidaPass, återställSchema } = require('../db/schemaTilldelning');
+const { normaliseraKrav, saknadeKrav } = require('../utils/behorighet');
 const { skickaNotifikation } = require('../utils/pushNotifikation');
 const { sändRealtidsPing, sändJobblistaPing } = require('../realtid');
 
@@ -13,7 +14,7 @@ const router = express.Router();
 // POST /api/ansokningar/:jobbId — privatperson söker ett jobb
 router.post('/:jobbId', kräverInloggning, kräverTyp('privatperson'), async (req, res) => {
   const { jobbId } = req.params;
-  const { meddelande } = req.body;
+  const { meddelande, intygade_krav } = req.body;
 
   try {
     // Materialiserade schemapass söks aldrig direkt – man söker schemat som helhet via
@@ -34,10 +35,20 @@ router.post('/:jobbId', kräverInloggning, kräverTyp('privatperson'), async (re
       return res.status(409).json({ fel: 'Du har redan sökt detta jobb' });
     }
 
+    // Behörighetskraven. Spärren sitter här och ingen annanstans: en schemaansökan går mot
+    // schemats annons-jobb, alltså genom precis den här routen, så den täcker både enstaka
+    // pass och scheman. Förutsätter att synkaAnnonsJobb speglat schemats krav till Jobb.
+    const krav = normaliseraKrav(jobbet.behorighets_krav);
+    if (saknadeKrav(krav, intygade_krav).length > 0) {
+      return res.status(400).json({ fel: 'Du måste intyga att du uppfyller alla behörighetskrav' });
+    }
+
     const ansökan = await skapaAnsökan({
       jobb_id: jobbId,
       sokande_id: req.användare.id,
       meddelande: meddelande || null,
+      // Jobbets lista, inte klientens – se skapaAnsökan i db/ansokningar.js.
+      intygade_krav: krav,
     });
 
     res.status(201).json(ansökan);
@@ -58,6 +69,50 @@ router.post('/:jobbId', kräverInloggning, kräverTyp('privatperson'), async (re
   } catch (fel) {
     console.error('Fel vid ansökan:', fel);
     res.status(500).json({ fel: 'Serverfel vid ansökan' });
+  }
+});
+
+// POST /api/ansokningar/:id/intyga — bekräftar krav som tillkommit efter ansökan
+//
+// Företaget får lägga till krav när som helst. Personens intygande är fryst på ansökan och
+// täcker bara de krav som fanns då, så tills hen bekräftar på nytt ser företaget "Kräver ny
+// bekräftelse" på sökandekortet.
+router.post('/:id/intyga', kräverInloggning, kräverTyp('privatperson'), async (req, res) => {
+  try {
+    // hämtaAnsökanViaId använder .single() och KASTAR när raden saknas, i stället för att
+    // ge null. Utan den här hanteringen blir ett okänt (eller felformat) id ett 500, fast
+    // rätt svar är 404. Andra fel ska fortfarande bubbla upp som serverfel.
+    let ansökan = null;
+    try {
+      ansökan = await hämtaAnsökanViaId(req.params.id);
+    } catch (uppslagsfel) {
+      // PGRST116 = noll rader, 22P02 = ogiltig uuid-syntax.
+      if (!['PGRST116', '22P02'].includes(uppslagsfel?.code)) throw uppslagsfel;
+    }
+    if (!ansökan) return res.status(404).json({ fel: 'Ansökan hittades inte' });
+    if (String(ansökan.sokande_id) !== String(req.användare.id)) {
+      return res.status(403).json({ fel: 'Åtkomst nekad' });
+    }
+    if (ansökan.status === 'avvisad') {
+      return res.status(409).json({ fel: 'Ansökan är inte längre aktiv' });
+    }
+
+    const jobbet = await hämtaJobbViaId(ansökan.jobb_id);
+    if (!jobbet) return res.status(404).json({ fel: 'Jobbet hittades inte' });
+
+    const krav = normaliseraKrav(jobbet.behorighets_krav);
+    if (saknadeKrav(krav, req.body?.intygade_krav).length > 0) {
+      return res.status(400).json({ fel: 'Du måste intyga att du uppfyller alla behörighetskrav' });
+    }
+
+    await uppdateraIntygande(ansökan.id, krav);
+    res.json({ ok: true });
+
+    // Företagets vy uppdateras direkt – brickan är härledd ur saknadeKrav.
+    sändRealtidsPing(jobbet.Foretag_id ?? jobbet.foretag_id, 'ansokan');
+  } catch (fel) {
+    console.error('Fel vid intygande av behörighetskrav:', fel);
+    res.status(500).json({ fel: 'Serverfel vid intygande' });
   }
 });
 

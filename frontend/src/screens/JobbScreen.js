@@ -6,6 +6,7 @@ import { useJobblistaPing } from '../context/RealtidsContext';
 
 import { KATEGORIER, SCHEMATYPER, schematypEtikett, normalisera } from '../utils/konstanter';
 import { parsaArbetstider, formatDagDatum, parsaObTillagg } from '../utils/datumHelper';
+import { normaliseraKrav } from '../utils/behorighet';
 import StadInput from '../components/StadInput';
 import RollBrickor from '../components/RollBrickor';
 
@@ -48,6 +49,19 @@ function KategoriRad({ label, värde, onPress }) {
         <Ionicons name="chevron-forward" size={18} color="#9ca3af" />
       </View>
     </TouchableOpacity>
+  );
+}
+
+// Signalerar bara ATT det finns behörighetskrav – själva listan hör hemma i detaljvyn,
+// där den också går att kryssa i. Renderar ingenting när jobbet saknar krav.
+function KravBricka({ krav }) {
+  const antal = normaliseraKrav(krav).length;
+  if (!antal) return null;
+  return (
+    <View style={styles.kravBadge}>
+      <Ionicons name="shield-checkmark" size={11} color="#b45309" />
+      <Text style={styles.kravBadgeText}>{antal} krav</Text>
+    </View>
   );
 }
 
@@ -268,6 +282,7 @@ export default function JobbScreen({ navigation }) {
                 {parsaObTillagg(item.ob_tillagg).length > 0 && (
                   <View style={styles.obBadge}><Text style={styles.obBadgeText}>OB</Text></View>
                 )}
+                <KravBricka krav={item.behorighets_krav} />
               </View>
             </TouchableOpacity>
           )}
@@ -334,6 +349,7 @@ export default function JobbScreen({ navigation }) {
                 {parsaObTillagg(item.ob_tillagg).length > 0 && (
                   <View style={styles.obBadge}><Text style={styles.obBadgeText}>OB</Text></View>
                 )}
+                <KravBricka krav={item.behorighets_krav} />
                 {item.antal_dagar != null && <Text style={styles.extraInfo}>{item.antal_dagar} dagar</Text>}
               </View>
             </TouchableOpacity>
@@ -513,6 +529,8 @@ const styles = StyleSheet.create({
   extraRad: { flexDirection: 'row', gap: 12, marginTop: 4, alignItems: 'center' },
   extraInfo: { fontSize: 13, color: '#888' },
   obBadge: { backgroundColor: '#fff7ed', borderRadius: 6, paddingHorizontal: 6, paddingVertical: 2, borderWidth: 1, borderColor: '#fed7aa' },
+  kravBadge: { flexDirection: 'row', alignItems: 'center', gap: 3, backgroundColor: '#fffbeb', borderRadius: 6, paddingHorizontal: 6, paddingVertical: 2, borderWidth: 1, borderColor: '#fde68a' },
+  kravBadgeText: { fontSize: 11, color: '#b45309', fontWeight: '700' },
   obBadgeText: { fontSize: 11, fontWeight: '700', color: '#ea580c' },
   tom: { textAlign: 'center', color: '#999', marginTop: 60, fontSize: 16 },
 

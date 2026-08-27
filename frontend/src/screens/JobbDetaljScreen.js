@@ -5,6 +5,8 @@ import { useAuth } from '../context/AuthContext';
 import { api } from '../api/klient';
 import { parsaArbetstider, formatDagDatum, parsaObTillagg, beräknaObBelopp } from '../utils/datumHelper';
 import { beräknaFakturapris } from '../utils/konstanter';
+import { normaliseraKrav, saknadeKrav } from '../utils/behorighet';
+import BehörighetsKrav from '../components/BehörighetsKrav';
 import { useJobbPåslag } from '../utils/useJobbPåslag';
 
 export default function JobbDetaljScreen({ route, navigation }) {
@@ -14,7 +16,14 @@ export default function JobbDetaljScreen({ route, navigation }) {
   const [sökt, setSökt] = useState(false);
   const [meddelande, setMeddelande] = useState('');
   const [avtalsModalSynlig, setAvtalsModalSynlig] = useState(false);
+  const [ikryssade, setIkryssade] = useState(() => new Set());
   const påslag = useJobbPåslag(jobb.paslag, användare?.typ === 'företag');
+
+  const krav = normaliseraKrav(jobb.behorighets_krav);
+  const kanIntyga = användare?.typ === 'privatperson' && !sökt;
+  // Räknas mot kravlistan, inte mot antalet ikryssade: en gammal kryssning som inte längre
+  // motsvarar något krav ska inte kunna låsa upp knappen.
+  const kvarAttKryssa = kanIntyga ? saknadeKrav(krav, [...ikryssade]).length : 0;
 
   function öppnaKarta() {
     const q = encodeURIComponent(jobb.adress);
@@ -31,7 +40,10 @@ export default function JobbDetaljScreen({ route, navigation }) {
     }
     setLaddar(true);
     try {
-      await api.sökaJobb(jobb.id, { meddelande: meddelande.trim() || null });
+      await api.sökaJobb(jobb.id, {
+        meddelande: meddelande.trim() || null,
+        intygade_krav: [...ikryssade],
+      });
       setSökt(true);
       Alert.alert('Klart!', 'Din ansökan har skickats.');
     } catch (fel) {
@@ -156,6 +168,15 @@ export default function JobbDetaljScreen({ route, navigation }) {
         </TouchableOpacity>
       )}
 
+      {/* Kraven visas för alla – företaget läser sin egen annons, den sökande kryssar i.
+          Utan krav renderar komponenten ingenting alls. */}
+      <BehörighetsKrav
+        krav={krav}
+        läge={kanIntyga ? 'intyga' : 'visning'}
+        ikryssade={ikryssade}
+        onÄndra={setIkryssade}
+      />
+
       {användare?.typ === 'privatperson' && (
         <>
           {!sökt && (
@@ -174,13 +195,21 @@ export default function JobbDetaljScreen({ route, navigation }) {
             </>
           )}
           <TouchableOpacity
-            style={[styles.knapp, sökt && styles.knappInaktiv]}
+            style={[styles.knapp, (sökt || kvarAttKryssa > 0) && styles.knappInaktiv]}
             onPress={hanteraSökan}
-            disabled={laddar || sökt}
+            disabled={laddar || sökt || kvarAttKryssa > 0}
           >
           {laddar
             ? <ActivityIndicator color="#fff" />
-            : <Text style={styles.knappText}>{sökt ? 'Ansökan skickad' : 'Sök jobbet'}</Text>
+            : (
+              /* Knappen säger VARFÖR den är låst. En avstängd knapp utan förklaring är
+                 en återvändsgränd. */
+              <Text style={styles.knappText}>
+                {sökt ? 'Ansökan skickad'
+                  : kvarAttKryssa > 0 ? `${kvarAttKryssa} krav kvar att kryssa i`
+                  : 'Sök jobbet'}
+              </Text>
+            )
           }
         </TouchableOpacity>
         </>

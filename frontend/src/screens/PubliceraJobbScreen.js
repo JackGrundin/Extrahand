@@ -7,6 +7,7 @@ import TidVäljare from '../components/TidVäljare';
 import PrenumerationModal from '../components/PrenumerationModal';
 import ProBesparing from '../components/ProBesparing';
 import FältFel from '../components/FältFel';
+import BehörighetsKravRedigerare from '../components/BehörighetsKravRedigerare';
 import { useAppStateAktiv } from '../utils/useAppStateAktiv';
 import { valideraJobb } from '../utils/jobbValidering';
 import { api } from '../api/klient';
@@ -38,6 +39,7 @@ export default function PubliceraJobbScreen({ navigation }) {
   const [dagPickerIndex, setDagPickerIndex] = useState(null);
   const [tempDatum, setTempDatum] = useState(new Date());
   const [obTillagg, setObTillagg] = useState([]);
+  const [behorighetsKrav, setBehorighetsKrav] = useState([]);
   const [obFormVisas, setObFormVisas] = useState(false);
   const [obStart, setObStart] = useState('');
   const [obSlut, setObSlut] = useState('');
@@ -165,6 +167,7 @@ export default function PubliceraJobbScreen({ navigation }) {
       antal_dagar: antalDagar ? parseInt(antalDagar) : undefined,
       arbetstider,
       ob_tillagg: obTillagg,
+      behorighets_krav: behorighetsKrav,
       ...(accepteraHögrePåslag ? { acceptera_hogre_paslag: true } : {}),
     });
 
@@ -267,6 +270,9 @@ export default function PubliceraJobbScreen({ navigation }) {
             textAlignVertical="top"
           />
           <FältFel text={fel.beskrivning} />
+
+          <Text style={styles.label}>Behörighetskrav</Text>
+          <BehörighetsKravRedigerare värde={behorighetsKrav} onÄndra={setBehorighetsKrav} />
 
           <Text style={styles.label}>Stad *</Text>
           <StadInput

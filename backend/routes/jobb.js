@@ -6,6 +6,8 @@ const { skickaMeddelande } = require('../db/meddelanden');
 const { hämtaPushToken, hämtaPrivatpersonerIStad } = require('../db/användare');
 const { hämtaPrenumeration, ärPro, harGjortPlanval, sättPlanvalGjort } = require('../db/prenumeration');
 const { GRATIS_PASS_PER_MANAD } = require('../utils/pris');
+const { normaliseraKrav, valideraBehorighetsKrav } = require('../utils/behorighet');
+const { notifieraOmNyaKrav } = require('../utils/kravNotis');
 const { skickaNotifikation } = require('../utils/pushNotifikation');
 const { sändJobblistaPing } = require('../realtid');
 
@@ -17,7 +19,7 @@ const GILTIGA_TYPER = ['gig', 'sommarjobb', 'deltid', 'heltid', 'uppdrag'];
 // obligatoriskt fält saknas, annars null. Servern är sista försvaret: en tom timlön
 // kopieras vidare som 0 till tidrapporten och ger en faktura på 0 kr, så det måste
 // stoppas här även om appen redan validerat. Alla fält utom OB-tillägg krävs.
-function valideraJobbInput({ titel, beskrivning, typ, plats, adress, lon, kategori, arbetstider }) {
+function valideraJobbInput({ titel, beskrivning, typ, plats, adress, lon, kategori, arbetstider, behorighets_krav }) {
   if (!titel || !beskrivning || !typ) return 'Fälten titel, beskrivning och typ krävs';
   if (!GILTIGA_TYPER.includes(typ)) return 'Ogiltig typ';
   if (!plats || !String(plats).trim()) return 'Stad krävs';
@@ -25,7 +27,9 @@ function valideraJobbInput({ titel, beskrivning, typ, plats, adress, lon, katego
   if (!kategori || !String(kategori).trim()) return 'Kategori krävs';
   if (!arbetstider || !String(arbetstider).trim()) return 'Arbetstider krävs';
   if (lon == null || !(Number(lon) > 0)) return 'Giltig timlön krävs';
-  return null;
+  // Behörighetskrav är frivilliga – de flesta jobb har inga – men skickas de måste de
+  // hålla formatet, annars går de inte att jämföra mot vad den sökande intygat.
+  return valideraBehorighetsKrav(behorighets_krav);
 }
 
 // GET /api/jobb — publik, hämtar alla jobb
@@ -95,9 +99,9 @@ router.get('/:id', async (req, res) => {
 
 // POST /api/jobb — kräver inloggning som företag
 router.post('/', kräverInloggning, kräverTyp('företag'), async (req, res) => {
-  const { titel, beskrivning, plats, adress, lon, typ, kategori, antal_dagar, arbetstider, ob_tillagg, acceptera_hogre_paslag } = req.body;
+  const { titel, beskrivning, plats, adress, lon, typ, kategori, antal_dagar, arbetstider, ob_tillagg, behorighets_krav, acceptera_hogre_paslag } = req.body;
 
-  const valideringsfel = valideraJobbInput({ titel, beskrivning, typ, plats, adress, lon, kategori, arbetstider });
+  const valideringsfel = valideraJobbInput({ titel, beskrivning, typ, plats, adress, lon, kategori, arbetstider, behorighets_krav });
   if (valideringsfel) {
     return res.status(400).json({ fel: valideringsfel });
   }
@@ -134,6 +138,7 @@ router.post('/', kräverInloggning, kräverTyp('företag'), async (req, res) => 
       antal_dagar: antal_dagar || null,
       arbetstider: arbetstider?.trim() || null,
       ob_tillagg: Array.isArray(ob_tillagg) ? ob_tillagg : [],
+      behorighets_krav: normaliseraKrav(behorighets_krav),
       foretag_id: req.användare.id,
     });
 
@@ -174,14 +179,18 @@ async function notifieraPrivatpersonerIStad(jobb) {
 
 // PUT /api/jobb/:id — företag uppdaterar sitt jobb
 router.put('/:id', kräverInloggning, kräverTyp('företag'), async (req, res) => {
-  const { titel, beskrivning, plats, adress, lon, typ, kategori, antal_dagar, arbetstider, ob_tillagg } = req.body;
+  const { titel, beskrivning, plats, adress, lon, typ, kategori, antal_dagar, arbetstider, ob_tillagg, behorighets_krav } = req.body;
 
-  const valideringsfel = valideraJobbInput({ titel, beskrivning, typ, plats, adress, lon, kategori, arbetstider });
+  const valideringsfel = valideraJobbInput({ titel, beskrivning, typ, plats, adress, lon, kategori, arbetstider, behorighets_krav });
   if (valideringsfel) {
     return res.status(400).json({ fel: valideringsfel });
   }
 
   try {
+    // Kravlistan läses FÖRE uppdateringen – jämförelsen efteråt avgör om de som redan
+    // sökt måste bekräfta på nytt.
+    const tidigareKrav = normaliseraKrav((await hämtaJobbViaId(req.params.id))?.behorighets_krav);
+
     const jobb = await uppdateraJobb(req.params.id, req.användare.id, {
       titel, beskrivning,
       plats: plats || null,
@@ -192,6 +201,7 @@ router.put('/:id', kräverInloggning, kräverTyp('företag'), async (req, res) =
       antal_dagar: antal_dagar || null,
       arbetstider: arbetstider?.trim() || null,
       ob_tillagg: Array.isArray(ob_tillagg) ? ob_tillagg : [],
+      behorighets_krav: normaliseraKrav(behorighets_krav),
     });
 
     if (!jobb) {
@@ -202,6 +212,8 @@ router.put('/:id', kräverInloggning, kräverTyp('företag'), async (req, res) =
 
     // Realtidssignal – en ändring kan flytta jobbet in i eller ut ur den aktiva listan
     sändJobblistaPing('jobb-andrad');
+
+    notifieraOmNyaKrav(jobb.id, jobb.Titel, tidigareKrav, jobb.behorighets_krav);
   } catch (fel) {
     console.error('Fel vid uppdatering av jobb:', fel);
     res.status(500).json({ fel: 'Serverfel vid uppdatering av jobb' });
