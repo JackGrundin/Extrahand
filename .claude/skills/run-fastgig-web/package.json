@@ -1,0 +1,9 @@
+{
+  "name": "run-fastgig-web",
+  "private": true,
+  "type": "module",
+  "description": "Playwright-driver för att köra FastGig-appen som webb. Egen package.json så att projektets beroenden inte påverkas.",
+  "dependencies": {
+    "playwright": "^1.56.0"
+  }
+}
