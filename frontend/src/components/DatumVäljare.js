@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { createElement, useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Modal, Platform } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { Ionicons } from '@expo/vector-icons';
@@ -30,6 +30,24 @@ export default function DatumVäljare({
   const text = värde
     ? new Date(värde + 'T12:00:00').toLocaleDateString('sv-SE', { weekday: 'short', day: 'numeric', month: 'short' })
     : placeholder;
+
+  // Webb: se motsvarande kommentar i TidVäljare. <input type="date"> ger 'YYYY-MM-DD',
+  // exakt det datumTillIso producerar, så värdet kan skickas rakt igenom.
+  if (Platform.OS === 'web') {
+    const iso = d => (d instanceof Date ? datumTillIso(d) : undefined);
+    return createElement('input', {
+      type: 'date',
+      value: värde || '',
+      min: iso(minimumDate),
+      max: iso(maximumDate),
+      onChange: e => onÄndra(e.target.value),
+      style: {
+        border: fel ? '1.5px solid #dc2626' : '1px solid #ddd', borderRadius: 10, padding: 13,
+        fontSize: 15, backgroundColor: fel ? '#fef2f2' : '#fafafa', color: '#1a1a1a',
+        fontFamily: 'inherit', width: '100%', boxSizing: 'border-box',
+      },
+    });
+  }
 
   return (
     <>

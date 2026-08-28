@@ -1,9 +1,9 @@
 import { useCallback, useRef, useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, ScrollView, ActivityIndicator, KeyboardAvoidingView, Platform, Modal, FlatList, Linking } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
-import DateTimePicker from '@react-native-community/datetimepicker';
 import { Ionicons } from '@expo/vector-icons';
 import TidVäljare from '../components/TidVäljare';
+import DatumVäljare from '../components/DatumVäljare';
 import PrenumerationModal from '../components/PrenumerationModal';
 import ProBesparing from '../components/ProBesparing';
 import FältFel from '../components/FältFel';
@@ -14,12 +14,6 @@ import { api } from '../api/klient';
 import { KATEGORIER, PÅSLAG_GRATIS, beräknaFakturapris, formateraPris, normalisera } from '../utils/konstanter';
 import StadInput from '../components/StadInput';
 import AdressInput from '../components/AdressInput';
-
-function formatDatum(isoStr) {
-  if (!isoStr) return null;
-  const d = new Date(isoStr + 'T12:00:00');
-  return d.toLocaleDateString('sv-SE', { month: 'short', day: 'numeric' });
-}
 
 export default function PubliceraJobbScreen({ navigation }) {
   const [titel, setTitel] = useState('');
@@ -36,8 +30,6 @@ export default function PubliceraJobbScreen({ navigation }) {
   const scrollRef = useRef(null);
   const [kategoriModalVisas, setKategoriModalVisas] = useState(false);
   const [sokKategori, setSokKategori] = useState('');
-  const [dagPickerIndex, setDagPickerIndex] = useState(null);
-  const [tempDatum, setTempDatum] = useState(new Date());
   const [obTillagg, setObTillagg] = useState([]);
   const [behorighetsKrav, setBehorighetsKrav] = useState([]);
   const [obFormVisas, setObFormVisas] = useState(false);
@@ -92,21 +84,6 @@ export default function PubliceraJobbScreen({ navigation }) {
       ny[index] = { ...ny[index], [fält]: värde };
       return ny;
     });
-  }
-
-  function öppnaPicker(index) {
-    const dag = dagScheman[index];
-    setTempDatum(dag.datum ? new Date(dag.datum + 'T12:00:00') : new Date());
-    setDagPickerIndex(index);
-  }
-
-  function sparaDatum(index, date) {
-    uppdateraDag(index, 'datum', date.toISOString().split('T')[0]);
-  }
-
-  function bekräftaDatum() {
-    if (dagPickerIndex !== null) sparaDatum(dagPickerIndex, tempDatum);
-    setDagPickerIndex(null);
   }
 
   function toggleSammaTider() {
@@ -325,16 +302,13 @@ export default function PubliceraJobbScreen({ navigation }) {
                 <View key={i} style={styles.dagRad}>
                   <Text style={styles.dagEtikett}>Dag {i + 1}</Text>
                   <View style={styles.dagFält}>
-                    <TouchableOpacity
-                      style={[styles.input, styles.datumKnapp]}
-                      onPress={() => öppnaPicker(i)}
-                      activeOpacity={0.7}
-                    >
-                      <Ionicons name="calendar-outline" size={16} color={dag.datum ? '#1a1a1a' : '#aaa'} />
-                      <Text style={[styles.datumText, !dag.datum && styles.datumPlaceholder]}>
-                        {dag.datum ? formatDatum(dag.datum) : 'Datum'}
-                      </Text>
-                    </TouchableOpacity>
+                    <DatumVäljare
+                      style={{ flex: 2 }}
+                      värde={dag.datum}
+                      onÄndra={v => uppdateraDag(i, 'datum', v)}
+                      placeholder="Datum"
+                      minimumDate={new Date()}
+                    />
                     <TidVäljare
                       style={{ flex: 1 }}
                       placeholder="08:00"
@@ -449,49 +423,6 @@ export default function PubliceraJobbScreen({ navigation }) {
         onFortsattUtan={fortsattUtanAbonnemang}
       />
 
-      {/* Datumväljare – Android (native dialog) */}
-      {Platform.OS === 'android' && dagPickerIndex !== null && (
-        <DateTimePicker
-          value={tempDatum}
-          mode="date"
-          display="default"
-          minimumDate={new Date()}
-          onChange={(_, date) => {
-            setDagPickerIndex(null);
-            if (date) sparaDatum(dagPickerIndex, date);
-          }}
-        />
-      )}
-
-      {/* Datumväljare – iOS (modal med spinner) */}
-      <Modal visible={Platform.OS === 'ios' && dagPickerIndex !== null} transparent animationType="slide" statusBarTranslucent>
-        <View style={styles.pickerBackdrop}>
-          <View style={styles.pickerPanel}>
-            <View style={styles.pickerRubrikRad}>
-              <TouchableOpacity onPress={() => setDagPickerIndex(null)}>
-                <Text style={styles.pickerAvbryt}>Avbryt</Text>
-              </TouchableOpacity>
-              <Text style={styles.pickerRubrik}>Välj datum</Text>
-              <TouchableOpacity onPress={bekräftaDatum}>
-                <Text style={styles.pickerKlar}>Klar</Text>
-              </TouchableOpacity>
-            </View>
-            <DateTimePicker
-              value={tempDatum}
-              mode="date"
-              display="spinner"
-              minimumDate={new Date()}
-              onChange={(_, date) => date && setTempDatum(date)}
-              locale="sv-SE"
-              // iOS-spinnern följer annars systemets mörka läge och blir vit text mot
-              // den vita panelen (osynlig). Tvinga ljust tema + mörk text.
-              themeVariant="light"
-              textColor="#1a1a1a"
-            />
-          </View>
-        </View>
-      </Modal>
-
       {/* Kategoriväljare */}
       <Modal visible={kategoriModalVisas} animationType="slide" transparent statusBarTranslucent>
         <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
@@ -573,9 +504,6 @@ const styles = StyleSheet.create({
   dagRad: { marginBottom: 12 },
   dagEtikett: { fontSize: 13, fontWeight: '700', color: '#6b7280', marginBottom: 6 },
   dagFält: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  datumKnapp: { flex: 2, flexDirection: 'row', alignItems: 'center', gap: 6 },
-  datumText: { fontSize: 15, color: '#1a1a1a' },
-  datumPlaceholder: { color: '#aaa' },
   tidInput: { flex: 1, textAlign: 'center' },
   tidStreck: { fontSize: 16, color: '#9ca3af' },
 
@@ -583,12 +511,6 @@ const styles = StyleSheet.create({
   knappInaktiv: { backgroundColor: '#93c5fd' },
   knappText: { color: '#fff', fontWeight: '600', fontSize: 16 },
 
-  pickerBackdrop: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.4)' },
-  pickerPanel: { backgroundColor: '#fff', borderTopLeftRadius: 20, borderTopRightRadius: 20, paddingBottom: 32 },
-  pickerRubrikRad: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: '#f0f0f0' },
-  pickerRubrik: { fontSize: 16, fontWeight: '700', color: '#1a1a1a' },
-  pickerAvbryt: { fontSize: 16, color: '#9ca3af' },
-  pickerKlar: { fontSize: 16, color: '#2563eb', fontWeight: '600' },
 
   backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)' },
   panel: { backgroundColor: '#fff', borderTopLeftRadius: 20, borderTopRightRadius: 20, paddingHorizontal: 20, paddingTop: 12, paddingBottom: 32, maxHeight: '80%' },

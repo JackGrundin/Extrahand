@@ -105,7 +105,10 @@ const styles = StyleSheet.create({
     borderTopWidth: 1, borderTopColor: '#e5e7eb',
     borderTopLeftRadius: 16, borderTopRightRadius: 16,
     paddingHorizontal: 16, paddingTop: 10, paddingBottom: 20,
-    maxHeight: '62%',
+    // 62 % åt panelen lämnade noll passrader synliga på en telefonskärm, vilket motverkar
+    // hela poängen: man ska kunna kryssa i fler rader medan panelen är uppe. Innehållet
+    // scrollar ändå internt, så en lägre gräns kostar ingenting.
+    maxHeight: '45%',
     shadowColor: '#000', shadowOpacity: 0.12, shadowRadius: 12, shadowOffset: { width: 0, height: -3 }, elevation: 12,
   },
   huvud: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { createElement, useState } from 'react';
 import { View, Text, TouchableOpacity, Modal, StyleSheet, Platform } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 
@@ -33,6 +33,26 @@ export default function TidVäljare({ value, onChange, placeholder = 'HH:MM', st
   function bekräfta() {
     if (rördes) onChange(datumTillSträng(tempTid));
     setVisas(false);
+  }
+
+  // Webb: datetimepicker har ingen webbimplementation, så knappen ovan skulle vara död och
+  // appen omöjlig att köra igenom i en webbläsare. Webbläsarens egen <input type="time">
+  // ger redan 'HH:MM' – samma format som datumTillSträng – så ingen konvertering behövs.
+  //
+  // createElement i stället för JSX: strängtaggen 'input' finns inte i den nativa
+  // renderaren. Grenen körs aldrig på iOS/Android, men att låta taggen stå i JSX skulle
+  // ändå läsas som en komponent av den som skummar filen.
+  if (Platform.OS === 'web') {
+    return createElement('input', {
+      type: 'time',
+      value: value || '',
+      onChange: e => onChange(e.target.value),
+      style: {
+        border: '1px solid #ddd', borderRadius: 10, padding: 13, fontSize: 15,
+        backgroundColor: '#fafafa', color: '#1a1a1a', fontFamily: 'inherit',
+        width: '100%', boxSizing: 'border-box',
+      },
+    });
   }
 
   return (
