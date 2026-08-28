@@ -73,21 +73,49 @@ async function hämtaText(nyckelord, antal = 500) {
   return i === -1 ? `(hittade inte "${nyckelord}")` : kropp.slice(i, i + antal);
 }
 
+// Delar "vänster = höger" på det FÖRSTA mellanslagsomgärdade likhetstecknet. En vanlig
+// split('=') går sönder på CSS-selektorer som input[type=date], som själva innehåller ett
+// likhetstecken.
+function delaPåLikhetstecken(arg) {
+  const rad = arg.join(' ');
+  const i = rad.indexOf(' = ');
+  if (i === -1) return [rad.trim(), ''];
+  return [rad.slice(0, i).trim(), rad.slice(i + 3).trim()];
+}
+
 const kommandon = {
   goto: async a => { await goto(a[0] || BAS); },
   login: async a => { await login(a[0], a[1]); },
   click: async a => {
-    await sida.getByText(a.join(' '), { exact: true }).first().click();
+    await sida.getByText(a.join(' '), { exact: true }).locator('visible=true').first().click();
     await sida.waitForTimeout(1200);
   },
   clicklast: async a => {
-    await sida.getByText(a.join(' '), { exact: true }).last().click();
+    await sida.getByText(a.join(' '), { exact: true }).locator('visible=true').last().click();
     await sida.waitForTimeout(1200);
   },
+  // Bara SYNLIGA fält. Publicera-fliken monterar både jobb- och schemaformuläret
+  // samtidigt och döljer det ena med CSS, så en ren placeholder-matchning träffar två
+  // element och Playwright vägrar med "strict mode violation".
   fill: async a => {
-    const [ph, värde] = a.join(' ').split('=').map(s => s.trim());
-    await sida.getByPlaceholder(ph).fill(värde ?? '');
+    const [ph, värde] = delaPåLikhetstecken(a);
+    await sida.getByPlaceholder(ph).locator('visible=true').first().fill(värde);
     await sida.waitForTimeout(400);
+  },
+  // Datum- och tidfälten renderas på webb som <input type="date"|"time"> och har ingen
+  // placeholder att peka på. Formatet är detsamma som appen använder internt:
+  // 'YYYY-MM-DD' respektive 'HH:MM'.
+  //   fillsel input[type=date] 0 = 2026-09-01
+  fillsel: async a => {
+    const [vänster, värde] = delaPåLikhetstecken(a);
+    const delar = vänster.split(/\s+/);
+    const index = /^\d+$/.test(delar[delar.length - 1]) ? Number(delar.pop()) : 0;
+    await sida.locator(delar.join(' ')).nth(index).fill(värde);
+    await sida.waitForTimeout(400);
+  },
+  // Hur många element en selektor matchar – för att veta hur många fält som finns.
+  count: async a => {
+    console.log(`${a.join(' ')}: ${await sida.locator(a.join(' ')).count()}`);
   },
   text: async a => {
     const sista = a[a.length - 1];

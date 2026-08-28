@@ -95,6 +95,8 @@ startade – `OK ss` säger bara att filen skrevs.
 | `click <text>` | Klickar på **första** elementet med exakt den texten |
 | `clicklast <text>` | Klickar på **sista** – flikfältet dubblerar ofta texter |
 | `fill <placeholder> = <text>` | Skriver i fältet med den placeholdern |
+| `fillsel <css> [n] = <text>` | Skriver i n:te träffen för en CSS-selektor – för datum/tid, som saknar placeholder: `fillsel input[type=date] 0 = 2026-09-15` |
+| `count <css>` | Hur många element selektorn matchar |
 | `text [nyckelord] [antal]` | Dumpar synlig text, ev. från och med ett nyckelord |
 | `ss <namn>` / `ssfull <namn>` | Skärmbild till `skott/<namn>.png` (vyport / hela sidan) |
 | `wait <ms>` | Paus |
@@ -147,8 +149,18 @@ Databasen är **produktionsdatabasen** – det finns ingen separat testinstans. 
 - **`networkidle` betyder inte klart.** Hela trädet monteras i JS efteråt. Drivern har
   därför en fast paus (`FASTGIG_RITPAUS`, 3500 ms) efter varje navigering. Tar du bort den
   missar selektorerna konsekvent.
-- **Texter dubbleras av flikfältet.** "Ansökningar" och "Publicera" finns både som flik och
-  som rubrik/knapp. Använd `clicklast` för flikar, `click` för innehåll.
+- **Texter dubbleras av flikfältet OCH av skärmrubriken.** "Ansökningar" och "Publicera"
+  finns både som flik och som rubrik/knapp, och "Publicera jobb" är både sidrubrik och
+  knapp – där träffar `click` rubriken, som inte gör något. Prova `clicklast` när ett klick
+  ser ut att lyckas men ingenting händer.
+- **Publicera-fliken monterar båda formulären samtidigt** och döljer det ena med CSS.
+  Drivern filtrerar därför på `visible=true` i `click`/`clicklast`/`fill`; skriver du egna
+  Playwright-skript måste du göra samma sak, annars får du "strict mode violation".
+- **Datum- och tidfälten är `<input type=date|time>` på webb** (se `Platform.OS === 'web'`-
+  grenen i `DatumVäljare`/`TidVäljare`). De har ingen placeholder – använd `fillsel`.
+  Formatet är `YYYY-MM-DD` respektive `HH:MM`, samma som appen lagrar internt.
+- **Betygspopupen kan blockera klick.** Har kontot ett avslutat men obetygsatt uppdrag
+  lägger sig modalen över allt vid inloggning. Kör `click Hoppa över` först.
 - **Port 8082, inte 8081.** Metro tar 8081 om en annan Expo-instans redan kör.
 - **Rätt placeholder spelar roll.** Kör `text` först och läs av vad som faktiskt står –
   timlönefältet säger t.ex. `t.ex. 160`, inte `t.ex. 150`.
