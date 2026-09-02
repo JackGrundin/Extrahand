@@ -47,6 +47,18 @@ export function harInternetanslutning() {
   return harAnslutning;
 }
 
+// Prenumeranter som vill veta när en autentiserad request avvisats (401 med token) –
+// alltså när sessionen är död: token saknas, är ogiltig eller har gått ut. AuthContext
+// hakar på här och loggar ut, så användaren skickas till inloggning i stället för att
+// fastna på en trasig skärm. Klienten känner inte till React och kan användas likadant
+// utanför komponentträdet (samma mönster som anslutningsLyssnare ovan).
+const authFelLyssnare = new Set();
+
+export function lyssnaPåAuthFel(lyssnare) {
+  authFelLyssnare.add(lyssnare);
+  return () => authFelLyssnare.delete(lyssnare);
+}
+
 function nätverksfel(meddelande) {
   const err = new Error(meddelande);
   err.kod = INGEN_ANSLUTNING;
@@ -109,7 +121,20 @@ async function anrop(metod, sökväg, kropp) {
 
   if (!svar.ok) {
     const err = new Error((data && data.fel) || `Något gick fel (${svar.status})`);
+    err.status = svar.status;
     if (data && data.kod) err.kod = data.kod;
+
+    // 401 på ett SKYDDAT anrop = sessionen är död (token saknas, är ogiltig eller har gått
+    // ut). Signalera lyssnarna så AuthContext kan logga ut. Vi villkorar på SÖKVÄGEN, inte
+    // på att token finns: den reella buggen var just att token SAKNADES i lagringen, och då
+    // skickas inget Authorization-huvud – en guard på token hade missat exakt det fallet.
+    // /auth/* utesluts i stället: ett felaktigt lösenord ger också 401 men sker under
+    // inloggningen, där ingen session finns att logga ut från och skärmen visar sitt eget
+    // fel. 403 rör vi aldrig – det är ett behörighetsnekande där användaren ska förbli
+    // inloggad.
+    if (svar.status === 401 && !sökväg.startsWith('/auth/')) {
+      for (const lyssnare of authFelLyssnare) lyssnare();
+    }
     throw err;
   }
 

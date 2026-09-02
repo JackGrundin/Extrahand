@@ -15,7 +15,11 @@ function kräverInloggning(req, res, next) {
     req.användare = avkodad;
     next();
   } catch {
-    res.status(403).json({ fel: 'Ogiltig eller utgången token' });
+    // 401 (inte 403): en ogiltig eller utgången token betyder att användaren inte är
+    // autentiserad – samma klass som "ingen token". Klienten loggar ut och skickar till
+    // inloggning på just 401 med token. 403 reserveras för behörighetsnekanden (fel roll,
+    // annans resurs) där användaren ska förbli inloggad.
+    res.status(401).json({ fel: 'Ogiltig eller utgången token' });
   }
 }
 

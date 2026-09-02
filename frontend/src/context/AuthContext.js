@@ -2,7 +2,7 @@ import { createContext, useContext, useEffect, useState } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Notifications from 'expo-notifications';
 import * as Location from 'expo-location';
-import { api } from '../api/klient';
+import { api, lyssnaPåAuthFel } from '../api/klient';
 
 const AuthContext = createContext(null);
 
@@ -21,13 +21,22 @@ export function AuthProvider({ children }) {
           if (profil?.typ === 'privatperson') begärOchSparaStad();
         }
       } catch {
-        await AsyncStorage.removeItem('token');
+        // Ta INTE bort token här. Ett tillfälligt nätverks- eller serverfel vid uppstart
+        // (telefonen precis vaknat, en 500-blip) förr raderade en fullt giltig token och
+        // loggade ut användaren i onödan. Är token däremot ogiltig/utgången svarar backend
+        // 401, och då sköter auth-fel-lyssnaren nedan utloggningen centralt.
       } finally {
         setLaddar(false);
       }
     }
     kontrolleraToken();
   }, []);
+
+  // Central återhämtning: när ett autentiserat anrop avvisas med 401 (token saknas,
+  // ogiltig eller utgången) loggar vi ut. loggaUt nollar token och sätter användare till
+  // null, vilket får rot-navigatorn att byta till inloggningsskärmen – i stället för att
+  // användaren fastnar på en trasig skärm med tysta console-fel.
+  useEffect(() => lyssnaPåAuthFel(() => { loggaUt(); }), []);
 
   async function registreraPushToken() {
     try {

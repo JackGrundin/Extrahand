@@ -122,6 +122,12 @@ const kommandon = {
     const antal = /^\d+$/.test(sista ?? '') ? Number(a.pop()) : 500;
     console.log(await hämtaText(a.join(' ') || null, antal));
   },
+  // Kör godtycklig JS i sidkontexten och skriver ut returvärdet. Främst för att inspektera
+  // och manipulera AsyncStorage (localStorage på webb) – t.ex. simulera en död session
+  // genom att nolla eller förvanska token.
+  //   eval localStorage.getItem('token')
+  //   eval localStorage.setItem('token','ogiltig')
+  eval: async a => { console.log('EVAL:', JSON.stringify(await sida.evaluate(a.join(' ')))); },
   ss: async a => { await sida.screenshot({ path: `${SKOTT}/${a[0] ?? 'skott'}.png` }); },
   ssfull: async a => { await sida.screenshot({ path: `${SKOTT}/${a[0] ?? 'skott'}.png`, fullPage: true }); },
   wait: async a => { await sida.waitForTimeout(Number(a[0] ?? 1000)); },
