@@ -1,6 +1,6 @@
 const express = require('express');
 const { kräverInloggning, kräverTyp } = require('../middleware/auth');
-const { skapaAnsökan, uppdateraIntygande, hämtaAnsökningarFörSökande, hämtaAnsökningarFörJobb, finnsDubblettAnsökan, uppdateraStatus, hämtaAnsökanViaId, avvisaAllaUtomEn, återställAllaFörJobb, hämtaAllaKonversationerFörFöretag, ångraAnsökan, hämtaAnsökanMedJobbInfo, hämtaKonversationMellan, hämtaGrupperadeKonversationer, hämtaGodkändaFörJobb } = require('../db/ansokningar');
+const { skapaAnsökan, uppdateraIntygande, hämtaAnsökningarFörSökande, hämtaAnsökningarFörJobb, finnsDubblettAnsökan, uppdateraStatus, sättFavorit, hämtaAnsökanViaId, avvisaAllaUtomEn, återställAllaFörJobb, hämtaAllaKonversationerFörFöretag, ångraAnsökan, hämtaAnsökanMedJobbInfo, hämtaKonversationMellan, hämtaGrupperadeKonversationer, hämtaGodkändaFörJobb } = require('../db/ansokningar');
 const { hämtaPushToken, hämtaAnvändareViaId } = require('../db/användare');
 const { hämtaJobbViaId, sättJobbPåslag } = require('../db/jobb');
 const { hämtaPrenumeration, gällandePåslag, ökaPassDennaManad, minskaPassDennaManad } = require('../db/prenumeration');
@@ -290,6 +290,28 @@ router.patch('/:id/status', kräverInloggning, kräverTyp('företag'), async (re
     }
   } catch (fel) {
     console.error('Status fel:', fel);
+    res.status(500).json({ fel: 'Serverfel' });
+  }
+});
+
+// PATCH /api/ansokningar/:id/favorit — företaget stjärnmarkerar en ansökan så att
+// kortet fästs överst i ansökningslistan. Äganderättskontroll som /:id/status: bara
+// företaget som äger jobbet får ändra.
+router.patch('/:id/favorit', kräverInloggning, kräverTyp('företag'), async (req, res) => {
+  const favorit = req.body?.favorit === true;
+  try {
+    const ansökan = await hämtaAnsökanViaId(req.params.id);
+    if (!ansökan) return res.status(404).json({ fel: 'Ansökan hittades inte' });
+
+    const jobb = await hämtaJobbViaId(ansökan.jobb_id);
+    if ((jobb?.Foretag_id ?? jobb?.foretag_id) !== req.användare.id) {
+      return res.status(403).json({ fel: 'Åtkomst nekad' });
+    }
+
+    await sättFavorit(req.params.id, favorit);
+    res.json({ ok: true, favorit });
+  } catch (fel) {
+    console.error('Favorit fel:', fel);
     res.status(500).json({ fel: 'Serverfel' });
   }
 });

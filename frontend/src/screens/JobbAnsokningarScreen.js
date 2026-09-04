@@ -1,8 +1,9 @@
 import { useCallback, useState } from 'react';
 import { View, Text, FlatList, TouchableOpacity, StyleSheet, ActivityIndicator, RefreshControl, Alert } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
+import { Ionicons } from '@expo/vector-icons';
 import { api } from '../api/klient';
-import { harStartat, planeradeTimmar } from '../utils/datumHelper';
+import { harStartat, planeradeTimmar, parsaArbetstider } from '../utils/datumHelper';
 import { ansökanStatusVisning } from '../utils/konstanter';
 import AvslutaPassModal from '../components/AvslutaPassModal';
 import HandlingsKnapp from '../components/HandlingsKnapp';
@@ -129,8 +130,37 @@ export default function JobbAnsokningarScreen({ route, navigation }) {
   useRealtidsPing(() => { hämta(); });
 
   function öppnaAvsluta(ansokningId) {
-    setValtAnsokningId(ansokningId);
-    setModalSynlig(true);
+    // Ett jobb = en tidrapport som täcker ALLA dagar i passet. Antalet dagar i
+    // arbetstider är alltså antalet pass som avslutas – varna företaget explicit så
+    // att ingen tror att bara ett av flera pass avslutas.
+    const antal = parsaArbetstider(jobb?.arbetstider)?.length ?? jobb?.antal_dagar ?? 1;
+    const text = antal > 1
+      ? `Du är på väg att avsluta alla ${antal} pass för detta uppdrag. Är du säker?`
+      : 'Du är på väg att avsluta passet. Är du säker?';
+    Alert.alert('Avsluta pass', text, [
+      { text: 'Avbryt', style: 'cancel' },
+      {
+        text: 'Ja, avsluta',
+        onPress: () => {
+          setValtAnsokningId(ansokningId);
+          setModalSynlig(true);
+        },
+      },
+    ]);
+  }
+
+  // Optimistisk favoritväxling: uppdatera kortet direkt och spara i databasen. Vid fel
+  // rullas värdet tillbaka. favorit kommer från servern vid nästa hämta(), så det överlever
+  // omladdning och följer med över enheter.
+  async function växlaFavorit(item) {
+    const nyttVärde = !item.favorit;
+    setAnsökningar(prev => prev.map(a => (a.id === item.id ? { ...a, favorit: nyttVärde } : a)));
+    try {
+      await api.växlaFavoritAnsökan(item.id, nyttVärde);
+    } catch (fel) {
+      setAnsökningar(prev => prev.map(a => (a.id === item.id ? { ...a, favorit: item.favorit } : a)));
+      Alert.alert('Fel', fel.message);
+    }
   }
 
   async function skickaRapport({ timmar, ob_tillagg }) {
@@ -154,7 +184,11 @@ export default function JobbAnsokningarScreen({ route, navigation }) {
   if (laddar) return <ActivityIndicator style={{ flex: 1 }} size="large" />;
 
   const timlön = jobb?.Lon ?? 0;
-  const aktivaAnsökningar = ansökningar.filter(a => !avslutadeIds.has(a.id));
+  // Favoriter fästs överst. Listan är redan ordnad created_at desc från servern och
+  // Array.sort är stabil, så inbördes ordning bevaras inom varje grupp.
+  const aktivaAnsökningar = ansökningar
+    .filter(a => !avslutadeIds.has(a.id))
+    .sort((a, b) => (b.favorit ? 1 : 0) - (a.favorit ? 1 : 0));
 
   return (
     <>
@@ -178,6 +212,18 @@ export default function JobbAnsokningarScreen({ route, navigation }) {
                 <Text style={styles.datum}>{new Date(item.created_at).toLocaleDateString('sv-SE')}</Text>
                 <IntygandeRad ansökan={item} style={{ marginTop: 4 }} />
               </View>
+              {/* Egen träffyta så att stjärnan inte utlöser kortets navigering till profilen. */}
+              <TouchableOpacity
+                onPress={() => växlaFavorit(item)}
+                hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+                style={styles.favoritKnapp}
+              >
+                <Ionicons
+                  name={item.favorit ? 'star' : 'star-outline'}
+                  size={24}
+                  color={item.favorit ? '#f59e0b' : '#9ca3af'}
+                />
+              </TouchableOpacity>
             </View>
             {item.meddelande ? (
               <Text style={styles.meddelande} numberOfLines={3}>{item.meddelande}</Text>
@@ -213,6 +259,7 @@ const styles = StyleSheet.create({
   avatar: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#eff6ff', justifyContent: 'center', alignItems: 'center', marginRight: 12 },
   avatarText: { color: '#2563eb', fontWeight: '700', fontSize: 16 },
   info: { flex: 1 },
+  favoritKnapp: { paddingLeft: 8, alignSelf: 'flex-start' },
   sökandeTitel: { fontSize: 15, fontWeight: '600', color: '#1a1a1a' },
   datum: { fontSize: 13, color: '#999', marginTop: 2 },
   meddelande: { fontSize: 14, color: '#555', lineHeight: 20, marginBottom: 10 },

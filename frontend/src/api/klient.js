@@ -192,6 +192,7 @@ export const api = {
   uppdateraStad: (stad) => anrop('PUT', '/users/stad', { stad }),
   laddaUppProfilBild: (bild) => anrop('POST', '/users/profil-bild', { bild }),
   uppdateraStatus: (ansokningId, status) => anrop('PATCH', `/ansokningar/${ansokningId}/status`, { status }),
+  växlaFavoritAnsökan: (ansokningId, favorit) => anrop('PATCH', `/ansokningar/${ansokningId}/favorit`, { favorit }),
 
   // Push-notifikationer
   sparaPushToken: (token) => anrop('PUT', '/users/push-token', { token }),

@@ -208,6 +208,16 @@ async function uppdateraStatus(id, status) {
   if (error) throw error;
 }
 
+// Företagets favoritmarkering av en ansökan. Rör bara företagets egen vy (sorterar
+// kortet överst) – ingen påverkan på status, påslag eller räknare.
+async function sättFavorit(id, favorit) {
+  const { error } = await supabase
+    .from('ansokningar')
+    .update({ favorit })
+    .eq('id', id);
+  if (error) throw error;
+}
+
 // Stämplar ansökningar som avhoppade. Statusen är fortfarande 'avvisad' – kolumnen är bara
 // det som skiljer "jag lämnade uppdraget" från "företaget nekade mig" i UI:t.
 //
@@ -575,4 +585,4 @@ async function hämtaPågåendePassFörPåminnelse() {
     .filter(p => p.foretagId != null && p.arbetstider != null);
 }
 
-module.exports = { skapaAnsökan, uppdateraIntygande, hämtaAnsökningarFörSökande, hämtaAnsökningarFörJobb, finnsDubblettAnsökan, hämtaTotalTimmar, uppdateraStatus, markeraAvhopp, avvisaVäntandeAnsökningar, hämtaAnsökanViaId, avvisaAllaUtomEn, återställAllaFörJobb, hämtaAllaKonversationerFörFöretag, hämtaGodkändaFörJobb, hämtaGodkändaFörFleraJobb, hämtaNamnFörAnvändare, ångraAnsökan, hämtaAnsökanMedJobbInfo, hämtaKonversationMellan, hämtaGrupperadeKonversationer, hämtaPågåendePassFörPåminnelse };
+module.exports = { skapaAnsökan, uppdateraIntygande, hämtaAnsökningarFörSökande, hämtaAnsökningarFörJobb, finnsDubblettAnsökan, hämtaTotalTimmar, uppdateraStatus, sättFavorit, markeraAvhopp, avvisaVäntandeAnsökningar, hämtaAnsökanViaId, avvisaAllaUtomEn, återställAllaFörJobb, hämtaAllaKonversationerFörFöretag, hämtaGodkändaFörJobb, hämtaGodkändaFörFleraJobb, hämtaNamnFörAnvändare, ångraAnsökan, hämtaAnsökanMedJobbInfo, hämtaKonversationMellan, hämtaGrupperadeKonversationer, hämtaPågåendePassFörPåminnelse };
