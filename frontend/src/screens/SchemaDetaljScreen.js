@@ -1,6 +1,7 @@
 import { useCallback, useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Alert, ScrollView, ActivityIndicator, TextInput, Modal, Linking, Platform, RefreshControl } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, Alert, ScrollView, ActivityIndicator, TextInput, Modal, Linking, Platform, RefreshControl, KeyboardAvoidingView } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
+import { useHeaderHeight } from '@react-navigation/elements';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../context/AuthContext';
 import { useRealtidsPing } from '../context/RealtidsContext';
@@ -32,6 +33,9 @@ export default function SchemaDetaljScreen({ route, navigation }) {
   const [ikryssade, setIkryssade] = useState(() => new Set());
   const [avtalsModalSynlig, setAvtalsModalSynlig] = useState(false);
   const { uppdateraAttAvsluta } = useAttAvsluta();
+  // Höjden på navigationsrubriken – KeyboardAvoidingView behöver den som offset,
+  // annars räknar iOS fel och lämnar en lucka eller låter tangentbordet ligga kvar över fältet.
+  const rubrikHöjd = useHeaderHeight();
 
   const ärFöretag = användare?.typ === 'företag';
   // Företaget öppnar schemat för att se sökande, den godkända personen för att se sina pass.
@@ -250,8 +254,14 @@ export default function SchemaDetaljScreen({ route, navigation }) {
 
   return (
     <>
+      <KeyboardAvoidingView
+        style={styles.kavContainer}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={rubrikHöjd}
+      >
       <ScrollView
         style={styles.container}
+        keyboardShouldPersistTaps="handled"
         refreshControl={<RefreshControl refreshing={uppdaterar} onRefresh={() => { setUppdaterar(true); hämta(); }} />}
       >
         {schema.foretagNamn && <Text style={styles.foretagNamn}>{schema.foretagNamn}</Text>}
@@ -577,6 +587,7 @@ export default function SchemaDetaljScreen({ route, navigation }) {
 
         <View style={{ height: 40 }} />
       </ScrollView>
+      </KeyboardAvoidingView>
 
       <Modal visible={avtalsModalSynlig} transparent animationType="fade" onRequestClose={() => setAvtalsModalSynlig(false)}>
         <View style={styles.modalBakgrund}>
@@ -596,6 +607,7 @@ export default function SchemaDetaljScreen({ route, navigation }) {
 }
 
 const styles = StyleSheet.create({
+  kavContainer: { flex: 1 },
   container: { flex: 1, backgroundColor: '#fff', padding: 20 },
   foretagNamn: { fontSize: 15, color: '#2563eb', fontWeight: '600', marginBottom: 4 },
   titel: { fontSize: 24, fontWeight: 'bold', color: '#1a1a1a', marginBottom: 6 },

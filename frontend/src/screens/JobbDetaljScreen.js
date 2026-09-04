@@ -1,6 +1,7 @@
 import { useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Alert, ScrollView, ActivityIndicator, TextInput, Modal, Linking, Platform } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, Alert, ScrollView, ActivityIndicator, TextInput, Modal, Linking, Platform, KeyboardAvoidingView } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useHeaderHeight } from '@react-navigation/elements';
 import { useAuth } from '../context/AuthContext';
 import { api } from '../api/klient';
 import { parsaArbetstider, formatDagDatum, parsaObTillagg, beräknaObBelopp } from '../utils/datumHelper';
@@ -18,6 +19,9 @@ export default function JobbDetaljScreen({ route, navigation }) {
   const [avtalsModalSynlig, setAvtalsModalSynlig] = useState(false);
   const [ikryssade, setIkryssade] = useState(() => new Set());
   const påslag = useJobbPåslag(jobb.paslag, användare?.typ === 'företag');
+  // Höjden på navigationsrubriken – KeyboardAvoidingView behöver den som offset,
+  // annars räknar iOS fel och lämnar en lucka eller låter tangentbordet ligga kvar över fältet.
+  const rubrikHöjd = useHeaderHeight();
 
   const krav = normaliseraKrav(jobb.behorighets_krav);
   const kanIntyga = användare?.typ === 'privatperson' && !sökt;
@@ -55,7 +59,12 @@ export default function JobbDetaljScreen({ route, navigation }) {
 
   return (
     <>
-    <ScrollView style={styles.container}>
+    <KeyboardAvoidingView
+      style={styles.kavContainer}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      keyboardVerticalOffset={rubrikHöjd}
+    >
+    <ScrollView style={styles.container} keyboardShouldPersistTaps="handled" contentContainerStyle={styles.scrollInnehåll}>
       {jobb.foretagNamn && <Text style={styles.foretagNamn}>{jobb.foretagNamn}</Text>}
       <Text style={styles.titel}>{jobb.Titel}</Text>
       <Text style={styles.info}>{jobb.Plats} · {jobb.Typ}</Text>
@@ -215,6 +224,7 @@ export default function JobbDetaljScreen({ route, navigation }) {
         </>
       )}
     </ScrollView>
+    </KeyboardAvoidingView>
 
       <Modal visible={avtalsModalSynlig} transparent animationType="fade" onRequestClose={() => setAvtalsModalSynlig(false)}>
         <View style={styles.modalBakgrund}>
@@ -234,7 +244,9 @@ export default function JobbDetaljScreen({ route, navigation }) {
 }
 
 const styles = StyleSheet.create({
+  kavContainer: { flex: 1 },
   container: { flex: 1, backgroundColor: '#fff', padding: 20 },
+  scrollInnehåll: { paddingBottom: 24 },
   foretagNamn: { fontSize: 15, color: '#2563eb', fontWeight: '600', marginBottom: 4 },
   titel: { fontSize: 24, fontWeight: 'bold', color: '#1a1a1a', marginBottom: 6 },
   info: { fontSize: 15, color: '#666', marginBottom: 4 },
