@@ -202,7 +202,7 @@ function RapporterNavigator() {
 }
 
 function HuvudNavigator() {
-  const { användare } = useAuth();
+  const { användare, återhämtaAnvändare } = useAuth();
   const { uppdateraOlästa } = useNotifikationer();
   const { antalAttAvsluta, antalNyaAnsökningar, uppdateraAttAvsluta } = useAttAvsluta();
   const ärPrivatperson = användare?.typ === 'privatperson';
@@ -232,9 +232,13 @@ function HuvudNavigator() {
 
   // Äkta realtid: en signal (utan innehåll) på användarens privata kanal räknar om olästa
   // (och pass-att-avsluta för företag) direkt när något nytt skapats i databasen.
-  useRealtidsPing(() => {
+  useRealtidsPing((payload) => {
     laddaOlästa();
     if (ärFöretag) uppdateraAttAvsluta();
+    // Admin har godkänt avtalet: hämta om profilen så att avtalGodkant blir true
+    // och "Avtal krävs"-spärren släpper direkt, utan omstart. Bara denna typ
+    // triggar en profilhämtning – vanliga pings (meddelande, tidrapport) ska inte.
+    if (payload?.typ === 'avtal') återhämtaAnvändare();
   });
 
   // Fallback vid förgrund: om realtidskopplingen tappats medan appen legat i bakgrunden
@@ -244,9 +248,12 @@ function HuvudNavigator() {
       if (status !== 'active') return;
       laddaOlästa();
       if (ärFöretag) uppdateraAttAvsluta();
+      // Täcker fallet att admin godkände avtalet medan appen låg i bakgrunden och
+      // realtidspingen missades: hämta om profilen när appen väcks.
+      if (ärPrivatperson) återhämtaAnvändare();
     });
     return () => prenumeration.remove();
-  }, [laddaOlästa, ärFöretag, uppdateraAttAvsluta]);
+  }, [laddaOlästa, ärFöretag, ärPrivatperson, uppdateraAttAvsluta, återhämtaAnvändare]);
 
   // Kolla om välkomstrutan ska visas (flagga sätts vid e-postverifiering)
   useEffect(() => {

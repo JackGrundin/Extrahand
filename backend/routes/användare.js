@@ -7,6 +7,7 @@ const { hämtaTotalTimmar, avvisaVäntandeAnsökningar } = require('../db/ansokn
 const { ärPro } = require('../db/prenumeration');
 const { skickaNotifikation } = require('../utils/pushNotifikation');
 const { hämtaJobbFörFöretag } = require('../db/jobb');
+const { sändRealtidsPing } = require('../realtid');
 
 const router = express.Router();
 
@@ -250,6 +251,10 @@ router.patch('/admin/:id/avtal', kräverInloggning, async (req, res) => {
   if (req.användare.email !== ADMIN_EMAIL) return res.status(403).json({ fel: 'Åtkomst nekad' });
   try {
     await godkännAvtal(req.params.id);
+    // Signalera privatpersonen i realtid så att ansökningsspärren släpper direkt,
+    // utan att appen behöver startas om. Ingen await – ett broadcast-fel loggas
+    // internt och ska aldrig fälla själva godkännandet.
+    sändRealtidsPing(req.params.id, 'avtal');
     res.json({ ok: true });
   } catch (fel) {
     console.error('Avtalsgodkännande fel:', fel);

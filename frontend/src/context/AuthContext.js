@@ -105,8 +105,22 @@ export function AuthProvider({ children }) {
     setAnvändare(null);
   }
 
+  // Hämtar om inloggad användare från servern och ersätter den lokala kopian.
+  // Används när något ändrats på profilen utanför appen (t.ex. admin godkänner
+  // avtalet), så att en realtidssignal kan uppdatera avtalGodkant direkt. Fel
+  // sväljs medvetet – precis som i kontrolleraToken får ett tillfälligt nät-/
+  // serverfel aldrig nolla en giltig session.
+  async function återhämtaAnvändare() {
+    try {
+      const profil = await api.hämtaProfil();
+      setAnvändare(profil);
+    } catch {
+      // Behåll nuvarande användare vid tillfälligt fel.
+    }
+  }
+
   return (
-    <AuthContext.Provider value={{ användare, laddar, loggaIn, registrera, loggaUt, sättAnvändare: setAnvändare }}>
+    <AuthContext.Provider value={{ användare, laddar, loggaIn, registrera, loggaUt, sättAnvändare: setAnvändare, återhämtaAnvändare }}>
       {children}
     </AuthContext.Provider>
   );
