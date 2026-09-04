@@ -43,7 +43,12 @@ async function skapaJobbBatch(rader) {
   return skapade;
 }
 
-async function filtreraAktivaJobb(jobb) {
+// visaTillsatta: i företagets EGEN aktiva-lista ska ett tillsatt men ännu inte genomfört
+// pass ligga kvar, annars blir det osynligt i glappet mellan att någon godkänts och att
+// datumet passerat (då det dyker upp igen via hämtaTidigareJobbFörFöretag som "Behöver
+// avslutas"). I den publika/sökbara listan ska tillsatta pass fortsatt döljas – man kan
+// inte söka ett upptaget pass – så flaggan är false som standard.
+async function filtreraAktivaJobb(jobb, { visaTillsatta = false } = {}) {
   if (!jobb.length) return [];
 
   const jobbIds = jobb.map(j => j.id);
@@ -65,10 +70,14 @@ async function filtreraAktivaJobb(jobb) {
 
   // Ett jobb ska försvinna från listan så snart en ansökan blivit godkänd – då är
   // passet tillsatt och ska inte längre gå att söka. Vi tar även med jobb vars
-  // tidrapport godkänts (avslutade pass) för bakåtkompatibilitet.
-  const godkändaJobbIds = new Set();
-  for (const a of (ansokningar || [])) {
-    if (a.status === 'godkänd') godkändaJobbIds.add(a.jobb_id);
+  // tidrapport godkänts (avslutade pass) för bakåtkompatibilitet. Undantag: i ägarens
+  // egen lista (visaTillsatta) döljs INTE ett pass bara för att det är tillsatt – bara
+  // avslutade pass (godkänd tidrapport) döljs där, resten sköts av datumfiltret nedan.
+  const döljJobbIds = new Set();
+  if (!visaTillsatta) {
+    for (const a of (ansokningar || [])) {
+      if (a.status === 'godkänd') döljJobbIds.add(a.jobb_id);
+    }
   }
 
   const ansokningsIds = (ansokningar || []).map(a => a.id);
@@ -81,7 +90,7 @@ async function filtreraAktivaJobb(jobb) {
 
     const godkändaAnsokIds = new Set((godkändaRapporter || []).map(r => r.ansokan_id));
     for (const a of (ansokningar || [])) {
-      if (godkändaAnsokIds.has(a.id)) godkändaJobbIds.add(a.jobb_id);
+      if (godkändaAnsokIds.has(a.id)) döljJobbIds.add(a.jobb_id);
     }
   }
 
@@ -89,7 +98,7 @@ async function filtreraAktivaJobb(jobb) {
   idag.setHours(0, 0, 0, 0);
 
   const aktiva = jobb.filter(j => {
-    if (godkändaJobbIds.has(j.id)) return false;
+    if (döljJobbIds.has(j.id)) return false;
 
     const schema = Array.isArray(j.arbetstider)
       ? j.arbetstider
@@ -183,7 +192,7 @@ async function hämtaJobbViaId(id) {
 // Företagets egna annonser. Schemajobb filtreras bort – de visas i Scheman-fliken.
 // Anropas även av routes/användare.js för företagets publika profil, så filtret måste
 // sitta här och inte i routen.
-async function hämtaJobbFörFöretag(foretag_id, { endastAktiva = false } = {}) {
+async function hämtaJobbFörFöretag(foretag_id, { endastAktiva = false, visaTillsatta = false } = {}) {
   const { data, error } = await supabase
     .from('Jobb')
     .select('*')
@@ -193,7 +202,9 @@ async function hämtaJobbFörFöretag(foretag_id, { endastAktiva = false } = {})
 
   if (error) throw error;
   if (!data || !data.length) return [];
-  if (endastAktiva) return filtreraAktivaJobb(data);
+  // visaTillsatta skickas bara för företagets EGEN lista (/jobb/mina). Den publika
+  // profilen (routes/användare.js) lämnar den false, så tillsatta pass syns inte där.
+  if (endastAktiva) return filtreraAktivaJobb(data, { visaTillsatta });
   return data;
 }
 

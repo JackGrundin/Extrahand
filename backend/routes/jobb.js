@@ -46,7 +46,9 @@ router.get('/', async (req, res) => {
 // GET /api/jobb/mina — hämtar inloggat företags egna jobb
 router.get('/mina', kräverInloggning, kräverTyp('företag'), async (req, res) => {
   try {
-    const jobb = await hämtaJobbFörFöretag(req.användare.id, { endastAktiva: true });
+    // visaTillsatta: företaget ska se sina tillsatta men ännu inte genomförda pass i
+    // Aktiva – annars försvinner ett pass ur listan mellan godkännande och passdatum.
+    const jobb = await hämtaJobbFörFöretag(req.användare.id, { endastAktiva: true, visaTillsatta: true });
     res.json(jobb);
   } catch (fel) {
     console.error('Fel vid hämtning av egna jobb:', fel);
