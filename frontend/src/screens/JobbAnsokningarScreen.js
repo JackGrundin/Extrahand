@@ -2,7 +2,7 @@ import { useCallback, useState } from 'react';
 import { View, Text, FlatList, TouchableOpacity, StyleSheet, ActivityIndicator, RefreshControl, Alert } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { api } from '../api/klient';
-import { harStartat } from '../utils/datumHelper';
+import { harStartat, planeradeTimmar } from '../utils/datumHelper';
 import { ansökanStatusVisning } from '../utils/konstanter';
 import AvslutaPassModal from '../components/AvslutaPassModal';
 import HandlingsKnapp from '../components/HandlingsKnapp';
@@ -198,6 +198,7 @@ export default function JobbAnsokningarScreen({ route, navigation }) {
         timlön={timlön}
         paslag={jobb?.paslag}
         initialObTillagg={jobb?.ob_tillagg}
+        planeradeTimmar={planeradeTimmar(jobb?.arbetstider)}
         sparar={sparar}
         onSkicka={skickaRapport}
       />

@@ -9,7 +9,7 @@ import TidVäljare from './TidVäljare';
 // Samma formulär och design används både från "Avsluta pass" och från chatten, så att en
 // korrigerad tidrapport ser ut och fungerar exakt som en vanlig tidrapport.
 // paslag är jobbets frysta påslag – utelämnat blir det 40 % (pass från före prenumerationerna).
-export default function AvslutaPassModal({ visible, onClose, timlön = 0, paslag, initialObTillagg = [], sparar = false, onSkicka, rubrik = 'Avsluta pass' }) {
+export default function AvslutaPassModal({ visible, onClose, timlön = 0, paslag, initialObTillagg = [], sparar = false, onSkicka, rubrik = 'Avsluta pass', planeradeTimmar = null }) {
   const [timmarText, setTimmarText] = useState('');
   const [editerbartOb, setEditerbartOb] = useState([]);
   const [obFormVisas, setObFormVisas] = useState(false);
@@ -64,6 +64,13 @@ export default function AvslutaPassModal({ visible, onClose, timlön = 0, paslag
               <View style={styles.timlönRad}>
                 <Text style={styles.timlönEtikett}>Timlön från annonsen</Text>
                 <Text style={styles.timlönVärde}>{timlön.toLocaleString('sv-SE')} kr/tim</Text>
+              </View>
+            )}
+
+            {planeradeTimmar > 0 && (
+              <View style={styles.planeradeRad}>
+                <Text style={styles.planeradeEtikett}>Planerade timmar</Text>
+                <Text style={styles.planeradeVärde}>{planeradeTimmar.toLocaleString('sv-SE')} h</Text>
               </View>
             )}
 
@@ -174,6 +181,9 @@ const styles = StyleSheet.create({
   timlönRad: { flexDirection: 'row', justifyContent: 'space-between', backgroundColor: '#f0fdf4', borderRadius: 10, padding: 12, marginBottom: 16 },
   timlönEtikett: { fontSize: 14, color: '#065f46' },
   timlönVärde: { fontSize: 14, fontWeight: '700', color: '#065f46' },
+  planeradeRad: { flexDirection: 'row', justifyContent: 'space-between', backgroundColor: '#eff6ff', borderRadius: 10, padding: 12, marginBottom: 16 },
+  planeradeEtikett: { fontSize: 14, color: '#1e40af' },
+  planeradeVärde: { fontSize: 14, fontWeight: '700', color: '#1e40af' },
   modalLabel: { fontSize: 14, fontWeight: '600', color: '#444', marginBottom: 8 },
   modalInput: { borderWidth: 1, borderColor: '#ddd', borderRadius: 10, padding: 14, fontSize: 18, backgroundColor: '#fafafa', marginBottom: 16, textAlign: 'center', letterSpacing: 0 },
   totalRad: { flexDirection: 'row', justifyContent: 'space-between', backgroundColor: '#eff6ff', borderRadius: 10, padding: 12, marginBottom: 20 },

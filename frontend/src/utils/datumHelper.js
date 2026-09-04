@@ -175,6 +175,29 @@ export function parsaObTillagg(ob) {
   try { return JSON.parse(ob); } catch { return []; }
 }
 
+// Summerar de planerade timmarna över alla dagar i ett arbetstider-schema. Ett pass vars
+// sluttid är <= starttid tolkas som över midnatt (+24h), samma regel som backendens
+// passTimmar/slutEpochFörPass i utils/tid.js. Returnerar null om inga giltiga tider finns
+// så att den som visar värdet kan dölja raden helt.
+export function planeradeTimmar(arbetstider) {
+  const schema = parsaArbetstider(arbetstider);
+  if (!schema || !schema.length) return null;
+  let minuter = 0;
+  let harGiltig = false;
+  for (const dag of schema) {
+    if (!dag?.start || !dag?.slut) continue;
+    const [startH = 0, startM = 0] = dag.start.split(':').map(Number);
+    const [slutH = 0, slutM = 0] = dag.slut.split(':').map(Number);
+    const start = startH * 60 + startM;
+    let slut = slutH * 60 + slutM;
+    if (slut <= start) slut += 24 * 60; // pass över midnatt
+    minuter += slut - start;
+    harGiltig = true;
+  }
+  if (!harGiltig) return null;
+  return Math.round((minuter / 60) * 100) / 100;
+}
+
 export function beräknaObBelopp(obTillagg, timlön) {
   if (!obTillagg || !obTillagg.length || !timlön) return 0;
   return obTillagg.reduce((sum, ob) => {
