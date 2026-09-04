@@ -11,7 +11,9 @@ import Navigation from './src/navigation';
 
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
-    shouldShowAlert: true,
+    // shouldShowAlert ersattes i SDK 57 av shouldShowBanner + shouldShowList.
+    shouldShowBanner: true,
+    shouldShowList: true,
     shouldPlaySound: true,
     shouldSetBadge: true,
   }),
