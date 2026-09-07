@@ -183,18 +183,36 @@ router.patch('/:id/status', kräverInloggning, kräverTyp('företag'), async (re
     return res.status(400).json({ fel: 'Ogiltigt status' });
   }
   try {
-    const ansökan = await hämtaAnsökanViaId(req.params.id);
+    // hämtaAnsökanViaId använder .single() och KASTAR när raden saknas – fånga det och svara
+    // 404 i stället för att låta det bubbla upp som ett 500 (samma mönster som /intyga).
+    let ansökan = null;
+    try {
+      ansökan = await hämtaAnsökanViaId(req.params.id);
+    } catch (uppslagsfel) {
+      // PGRST116 = noll rader, 22P02 = ogiltig uuid-syntax.
+      if (!['PGRST116', '22P02'].includes(uppslagsfel?.code)) throw uppslagsfel;
+    }
+    if (!ansökan) return res.status(404).json({ fel: 'Ansökan hittades inte' });
+
+    // Gäller ansökan ett helt schema? Schemats annons-jobb har schema_id men inget
+    // schema_pass_id. Hela påslags- och räknarlogiken nedan är oförändrad och gör redan
+    // rätt för ett schema: ett schema = ett pass mot gratisgränsen.
+    const jobb = await hämtaJobbViaId(ansökan.jobb_id);
+    if (!jobb) return res.status(404).json({ fel: 'Jobbet hittades inte' });
+
+    // Äganderättskontroll: bara företaget som äger jobbet får godkänna eller återkalla
+    // ansökningar på det. Utan den här kontrollen kunde vilket inloggat företag som helst
+    // ändra status på en annan firmas ansökningar (IDOR) – samma kontroll som /favorit gör.
+    if ((jobb.Foretag_id ?? jobb.foretag_id) !== req.användare.id) {
+      return res.status(403).json({ fel: 'Åtkomst nekad' });
+    }
 
     // Var passet redan tillsatt innan den här ändringen? Avgör om räknaren ska röras.
     // Ett jobb är ett pass och räknas en enda gång – byter företaget godkänd person på
     // ett redan tillsatt jobb är det inte ett nytt pass.
     const godkändaFöre = await hämtaGodkändaFörJobb(ansökan.jobb_id);
 
-    // Gäller ansökan ett helt schema? Schemats annons-jobb har schema_id men inget
-    // schema_pass_id. Hela påslags- och räknarlogiken nedan är oförändrad och gör redan
-    // rätt för ett schema: ett schema = ett pass mot gratisgränsen.
-    const jobb = await hämtaJobbViaId(ansökan.jobb_id);
-    const ärSchemaAnnons = !!(jobb?.schema_id && !jobb.schema_pass_id);
+    const ärSchemaAnnons = !!(jobb.schema_id && !jobb.schema_pass_id);
 
     // Berörda sökande (utöver den vars status ändras direkt) att signalera om
     let övrigaBerörda = [];

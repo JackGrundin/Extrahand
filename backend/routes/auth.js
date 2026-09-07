@@ -11,7 +11,7 @@ const {
   hämtaAnvändareViaÅterställningsToken,
   uppdateraLösenord,
 } = require('../db/användare');
-const { skickaVerifieringsMail, skickaÅterställningsMail, testaSmtp } = require('../utils/email');
+const { skickaVerifieringsMail, skickaÅterställningsMail } = require('../utils/email');
 const { valideraLösenord } = require('../utils/losenord');
 
 const router = express.Router();
@@ -280,14 +280,6 @@ router.post('/aterstall-losenord', async (req, res) => {
     console.error('Återställningsfel:', fel);
     res.status(500).json({ fel: 'Serverfel vid återställning av lösenord' });
   }
-});
-
-// GET /api/auth/test-smtp?email=din@email.com — diagnostik
-router.get('/test-smtp', async (req, res) => {
-  const { email } = req.query;
-  if (!email) return res.status(400).json({ fel: 'Ange ?email=din@email.com' });
-  const resultat = await testaSmtp(email);
-  res.json(resultat);
 });
 
 module.exports = router;

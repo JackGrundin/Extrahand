@@ -58,19 +58,4 @@ async function skickaÅterställningsMail(email, länk, giltigTimmar) {
   if (error) throw new Error(error.message);
 }
 
-async function testaSmtp(tillEmail) {
-  if (!process.env.RESEND_API_KEY) {
-    return { ok: false, fel: 'RESEND_API_KEY saknas i miljövariablerna.' };
-  }
-  const resend = skapaResend();
-  const { error } = await resend.emails.send({
-    from: process.env.EMAIL_FROM || 'FastGig <noreply@fastgig.se>',
-    to: tillEmail,
-    subject: 'E-posttest – FastGig',
-    text: 'Om du ser detta fungerar e-postkonfigurationen.',
-  });
-  if (error) return { ok: false, fel: error.message };
-  return { ok: true };
-}
-
-module.exports = { skickaVerifieringsMail, skickaÅterställningsMail, testaSmtp };
+module.exports = { skickaVerifieringsMail, skickaÅterställningsMail };
