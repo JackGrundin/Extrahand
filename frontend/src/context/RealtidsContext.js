@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useEffect, useRef } from 'react';
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef } from 'react';
 import { supabase } from '../api/supabase';
 import { useAuth } from './AuthContext';
 
@@ -60,8 +60,13 @@ export function RealtidsProvider({ children }) {
     return () => { supabase.removeChannel(kanal); };
   }, [användare?.typ]);
 
+  // registrera och registreraJobblista är useCallback-stabila, så det memoiserade
+  // värdet får en oföränderlig referens. Utan detta blev value ett nytt objekt vid varje
+  // render av providern och tvingade om onödiga renders hos alla useRealtidsPing-lyssnare.
+  const värde = useMemo(() => ({ registrera, registreraJobblista }), [registrera, registreraJobblista]);
+
   return (
-    <RealtidsContext.Provider value={{ registrera, registreraJobblista }}>
+    <RealtidsContext.Provider value={värde}>
       {children}
     </RealtidsContext.Provider>
   );

@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useState } from 'react';
+import { createContext, useCallback, useContext, useMemo, useState } from 'react';
 import { api } from '../api/klient';
 import { behöverAvslutas } from '../utils/datumHelper';
 
@@ -40,8 +40,16 @@ export function AttAvslutaProvider({ children }) {
     }
   }, []);
 
+  // Nytt värde bara när räknarna ändras. setAntalAttAvsluta (useState) och
+  // uppdateraAttAvsluta (useCallback) är stabila, så badge-consumers i navigatorn slipper
+  // rendera om vid varje providerrender.
+  const värde = useMemo(
+    () => ({ antalAttAvsluta, antalNyaAnsökningar, setAntalAttAvsluta, uppdateraAttAvsluta }),
+    [antalAttAvsluta, antalNyaAnsökningar, uppdateraAttAvsluta]
+  );
+
   return (
-    <AttAvslutaContext.Provider value={{ antalAttAvsluta, antalNyaAnsökningar, setAntalAttAvsluta, uppdateraAttAvsluta }}>
+    <AttAvslutaContext.Provider value={värde}>
       {children}
     </AttAvslutaContext.Provider>
   );

@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState } from 'react';
+import { createContext, useContext, useEffect, useMemo, useState } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Notifications from 'expo-notifications';
 import * as Location from 'expo-location';
@@ -119,8 +119,20 @@ export function AuthProvider({ children }) {
     }
   }
 
+  // Värdet byter referens bara när användare eller laddar ändras – alltså exakt när
+  // consumers faktiskt behöver rendera om. Handlarna (loggaIn, loggaUt m.fl.) sluter bara
+  // om stabila referenser (setAnvändare, api, AsyncStorage), så det är ofarligt att låta
+  // det memoiserade värdet behålla instanserna från förra deps-ändringen. Utan detta blev
+  // value ett nytt objekt vid varje providerrender och spred om onödiga renders i hela
+  // trädet, eftersom AuthProvider ligger i roten.
+  const värde = useMemo(
+    () => ({ användare, laddar, loggaIn, registrera, loggaUt, sättAnvändare: setAnvändare, återhämtaAnvändare }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [användare, laddar]
+  );
+
   return (
-    <AuthContext.Provider value={{ användare, laddar, loggaIn, registrera, loggaUt, sättAnvändare: setAnvändare, återhämtaAnvändare }}>
+    <AuthContext.Provider value={värde}>
       {children}
     </AuthContext.Provider>
   );

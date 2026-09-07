@@ -53,30 +53,29 @@ export default function MinaJobbScreen({ navigation, route }) {
   }
 
   async function hämta() {
-    try {
-      const jobbData = await api.minaJobb();
-      setJobb(jobbData);
-    } catch (fel) {
-      console.error('Jobb fel:', fel);
-    }
-    try {
-      const tidigareJobbData = await api.minaTidigareJobb();
-      setTidigareJobb(tidigareJobbData);
-    } catch (fel) {
-      console.error('Tidigare jobb fel:', fel);
-    }
-    try {
-      const rapporterData = await api.tidrapporterFörFöretag();
-      setTidigarePass(rapporterData);
-    } catch (fel) {
-      console.error('Tidrapporter fel:', fel);
-    }
-    try {
-      const schemaData = await api.minaScheman();
-      setScheman(schemaData);
-    } catch (fel) {
-      console.error('Scheman fel:', fel);
-    }
+    // De fyra anropen är oberoende av varandra. Tidigare kördes de i sekvens – fyra
+    // rundturer efter varandra – vilket gjorde skärmen onödigt seg att öppna. Kör dem
+    // parallellt med allSettled så att ett fel på ett anrop fortfarande inte fäller de
+    // övriga (samma isolering som de separata try/catch-blocken gav).
+    const [jobbRes, tidigareRes, rapporterRes, schemaRes] = await Promise.allSettled([
+      api.minaJobb(),
+      api.minaTidigareJobb(),
+      api.tidrapporterFörFöretag(),
+      api.minaScheman(),
+    ]);
+
+    if (jobbRes.status === 'fulfilled') setJobb(jobbRes.value);
+    else console.error('Jobb fel:', jobbRes.reason);
+
+    if (tidigareRes.status === 'fulfilled') setTidigareJobb(tidigareRes.value);
+    else console.error('Tidigare jobb fel:', tidigareRes.reason);
+
+    if (rapporterRes.status === 'fulfilled') setTidigarePass(rapporterRes.value);
+    else console.error('Tidrapporter fel:', rapporterRes.reason);
+
+    if (schemaRes.status === 'fulfilled') setScheman(schemaRes.value);
+    else console.error('Scheman fel:', schemaRes.reason);
+
     setLaddar(false);
     setUppdaterar(false);
   }

@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useState } from 'react';
+import { createContext, useCallback, useContext, useMemo, useState } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // v2: konversationer grupperas numera per motpart (användar-id) istället för per
@@ -62,8 +62,16 @@ export function NotifikationsProvider({ children }) {
     });
   }, []);
 
+  // Nytt värde bara när de olästa faktiskt ändras – callbacks är useCallback-stabila.
+  // Annars fick chattbadge, chattlista m.fl. consumers en ny objektreferens vid varje
+  // providerrender och renderades om i onödan.
+  const värde = useMemo(
+    () => ({ totalOlästa, olästaIds, uppdateraOlästa, markeraLäst }),
+    [totalOlästa, olästaIds, uppdateraOlästa, markeraLäst]
+  );
+
   return (
-    <NotifikationsContext.Provider value={{ totalOlästa, olästaIds, uppdateraOlästa, markeraLäst }}>
+    <NotifikationsContext.Provider value={värde}>
       {children}
     </NotifikationsContext.Provider>
   );

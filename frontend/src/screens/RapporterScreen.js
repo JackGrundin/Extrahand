@@ -19,23 +19,31 @@ export default function RapporterScreen({ navigation }) {
 
   async function hämta() {
     setLaddar(true);
-    try {
-      const data = await api.allaRapporter('', '');
-      setRapporter(data);
-    } catch (fel) { console.error('Rapporter:', fel); }
-    try {
-      const data = await api.hämtaAllaPrivatpersoner();
-      setPrivatpersoner(data);
-    } catch (fel) { console.error('Privatpersoner:', fel); }
-    try {
-      const data = await api.hämtaAllaFöretag();
-      setFöretag(data);
-    } catch (fel) { console.error('Företag:', fel); }
-    try {
-      const data = await api.hämtaFaktureringsunderlag();
-      setFaktureringsunderlag(data);
+    // De fyra admin-anropen är oberoende – kör dem parallellt i stället för i sekvens.
+    // allSettled behåller den tidigare per-anrop-isoleringen: ett fel på ett anrop får
+    // inte hindra de andra listorna från att laddas.
+    const [rapporterRes, privatRes, företagRes, faktureringRes] = await Promise.allSettled([
+      api.allaRapporter('', ''),
+      api.hämtaAllaPrivatpersoner(),
+      api.hämtaAllaFöretag(),
+      api.hämtaFaktureringsunderlag(),
+    ]);
+
+    if (rapporterRes.status === 'fulfilled') setRapporter(rapporterRes.value);
+    else console.error('Rapporter:', rapporterRes.reason);
+
+    if (privatRes.status === 'fulfilled') setPrivatpersoner(privatRes.value);
+    else console.error('Privatpersoner:', privatRes.reason);
+
+    if (företagRes.status === 'fulfilled') setFöretag(företagRes.value);
+    else console.error('Företag:', företagRes.reason);
+
+    if (faktureringRes.status === 'fulfilled') {
+      setFaktureringsunderlag(faktureringRes.value);
       setFaktureringFel(null);
-    } catch (fel) { setFaktureringFel(fel.message); }
+    } else {
+      setFaktureringFel(faktureringRes.reason?.message ?? 'Kunde inte hämta faktureringsunderlag');
+    }
     setLaddar(false);
   }
 
