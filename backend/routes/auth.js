@@ -13,9 +13,9 @@ const {
 } = require('../db/användare');
 const { skickaVerifieringsMail, skickaÅterställningsMail } = require('../utils/email');
 const { valideraLösenord } = require('../utils/losenord');
+const { JWT_HEMLIG_NYCKEL } = require('../utils/jwt');
 
 const router = express.Router();
-const JWT_HEMLIG_NYCKEL = process.env.JWT_SECRET || 'hemlig-nyckel-byt-i-produktion';
 
 // Återställningslänken är giltig i en timme. Kort nog att en glömd, oläst länk i
 // inkorgen inte blir en permanent bakdörr in i kontot.

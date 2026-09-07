@@ -1,6 +1,5 @@
 const jwt = require('jsonwebtoken');
-
-const JWT_HEMLIG_NYCKEL = process.env.JWT_SECRET || 'hemlig-nyckel-byt-i-produktion';
+const { JWT_HEMLIG_NYCKEL } = require('../utils/jwt');
 
 function kräverInloggning(req, res, next) {
   const authHeader = req.headers['authorization'];
