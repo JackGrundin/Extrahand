@@ -314,7 +314,7 @@ export default function RapporterScreen({ navigation }) {
                 </View>
                 <View style={styles.detalj}>
                   <Text style={styles.detaljEtikett}>Fakturabelopp</Text>
-                  <Text style={[styles.detaljVärde, styles.totalText]}>{item.faktureringsbelopp?.toLocaleString('sv-SE')} kr</Text>
+                  <Text style={[styles.detaljVärde, styles.totalText]}>{Math.round(item.faktureringsbelopp ?? 0).toLocaleString('sv-SE')} kr</Text>
                 </View>
               </View>
               <View style={styles.fakturaMeta}>
