@@ -110,6 +110,8 @@ export default function RapporterScreen({ navigation }) {
   const totaltTimmar = rapporter.reduce((sum, r) => sum + (r.timmar ?? 0), 0);
   // Löneavdragen minskar vad personerna får ut, men inte vad företagen faktureras.
   const totaltAvdrag = rapporter.reduce((sum, r) => sum + (r.avdrag_belopp ?? 0), 0);
+  // Totalt belopp att fakturera – summan av alla ej fakturerade underlag.
+  const totaltFaktura = faktureringsunderlag.reduce((sum, f) => sum + (f.faktureringsbelopp ?? 0), 0);
 
   const filtreradeFöretag = sökFöretag.trim()
     ? företag.filter(f => f.Email?.toLowerCase().includes(sökFöretag.toLowerCase()))
@@ -220,10 +222,16 @@ export default function RapporterScreen({ navigation }) {
                   <View style={{ flex: 1 }}>
                     <Text style={styles.namn}>{item.anvandareNamn ?? '–'}</Text>
                     <Text style={styles.email}>{item.anvandareEmail ?? '–'}</Text>
-                    {item.anvardareTelefon ? <Text style={styles.telefon}>{item.anvardareTelefon}</Text> : null}
+                    {item.anvandareTelefon ? <Text style={styles.telefon}>{item.anvandareTelefon}</Text> : null}
                   </View>
                   <Text style={styles.datum}>{new Date(item.datum).toLocaleDateString('sv-SE')}</Text>
                 </View>
+                {(item.jobbTitel || item.ärSchemapass) && (
+                  <View style={styles.titelRad}>
+                    {item.jobbTitel ? <Text style={styles.jobbTitel} numberOfLines={1}>{item.jobbTitel}</Text> : <View style={{ flex: 1 }} />}
+                    {item.ärSchemapass && <Text style={styles.schemaBadge}>Schemapass</Text>}
+                  </View>
+                )}
                 <View style={styles.kortDetaljer}>
                   <View style={styles.detalj}>
                     <Text style={styles.detaljEtikett}>Timmar</Text>
@@ -267,12 +275,30 @@ export default function RapporterScreen({ navigation }) {
               ? <Text style={styles.felText}>Fel: {faktureringFel}</Text>
               : <Text style={styles.tom}>Inga ej fakturerade underlag</Text>
           }
+          ListFooterComponent={faktureringsunderlag.length > 0 ? (
+            <View style={styles.summering}>
+              <View style={styles.summeringRad}>
+                <Text style={styles.summeringEtikett}>Antal underlag</Text>
+                <Text style={styles.summeringVärde}>{faktureringsunderlag.length}</Text>
+              </View>
+              <View style={[styles.summeringRad, styles.totalRad]}>
+                <Text style={styles.totalEtikett}>Totalt att fakturera</Text>
+                <Text style={styles.totalVärde}>{Math.round(totaltFaktura).toLocaleString('sv-SE')} kr</Text>
+              </View>
+            </View>
+          ) : null}
           renderItem={({ item }) => (
             <View style={styles.kort}>
               <View style={styles.fakturaHuvud}>
                 <Text style={styles.namn}>{item.foretagsnamn ?? '–'}</Text>
                 <Text style={styles.fakturaDatum}>{item.datum ? new Date(item.datum).toLocaleDateString('sv-SE') : '–'}</Text>
               </View>
+              {(item.jobbTitel || item.ärSchemapass) && (
+                <View style={styles.titelRad}>
+                  {item.jobbTitel ? <Text style={styles.jobbTitel} numberOfLines={1}>{item.jobbTitel}</Text> : <View style={{ flex: 1 }} />}
+                  {item.ärSchemapass && <Text style={styles.schemaBadge}>Schemapass</Text>}
+                </View>
+              )}
               <Text style={styles.fakturaRad}>Org.nr: {item.organisationsnummer ?? '–'}</Text>
               <Text style={styles.fakturaRad}>{item.fakturaadress ?? '–'}{item.postnummer ? `, ${item.postnummer}` : ''}{item.ort ? ` ${item.ort}` : ''}</Text>
               <Text style={styles.fakturaRad}>Fakturamail: {item.fakturamail ?? '–'}</Text>
@@ -290,6 +316,12 @@ export default function RapporterScreen({ navigation }) {
                   <Text style={styles.detaljEtikett}>Fakturabelopp</Text>
                   <Text style={[styles.detaljVärde, styles.totalText]}>{item.faktureringsbelopp?.toLocaleString('sv-SE')} kr</Text>
                 </View>
+              </View>
+              <View style={styles.fakturaMeta}>
+                {item.ob_belopp > 0 && (
+                  <Text style={styles.metaText}>OB ingår: {item.ob_belopp.toLocaleString('sv-SE')} kr</Text>
+                )}
+                <Text style={styles.metaText}>Påslag: {Math.round((item.paslag ?? 0) * 100)} %</Text>
               </View>
               {item.avdrag_belopp > 0 && (
                 <Text style={styles.avdragInfo}>
@@ -331,6 +363,11 @@ export default function RapporterScreen({ navigation }) {
                   </TouchableOpacity>
                   <Text style={styles.email}>{item.Email ?? '–'}</Text>
                   {item.telefonnummer ? <Text style={styles.telefon}>{item.telefonnummer}</Text> : null}
+                  <View style={[styles.planBricka, item.prenumeration_status === 'pro' ? styles.planPro : styles.planGratis]}>
+                    <Text style={item.prenumeration_status === 'pro' ? styles.planTextPro : styles.planTextGratis}>
+                      {item.prenumeration_status === 'pro' ? 'Pro' : 'Gratis'}
+                    </Text>
+                  </View>
                 </View>
                 <View style={styles.jobbBricka}>
                   <Text style={styles.jobbAntal}>{item.antalJobb}</Text>
@@ -435,6 +472,16 @@ const styles = StyleSheet.create({
   telefon: { fontSize: 13, color: '#888', marginTop: 1 },
   skapad: { fontSize: 12, color: '#aaa', marginTop: 3 },
   datum: { fontSize: 13, color: '#999' },
+  titelRad: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 10 },
+  jobbTitel: { flex: 1, fontSize: 13, fontWeight: '600', color: '#374151' },
+  schemaBadge: { fontSize: 11, fontWeight: '700', color: '#7c3aed', backgroundColor: '#f3e8ff', borderRadius: 6, paddingHorizontal: 8, paddingVertical: 3, overflow: 'hidden' },
+  fakturaMeta: { flexDirection: 'row', flexWrap: 'wrap', gap: 12, marginBottom: 4 },
+  metaText: { fontSize: 12, color: '#6b7280' },
+  planBricka: { alignSelf: 'flex-start', borderRadius: 6, paddingHorizontal: 8, paddingVertical: 2, marginTop: 4 },
+  planPro: { backgroundColor: '#dcfce7' },
+  planGratis: { backgroundColor: '#f1f5f9' },
+  planTextPro: { fontSize: 11, fontWeight: '700', color: '#16a34a' },
+  planTextGratis: { fontSize: 11, fontWeight: '600', color: '#64748b' },
   kortDetaljer: { flexDirection: 'row', gap: 8, marginBottom: 8 },
   detalj: { flex: 1, backgroundColor: '#f9fafb', borderRadius: 8, padding: 10, alignItems: 'center' },
   detaljEtikett: { fontSize: 11, color: '#888', marginBottom: 4 },

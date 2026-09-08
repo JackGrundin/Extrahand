@@ -94,22 +94,36 @@ async function hämtaAllaTidrapporter({ fromDate, toDate } = {}) {
 
   const anvandareIds = [...new Set(rapporter.map(r => r.anvandare_id))];
   const foretagIds = [...new Set(rapporter.map(r => r.foretag_id))];
+  const ansokanIds = [...new Set(rapporter.map(r => r.ansokan_id))];
 
-  const [{ data: anvandare }, { data: foretag }] = await Promise.all([
+  const [{ data: anvandare }, { data: foretag }, { data: ansokningar }] = await Promise.all([
     supabase.from('användare').select('id, Namn, Email, telefonnummer').in('id', anvandareIds),
     supabase.from('användare').select('id, Namn').in('id', foretagIds),
+    supabase.from('ansokningar').select('id, jobb_id').in('id', ansokanIds),
   ]);
+
+  // Jobbtiteln så att admin ser VAD en tidrapport avser, och schema_id för att kunna
+  // märka schemapass. Samma join-mönster som hämtaTidrapporterFörFöretag (företagsvyn).
+  const jobbIds = [...new Set((ansokningar || []).map(a => a.jobb_id))];
+  const { data: jobb } = await supabase.from('Jobb').select('id, Titel, schema_id').in('id', jobbIds);
 
   const anvandareMap = Object.fromEntries((anvandare || []).map(a => [a.id, a]));
   const foretagMap = Object.fromEntries((foretag || []).map(f => [f.id, f]));
+  const ansokanMap = Object.fromEntries((ansokningar || []).map(a => [a.id, a]));
+  const jobbMap = Object.fromEntries((jobb || []).map(j => [j.id, j]));
 
-  return rapporter.map(r => ({
-    ...r,
-    anvandareNamn: anvandareMap[r.anvandare_id]?.Namn ?? null,
-    anvandareEmail: anvandareMap[r.anvandare_id]?.Email ?? null,
-    anvardareTelefon: anvandareMap[r.anvandare_id]?.telefonnummer ?? null,
-    foretagNamn: foretagMap[r.foretag_id]?.Namn ?? null,
-  }));
+  return rapporter.map(r => {
+    const j = jobbMap[ansokanMap[r.ansokan_id]?.jobb_id];
+    return {
+      ...r,
+      anvandareNamn: anvandareMap[r.anvandare_id]?.Namn ?? null,
+      anvandareEmail: anvandareMap[r.anvandare_id]?.Email ?? null,
+      anvandareTelefon: anvandareMap[r.anvandare_id]?.telefonnummer ?? null,
+      foretagNamn: foretagMap[r.foretag_id]?.Namn ?? null,
+      jobbTitel: j?.Titel ?? null,
+      ärSchemapass: j?.schema_id != null,
+    };
+  });
 }
 
 async function hämtaTidrapporterFörFöretag(foretagId) {

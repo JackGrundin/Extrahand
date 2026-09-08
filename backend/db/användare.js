@@ -97,16 +97,21 @@ async function hämtaPushToken(id) {
 async function hämtaAllaFöretag() {
   const { data, error } = await supabase
     .from('användare')
-    .select('id, Namn, Email, telefonnummer, organisationsnummer, fakturaadress, postnummer, ort, fakturamail, referensperson, created_at')
+    .select('id, Namn, Email, telefonnummer, organisationsnummer, fakturaadress, postnummer, ort, fakturamail, referensperson, prenumeration_status, created_at')
     .eq('Typ', 'företag')
     .not('aktiv', 'is', false)
     .order('created_at', { ascending: false });
   if (error) throw error;
   if (!data || !data.length) return [];
 
+  // Räkna bara riktiga annonser. Ett schema materialiseras som ett annons-jobb PLUS ett
+  // passjobb per pass, så utan filtret skulle ett schema med 60 pass räknas som 61
+  // annonser. Samma semantik som räknaJobbDennaMånad i db/jobb.js: annons-jobbet
+  // (schema_pass_id null) räknas som ett, passjobben exkluderas.
   const { data: jobb } = await supabase
     .from('Jobb')
-    .select('Foretag_id');
+    .select('Foretag_id')
+    .is('schema_pass_id', null);
 
   const jobbRäkning = (jobb || []).reduce((acc, j) => {
     const fid = String(j.Foretag_id);

@@ -21,15 +21,28 @@ async function hämtaFaktureringsunderlag() {
   if (!rapporter || !rapporter.length) return [];
 
   const foretagIds = [...new Set(rapporter.map(r => r.foretag_id))];
-  const { data: företag } = await supabase
-    .from('användare')
-    .select('id, Namn, organisationsnummer, fakturaadress, postnummer, ort, fakturamail, referensperson')
-    .in('id', foretagIds);
+  const ansokanIds = [...new Set(rapporter.map(r => r.ansokan_id))];
+
+  const [{ data: företag }, { data: ansokningar }] = await Promise.all([
+    supabase
+      .from('användare')
+      .select('id, Namn, organisationsnummer, fakturaadress, postnummer, ort, fakturamail, referensperson')
+      .in('id', foretagIds),
+    supabase.from('ansokningar').select('id, jobb_id').in('id', ansokanIds),
+  ]);
+
+  // Jobbtiteln så att den som fakturerar ser vilket pass/schema en rad avser, och
+  // schema_id för att kunna märka schemapass.
+  const jobbIds = [...new Set((ansokningar || []).map(a => a.jobb_id))];
+  const { data: jobb } = await supabase.from('Jobb').select('id, Titel, schema_id').in('id', jobbIds);
 
   const företagMap = Object.fromEntries((företag || []).map(f => [f.id, f]));
+  const ansokanMap = Object.fromEntries((ansokningar || []).map(a => [a.id, a]));
+  const jobbMap = Object.fromEntries((jobb || []).map(j => [j.id, j]));
 
   return rapporter.map(r => {
     const f = företagMap[r.foretag_id] || {};
+    const j = jobbMap[ansokanMap[r.ansokan_id]?.jobb_id];
     // Påslaget frystes när jobbet publicerades. Rapporter från före prenumerations-
     // systemet saknar påslag och faktureras med 40%.
     const paslag = påslagEller40(r.paslag);
@@ -49,6 +62,8 @@ async function hämtaFaktureringsunderlag() {
       // att synas (till skillnad från hämtaAllaTidrapporter som gör select('*')).
       avdrag: Array.isArray(r.avdrag) ? r.avdrag : [],
       avdrag_belopp: r.avdrag_belopp || 0,
+      jobbTitel: j?.Titel ?? null,
+      ärSchemapass: j?.schema_id != null,
       foretagsnamn: f.Namn ?? null,
       organisationsnummer: f.organisationsnummer ?? null,
       fakturaadress: f.fakturaadress ?? null,
