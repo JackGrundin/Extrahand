@@ -1,8 +1,25 @@
-import { useCallback, useState } from 'react';
-import { View, Text, FlatList, StyleSheet, ActivityIndicator, TextInput, TouchableOpacity, Alert } from 'react-native';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { View, Text, FlatList, SectionList, StyleSheet, ActivityIndicator, TextInput, TouchableOpacity, Alert } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { api } from '../api/klient';
+
+// Datum visas överallt i samma ISO-format (sv-SE), så att en admin aldrig behöver gissa om
+// "08/09" är 8 sep eller 9 aug. "(N dagar sedan)" följer med som sekundär orientering.
+function visaDatum(x) {
+  return x ? new Date(x).toLocaleDateString('sv-SE') : '–';
+}
+function dagarSedanText(x) {
+  if (!x) return '';
+  const dagar = Math.floor((Date.now() - new Date(x).getTime()) / (1000 * 60 * 60 * 24));
+  return `${dagar} ${dagar === 1 ? 'dag' : 'dagar'} sedan`;
+}
+function isoDatum(d) {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+function kr(belopp) {
+  return `${Math.round(belopp ?? 0).toLocaleString('sv-SE')} kr`;
+}
 
 export default function RapporterScreen({ navigation }) {
   const [aktivFlik, setAktivFlik] = useState('rapporter');
@@ -16,6 +33,14 @@ export default function RapporterScreen({ navigation }) {
   const [toDate, setToDate] = useState('');
   const [sökPrivatperson, setSökPrivatperson] = useState('');
   const [sökFöretag, setSökFöretag] = useState('');
+  // Markerade tidrapporter för bulk-utbetalning (nivå 3).
+  const [markerade, setMarkerade] = useState(new Set());
+
+  // Rubriken speglar aktiv flik – annars stod det alltid "Tidrapporter" även på Företag.
+  useEffect(() => {
+    const titlar = { rapporter: 'Tidrapporter', avtal: 'Avtal', företag: 'Företag', fakturering: 'Fakturering' };
+    navigation.setOptions({ title: titlar[aktivFlik] ?? 'Admin' });
+  }, [aktivFlik, navigation]);
 
   async function hämta() {
     setLaddar(true);
@@ -65,16 +90,63 @@ export default function RapporterScreen({ navigation }) {
     );
   }
 
-  async function filtreraRapporter() {
+  // Bulk: markera alla valda tidrapporter som betalda i ett svep.
+  function markeraMarkeradeBetalda() {
+    const idn = [...markerade];
+    if (!idn.length) return;
+    Alert.alert(
+      'Bekräfta',
+      `Markera ${idn.length} ${idn.length === 1 ? 'rapport' : 'rapporter'} som betalda?`,
+      [
+        { text: 'Avbryt', style: 'cancel' },
+        { text: 'Bekräfta', onPress: async () => {
+          try {
+            await Promise.all(idn.map(id => api.markeraTidrapportBetald(id)));
+            setRapporter(prev => prev.filter(r => !markerade.has(r.id)));
+            setMarkerade(new Set());
+          } catch (fel) {
+            Alert.alert('Fel', fel.message);
+          }
+        }},
+      ]
+    );
+  }
+
+  function växlaMarkerad(id) {
+    setMarkerade(prev => {
+      const nästa = new Set(prev);
+      nästa.has(id) ? nästa.delete(id) : nästa.add(id);
+      return nästa;
+    });
+  }
+
+  // Filtrerar tidrapporter på ett datumintervall. Bruten ut ur filtreraRapporter så att
+  // snabbvalen kan filtrera direkt utan att invänta setState.
+  async function filtreraMed(från, till) {
     setLaddar(true);
     try {
-      const data = await api.allaRapporter(fromDate || null, toDate || null);
+      const data = await api.allaRapporter(från || null, till || null);
       setRapporter(data);
     } catch (fel) {
       console.error(fel);
     } finally {
       setLaddar(false);
     }
+  }
+
+  function snabbvalMånad(offset) {
+    const nu = new Date();
+    const start = new Date(nu.getFullYear(), nu.getMonth() + offset, 1);
+    const slut = new Date(nu.getFullYear(), nu.getMonth() + offset + 1, 0);
+    setFromDate(isoDatum(start));
+    setToDate(isoDatum(slut));
+    filtreraMed(isoDatum(start), isoDatum(slut));
+  }
+
+  function rensaFilter() {
+    setFromDate('');
+    setToDate('');
+    filtreraMed('', '');
   }
 
   async function markeraFakturerad(id) {
@@ -87,6 +159,27 @@ export default function RapporterScreen({ navigation }) {
           try {
             await api.markeraFakturerad(id);
             setFaktureringsunderlag(prev => prev.filter(f => f.id !== id));
+          } catch (fel) {
+            Alert.alert('Fel', fel.message);
+          }
+        }},
+      ]
+    );
+  }
+
+  // Bulk: markera ett helt företags underlag som fakturerade.
+  function markeraFöretagFakturerat(sektion) {
+    const idn = sektion.data.map(u => u.id);
+    Alert.alert(
+      'Bekräfta',
+      `Markera alla ${idn.length} underlag för ${sektion.företag.foretagsnamn ?? 'företaget'} som fakturerade?`,
+      [
+        { text: 'Avbryt', style: 'cancel' },
+        { text: 'Bekräfta', onPress: async () => {
+          try {
+            await Promise.all(idn.map(id => api.markeraFakturerad(id)));
+            const kvar = new Set(idn);
+            setFaktureringsunderlag(prev => prev.filter(f => !kvar.has(f.id)));
           } catch (fel) {
             Alert.alert('Fel', fel.message);
           }
@@ -112,48 +205,58 @@ export default function RapporterScreen({ navigation }) {
   const totaltAvdrag = rapporter.reduce((sum, r) => sum + (r.avdrag_belopp ?? 0), 0);
   // Totalt belopp att fakturera – summan av alla ej fakturerade underlag.
   const totaltFaktura = faktureringsunderlag.reduce((sum, f) => sum + (f.faktureringsbelopp ?? 0), 0);
+  const antalVäntandeAvtal = privatpersoner.filter(p => !p.avtal_godkant).length;
 
-  const filtreradeFöretag = sökFöretag.trim()
-    ? företag.filter(f => f.Email?.toLowerCase().includes(sökFöretag.toLowerCase()))
+  // Fakturering grupperas per företag: adressblocket visas EN gång per grupp (i sektions-
+  // huvudet) med en subtotal, i stället för att upprepas på varje underlagskort.
+  const faktureringSektioner = useMemo(() => {
+    const grupper = new Map();
+    for (const u of faktureringsunderlag) {
+      const nyckel = u.organisationsnummer || u.foretagsnamn || `okänt-${u.id}`;
+      if (!grupper.has(nyckel)) grupper.set(nyckel, { key: String(nyckel), företag: u, data: [], subtotal: 0 });
+      const g = grupper.get(nyckel);
+      g.data.push(u);
+      g.subtotal += (u.faktureringsbelopp ?? 0);
+    }
+    return [...grupper.values()];
+  }, [faktureringsunderlag]);
+
+  const sökQ = sökFöretag.trim().toLowerCase();
+  const filtreradeFöretag = sökQ
+    ? företag.filter(f =>
+        (f.Namn || '').toLowerCase().includes(sökQ) ||
+        (f.organisationsnummer || '').toLowerCase().includes(sökQ) ||
+        (f.Email || '').toLowerCase().includes(sökQ))
     : företag;
 
-  const filtradePrivatpersoner = sökPrivatperson.trim()
-    ? privatpersoner.filter(p => p.Email?.toLowerCase().includes(sökPrivatperson.toLowerCase()))
+  const sökQP = sökPrivatperson.trim().toLowerCase();
+  const filtradePrivatpersoner = sökQP
+    ? privatpersoner.filter(p =>
+        (p.Namn || '').toLowerCase().includes(sökQP) ||
+        (p.Email || '').toLowerCase().includes(sökQP))
     : privatpersoner;
+
+  function renderFlik(id, etikett, antal) {
+    const aktiv = aktivFlik === id;
+    return (
+      <TouchableOpacity style={[styles.flik, aktiv && styles.flikAktiv]} onPress={() => setAktivFlik(id)}>
+        <Text numberOfLines={1} style={[styles.flikText, aktiv && styles.flikTextAktiv]}>{etikett}</Text>
+        {antal != null && (
+          <View style={[styles.flikBadge, aktiv && styles.flikBadgeAktiv]}>
+            <Text style={[styles.flikBadgeText, aktiv && styles.flikBadgeTextAktiv]}>{antal}</Text>
+          </View>
+        )}
+      </TouchableOpacity>
+    );
+  }
 
   return (
     <View style={styles.container}>
       <View style={styles.flikar}>
-        <TouchableOpacity
-          style={[styles.flik, aktivFlik === 'rapporter' && styles.flikAktiv]}
-          onPress={() => setAktivFlik('rapporter')}
-        >
-          <Text style={[styles.flikText, aktivFlik === 'rapporter' && styles.flikTextAktiv]}>Tidrapporter</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.flik, aktivFlik === 'avtal' && styles.flikAktiv]}
-          onPress={() => setAktivFlik('avtal')}
-        >
-          <Text style={[styles.flikText, aktivFlik === 'avtal' && styles.flikTextAktiv]}>
-            Avtal ({privatpersoner.filter(p => !p.avtal_godkant).length} väntande)
-          </Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.flik, aktivFlik === 'företag' && styles.flikAktiv]}
-          onPress={() => setAktivFlik('företag')}
-        >
-          <Text style={[styles.flikText, aktivFlik === 'företag' && styles.flikTextAktiv]}>
-            Företag ({företag.length})
-          </Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.flik, aktivFlik === 'fakturering' && styles.flikAktiv]}
-          onPress={() => setAktivFlik('fakturering')}
-        >
-          <Text style={[styles.flikText, aktivFlik === 'fakturering' && styles.flikTextAktiv]}>
-            Fakturering ({faktureringsunderlag.length})
-          </Text>
-        </TouchableOpacity>
+        {renderFlik('rapporter', 'Tidrapporter', rapporter.length)}
+        {renderFlik('avtal', 'Avtal', antalVäntandeAvtal)}
+        {renderFlik('företag', 'Företag', företag.length)}
+        {renderFlik('fakturering', 'Fakturering', faktureringsunderlag.length)}
       </View>
 
       {laddar ? (
@@ -161,24 +264,60 @@ export default function RapporterScreen({ navigation }) {
       ) : aktivFlik === 'rapporter' ? (
         <>
           <View style={styles.filter}>
-            <TextInput
-              style={styles.datumInput}
-              placeholder="Från (ÅÅÅÅ-MM-DD)"
-              value={fromDate}
-              onChangeText={setFromDate}
-              keyboardType="numeric"
-            />
-            <TextInput
-              style={styles.datumInput}
-              placeholder="Till (ÅÅÅÅ-MM-DD)"
-              value={toDate}
-              onChangeText={setToDate}
-              keyboardType="numeric"
-            />
-            <TouchableOpacity style={styles.filterKnapp} onPress={filtreraRapporter}>
+            <View style={styles.snabbval}>
+              <TouchableOpacity style={styles.snabbKnapp} onPress={() => snabbvalMånad(0)}>
+                <Text style={styles.snabbText}>Denna månad</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.snabbKnapp} onPress={() => snabbvalMånad(-1)}>
+                <Text style={styles.snabbText}>Förra månaden</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.snabbKnapp} onPress={rensaFilter}>
+                <Text style={styles.snabbText}>Rensa</Text>
+              </TouchableOpacity>
+            </View>
+            <View style={styles.filterRad}>
+              <TextInput
+                style={[styles.datumInput, styles.datumInputFlex]}
+                placeholder="Från (ÅÅÅÅ-MM-DD)"
+                value={fromDate}
+                onChangeText={setFromDate}
+                keyboardType="numbers-and-punctuation"
+              />
+              <TextInput
+                style={[styles.datumInput, styles.datumInputFlex]}
+                placeholder="Till (ÅÅÅÅ-MM-DD)"
+                value={toDate}
+                onChangeText={setToDate}
+                keyboardType="numbers-and-punctuation"
+              />
+            </View>
+            <TouchableOpacity style={styles.filterKnapp} onPress={() => filtreraMed(fromDate, toDate)}>
               <Text style={styles.filterKnappText}>Filtrera</Text>
             </TouchableOpacity>
           </View>
+
+          {/* Sticky sammanfattning – syns utan att skrolla till listans slut. */}
+          {rapporter.length > 0 && (
+            <View style={styles.topbar}>
+              <Text style={styles.topbarText}>{rapporter.length} {rapporter.length === 1 ? 'rapport' : 'rapporter'} · {totaltTimmar} tim</Text>
+              <Text style={styles.topbarStark}>{kr(totaltBelopp - totaltAvdrag)} att betala ut</Text>
+            </View>
+          )}
+
+          {markerade.size > 0 && (
+            <View style={styles.bulkbar}>
+              <Text style={styles.bulkbarText}>{markerade.size} markerade</Text>
+              <View style={styles.bulkbarKnappar}>
+                <TouchableOpacity onPress={() => setMarkerade(new Set())}>
+                  <Text style={styles.bulkbarAvmark}>Avmarkera</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.bulkbarKnapp} onPress={markeraMarkeradeBetalda}>
+                  <Text style={styles.bulkbarKnappText}>Markera som betalda</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          )}
+
           <FlatList
             data={rapporter}
             keyExtractor={(item) => item.id}
@@ -196,113 +335,112 @@ export default function RapporterScreen({ navigation }) {
                 </View>
                 <View style={[styles.summeringRad, styles.totalRad]}>
                   <Text style={styles.totalEtikett}>Totalt belopp</Text>
-                  <Text style={styles.totalVärde}>{totaltBelopp.toLocaleString('sv-SE')} kr</Text>
+                  <Text style={styles.totalVärde}>{kr(totaltBelopp)}</Text>
                 </View>
                 {totaltAvdrag > 0 && (
                   <>
                     <View style={styles.summeringRad}>
                       <Text style={styles.summeringEtikett}>Varav löneavdrag</Text>
-                      <Text style={[styles.summeringVärde, { color: '#dc2626' }]}>
-                        −{totaltAvdrag.toLocaleString('sv-SE')} kr
-                      </Text>
+                      <Text style={[styles.summeringVärde, { color: '#dc2626' }]}>−{kr(totaltAvdrag)}</Text>
                     </View>
                     <View style={styles.summeringRad}>
                       <Text style={styles.summeringEtikett}>Att betala ut</Text>
-                      <Text style={[styles.summeringVärde, { color: '#16a34a', fontWeight: '700' }]}>
-                        {(totaltBelopp - totaltAvdrag).toLocaleString('sv-SE')} kr
-                      </Text>
+                      <Text style={[styles.summeringVärde, { color: '#16a34a', fontWeight: '700' }]}>{kr(totaltBelopp - totaltAvdrag)}</Text>
                     </View>
                   </>
                 )}
               </View>
             ) : null}
-            renderItem={({ item }) => (
-              <View style={styles.kort}>
-                <View style={styles.kortHuvud}>
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.namn}>{item.anvandareNamn ?? '–'}</Text>
-                    <Text style={styles.email}>{item.anvandareEmail ?? '–'}</Text>
-                    {item.anvandareTelefon ? <Text style={styles.telefon}>{item.anvandareTelefon}</Text> : null}
+            renderItem={({ item }) => {
+              const vald = markerade.has(item.id);
+              return (
+                <View style={[styles.kort, vald && styles.kortVald]}>
+                  <View style={styles.kortHuvud}>
+                    <TouchableOpacity onPress={() => växlaMarkerad(item.id)} style={styles.kryssruta} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                      <Ionicons name={vald ? 'checkbox' : 'square-outline'} size={22} color={vald ? '#2563eb' : '#cbd5e1'} />
+                    </TouchableOpacity>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.namn}>{item.anvandareNamn ?? '–'}</Text>
+                      <Text style={styles.email}>{item.anvandareEmail ?? '–'}</Text>
+                      {item.anvandareTelefon ? <Text style={styles.telefon}>{item.anvandareTelefon}</Text> : null}
+                    </View>
+                    <Text style={styles.datum}>{visaDatum(item.datum)}</Text>
                   </View>
-                  <Text style={styles.datum}>{new Date(item.datum).toLocaleDateString('sv-SE')}</Text>
-                </View>
-                {(item.jobbTitel || item.ärSchemapass) && (
-                  <View style={styles.titelRad}>
-                    {item.jobbTitel ? <Text style={styles.jobbTitel} numberOfLines={1}>{item.jobbTitel}</Text> : <View style={{ flex: 1 }} />}
-                    {item.ärSchemapass && <Text style={styles.schemaBadge}>Schemapass</Text>}
+                  {(item.jobbTitel || item.ärSchemapass) && (
+                    <View style={styles.titelRad}>
+                      {item.jobbTitel ? <Text style={styles.jobbTitel} numberOfLines={1}>{item.jobbTitel}</Text> : <View style={{ flex: 1 }} />}
+                      {item.ärSchemapass && <Text style={styles.schemaBadge}>Schemapass</Text>}
+                    </View>
+                  )}
+                  <View style={styles.kortDetaljer}>
+                    <View style={styles.detalj}>
+                      <Text style={styles.detaljEtikett}>Timmar</Text>
+                      <Text style={styles.detaljVärde}>{item.timmar}</Text>
+                    </View>
+                    <View style={styles.detalj}>
+                      <Text style={styles.detaljEtikett}>Timlön</Text>
+                      <Text style={styles.detaljVärde}>{kr(item.timlon)}</Text>
+                    </View>
+                    <View style={[styles.detalj, styles.detaljFramhavd]}>
+                      <Text style={styles.detaljEtikett}>Totalt</Text>
+                      <Text style={styles.detaljVärdeStor}>{kr(item.totalt_belopp)}</Text>
+                    </View>
                   </View>
-                )}
-                <View style={styles.kortDetaljer}>
-                  <View style={styles.detalj}>
-                    <Text style={styles.detaljEtikett}>Timmar</Text>
-                    <Text style={styles.detaljVärde}>{item.timmar}</Text>
-                  </View>
-                  <View style={styles.detalj}>
-                    <Text style={styles.detaljEtikett}>Timlön</Text>
-                    <Text style={styles.detaljVärde}>{item.timlon?.toLocaleString('sv-SE')} kr</Text>
-                  </View>
-                  <View style={styles.detalj}>
-                    <Text style={styles.detaljEtikett}>Totalt</Text>
-                    <Text style={[styles.detaljVärde, styles.totalText]}>{item.totalt_belopp?.toLocaleString('sv-SE')} kr</Text>
-                  </View>
-                </View>
-                {item.avdrag_belopp > 0 && (
-                  <Text style={styles.avdragRad}>
-                    Löneavdrag −{item.avdrag_belopp.toLocaleString('sv-SE')} kr
-                    {' → att betala ut '}
-                    <Text style={styles.avdragNetto}>
-                      {((item.totalt_belopp ?? 0) - item.avdrag_belopp).toLocaleString('sv-SE')} kr
+                  {item.avdrag_belopp > 0 && (
+                    <Text style={styles.avdragRad}>
+                      Löneavdrag −{kr(item.avdrag_belopp)}
+                      {' → att betala ut '}
+                      <Text style={styles.avdragNetto}>{kr((item.totalt_belopp ?? 0) - item.avdrag_belopp)}</Text>
                     </Text>
-                  </Text>
-                )}
-                {item.foretagNamn && (
-                  <Text style={styles.foretag}>Företag: {item.foretagNamn}</Text>
-                )}
-                <TouchableOpacity style={styles.betaldKnapp} onPress={() => markeraRapportBetald(item.id)}>
-                  <Text style={styles.betaldText}>Markera som betald</Text>
-                </TouchableOpacity>
-              </View>
-            )}
+                  )}
+                  {item.foretagNamn && <Text style={styles.foretag}>Företag: {item.foretagNamn}</Text>}
+                  <TouchableOpacity style={styles.betaldKnapp} onPress={() => markeraRapportBetald(item.id)}>
+                    <Text style={styles.betaldText}>Markera som betald</Text>
+                  </TouchableOpacity>
+                </View>
+              );
+            }}
           />
         </>
       ) : aktivFlik === 'fakturering' ? (
-        <FlatList
-          data={faktureringsunderlag}
+        <SectionList
+          sections={faktureringSektioner}
           keyExtractor={(item) => item.id.toString()}
           contentContainerStyle={styles.lista}
+          stickySectionHeadersEnabled={false}
+          ListHeaderComponent={faktureringsunderlag.length > 0 ? (
+            <View style={styles.topbar}>
+              <Text style={styles.topbarText}>{faktureringsunderlag.length} underlag · {faktureringSektioner.length} företag</Text>
+              <Text style={styles.topbarStark}>{kr(totaltFaktura)} att fakturera</Text>
+            </View>
+          ) : null}
           ListEmptyComponent={
             faktureringFel
               ? <Text style={styles.felText}>Fel: {faktureringFel}</Text>
               : <Text style={styles.tom}>Inga ej fakturerade underlag</Text>
           }
-          ListFooterComponent={faktureringsunderlag.length > 0 ? (
-            <View style={styles.summering}>
-              <View style={styles.summeringRad}>
-                <Text style={styles.summeringEtikett}>Antal underlag</Text>
-                <Text style={styles.summeringVärde}>{faktureringsunderlag.length}</Text>
+          renderSectionHeader={({ section }) => (
+            <View style={styles.sektionHeader}>
+              <View style={styles.sektionRad}>
+                <Text style={styles.sektionNamn} numberOfLines={1}>{section.företag.foretagsnamn ?? '–'}</Text>
+                <Text style={styles.sektionSubtotal}>{kr(section.subtotal)}</Text>
               </View>
-              <View style={[styles.summeringRad, styles.totalRad]}>
-                <Text style={styles.totalEtikett}>Totalt att fakturera</Text>
-                <Text style={styles.totalVärde}>{Math.round(totaltFaktura).toLocaleString('sv-SE')} kr</Text>
-              </View>
+              <Text style={styles.sekundär}>Org.nr: {section.företag.organisationsnummer ?? '–'}</Text>
+              <Text style={styles.sekundär}>{section.företag.fakturaadress ?? '–'}{section.företag.postnummer ? `, ${section.företag.postnummer}` : ''}{section.företag.ort ? ` ${section.företag.ort}` : ''}</Text>
+              <Text style={styles.sekundär}>Fakturamail: {section.företag.fakturamail ?? '–'}</Text>
+              <Text style={styles.sekundär}>Ref: {section.företag.referensperson ?? '–'}</Text>
+              <TouchableOpacity style={styles.sektionBulk} onPress={() => markeraFöretagFakturerat(section)}>
+                <Text style={styles.sektionBulkText}>Markera företagets {section.data.length} underlag som fakturerade</Text>
+              </TouchableOpacity>
             </View>
-          ) : null}
+          )}
           renderItem={({ item }) => (
-            <View style={styles.kort}>
+            <View style={styles.underlagKort}>
               <View style={styles.fakturaHuvud}>
-                <Text style={styles.namn}>{item.foretagsnamn ?? '–'}</Text>
-                <Text style={styles.fakturaDatum}>{item.datum ? new Date(item.datum).toLocaleDateString('sv-SE') : '–'}</Text>
+                <Text style={styles.jobbTitel} numberOfLines={1}>{item.jobbTitel ?? 'Pass'}</Text>
+                <Text style={styles.fakturaDatum}>{visaDatum(item.datum)}</Text>
               </View>
-              {(item.jobbTitel || item.ärSchemapass) && (
-                <View style={styles.titelRad}>
-                  {item.jobbTitel ? <Text style={styles.jobbTitel} numberOfLines={1}>{item.jobbTitel}</Text> : <View style={{ flex: 1 }} />}
-                  {item.ärSchemapass && <Text style={styles.schemaBadge}>Schemapass</Text>}
-                </View>
-              )}
-              <Text style={styles.fakturaRad}>Org.nr: {item.organisationsnummer ?? '–'}</Text>
-              <Text style={styles.fakturaRad}>{item.fakturaadress ?? '–'}{item.postnummer ? `, ${item.postnummer}` : ''}{item.ort ? ` ${item.ort}` : ''}</Text>
-              <Text style={styles.fakturaRad}>Fakturamail: {item.fakturamail ?? '–'}</Text>
-              <Text style={styles.fakturaRad}>Ref: {item.referensperson ?? '–'}</Text>
+              {item.ärSchemapass && <Text style={[styles.schemaBadge, { alignSelf: 'flex-start', marginBottom: 8 }]}>Schemapass</Text>}
               <View style={styles.kortDetaljer}>
                 <View style={styles.detalj}>
                   <Text style={styles.detaljEtikett}>Timmar</Text>
@@ -310,28 +448,26 @@ export default function RapporterScreen({ navigation }) {
                 </View>
                 <View style={styles.detalj}>
                   <Text style={styles.detaljEtikett}>Timlön</Text>
-                  <Text style={styles.detaljVärde}>{item.timlon?.toLocaleString('sv-SE')} kr</Text>
+                  <Text style={styles.detaljVärde}>{kr(item.timlon)}</Text>
                 </View>
-                <View style={styles.detalj}>
+                <View style={[styles.detalj, styles.detaljFramhavd]}>
                   <Text style={styles.detaljEtikett}>Fakturabelopp</Text>
-                  <Text style={[styles.detaljVärde, styles.totalText]}>{Math.round(item.faktureringsbelopp ?? 0).toLocaleString('sv-SE')} kr</Text>
+                  <Text style={styles.detaljVärdeStor}>{kr(item.faktureringsbelopp)}</Text>
                 </View>
               </View>
               <View style={styles.fakturaMeta}>
-                {item.ob_belopp > 0 && (
-                  <Text style={styles.metaText}>OB ingår: {item.ob_belopp.toLocaleString('sv-SE')} kr</Text>
-                )}
+                {item.ob_belopp > 0 && <Text style={styles.metaText}>OB ingår: {kr(item.ob_belopp)}</Text>}
                 <Text style={styles.metaText}>Påslag: {Math.round((item.paslag ?? 0) * 100)} %</Text>
               </View>
               {item.avdrag_belopp > 0 && (
                 <Text style={styles.avdragInfo}>
-                  Personen har {item.avdrag_belopp.toLocaleString('sv-SE')} kr i löneavdrag
+                  Personen har {kr(item.avdrag_belopp)} i löneavdrag
                   {item.avdrag?.length ? ` (${item.avdrag.map(a => a.namn).join(', ')})` : ''}.
                   {' '}Fakturabeloppet påverkas inte av det.
                 </Text>
               )}
-              <TouchableOpacity style={styles.faktureradKnapp} onPress={() => markeraFakturerad(item.id)}>
-                <Text style={styles.faktureradText}>Markera som fakturerad och klar</Text>
+              <TouchableOpacity style={styles.faktureradKnappLiten} onPress={() => markeraFakturerad(item.id)}>
+                <Text style={styles.faktureradTextLiten}>Markera detta underlag som fakturerat</Text>
               </TouchableOpacity>
             </View>
           )}
@@ -342,11 +478,10 @@ export default function RapporterScreen({ navigation }) {
             <Ionicons name="search-outline" size={18} color="#aaa" style={styles.sökIkon} />
             <TextInput
               style={styles.sökInput}
-              placeholder="Sök på mejladress..."
+              placeholder="Sök på namn, org.nr eller mejl..."
               value={sökFöretag}
               onChangeText={setSökFöretag}
               autoCapitalize="none"
-              keyboardType="email-address"
             />
           </View>
           <FlatList
@@ -374,18 +509,13 @@ export default function RapporterScreen({ navigation }) {
                   <Text style={styles.jobbEtikett}>annonser</Text>
                 </View>
               </View>
-              {item.organisationsnummer ? <Text style={styles.företagsDetalj}>Org.nr: {item.organisationsnummer}</Text> : null}
-              {item.fakturaadress ? <Text style={styles.företagsDetalj}>{item.fakturaadress}{item.postnummer ? `, ${item.postnummer}` : ''}{item.ort ? ` ${item.ort}` : ''}</Text> : null}
-              {item.fakturamail ? <Text style={styles.företagsDetalj}>Fakturamail: {item.fakturamail}</Text> : null}
-              {item.referensperson ? <Text style={styles.företagsDetalj}>Ref: {item.referensperson}</Text> : null}
-              {item.created_at ? (() => {
-                const skapad = new Date(item.created_at);
-                const dag = String(skapad.getDate()).padStart(2, '0');
-                const mån = String(skapad.getMonth() + 1).padStart(2, '0');
-                const år = skapad.getFullYear();
-                const dagarSedan = Math.floor((Date.now() - skapad.getTime()) / (1000 * 60 * 60 * 24));
-                return <Text style={styles.skapad}>{dag}/{mån}/{år} ({dagarSedan} {dagarSedan === 1 ? 'dag' : 'dagar'} sedan)</Text>;
-              })() : null}
+              {item.organisationsnummer ? <Text style={styles.sekundär}>Org.nr: {item.organisationsnummer}</Text> : null}
+              {item.fakturaadress ? <Text style={styles.sekundär}>{item.fakturaadress}{item.postnummer ? `, ${item.postnummer}` : ''}{item.ort ? ` ${item.ort}` : ''}</Text> : null}
+              {item.fakturamail ? <Text style={styles.sekundär}>Fakturamail: {item.fakturamail}</Text> : null}
+              {item.referensperson ? <Text style={styles.sekundär}>Ref: {item.referensperson}</Text> : null}
+              {item.created_at ? (
+                <Text style={styles.skapad}>{visaDatum(item.created_at)} ({dagarSedanText(item.created_at)})</Text>
+              ) : null}
             </View>
           )}
         />
@@ -396,11 +526,10 @@ export default function RapporterScreen({ navigation }) {
             <Ionicons name="search-outline" size={18} color="#aaa" style={styles.sökIkon} />
             <TextInput
               style={styles.sökInput}
-              placeholder="Sök på mejladress..."
+              placeholder="Sök på namn eller mejl..."
               value={sökPrivatperson}
               onChangeText={setSökPrivatperson}
               autoCapitalize="none"
-              keyboardType="email-address"
             />
           </View>
           <FlatList
@@ -417,16 +546,9 @@ export default function RapporterScreen({ navigation }) {
                   </TouchableOpacity>
                   <Text style={styles.email}>{item.Email ?? '–'}</Text>
                   {item.telefonnummer ? <Text style={styles.telefon}>{item.telefonnummer}</Text> : null}
-                  {item.created_at ? (() => {
-                    const skapad = new Date(item.created_at);
-                    const dag = String(skapad.getDate()).padStart(2, '0');
-                    const mån = String(skapad.getMonth() + 1).padStart(2, '0');
-                    const år = skapad.getFullYear();
-                    const dagarSedan = Math.floor((Date.now() - skapad.getTime()) / (1000 * 60 * 60 * 24));
-                    return (
-                      <Text style={styles.skapad}>{dag}/{mån}/{år} ({dagarSedan} {dagarSedan === 1 ? 'dag' : 'dagar'} sedan)</Text>
-                    );
-                  })() : null}
+                  {item.created_at ? (
+                    <Text style={styles.skapad}>{visaDatum(item.created_at)} ({dagarSedanText(item.created_at)})</Text>
+                  ) : null}
                 </View>
                 {item.avtal_godkant ? (
                   <Ionicons name="checkmark-circle" size={26} color="#16a34a" />
@@ -439,9 +561,7 @@ export default function RapporterScreen({ navigation }) {
                   <Text style={styles.godkännText}>Markera avtal som godkänt</Text>
                 </TouchableOpacity>
               )}
-              {item.avtal_godkant && (
-                <Text style={styles.godkäntEtikett}>Avtal godkänt</Text>
-              )}
+              {item.avtal_godkant && <Text style={styles.godkäntEtikett}>Avtal godkänt</Text>}
             </View>
           )}
         />
@@ -454,18 +574,42 @@ export default function RapporterScreen({ navigation }) {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#f5f5f5' },
   flikar: { flexDirection: 'row', backgroundColor: '#fff', borderBottomWidth: 1, borderBottomColor: '#eee' },
-  flik: { flex: 1, paddingVertical: 14, alignItems: 'center' },
+  flik: { flex: 1, paddingVertical: 12, alignItems: 'center', gap: 3 },
   flikAktiv: { borderBottomWidth: 2, borderBottomColor: '#2563eb' },
-  flikText: { fontSize: 13, fontWeight: '600', color: '#999' },
+  flikText: { fontSize: 12, fontWeight: '600', color: '#999' },
   flikTextAktiv: { color: '#2563eb' },
+  flikBadge: { minWidth: 18, paddingHorizontal: 5, paddingVertical: 1, borderRadius: 9, backgroundColor: '#eef2f7', alignItems: 'center' },
+  flikBadgeAktiv: { backgroundColor: '#2563eb' },
+  flikBadgeText: { fontSize: 11, fontWeight: '700', color: '#64748b' },
+  flikBadgeTextAktiv: { color: '#fff' },
+
   filter: { backgroundColor: '#fff', padding: 12, gap: 8, borderBottomWidth: 1, borderBottomColor: '#eee' },
+  snabbval: { flexDirection: 'row', gap: 8, flexWrap: 'wrap' },
+  snabbKnapp: { backgroundColor: '#eef2f7', borderRadius: 16, paddingHorizontal: 12, paddingVertical: 6 },
+  snabbText: { fontSize: 12, fontWeight: '600', color: '#334155' },
+  filterRad: { flexDirection: 'row', gap: 8, alignItems: 'center' },
   datumInput: { borderWidth: 1, borderColor: '#ddd', borderRadius: 8, padding: 10, fontSize: 14, backgroundColor: '#fafafa' },
-  filterKnapp: { backgroundColor: '#2563eb', borderRadius: 8, padding: 10, alignItems: 'center' },
+  datumInputFlex: { flex: 1, minWidth: 0 },
+  filterKnapp: { backgroundColor: '#2563eb', borderRadius: 8, paddingVertical: 11, alignItems: 'center' },
   filterKnappText: { color: '#fff', fontWeight: '600', fontSize: 14 },
+
+  topbar: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#eff6ff', paddingHorizontal: 16, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: '#dbeafe' },
+  topbarText: { fontSize: 13, color: '#475569' },
+  topbarStark: { fontSize: 14, fontWeight: '700', color: '#1d4ed8' },
+
+  bulkbar: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#1e293b', paddingHorizontal: 16, paddingVertical: 10 },
+  bulkbarText: { color: '#fff', fontSize: 13, fontWeight: '600' },
+  bulkbarKnappar: { flexDirection: 'row', alignItems: 'center', gap: 16 },
+  bulkbarAvmark: { color: '#cbd5e1', fontSize: 13 },
+  bulkbarKnapp: { backgroundColor: '#16a34a', borderRadius: 8, paddingHorizontal: 12, paddingVertical: 7 },
+  bulkbarKnappText: { color: '#fff', fontSize: 13, fontWeight: '700' },
+
   lista: { padding: 16, paddingBottom: 32 },
   tom: { textAlign: 'center', color: '#999', marginTop: 60, fontSize: 15 },
   kort: { backgroundColor: '#fff', borderRadius: 12, padding: 16, marginBottom: 10, shadowColor: '#000', shadowOpacity: 0.04, shadowRadius: 4, elevation: 1 },
+  kortVald: { borderWidth: 1.5, borderColor: '#2563eb' },
   kortHuvud: { flexDirection: 'row', alignItems: 'center', marginBottom: 12 },
+  kryssruta: { marginRight: 10 },
   namn: { fontSize: 15, fontWeight: '600', color: '#1a1a1a' },
   klickbart: { color: '#2563eb', textDecorationLine: 'underline' },
   email: { fontSize: 13, color: '#888', marginTop: 2 },
@@ -484,8 +628,10 @@ const styles = StyleSheet.create({
   planTextGratis: { fontSize: 11, fontWeight: '600', color: '#64748b' },
   kortDetaljer: { flexDirection: 'row', gap: 8, marginBottom: 8 },
   detalj: { flex: 1, backgroundColor: '#f9fafb', borderRadius: 8, padding: 10, alignItems: 'center' },
+  detaljFramhavd: { backgroundColor: '#eff6ff' },
   detaljEtikett: { fontSize: 11, color: '#888', marginBottom: 4 },
   detaljVärde: { fontSize: 14, fontWeight: '600', color: '#1a1a1a' },
+  detaljVärdeStor: { fontSize: 16, fontWeight: '800', color: '#2563eb' },
   totalText: { color: '#2563eb' },
   foretag: { fontSize: 12, color: '#aaa' },
   avdragRad: { fontSize: 12, color: '#b91c1c', marginBottom: 4 },
@@ -507,13 +653,21 @@ const styles = StyleSheet.create({
   jobbBricka: { backgroundColor: '#eff6ff', borderRadius: 10, paddingHorizontal: 12, paddingVertical: 6, alignItems: 'center', marginLeft: 8 },
   jobbAntal: { fontSize: 18, fontWeight: '700', color: '#2563eb' },
   jobbEtikett: { fontSize: 11, color: '#93c5fd' },
-  företagsDetalj: { fontSize: 12, color: '#555', marginTop: 2 },
+  sekundär: { fontSize: 12, color: '#94a3b8', marginTop: 2 },
+
+  // Fakturering – sektionshuvud per företag + lättare underlagskort
+  sektionHeader: { backgroundColor: '#fff', borderRadius: 12, padding: 16, marginTop: 8, marginBottom: 6, borderWidth: 1, borderColor: '#e0e7ff' },
+  sektionRad: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 },
+  sektionNamn: { flex: 1, fontSize: 16, fontWeight: '700', color: '#1a1a1a', marginRight: 8 },
+  sektionSubtotal: { fontSize: 16, fontWeight: '800', color: '#2563eb' },
+  sektionBulk: { marginTop: 10, backgroundColor: '#16a34a', borderRadius: 8, paddingVertical: 10, alignItems: 'center' },
+  sektionBulkText: { color: '#fff', fontWeight: '700', fontSize: 13 },
+  underlagKort: { backgroundColor: '#fff', borderRadius: 10, padding: 14, marginBottom: 8, marginLeft: 10, borderLeftWidth: 3, borderLeftColor: '#dbeafe' },
   fakturaHuvud: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 },
   fakturaDatum: { fontSize: 13, color: '#999' },
-  fakturaRad: { fontSize: 12, color: '#555', marginBottom: 2 },
   felText: { textAlign: 'center', color: '#ef4444', marginTop: 60, fontSize: 14, paddingHorizontal: 16 },
-  faktureradKnapp: { marginTop: 10, backgroundColor: '#16a34a', borderRadius: 8, paddingVertical: 10, alignItems: 'center' },
-  faktureradText: { color: '#fff', fontWeight: '600', fontSize: 13 },
+  faktureradKnappLiten: { marginTop: 8, borderWidth: 1, borderColor: '#16a34a', borderRadius: 8, paddingVertical: 8, alignItems: 'center' },
+  faktureradTextLiten: { color: '#16a34a', fontWeight: '600', fontSize: 12 },
   sökContainer: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#fff', margin: 12, borderRadius: 10, borderWidth: 1, borderColor: '#e5e7eb', paddingHorizontal: 12 },
   sökIkon: { marginRight: 8 },
   sökInput: { flex: 1, paddingVertical: 11, fontSize: 14, color: '#1a1a1a' },
