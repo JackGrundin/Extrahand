@@ -659,8 +659,9 @@ export default function PubliceraSchemaScreen({ navigation }) {
                   const fel = krockar.has(p.id) || nolltider.has(p.id);
                   const öppet = öppetPassId === p.id;
                   const markerad = markerade.has(p.id);
+                  const komplett = ärKomplett(p);
                   return (
-                    <View key={p.id}>
+                    <View key={p.id} style={[styles.passKort, (öppet || markerad) && styles.passKortAktiv, fel && styles.passKortFel]}>
                       <View style={[styles.passRad, fel && styles.passRadFel, öppet && styles.passRadÖppen, markerad && styles.passRadMarkerad]}>
                         <TouchableOpacity
                           style={styles.kryssRuteYta}
@@ -687,10 +688,13 @@ export default function PubliceraSchemaScreen({ navigation }) {
                             {/* Tiderna visas så snart NÅGON av dem är satt, så att ifyllnaden
                                 syns direkt i listan utan att man öppnar passet. */}
                             {p.starttid || p.sluttid ? (
-                              <Text style={[styles.passTid, fel && styles.passTidFel]}>
-                                {p.starttid || '?'} – {p.sluttid || '?'}
-                                {krockar.has(p.id) ? '  · krockar' : nolltider.has(p.id) ? '  · 0 timmar' : ''}
-                              </Text>
+                              <View style={styles.tidRad}>
+                                <Text style={[styles.passTid, fel && styles.passTidFel]}>
+                                  {p.starttid || '?'} – {p.sluttid || '?'}
+                                  {krockar.has(p.id) ? '  · krockar' : nolltider.has(p.id) ? '  · 0 timmar' : ''}
+                                </Text>
+                                {komplett && !fel && <Ionicons name="checkmark-circle" size={15} color="#16a34a" />}
+                              </View>
                             ) : (
                               <Text style={styles.fyllI}>— fyll i tider —</Text>
                             )}
@@ -955,18 +959,23 @@ const styles = StyleSheet.create({
 
   passRubrikRad: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between' },
   varning: { fontSize: 12, color: '#c2410c', fontWeight: '700', marginBottom: 6 },
-  passLista: { borderWidth: 1, borderColor: '#e5e7eb', borderRadius: 12, overflow: 'hidden' },
+  // Kort i stället för en tät tabell: varje pass är en egen ruta med luft omkring.
+  passLista: { marginTop: 4 },
+  passKort: { backgroundColor: '#fff', borderRadius: 12, borderWidth: 1, borderColor: '#e5e7eb', marginBottom: 10, overflow: 'hidden', shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 5, shadowOffset: { width: 0, height: 2 }, elevation: 1 },
+  passKortAktiv: { borderColor: '#2563eb' },
+  passKortFel: { borderColor: '#fca5a5' },
   markeraLänk: { fontSize: 13, color: '#2563eb', fontWeight: '600' },
   kryssRuteYta: { paddingVertical: 10, paddingLeft: 2, paddingRight: 8 },
   kryssRuta: { width: 20, height: 20, borderRadius: 5, borderWidth: 2, borderColor: '#2563eb', justifyContent: 'center', alignItems: 'center' },
   kryssRutaAktiv: { backgroundColor: '#2563eb' },
   passRadMarkerad: { backgroundColor: '#eff6ff' },
-  passRad: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 8, paddingVertical: 9, borderBottomWidth: 1, borderBottomColor: '#f3f4f6', backgroundColor: '#fafafa' },
+  passRad: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, paddingVertical: 13, backgroundColor: '#fff' },
   passInnehåll: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 10 },
   passDatum: { width: 66 },
   passVeckodag: { fontSize: 11, color: '#9ca3af', textTransform: 'uppercase', fontWeight: '600' },
-  passDatumText: { fontSize: 14, color: '#1a1a1a', fontWeight: '500' },
-  passTid: { fontSize: 14, color: '#374151', fontWeight: '500' },
+  passDatumText: { fontSize: 15, color: '#1a1a1a', fontWeight: '500' },
+  tidRad: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  passTid: { fontSize: 15, color: '#374151', fontWeight: '500' },
   passRadFel: { backgroundColor: '#fef2f2' },
   passTidFel: { color: '#dc2626', fontWeight: '700' },
   fyllI: { fontSize: 13, color: '#c2410c', fontStyle: 'italic' },
