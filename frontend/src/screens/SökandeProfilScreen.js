@@ -3,6 +3,7 @@ import { View, Text, ScrollView, StyleSheet, ActivityIndicator, TouchableOpacity
 import { Ionicons } from '@expo/vector-icons';
 import { api } from '../api/klient';
 import HandlingsKnapp from '../components/HandlingsKnapp';
+import { BetygsSammanfattning, BetygsLista } from '../components/BetygsSektion';
 
 function Sektion({ rubrik, innehall }) {
   if (!innehall) return null;
@@ -57,15 +58,7 @@ export default function SökandeProfilScreen({ route, navigation }) {
 
       <Text style={styles.namn}>{profil.namn}</Text>
 
-      {betyg && betyg.antal > 0 ? (
-        <View style={styles.betygRad}>
-          <Ionicons name="star" size={18} color="#f59e0b" />
-          <Text style={styles.betygSnitt}>{betyg.snitt.toFixed(1)}</Text>
-          <Text style={styles.betygAntal}>({betyg.antal} betyg)</Text>
-        </View>
-      ) : (
-        <Text style={styles.ingetBetyg}>Inga betyg ännu</Text>
-      )}
+      <BetygsSammanfattning betyg={betyg} />
 
       {profil.totalTimmar > 0 && (
         <View style={styles.timmArBadge}>
@@ -87,25 +80,7 @@ export default function SökandeProfilScreen({ route, navigation }) {
         </>
       )}
 
-      {betyg && betyg.antal > 0 && (
-        <View style={styles.betygSektion}>
-          <Text style={styles.betygSektionsRubrik}>Betyg från arbetsgivare</Text>
-          {betyg.betyg.map((b, i) => (
-            <View key={i} style={styles.betygKort}>
-              <View style={styles.betygKortHuvud}>
-                <View style={styles.stjärnRad}>
-                  {[1,2,3,4,5].map(n => (
-                    <Ionicons key={n} name={n <= b.stjarnor ? 'star' : 'star-outline'} size={14} color="#f59e0b" />
-                  ))}
-                </View>
-                <Text style={styles.betygDatum}>{new Date(b.created_at).toLocaleDateString('sv-SE')}</Text>
-              </View>
-              {b.företagNamn && <Text style={styles.betygFöretag}>{b.företagNamn}</Text>}
-              {b.kommentar && <Text style={styles.betygKommentar}>{b.kommentar}</Text>}
-            </View>
-          ))}
-        </View>
-      )}
+      <BetygsLista betyg={betyg} rubrik="Betyg från arbetsgivare" />
 
       {ansokningId && (
         <HandlingsKnapp
@@ -127,10 +102,6 @@ const styles = StyleSheet.create({
   profilBild: { width: 88, height: 88, borderRadius: 44, marginBottom: 16 },
   avatarText: { color: '#fff', fontSize: 34, fontWeight: 'bold' },
   namn: { fontSize: 22, fontWeight: 'bold', color: '#1a1a1a', marginBottom: 12 },
-  betygRad: { flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: 12 },
-  betygSnitt: { fontSize: 17, fontWeight: '700', color: '#1a1a1a' },
-  betygAntal: { fontSize: 14, color: '#888' },
-  ingetBetyg: { fontSize: 14, color: '#aaa', marginBottom: 12 },
   timmArBadge: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#f0fdf4', borderRadius: 20, paddingHorizontal: 14, paddingVertical: 7, marginBottom: 16 },
   timmArText: { fontSize: 14, color: '#059669', fontWeight: '600' },
   divider: { width: '100%', height: 1, backgroundColor: '#f0f0f0', marginVertical: 20 },
@@ -138,14 +109,6 @@ const styles = StyleSheet.create({
   sektionsRubrik: { fontSize: 13, fontWeight: '700', color: '#888', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 6 },
   sektionsText: { fontSize: 15, color: '#333', lineHeight: 22 },
   tomProfil: { fontSize: 14, color: '#aaa', textAlign: 'center', lineHeight: 22 },
-  betygSektion: { width: '100%', marginTop: 8 },
-  betygSektionsRubrik: { fontSize: 13, fontWeight: '700', color: '#888', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 12 },
-  betygKort: { backgroundColor: '#fafafa', borderRadius: 10, padding: 12, marginBottom: 10, borderWidth: 1, borderColor: '#f0f0f0' },
-  betygKortHuvud: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 },
-  stjärnRad: { flexDirection: 'row', gap: 2 },
-  betygDatum: { fontSize: 12, color: '#aaa' },
-  betygFöretag: { fontSize: 13, fontWeight: '600', color: '#555', marginBottom: 4 },
-  betygKommentar: { fontSize: 14, color: '#444', lineHeight: 20 },
   chattKnappAvstånd: { marginTop: 24 },
   fel: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   felText: { color: '#999', fontSize: 16 },

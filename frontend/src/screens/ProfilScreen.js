@@ -7,6 +7,7 @@ import { useAuth } from '../context/AuthContext';
 import { api } from '../api/klient';
 import { useRealtidsPing } from '../context/RealtidsContext';
 import { useAppStateAktiv } from '../utils/useAppStateAktiv';
+import { BetygsSammanfattning, BetygsLista } from '../components/BetygsSektion';
 import {
   PÅSLAG_PRO,
   PÅSLAG_GRATIS,
@@ -185,15 +186,7 @@ export default function ProfilScreen({ navigation }) {
         <Text style={styles.typText}>{ärPrivatperson ? 'Privatperson' : 'Företag'}</Text>
       </View>
 
-      {betyg && betyg.antal > 0 ? (
-        <View style={styles.betygRad}>
-          <Ionicons name="star" size={18} color="#f59e0b" />
-          <Text style={styles.betygSnitt}>{betyg.snitt.toFixed(1)}</Text>
-          <Text style={styles.betygAntal}>({betyg.antal} betyg)</Text>
-        </View>
-      ) : (
-        <Text style={styles.ingetBetyg}>Inga betyg ännu</Text>
-      )}
+      <BetygsSammanfattning betyg={betyg} />
 
       {ärPrivatperson && profil?.totalTimmar > 0 && (
         <View style={styles.timmArBadge}>
@@ -300,25 +293,7 @@ export default function ProfilScreen({ navigation }) {
         </>
       )}
 
-      {ärPrivatperson && betyg && betyg.antal > 0 && (
-            <View style={styles.betygSektion}>
-              <Text style={styles.betygSektionsRubrik}>Betyg från arbetsgivare</Text>
-              {betyg.betyg.map((b, i) => (
-                <View key={i} style={styles.betygKort}>
-                  <View style={styles.betygKortHuvud}>
-                    <View style={styles.stjärnRad}>
-                      {[1,2,3,4,5].map(n => (
-                        <Ionicons key={n} name={n <= b.stjarnor ? 'star' : 'star-outline'} size={14} color="#f59e0b" />
-                      ))}
-                    </View>
-                    <Text style={styles.betygDatum}>{new Date(b.created_at).toLocaleDateString('sv-SE')}</Text>
-                  </View>
-                  {b.företagNamn && <Text style={styles.betygFöretag}>{b.företagNamn}</Text>}
-                  {b.kommentar && <Text style={styles.betygKommentar}>{b.kommentar}</Text>}
-                </View>
-              ))}
-            </View>
-          )}
+      <BetygsLista betyg={betyg} rubrik={ärPrivatperson ? 'Betyg från arbetsgivare' : 'Omdömen från personal'} />
 
       <TouchableOpacity style={styles.loggaUtKnapp} onPress={loggaUt}>
         <Text style={styles.loggaUtText}>Logga ut</Text>
@@ -354,10 +329,6 @@ const styles = StyleSheet.create({
   email: { fontSize: 15, color: '#666', marginBottom: 12 },
   typBadge: { backgroundColor: '#eff6ff', paddingHorizontal: 14, paddingVertical: 6, borderRadius: 20, marginBottom: 16 },
   typText: { color: '#2563eb', fontWeight: '600' },
-  betygRad: { flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: 12 },
-  betygSnitt: { fontSize: 17, fontWeight: '700', color: '#1a1a1a' },
-  betygAntal: { fontSize: 14, color: '#888' },
-  ingetBetyg: { fontSize: 14, color: '#aaa', marginBottom: 12 },
   timmArBadge: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#f0fdf4', borderRadius: 20, paddingHorizontal: 14, paddingVertical: 7, marginBottom: 20 },
   timmArText: { fontSize: 14, color: '#059669', fontWeight: '600' },
   redigeraKnapp: { flexDirection: 'row', alignItems: 'center', gap: 6, borderWidth: 1, borderColor: '#2563eb', borderRadius: 10, paddingVertical: 10, paddingHorizontal: 20, marginBottom: 24 },
@@ -366,14 +337,6 @@ const styles = StyleSheet.create({
   sektionsRubrik: { fontSize: 13, fontWeight: '700', color: '#888', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 6 },
   sektionsText: { fontSize: 15, color: '#333', lineHeight: 22 },
   tomProfil: { fontSize: 14, color: '#aaa', textAlign: 'center', lineHeight: 22, marginBottom: 24, paddingHorizontal: 8 },
-  betygSektion: { width: '100%', marginTop: 8 },
-  betygSektionsRubrik: { fontSize: 13, fontWeight: '700', color: '#888', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 12 },
-  betygKort: { backgroundColor: '#fafafa', borderRadius: 10, padding: 12, marginBottom: 10, borderWidth: 1, borderColor: '#f0f0f0' },
-  betygKortHuvud: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 },
-  stjärnRad: { flexDirection: 'row', gap: 2 },
-  betygDatum: { fontSize: 12, color: '#aaa' },
-  betygFöretag: { fontSize: 13, fontWeight: '600', color: '#555', marginBottom: 4 },
-  betygKommentar: { fontSize: 14, color: '#444', lineHeight: 20 },
   loggaUtKnapp: { borderWidth: 1, borderColor: '#ef4444', borderRadius: 10, paddingVertical: 14, paddingHorizontal: 40, marginTop: 8 },
 
   prenumerationKort: { width: '100%', backgroundColor: '#f8faff', borderWidth: 1, borderColor: '#dbeafe', borderRadius: 14, padding: 16, marginBottom: 20 },

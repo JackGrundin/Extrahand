@@ -2,17 +2,23 @@ import { useCallback, useState } from 'react';
 import { View, Text, Image, TouchableOpacity, StyleSheet, ScrollView, ActivityIndicator, Linking } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { api } from '../api/klient';
+import { BetygsSammanfattning, BetygsLista } from '../components/BetygsSektion';
 
 export default function FöretagsProfilScreen({ route, navigation }) {
   const { foretagId } = route.params;
   const [profil, setProfil] = useState(null);
+  const [betyg, setBetyg] = useState(null);
   const [laddar, setLaddar] = useState(true);
 
   useFocusEffect(useCallback(() => {
     async function hämta() {
       try {
-        const data = await api.hämtaAnvändareProfil(foretagId);
+        const [data, betygData] = await Promise.all([
+          api.hämtaAnvändareProfil(foretagId),
+          api.hämtaBetyg(foretagId),
+        ]);
         setProfil(data);
+        setBetyg(betygData);
       } catch (fel) {
         console.error(fel);
       } finally {
@@ -46,12 +52,21 @@ export default function FöretagsProfilScreen({ route, navigation }) {
             <Text style={styles.hemsida}>{profil.hemsida}</Text>
           </TouchableOpacity>
         )}
+        <View style={styles.betygAvstånd}>
+          <BetygsSammanfattning betyg={betyg} />
+        </View>
       </View>
 
       {profil.beskrivning && (
         <View style={styles.sektion}>
           <Text style={styles.sektionsRubrik}>Om företaget</Text>
           <Text style={styles.beskrivning}>{profil.beskrivning}</Text>
+        </View>
+      )}
+
+      {betyg?.antal > 0 && (
+        <View style={styles.sektion}>
+          <BetygsLista betyg={betyg} rubrik="Omdömen" />
         </View>
       )}
 
@@ -85,6 +100,7 @@ const styles = StyleSheet.create({
   bransch: { fontSize: 15, color: '#2563eb', fontWeight: '600', marginBottom: 2 },
   meta: { fontSize: 14, color: '#888', marginBottom: 2 },
   hemsida: { fontSize: 14, color: '#2563eb', marginTop: 4, textDecorationLine: 'underline' },
+  betygAvstånd: { marginTop: 12 },
   sektion: { backgroundColor: '#fff', padding: 20, marginBottom: 12 },
   sektionsRubrik: { fontSize: 16, fontWeight: '700', color: '#1a1a1a', marginBottom: 12 },
   beskrivning: { fontSize: 15, color: '#444', lineHeight: 22 },
