@@ -209,6 +209,7 @@ export const api = {
   hämtaAllaPrivatpersoner: () => anrop('GET', '/users/admin/privatpersoner'),
   hämtaAllaFöretag: () => anrop('GET', '/users/admin/foretag'),
   godkännAvtal: (id) => anrop('PATCH', `/users/admin/${id}/avtal`),
+  återkallaAvtal: (id, orsak) => anrop('PATCH', `/users/admin/${id}/avtal-aterkalla`, { orsak }),
 
   // Fakturering
   hämtaFaktureringsunderlag: () => anrop('GET', '/fakturering'),

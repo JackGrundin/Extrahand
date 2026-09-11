@@ -1,7 +1,7 @@
 const express = require('express');
 const { kräverInloggning, kräverTyp } = require('../middleware/auth');
 const { skapaAnsökan, uppdateraIntygande, hämtaAnsökningarFörSökande, hämtaAnsökningarFörJobb, finnsDubblettAnsökan, uppdateraStatus, sättFavorit, hämtaAnsökanViaId, avvisaAllaUtomEn, återställAllaFörJobb, hämtaAllaKonversationerFörFöretag, ångraAnsökan, hämtaAnsökanMedJobbInfo, hämtaKonversationMellan, hämtaGrupperadeKonversationer, hämtaGodkändaFörJobb } = require('../db/ansokningar');
-const { hämtaPushToken, hämtaAnvändareViaId } = require('../db/användare');
+const { hämtaPushToken, hämtaAnvändareViaId, hämtaAvtalGodkant } = require('../db/användare');
 const { hämtaJobbViaId, sättJobbPåslag } = require('../db/jobb');
 const { hämtaPrenumeration, gällandePåslag, ökaPassDennaManad, minskaPassDennaManad } = require('../db/prenumeration');
 const { tilldelaSchema, räknaTilldelbaraPass, frigörFramtidaPass, återställSchema } = require('../db/schemaTilldelning');
@@ -17,6 +17,13 @@ router.post('/:jobbId', kräverInloggning, kräverTyp('privatperson'), async (re
   const { meddelande, intygade_krav } = req.body;
 
   try {
+    // Backend är sista försvaret: en privatperson utan godkänt avtal får inte söka jobb,
+    // även om appen normalt döljer knappen. Slår till direkt när admin återkallat avtalet.
+    // NULL räknas som ej godkänt, precis som appen behandlar det.
+    if (!(await hämtaAvtalGodkant(req.användare.id))) {
+      return res.status(403).json({ fel: 'Ditt avtal är inte godkänt – du kan inte söka jobb just nu.', kod: 'AVTAL_EJ_GODKANT' });
+    }
+
     // Materialiserade schemapass söks aldrig direkt – man söker schemat som helhet via
     // dess annons-jobb, och passens ansökningar skapas automatiskt vid godkännandet.
     const jobbet = await hämtaJobbViaId(jobbId);

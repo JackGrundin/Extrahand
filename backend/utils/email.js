@@ -58,4 +58,38 @@ async function skickaÅterställningsMail(email, länk, giltigTimmar) {
   if (error) throw new Error(error.message);
 }
 
-module.exports = { skickaVerifieringsMail, skickaÅterställningsMail };
+// Skickas när admin återkallar en privatpersons godkända avtal. Personen kan då inte längre
+// söka jobb, så mejlet talar om vad som hänt och varför (orsaken admin angav).
+async function skickaAvtalÅterkalladMail(email, namn, orsak) {
+  if (!process.env.RESEND_API_KEY) {
+    throw new Error('RESEND_API_KEY saknas i miljövariablerna.');
+  }
+  // Orsaken kommer från admin och ekas in i HTML – escapa så att den inte kan bryta ut ur
+  // markupen.
+  const säker = String(orsak ?? '').replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
+  const resend = skapaResend();
+  const { error } = await resend.emails.send({
+    from: process.env.EMAIL_FROM || 'FastGig <noreply@fastgig.se>',
+    to: email,
+    subject: 'Ditt avtal har återkallats – FastGig',
+    html: `
+      <div style="font-family:-apple-system,sans-serif;max-width:480px;margin:0 auto;padding:32px 24px;background:#fff;">
+        <h1 style="color:#2563eb;font-size:24px;margin:0 0 8px;">FastGig</h1>
+        <p style="color:#444;font-size:16px;margin:0 0 16px;">Hej ${namn ? säkerNamn(namn) : ''},</p>
+        <p style="color:#444;font-size:16px;margin:0 0 20px;">Ditt godkända avtal på FastGig har återkallats. Det innebär att du för närvarande inte kan söka jobb i appen.</p>
+        <div style="background:#fef2f2;border-radius:12px;padding:16px 18px;margin-bottom:20px;">
+          <p style="color:#991b1b;font-size:13px;font-weight:600;margin:0 0 4px;">Anledning</p>
+          <p style="color:#7f1d1d;font-size:15px;margin:0;line-height:1.5;">${säker}</p>
+        </div>
+        <p style="color:#888;font-size:13px;margin:0;">Har du frågor eller vill få ditt avtal godkänt igen? Kontakta oss på <a href="mailto:info@fastgig.se" style="color:#2563eb;">info@fastgig.se</a>.</p>
+      </div>
+    `,
+  });
+  if (error) throw new Error(error.message);
+}
+
+function säkerNamn(namn) {
+  return String(namn ?? '').replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
+}
+
+module.exports = { skickaVerifieringsMail, skickaÅterställningsMail, skickaAvtalÅterkalladMail };

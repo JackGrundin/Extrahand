@@ -2,10 +2,11 @@ const express = require('express');
 const { createClient } = require('@supabase/supabase-js');
 const ws = require('ws');
 const { kräverInloggning } = require('../middleware/auth');
-const { hämtaAnvändareViaEmail, hämtaAnvändareViaId, uppdateraProfil, uppdateraProfilBild, uppdateraStad, sparaPushToken, hämtaPushToken, hämtaAllaPrivatpersoner, godkännAvtal, hämtaAllaFöretag, raderaKonto } = require('../db/användare');
+const { hämtaAnvändareViaEmail, hämtaAnvändareViaId, uppdateraProfil, uppdateraProfilBild, uppdateraStad, sparaPushToken, hämtaPushToken, hämtaAllaPrivatpersoner, godkännAvtal, återkallaAvtal, hämtaAllaFöretag, raderaKonto } = require('../db/användare');
 const { hämtaTotalTimmar, avvisaVäntandeAnsökningar } = require('../db/ansokningar');
 const { ärPro } = require('../db/prenumeration');
 const { skickaNotifikation } = require('../utils/pushNotifikation');
+const { skickaAvtalÅterkalladMail } = require('../utils/email');
 const { hämtaJobbFörFöretag } = require('../db/jobb');
 const { sändRealtidsPing } = require('../realtid');
 
@@ -258,6 +259,38 @@ router.patch('/admin/:id/avtal', kräverInloggning, async (req, res) => {
     res.json({ ok: true });
   } catch (fel) {
     console.error('Avtalsgodkännande fel:', fel);
+    res.status(500).json({ fel: 'Serverfel' });
+  }
+});
+
+// PATCH /api/users/admin/:id/avtal-aterkalla — admin: återkalla ett godkänt avtal.
+// Sätter avtal_godkant = false så att personen inte längre kan söka jobb (spärren i
+// POST /api/ansokningar är sista försvaret), signalerar appen i realtid och mejlar
+// personen om återkallandet och varför.
+router.patch('/admin/:id/avtal-aterkalla', kräverInloggning, async (req, res) => {
+  if (req.användare.email !== ADMIN_EMAIL) return res.status(403).json({ fel: 'Åtkomst nekad' });
+  const orsak = typeof req.body?.orsak === 'string' ? req.body.orsak.trim() : '';
+  if (!orsak) return res.status(400).json({ fel: 'En orsak till återkallandet krävs' });
+
+  try {
+    const person = await återkallaAvtal(req.params.id);
+    if (!person) return res.status(404).json({ fel: 'Användaren hittades inte' });
+
+    // Signalera privatpersonen i realtid så att ansökningsspärren slår till direkt, utan
+    // omstart – samma 'avtal'-kanal som godkännandet använder (appen hämtar om profilen).
+    sändRealtidsPing(req.params.id, 'avtal');
+
+    // Informera personen. Ett mejlfel får ALDRIG fälla åtgärden: spärren är redan satt,
+    // felet loggas och personen kan kontaktas manuellt.
+    try {
+      if (person.Email) await skickaAvtalÅterkalladMail(person.Email, person.Namn, orsak);
+    } catch (mailFel) {
+      console.error('Kunde inte skicka avtal-återkallat-mejl:', mailFel.message);
+    }
+
+    res.json({ ok: true });
+  } catch (fel) {
+    console.error('Avtalåterkallande fel:', fel);
     res.status(500).json({ fel: 'Serverfel' });
   }
 });

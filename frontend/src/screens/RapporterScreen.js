@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { View, Text, FlatList, SectionList, StyleSheet, ActivityIndicator, TextInput, TouchableOpacity, Alert } from 'react-native';
+import { View, Text, FlatList, SectionList, StyleSheet, ActivityIndicator, TextInput, TouchableOpacity, Alert, Modal } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { api } from '../api/klient';
@@ -35,6 +35,10 @@ export default function RapporterScreen({ navigation }) {
   const [sökFöretag, setSökFöretag] = useState('');
   // Markerade tidrapporter för bulk-utbetalning (nivå 3).
   const [markerade, setMarkerade] = useState(new Set());
+  // Privatpersonen vars avtal håller på att återkallas (null = modalen stängd) + orsak.
+  const [avtalModal, setAvtalModal] = useState(null);
+  const [avtalOrsak, setAvtalOrsak] = useState('');
+  const [återkallar, setÅterkallar] = useState(false);
 
   // Rubriken speglar aktiv flik – annars stod det alltid "Tidrapporter" även på Företag.
   useEffect(() => {
@@ -194,6 +198,23 @@ export default function RapporterScreen({ navigation }) {
       setPrivatpersoner(prev => prev.map(p => p.id === id ? { ...p, avtal_godkant: true } : p));
     } catch (fel) {
       Alert.alert('Fel', fel.message);
+    }
+  }
+
+  // Återkallar ett godkänt avtal med en orsak (skickas till personen via mejl av backend).
+  async function bekräftaÅterkalla() {
+    const orsak = avtalOrsak.trim();
+    if (!avtalModal || !orsak || återkallar) return;
+    setÅterkallar(true);
+    try {
+      await api.återkallaAvtal(avtalModal.id, orsak);
+      setPrivatpersoner(prev => prev.map(p => p.id === avtalModal.id ? { ...p, avtal_godkant: false } : p));
+      setAvtalModal(null);
+      setAvtalOrsak('');
+    } catch (fel) {
+      Alert.alert('Fel', fel.message);
+    } finally {
+      setÅterkallar(false);
     }
   }
 
@@ -561,12 +582,50 @@ export default function RapporterScreen({ navigation }) {
                   <Text style={styles.godkännText}>Markera avtal som godkänt</Text>
                 </TouchableOpacity>
               )}
-              {item.avtal_godkant && <Text style={styles.godkäntEtikett}>Avtal godkänt</Text>}
+              {item.avtal_godkant && (
+                <>
+                  <Text style={styles.godkäntEtikett}>Avtal godkänt</Text>
+                  <TouchableOpacity style={styles.återkallaKnapp} onPress={() => { setAvtalModal(item); setAvtalOrsak(''); }}>
+                    <Text style={styles.återkallaText}>Ta tillbaka avtal</Text>
+                  </TouchableOpacity>
+                </>
+              )}
             </View>
           )}
         />
         </>
       )}
+
+      <Modal visible={avtalModal !== null} transparent animationType="fade" onRequestClose={() => setAvtalModal(null)}>
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalKort}>
+            <Text style={styles.modalTitel}>Ta tillbaka avtal</Text>
+            <Text style={styles.modalText}>
+              {avtalModal?.Namn ?? 'Personen'} kommer inte längre kunna söka jobb och får ett mejl med anledningen nedan.
+            </Text>
+            <TextInput
+              style={styles.modalInput}
+              placeholder="Anledning (skickas till personen)"
+              value={avtalOrsak}
+              onChangeText={setAvtalOrsak}
+              multiline
+              textAlignVertical="top"
+            />
+            <View style={styles.modalKnappar}>
+              <TouchableOpacity style={styles.modalAvbryt} onPress={() => { setAvtalModal(null); setAvtalOrsak(''); }}>
+                <Text style={styles.modalAvbrytText}>Avbryt</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.modalBekräfta, (!avtalOrsak.trim() || återkallar) && styles.modalBekräftaAv]}
+                disabled={!avtalOrsak.trim() || återkallar}
+                onPress={bekräftaÅterkalla}
+              >
+                <Text style={styles.modalBekräftaText}>{återkallar ? 'Återkallar…' : 'Ta tillbaka avtal'}</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -647,6 +706,19 @@ const styles = StyleSheet.create({
   godkännKnapp: { backgroundColor: '#2563eb', borderRadius: 8, paddingVertical: 10, alignItems: 'center' },
   godkännText: { color: '#fff', fontWeight: '600', fontSize: 14 },
   godkäntEtikett: { fontSize: 13, color: '#16a34a', fontWeight: '600', textAlign: 'center' },
+  återkallaKnapp: { marginTop: 10, borderWidth: 1, borderColor: '#dc2626', borderRadius: 8, paddingVertical: 9, alignItems: 'center' },
+  återkallaText: { color: '#dc2626', fontWeight: '600', fontSize: 13 },
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'center', padding: 24 },
+  modalKort: { backgroundColor: '#fff', borderRadius: 16, padding: 20 },
+  modalTitel: { fontSize: 18, fontWeight: '700', color: '#1a1a1a', marginBottom: 8 },
+  modalText: { fontSize: 14, color: '#555', lineHeight: 20, marginBottom: 14 },
+  modalInput: { borderWidth: 1, borderColor: '#ddd', borderRadius: 10, padding: 12, fontSize: 14, minHeight: 88, backgroundColor: '#fafafa', marginBottom: 16 },
+  modalKnappar: { flexDirection: 'row', justifyContent: 'flex-end', gap: 12, alignItems: 'center' },
+  modalAvbryt: { paddingVertical: 10, paddingHorizontal: 14 },
+  modalAvbrytText: { color: '#64748b', fontSize: 14, fontWeight: '600' },
+  modalBekräfta: { backgroundColor: '#dc2626', borderRadius: 8, paddingVertical: 10, paddingHorizontal: 16 },
+  modalBekräftaAv: { backgroundColor: '#fca5a5' },
+  modalBekräftaText: { color: '#fff', fontSize: 14, fontWeight: '700' },
   betaldKnapp: { marginTop: 10, borderWidth: 1, borderColor: '#16a34a', borderRadius: 8, paddingVertical: 9, alignItems: 'center' },
   betaldText: { color: '#16a34a', fontWeight: '600', fontSize: 13 },
   kortHuvudFöretag: { flexDirection: 'row', alignItems: 'center', marginBottom: 4 },

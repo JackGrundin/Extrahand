@@ -141,6 +141,33 @@ async function godkännAvtal(id) {
   if (error) throw error;
 }
 
+// Admin återkallar ett godkänt avtal. Returnerar Namn + Email så att routen kan mejla
+// personen om återkallandet – hämtaAnvändareViaId returnerar med flit INTE Email (den delas
+// med den publika profilen), så uppslaget görs här i stället.
+async function återkallaAvtal(id) {
+  const { data, error } = await supabase
+    .from('användare')
+    .update({ avtal_godkant: false })
+    .eq('id', id)
+    .select('id, Namn, Email')
+    .maybeSingle();
+  if (error) throw error;
+  return data;
+}
+
+// Läser en privatpersons avtalsstatus. Används av ansökningsspärren (backend är sista
+// försvaret). NULL = konto från före kolumnen fanns och räknas som ej godkänt, precis som
+// appen behandlar det (avtalGodkant: avtal_godkant ?? false).
+async function hämtaAvtalGodkant(id) {
+  const { data, error } = await supabase
+    .from('användare')
+    .select('avtal_godkant')
+    .eq('id', id)
+    .maybeSingle();
+  if (error) throw error;
+  return data?.avtal_godkant === true;
+}
+
 async function sparaVerifieringskod(id, kod, expiresAt) {
   const { error } = await supabase
     .from('användare')
@@ -242,4 +269,4 @@ async function raderaKonto(id) {
   if (error) throw error;
 }
 
-module.exports = { skapaAnvändare, hämtaAnvändareViaEmail, hämtaAnvändareViaId, uppdateraProfil, uppdateraProfilBild, uppdateraStad, hämtaPrivatpersonerIStad, sparaPushToken, hämtaPushToken, hämtaAllaPrivatpersoner, godkännAvtal, hämtaAllaFöretag, sparaVerifieringskod, markeraEmailVerifierad, sparaÅterställningsToken, hämtaAnvändareViaÅterställningsToken, uppdateraLösenord, raderaKonto };
+module.exports = { skapaAnvändare, hämtaAnvändareViaEmail, hämtaAnvändareViaId, uppdateraProfil, uppdateraProfilBild, uppdateraStad, hämtaPrivatpersonerIStad, sparaPushToken, hämtaPushToken, hämtaAllaPrivatpersoner, godkännAvtal, återkallaAvtal, hämtaAvtalGodkant, hämtaAllaFöretag, sparaVerifieringskod, markeraEmailVerifierad, sparaÅterställningsToken, hämtaAnvändareViaÅterställningsToken, uppdateraLösenord, raderaKonto };
