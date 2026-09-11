@@ -25,6 +25,9 @@ export default function PassDetaljFält({
   timlön = 0,
   paslag,
   obRubrik = 'OB-tillägg',
+  // Steg 3 visar tiderna direkt på passkortet och sätter därför visaTider={false} så att
+  // de inte dubbleras i den utfällda editorn. Övriga anropare behåller tiderna här.
+  visaTider = true,
 }) {
   // Företagets egna roller först – det är nästan alltid dem de vill ha – sedan
   // standardlistan. Diakritokänsligt, och exakt träff filtreras bort eftersom den redan
@@ -40,12 +43,16 @@ export default function PassDetaljFält({
 
   return (
     <>
-      <Text style={styles.etikett}>Tider</Text>
-      <View style={styles.tidRad}>
-        <TidVäljare style={{ flex: 1 }} placeholder="08:00" value={starttid} onChange={onStarttid} />
-        <Text style={styles.streck}>–</Text>
-        <TidVäljare style={{ flex: 1 }} placeholder="17:00" value={sluttid} onChange={onSluttid} />
-      </View>
+      {visaTider && (
+        <>
+          <Text style={styles.etikett}>Tider</Text>
+          <View style={styles.tidRad}>
+            <TidVäljare style={{ flex: 1 }} placeholder="08:00" value={starttid} onChange={onStarttid} />
+            <Text style={styles.streck}>–</Text>
+            <TidVäljare style={{ flex: 1 }} placeholder="17:00" value={sluttid} onChange={onSluttid} />
+          </View>
+        </>
+      )}
 
       <Text style={styles.etikett}>Roll / avdelning</Text>
       <TextInput

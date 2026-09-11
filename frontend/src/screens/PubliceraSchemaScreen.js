@@ -9,6 +9,7 @@ import StadInput from '../components/StadInput';
 import AdressInput from '../components/AdressInput';
 import SchemaPassModal from '../components/SchemaPassModal';
 import PassDetaljFält from '../components/PassDetaljFält';
+import TidVäljare from '../components/TidVäljare';
 import MassPassPanel from '../components/MassPassPanel';
 import BehörighetsKravRedigerare from '../components/BehörighetsKravRedigerare';
 import MånadsKalender from '../components/MånadsKalender';
@@ -661,7 +662,7 @@ export default function PubliceraSchemaScreen({ navigation }) {
                   const markerad = markerade.has(p.id);
                   const komplett = ärKomplett(p);
                   return (
-                    <View key={p.id} style={[styles.passKort, (öppet || markerad) && styles.passKortAktiv, fel && styles.passKortFel]}>
+                    <View key={p.id} style={[styles.passKort, (öppet || markerad) && styles.passKortAktiv, fel && styles.passKortFel, komplett && !fel && styles.passKortKlar]}>
                       <View style={[styles.passRad, fel && styles.passRadFel, öppet && styles.passRadÖppen, markerad && styles.passRadMarkerad]}>
                         <TouchableOpacity
                           style={styles.kryssRuteYta}
@@ -673,50 +674,67 @@ export default function PubliceraSchemaScreen({ navigation }) {
                             {markerad && <Ionicons name="checkmark" size={13} color="#fff" />}
                           </View>
                         </TouchableOpacity>
-                        <TouchableOpacity
-                          style={styles.passInnehåll}
-                          /* Finns redan en markering togglar radtrycket kryssrutan i stället
-                             för att fälla ut editorn – samma vana som listor i iOS Mail. */
-                          onPress={() => (markerade.size > 0 ? markeraPass(p.id) : öppnaPass(p.id))}
-                          activeOpacity={0.7}
-                        >
-                          <View style={styles.passDatum}>
-                            <Text style={styles.passVeckodag}>{veckodagsNamn(p.datum)}</Text>
-                            <Text style={styles.passDatumText}>{formatDagDatum(p.datum)}</Text>
-                          </View>
-                          <View style={{ flex: 1 }}>
-                            {/* Tiderna visas så snart NÅGON av dem är satt, så att ifyllnaden
-                                syns direkt i listan utan att man öppnar passet. */}
-                            {p.starttid || p.sluttid ? (
-                              <View style={styles.tidRad}>
-                                <Text style={[styles.passTid, fel && styles.passTidFel]}>
-                                  {p.starttid || '?'} – {p.sluttid || '?'}
-                                  {krockar.has(p.id) ? '  · krockar' : nolltider.has(p.id) ? '  · 0 timmar' : ''}
-                                </Text>
-                                {komplett && !fel && <Ionicons name="checkmark-circle" size={15} color="#16a34a" />}
-                              </View>
-                            ) : (
-                              <Text style={styles.fyllI}>— fyll i tider —</Text>
-                            )}
-                            <View style={styles.passBrickor}>
-                              {p.kategori?.trim() ? (
-                                <View style={styles.rollBricka}><Text style={styles.rollBrickaText}>{p.kategori}</Text></View>
-                              ) : null}
-                              {p.ob_tillagg?.length > 0 && (
-                                <View style={styles.obBricka}><Text style={styles.obBrickaText}>OB ×{p.ob_tillagg.length}</Text></View>
-                              )}
-                            </View>
-                          </View>
-                          <Ionicons name={öppet ? 'chevron-up' : 'chevron-down'} size={18} color="#9ca3af" />
+                        <View style={styles.passDatum}>
+                          <Text style={styles.passVeckodag}>{veckodagsNamn(p.datum)}</Text>
+                          <Text style={styles.passDatumText}>{formatDagDatum(p.datum)}</Text>
+                        </View>
+                        <View style={{ flex: 1 }} />
+                        {komplett && !fel && <Ionicons name="checkmark-circle" size={20} color="#16a34a" style={{ marginRight: 2 }} />}
+                        <TouchableOpacity onPress={() => läggTillPassSammaDag(p)} hitSlop={8} style={styles.ikonKnapp}>
+                          <Ionicons name="add-circle-outline" size={22} color="#2563eb" />
                         </TouchableOpacity>
-
-                        <TouchableOpacity onPress={() => läggTillPassSammaDag(p)} hitSlop={8} style={{ padding: 4 }}>
-                          <Ionicons name="add-circle-outline" size={20} color="#2563eb" />
-                        </TouchableOpacity>
-                        <TouchableOpacity onPress={() => taBortPass(p.id)} hitSlop={8} style={{ padding: 4 }}>
-                          <Ionicons name="close-circle" size={20} color="#ef4444" />
+                        <TouchableOpacity onPress={() => taBortPass(p.id)} hitSlop={8} style={styles.ikonKnapp}>
+                          <Ionicons name="close-circle" size={22} color="#ef4444" />
                         </TouchableOpacity>
                       </View>
+
+                      {/* Tiderna redigeras DIREKT på kortet – inget behöver fällas ut. */}
+                      <View style={styles.tidFältRad}>
+                        <View style={styles.tidFält}>
+                          <View style={styles.tidEtikettRad}>
+                            <Ionicons name="time-outline" size={13} color="#6b7280" />
+                            <Text style={styles.tidEtikett}>Från</Text>
+                          </View>
+                          <TidVäljare value={p.starttid} onChange={(v) => ändraPass(p.id, 'starttid', v)} placeholder="Starttid" />
+                        </View>
+                        <View style={styles.tidFält}>
+                          <View style={styles.tidEtikettRad}>
+                            <Ionicons name="time-outline" size={13} color="#6b7280" />
+                            <Text style={styles.tidEtikett}>Till</Text>
+                          </View>
+                          <TidVäljare value={p.sluttid} onChange={(v) => ändraPass(p.id, 'sluttid', v)} placeholder="Sluttid" />
+                        </View>
+                      </View>
+                      {fel && (
+                        <Text style={styles.passFelText}>
+                          {krockar.has(p.id) ? 'Krockar med ett annat pass samma tid' : 'Samma start- och sluttid – 0 timmar'}
+                        </Text>
+                      )}
+
+                      {/* Roll & OB: brickor när ifyllt, annars en inbjudande hint. Trycket
+                          fäller ut editorn (eller togglar kryssrutan om ett urval pågår). */}
+                      <TouchableOpacity
+                        style={styles.rollRad}
+                        onPress={() => (markerade.size > 0 ? markeraPass(p.id) : öppnaPass(p.id))}
+                        activeOpacity={0.7}
+                      >
+                        {p.kategori?.trim() || p.ob_tillagg?.length > 0 ? (
+                          <View style={styles.passBrickor}>
+                            {p.kategori?.trim() ? (
+                              <View style={styles.rollBricka}><Text style={styles.rollBrickaText}>{p.kategori}</Text></View>
+                            ) : null}
+                            {p.ob_tillagg?.length > 0 && (
+                              <View style={styles.obBricka}><Text style={styles.obBrickaText}>OB ×{p.ob_tillagg.length}</Text></View>
+                            )}
+                          </View>
+                        ) : (
+                          <View style={styles.rollHint}>
+                            <Ionicons name="add" size={15} color="#2563eb" />
+                            <Text style={styles.rollHintText}>Roll & OB</Text>
+                          </View>
+                        )}
+                        <Ionicons name={öppet ? 'chevron-up' : 'chevron-down'} size={18} color="#9ca3af" />
+                      </TouchableOpacity>
 
                       {/* Editorn ligger I raden, så den är alltid vid passet oavsett hur lång
                           listan är. key={p.id} nollställer ObRedigerares eget formulärstate
@@ -737,6 +755,7 @@ export default function PubliceraSchemaScreen({ navigation }) {
                             </TouchableOpacity>
                           </View>
                           <PassDetaljFält
+                            visaTider={false}
                             starttid={p.starttid}
                             sluttid={p.sluttid}
                             kategori={p.kategori ?? ''}
@@ -969,17 +988,23 @@ const styles = StyleSheet.create({
   kryssRuta: { width: 20, height: 20, borderRadius: 5, borderWidth: 2, borderColor: '#2563eb', justifyContent: 'center', alignItems: 'center' },
   kryssRutaAktiv: { backgroundColor: '#2563eb' },
   passRadMarkerad: { backgroundColor: '#eff6ff' },
-  passRad: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, paddingVertical: 13, backgroundColor: '#fff' },
-  passInnehåll: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 10 },
-  passDatum: { width: 66 },
-  passVeckodag: { fontSize: 11, color: '#9ca3af', textTransform: 'uppercase', fontWeight: '600' },
-  passDatumText: { fontSize: 15, color: '#1a1a1a', fontWeight: '500' },
-  tidRad: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  passTid: { fontSize: 15, color: '#374151', fontWeight: '500' },
-  passRadFel: { backgroundColor: '#fef2f2' },
-  passTidFel: { color: '#dc2626', fontWeight: '700' },
-  fyllI: { fontSize: 13, color: '#c2410c', fontStyle: 'italic' },
-  passBrickor: { flexDirection: 'row', flexWrap: 'wrap', gap: 5, marginTop: 3 },
+  passKortKlar: { borderColor: '#bbf7d0' },
+  passRad: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, paddingTop: 12, paddingBottom: 4, gap: 10 },
+  passDatum: { minWidth: 62 },
+  passVeckodag: { fontSize: 11, color: '#2563eb', textTransform: 'uppercase', fontWeight: '700', letterSpacing: 0.3 },
+  passDatumText: { fontSize: 16, color: '#1a1a1a', fontWeight: '700' },
+  ikonKnapp: { padding: 4 },
+  // Tidfälten direkt på kortet – inget behöver fällas ut för att ange tider.
+  tidFältRad: { flexDirection: 'row', gap: 10, paddingHorizontal: 12, paddingTop: 4 },
+  tidFält: { flex: 1 },
+  tidEtikettRad: { flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: 4 },
+  tidEtikett: { fontSize: 12, color: '#6b7280', fontWeight: '600' },
+  passFelText: { fontSize: 12, color: '#dc2626', fontWeight: '600', paddingHorizontal: 12, paddingTop: 6 },
+  passRadFel: {},
+  rollRad: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 12, paddingVertical: 12, marginTop: 4 },
+  rollHint: { flexDirection: 'row', alignItems: 'center', gap: 3 },
+  rollHintText: { fontSize: 13, color: '#2563eb', fontWeight: '600' },
+  passBrickor: { flexDirection: 'row', flexWrap: 'wrap', gap: 5, flex: 1 },
   rollBricka: { backgroundColor: '#eff6ff', borderRadius: 6, paddingHorizontal: 7, paddingVertical: 2 },
   rollBrickaText: { fontSize: 11, color: '#2563eb', fontWeight: '700' },
   obBricka: { backgroundColor: '#fff7ed', borderRadius: 6, paddingHorizontal: 7, paddingVertical: 2 },
