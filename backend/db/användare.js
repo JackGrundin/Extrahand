@@ -269,4 +269,18 @@ async function raderaKonto(id) {
   if (error) throw error;
 }
 
-module.exports = { skapaAnvändare, hämtaAnvändareViaEmail, hämtaAnvändareViaId, uppdateraProfil, uppdateraProfilBild, uppdateraStad, hämtaPrivatpersonerIStad, sparaPushToken, hämtaPushToken, hämtaAllaPrivatpersoner, godkännAvtal, återkallaAvtal, hämtaAvtalGodkant, hämtaAllaFöretag, sparaVerifieringskod, markeraEmailVerifierad, sparaÅterställningsToken, hämtaAnvändareViaÅterställningsToken, uppdateraLösenord, raderaKonto };
+// Admin: lista alla raderade konton (aktiv = false), senast raderade först. Namn och
+// Email är nollade vid raderingen, så listan bär bara id, kontotyp, avtalsstatus och
+// tidsstämplar. Notera .eq('aktiv', false) – inte !aktiv: NULL betyder konto från före
+// aktiv-kolumnen fanns och ska INTE räknas som raderat.
+async function hämtaRaderadeKonton() {
+  const { data, error } = await supabase
+    .from('användare')
+    .select('id, Typ, avtal_godkant, raderad_at, created_at')
+    .eq('aktiv', false)
+    .order('raderad_at', { ascending: false });
+  if (error) throw error;
+  return data || [];
+}
+
+module.exports = { skapaAnvändare, hämtaAnvändareViaEmail, hämtaAnvändareViaId, uppdateraProfil, uppdateraProfilBild, uppdateraStad, hämtaPrivatpersonerIStad, sparaPushToken, hämtaPushToken, hämtaAllaPrivatpersoner, godkännAvtal, återkallaAvtal, hämtaAvtalGodkant, hämtaAllaFöretag, sparaVerifieringskod, markeraEmailVerifierad, sparaÅterställningsToken, hämtaAnvändareViaÅterställningsToken, uppdateraLösenord, raderaKonto, hämtaRaderadeKonton };

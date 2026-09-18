@@ -28,6 +28,7 @@ export default function RapporterScreen({ navigation }) {
   const [företag, setFöretag] = useState([]);
   const [faktureringsunderlag, setFaktureringsunderlag] = useState([]);
   const [faktureringFel, setFaktureringFel] = useState(null);
+  const [raderadeKonton, setRaderadeKonton] = useState([]);
   const [laddar, setLaddar] = useState(true);
   const [fromDate, setFromDate] = useState('');
   const [toDate, setToDate] = useState('');
@@ -42,7 +43,7 @@ export default function RapporterScreen({ navigation }) {
 
   // Rubriken speglar aktiv flik – annars stod det alltid "Tidrapporter" även på Företag.
   useEffect(() => {
-    const titlar = { rapporter: 'Tidrapporter', avtal: 'Avtal', företag: 'Företag', fakturering: 'Fakturering' };
+    const titlar = { rapporter: 'Tidrapporter', avtal: 'Avtal', företag: 'Företag', fakturering: 'Fakturering', raderade: 'Raderade konton' };
     navigation.setOptions({ title: titlar[aktivFlik] ?? 'Admin' });
   }, [aktivFlik, navigation]);
 
@@ -51,11 +52,12 @@ export default function RapporterScreen({ navigation }) {
     // De fyra admin-anropen är oberoende – kör dem parallellt i stället för i sekvens.
     // allSettled behåller den tidigare per-anrop-isoleringen: ett fel på ett anrop får
     // inte hindra de andra listorna från att laddas.
-    const [rapporterRes, privatRes, företagRes, faktureringRes] = await Promise.allSettled([
+    const [rapporterRes, privatRes, företagRes, faktureringRes, raderadeRes] = await Promise.allSettled([
       api.allaRapporter('', ''),
       api.hämtaAllaPrivatpersoner(),
       api.hämtaAllaFöretag(),
       api.hämtaFaktureringsunderlag(),
+      api.hämtaRaderadeKonton(),
     ]);
 
     if (rapporterRes.status === 'fulfilled') setRapporter(rapporterRes.value);
@@ -73,6 +75,10 @@ export default function RapporterScreen({ navigation }) {
     } else {
       setFaktureringFel(faktureringRes.reason?.message ?? 'Kunde inte hämta faktureringsunderlag');
     }
+
+    if (raderadeRes.status === 'fulfilled') setRaderadeKonton(raderadeRes.value);
+    else console.error('Raderade konton:', raderadeRes.reason);
+
     setLaddar(false);
   }
 
@@ -218,6 +224,26 @@ export default function RapporterScreen({ navigation }) {
     }
   }
 
+  // Ta tillbaka ett godkänt avtal på ett redan raderat konto. Ett tryck, ingen orsak och
+  // inget mejl (backend skippar det) – kontot är ändå inaktivt och kan inte söka jobb.
+  function återkallaAvtalRaderat(id) {
+    Alert.alert(
+      'Ta tillbaka avtal',
+      'Ta tillbaka det godkända avtalet för detta raderade konto?',
+      [
+        { text: 'Avbryt', style: 'cancel' },
+        { text: 'Ta tillbaka', style: 'destructive', onPress: async () => {
+          try {
+            await api.återkallaAvtalRaderad(id);
+            setRaderadeKonton(prev => prev.map(k => k.id === id ? { ...k, avtal_godkant: false } : k));
+          } catch (fel) {
+            Alert.alert('Fel', fel.message);
+          }
+        }},
+      ]
+    );
+  }
+
   useFocusEffect(useCallback(() => { hämta(); }, []));
 
   const totaltBelopp = rapporter.reduce((sum, r) => sum + (r.totalt_belopp ?? 0), 0);
@@ -278,6 +304,7 @@ export default function RapporterScreen({ navigation }) {
         {renderFlik('avtal', 'Avtal', antalVäntandeAvtal)}
         {renderFlik('företag', 'Företag', företag.length)}
         {renderFlik('fakturering', 'Fakturering', faktureringsunderlag.length)}
+        {renderFlik('raderade', 'Raderade', raderadeKonton.length)}
       </View>
 
       {laddar ? (
@@ -541,6 +568,30 @@ export default function RapporterScreen({ navigation }) {
           )}
         />
         </>
+      ) : aktivFlik === 'raderade' ? (
+        <FlatList
+          data={raderadeKonton}
+          keyExtractor={(item) => item.id.toString()}
+          contentContainerStyle={styles.lista}
+          ListEmptyComponent={<Text style={styles.tom}>Inga raderade konton</Text>}
+          renderItem={({ item }) => (
+            <View style={styles.kort}>
+              <Text style={styles.namn}>Konto #{item.id}</Text>
+              <Text style={styles.sekundär}>{item.Typ === 'företag' ? 'Företag' : 'Privatperson'}</Text>
+              {item.raderad_at ? (
+                <Text style={styles.skapad}>Raderat {visaDatum(item.raderad_at)} ({dagarSedanText(item.raderad_at)})</Text>
+              ) : null}
+              {item.avtal_godkant && (
+                <>
+                  <Text style={[styles.godkäntEtikett, { textAlign: 'left', marginTop: 10 }]}>Avtal godkänt</Text>
+                  <TouchableOpacity style={styles.återkallaKnapp} onPress={() => återkallaAvtalRaderat(item.id)}>
+                    <Text style={styles.återkallaText}>Ta tillbaka avtal</Text>
+                  </TouchableOpacity>
+                </>
+              )}
+            </View>
+          )}
+        />
       ) : (
         <>
           <View style={styles.sökContainer}>

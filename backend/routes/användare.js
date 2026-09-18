@@ -2,7 +2,7 @@ const express = require('express');
 const { createClient } = require('@supabase/supabase-js');
 const ws = require('ws');
 const { kräverInloggning } = require('../middleware/auth');
-const { hämtaAnvändareViaEmail, hämtaAnvändareViaId, uppdateraProfil, uppdateraProfilBild, uppdateraStad, sparaPushToken, hämtaPushToken, hämtaAllaPrivatpersoner, godkännAvtal, återkallaAvtal, hämtaAllaFöretag, raderaKonto } = require('../db/användare');
+const { hämtaAnvändareViaEmail, hämtaAnvändareViaId, uppdateraProfil, uppdateraProfilBild, uppdateraStad, sparaPushToken, hämtaPushToken, hämtaAllaPrivatpersoner, godkännAvtal, återkallaAvtal, hämtaAllaFöretag, raderaKonto, hämtaRaderadeKonton } = require('../db/användare');
 const { hämtaTotalTimmar, avvisaVäntandeAnsökningar } = require('../db/ansokningar');
 const { ärPro } = require('../db/prenumeration');
 const { skickaNotifikation } = require('../utils/pushNotifikation');
@@ -291,6 +291,36 @@ router.patch('/admin/:id/avtal-aterkalla', kräverInloggning, async (req, res) =
     res.json({ ok: true });
   } catch (fel) {
     console.error('Avtalåterkallande fel:', fel);
+    res.status(500).json({ fel: 'Serverfel' });
+  }
+});
+
+// GET /api/users/admin/raderade — admin: lista alla raderade konton (aktiv = false)
+router.get('/admin/raderade', kräverInloggning, async (req, res) => {
+  if (req.användare.email !== ADMIN_EMAIL) return res.status(403).json({ fel: 'Åtkomst nekad' });
+  try {
+    const konton = await hämtaRaderadeKonton();
+    res.json(konton);
+  } catch (fel) {
+    console.error('Admin raderade konton fel:', fel);
+    res.status(500).json({ fel: 'Serverfel' });
+  }
+});
+
+// PATCH /api/users/admin/:id/avtal-aterkalla-raderad — admin: ta tillbaka ett godkänt
+// avtal på ett REDAN RADERAT konto. Till skillnad från /avtal-aterkalla krävs ingen
+// orsak och inget mejl skickas: kontot är redan inaktivt och kan inte söka jobb, och
+// mejlet hade bara gått till platshållaradressen raderad+<id>@fastgig.se.
+router.patch('/admin/:id/avtal-aterkalla-raderad', kräverInloggning, async (req, res) => {
+  if (req.användare.email !== ADMIN_EMAIL) return res.status(403).json({ fel: 'Åtkomst nekad' });
+  try {
+    const person = await återkallaAvtal(req.params.id);
+    if (!person) return res.status(404).json({ fel: 'Användaren hittades inte' });
+    // Ofarligt broadcast, ingen await – som övriga avtalsroutes.
+    sändRealtidsPing(req.params.id, 'avtal');
+    res.json({ ok: true });
+  } catch (fel) {
+    console.error('Avtalåterkallande (raderad) fel:', fel);
     res.status(500).json({ fel: 'Serverfel' });
   }
 });
