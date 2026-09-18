@@ -51,13 +51,11 @@ export function AuthProvider({ children }) {
 
   // Frågar om platstillstånd, hittar användarens stad via GPS + reverse geocoding
   // och sparar den på profilen. Om tillstånd nekas anger man staden manuellt i
-  // profilen istället. Loggar varje steg så att man kan felsöka om dialogen
-  // uteblir (oftast: appen behöver byggas om efter att expo-location lades till).
+  // profilen istället. Ett misslyckande loggas (oftast: appen behöver byggas om
+  // efter att expo-location lades till).
   async function begärOchSparaStad() {
     try {
-      console.log('[plats] begär platstillstånd...');
-      const { status, canAskAgain } = await Location.requestForegroundPermissionsAsync();
-      console.log('[plats] tillståndsstatus:', status, 'canAskAgain:', canAskAgain);
+      const { status } = await Location.requestForegroundPermissionsAsync();
       if (status !== 'granted') return;
 
       const position = await Location.getCurrentPositionAsync({
@@ -69,7 +67,6 @@ export function AuthProvider({ children }) {
       });
 
       const stad = plats?.city || plats?.subregion || plats?.region;
-      console.log('[plats] härledd stad:', stad);
       if (!stad) return;
 
       await api.uppdateraStad(stad);

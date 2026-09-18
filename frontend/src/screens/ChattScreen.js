@@ -1,12 +1,12 @@
 import { useEffect, useState, useRef, useCallback, useMemo } from 'react';
-import { View, Text, FlatList, ScrollView, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform, ActivityIndicator, Alert, Modal } from 'react-native';
+import { View, Text, FlatList, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform, ActivityIndicator, Alert, Modal } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { api, felText } from '../api/klient';
 import { useAuth } from '../context/AuthContext';
 import { useNotifikationer } from '../context/NotifikationsContext';
 import { STATUSFÄRGER_TIDRAPPORT } from '../utils/konstanter';
-import { parsaArbetstider, formatDagDatum, parsaObTillagg } from '../utils/datumHelper';
+import { parsaObTillagg } from '../utils/datumHelper';
 import ErbjudPassModal from '../components/ErbjudPassModal';
 import JobbforfraganKort from '../components/JobbforfraganKort';
 import PassKort from '../components/PassKort';
