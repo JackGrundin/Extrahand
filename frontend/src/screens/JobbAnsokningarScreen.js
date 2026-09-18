@@ -1,5 +1,5 @@
 import { useCallback, useState } from 'react';
-import { View, Text, FlatList, TouchableOpacity, StyleSheet, ActivityIndicator, RefreshControl, Alert } from 'react-native';
+import { View, Text, FlatList, TouchableOpacity, StyleSheet, ActivityIndicator, Alert } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { api } from '../api/klient';
@@ -10,6 +10,7 @@ import HandlingsKnapp from '../components/HandlingsKnapp';
 import IntygandeRad from '../components/IntygandeRad';
 import { useRealtidsPing } from '../context/RealtidsContext';
 import { useAttAvsluta } from '../context/AttAvslutaContext';
+import { useLoggaRefresh } from '../components/LoggaRefresh';
 
 function StatusKnappar({ item, onUppdaterad, onAvsluta, navigation, tidigare, startat }) {
   const [sparar, setSparar] = useState(false);
@@ -91,7 +92,6 @@ export default function JobbAnsokningarScreen({ route, navigation }) {
   const [avslutadeIds, setAvslutadeIds] = useState(new Set());
   const [jobb, setJobb] = useState(null);
   const [laddar, setLaddar] = useState(true);
-  const [uppdaterar, setUppdaterar] = useState(false);
   const [modalSynlig, setModalSynlig] = useState(false);
   const [valtAnsokningId, setValtAnsokningId] = useState(null);
   const [sparar, setSparar] = useState(false);
@@ -113,9 +113,10 @@ export default function JobbAnsokningarScreen({ route, navigation }) {
       console.error(fel);
     } finally {
       setLaddar(false);
-      setUppdaterar(false);
     }
   }
+
+  const refresh = useLoggaRefresh(hämta);
 
   useFocusEffect(useCallback(() => {
     hämta();
@@ -192,11 +193,15 @@ export default function JobbAnsokningarScreen({ route, navigation }) {
 
   return (
     <>
+      {refresh.LoggaOverlay}
       <FlatList
         style={styles.lista}
         data={aktivaAnsökningar}
         keyExtractor={(item) => item.id}
-        refreshControl={<RefreshControl refreshing={uppdaterar} onRefresh={() => { setUppdaterar(true); hämta(); }} />}
+        refreshControl={refresh.refreshControl}
+        onScroll={refresh.onScroll}
+        scrollEventThrottle={refresh.scrollEventThrottle}
+        onLayout={refresh.onListLayout}
         ListEmptyComponent={<Text style={styles.tom}>Inga aktiva ansökningar</Text>}
         renderItem={({ item }) => (
           <TouchableOpacity

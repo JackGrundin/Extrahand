@@ -1,18 +1,18 @@
 import { useCallback, useState } from 'react';
-import { View, Text, FlatList, TouchableOpacity, StyleSheet, ActivityIndicator, RefreshControl, Alert, Modal, ScrollView } from 'react-native';
+import { View, Text, FlatList, TouchableOpacity, StyleSheet, ActivityIndicator, Alert, Modal, ScrollView } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { api } from '../api/klient';
 import { ansökanStatusVisning } from '../utils/konstanter';
 import { saknadeKrav } from '../utils/behorighet';
 import { useRealtidsPing } from '../context/RealtidsContext';
+import { useLoggaRefresh } from '../components/LoggaRefresh';
 import HandlingsKnapp from '../components/HandlingsKnapp';
 import BehörighetsKrav from '../components/BehörighetsKrav';
 
 export default function MinaAnsokningarScreen({ navigation }) {
   const [ansökningar, setAnsökningar] = useState([]);
   const [laddar, setLaddar] = useState(true);
-  const [uppdaterar, setUppdaterar] = useState(false);
   // Ansökan vars nya krav ska bekräftas, plus vad som kryssats i modalen.
   const [bekräftar, setBekräftar] = useState(null);
   const [ikryssade, setIkryssade] = useState(() => new Set());
@@ -32,9 +32,10 @@ export default function MinaAnsokningarScreen({ navigation }) {
       console.error(fel);
     } finally {
       setLaddar(false);
-      setUppdaterar(false);
     }
   }
+
+  const refresh = useLoggaRefresh(hämta);
 
   useFocusEffect(useCallback(() => { hämta(); }, []));
 
@@ -84,11 +85,15 @@ export default function MinaAnsokningarScreen({ navigation }) {
 
   return (
     <>
+    {refresh.LoggaOverlay}
     <FlatList
       style={styles.lista}
       data={ansökningar}
       keyExtractor={(item) => item.id}
-      refreshControl={<RefreshControl refreshing={uppdaterar} onRefresh={() => { setUppdaterar(true); hämta(); }} />}
+      refreshControl={refresh.refreshControl}
+      onScroll={refresh.onScroll}
+      scrollEventThrottle={refresh.scrollEventThrottle}
+      onLayout={refresh.onListLayout}
       ListEmptyComponent={
         <View style={styles.tomContainer}>
           <Text style={styles.tomText}>Du har inte sökt några jobb ännu</Text>

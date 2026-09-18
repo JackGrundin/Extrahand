@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { View, Text, FlatList, TouchableOpacity, StyleSheet, ActivityIndicator, RefreshControl, Alert, ActionSheetIOS, Platform } from 'react-native';
+import { View, Text, FlatList, TouchableOpacity, StyleSheet, ActivityIndicator, Alert, ActionSheetIOS, Platform } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { api } from '../api/klient';
@@ -7,6 +7,7 @@ import { parsaArbetstider, formatDagDatum, behöverAvslutas, harStartat } from '
 import { STATUSFÄRGER_TIDRAPPORT as statusFärger, schematypEtikett } from '../utils/konstanter';
 import { useAttAvsluta } from '../context/AttAvslutaContext';
 import { useRealtidsPing } from '../context/RealtidsContext';
+import { useLoggaRefresh } from '../components/LoggaRefresh';
 import HandlingsKnapp from '../components/HandlingsKnapp';
 import RollBrickor from '../components/RollBrickor';
 
@@ -17,7 +18,6 @@ export default function MinaJobbScreen({ navigation, route }) {
   const [scheman, setScheman] = useState([]);
   const [aktivFlik, setAktivFlik] = useState(route.params?.flik ?? 'aktiva');
   const [laddar, setLaddar] = useState(true);
-  const [uppdaterar, setUppdaterar] = useState(false);
   const { setAntalAttAvsluta } = useAttAvsluta();
 
   async function taBort(id) {
@@ -77,8 +77,9 @@ export default function MinaJobbScreen({ navigation, route }) {
     else console.error('Scheman fel:', schemaRes.reason);
 
     setLaddar(false);
-    setUppdaterar(false);
   }
+
+  const refresh = useLoggaRefresh(hämta);
 
   useFocusEffect(useCallback(() => { hämta(); }, []));
 
@@ -198,6 +199,7 @@ export default function MinaJobbScreen({ navigation, route }) {
 
   return (
     <View style={{ flex: 1, backgroundColor: '#f5f5f5' }}>
+      {refresh.LoggaOverlay}
       <View style={styles.flikar}>
         <TouchableOpacity
           style={[styles.flik, aktivFlik === 'aktiva' && styles.flikAktiv]}
@@ -230,7 +232,10 @@ export default function MinaJobbScreen({ navigation, route }) {
           style={styles.lista}
           data={scheman}
           keyExtractor={(item) => item.id}
-          refreshControl={<RefreshControl refreshing={uppdaterar} onRefresh={() => { setUppdaterar(true); hämta(); }} />}
+          refreshControl={refresh.refreshControl}
+          onScroll={refresh.onScroll}
+          scrollEventThrottle={refresh.scrollEventThrottle}
+          onLayout={refresh.onListLayout}
           ListEmptyComponent={
             <View style={styles.tomContainer}>
               <Text style={styles.tomText}>Inga scheman ännu</Text>
@@ -296,7 +301,10 @@ export default function MinaJobbScreen({ navigation, route }) {
           style={styles.lista}
           data={huvudAktiva}
           keyExtractor={(item) => item.id}
-          refreshControl={<RefreshControl refreshing={uppdaterar} onRefresh={() => { setUppdaterar(true); hämta(); }} />}
+          refreshControl={refresh.refreshControl}
+          onScroll={refresh.onScroll}
+          scrollEventThrottle={refresh.scrollEventThrottle}
+          onLayout={refresh.onListLayout}
           ListEmptyComponent={
             // Visa tom-texten bara när det inte heller finns några "Inga sökande"-jobb.
             ingaSökande.length === 0 ? (
@@ -323,7 +331,10 @@ export default function MinaJobbScreen({ navigation, route }) {
           style={styles.lista}
           data={tidigareLista}
           keyExtractor={(item) => `${item._typ}-${item.id}`}
-          refreshControl={<RefreshControl refreshing={uppdaterar} onRefresh={() => { setUppdaterar(true); hämta(); }} />}
+          refreshControl={refresh.refreshControl}
+          onScroll={refresh.onScroll}
+          scrollEventThrottle={refresh.scrollEventThrottle}
+          onLayout={refresh.onListLayout}
           ListEmptyComponent={
             <View style={styles.tomContainer}>
               <Text style={styles.tomText}>Inga avslutade pass ännu</Text>

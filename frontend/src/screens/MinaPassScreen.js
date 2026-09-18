@@ -1,9 +1,10 @@
 import { useCallback, useState } from 'react';
-import { View, Text, SectionList, TouchableOpacity, StyleSheet, ActivityIndicator, RefreshControl } from 'react-native';
+import { View, Text, SectionList, TouchableOpacity, StyleSheet, ActivityIndicator } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { api } from '../api/klient';
 import { useRealtidsPing } from '../context/RealtidsContext';
 import { useAppStateAktiv } from '../utils/useAppStateAktiv';
+import { useLoggaRefresh } from '../components/LoggaRefresh';
 import HandlingsKnapp from '../components/HandlingsKnapp';
 import RollBrickor from '../components/RollBrickor';
 
@@ -38,7 +39,6 @@ function grupperaPerMånad(pass) {
 export default function MinaPassScreen({ navigation }) {
   const [ansökningar, setAnsökningar] = useState([]);
   const [laddar, setLaddar] = useState(true);
-  const [uppdaterar, setUppdaterar] = useState(false);
   const [aktivFlik, setAktivFlik] = useState('kommande');
 
   async function hämta() {
@@ -49,9 +49,10 @@ export default function MinaPassScreen({ navigation }) {
       console.error(fel);
     } finally {
       setLaddar(false);
-      setUppdaterar(false);
     }
   }
+
+  const refresh = useLoggaRefresh(hämta);
 
   useFocusEffect(useCallback(() => { hämta(); }, []));
 
@@ -111,6 +112,7 @@ export default function MinaPassScreen({ navigation }) {
 
   return (
     <View style={{ flex: 1, backgroundColor: '#f5f5f5' }}>
+      {refresh.LoggaOverlay}
       <View style={styles.flikar}>
         <TouchableOpacity
           style={[styles.flik, aktivFlik === 'kommande' && styles.flikAktiv]}
@@ -136,7 +138,10 @@ export default function MinaPassScreen({ navigation }) {
         sections={sektioner}
         keyExtractor={(item) => item.id}
         contentContainerStyle={styles.lista}
-        refreshControl={<RefreshControl refreshing={uppdaterar} onRefresh={() => { setUppdaterar(true); hämta(); }} />}
+        refreshControl={refresh.refreshControl}
+        onScroll={refresh.onScroll}
+        scrollEventThrottle={refresh.scrollEventThrottle}
+        onLayout={refresh.onListLayout}
         renderSectionHeader={({ section }) => (
           <Text style={styles.månadRubrik}>{section.titel.toUpperCase()}</Text>
         )}

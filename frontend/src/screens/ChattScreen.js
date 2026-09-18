@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef, useCallback, useMemo } from 'react';
-import { View, Text, FlatList, ScrollView, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform, ActivityIndicator, Alert, RefreshControl, Modal } from 'react-native';
+import { View, Text, FlatList, ScrollView, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform, ActivityIndicator, Alert, Modal } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { api } from '../api/klient';
@@ -13,6 +13,7 @@ import PassKort from '../components/PassKort';
 import AvslutaPassModal from '../components/AvslutaPassModal';
 import { useRealtidsPing } from '../context/RealtidsContext';
 import { useBetyg } from '../context/BetygsContext';
+import { useLoggaRefresh } from '../components/LoggaRefresh';
 
 function TidrapportKort({ rapport, ärPrivatperson, ärSenaste, onUppdaterad }) {
   const [sparar, setSparar] = useState(false);
@@ -280,7 +281,6 @@ export default function ChattScreen({ route, navigation }) {
   const [skickarFörfrågan, setSkickarFörfrågan] = useState(false);
   const [text, setText] = useState('');
   const [laddar, setLaddar] = useState(true);
-  const [uppdaterar, setUppdaterar] = useState(false);
   const [skickar, setSkickar] = useState(false);
   const listRef = useRef(null);
 
@@ -325,7 +325,7 @@ export default function ChattScreen({ route, navigation }) {
 
   async function hämta() {
     const id = await bestämMotpart();
-    if (id == null) { setLaddar(false); setUppdaterar(false); return; }
+    if (id == null) { setLaddar(false); return; }
     setMotpartId(id);
 
     const [konvResult, förfrResult] = await Promise.allSettled([
@@ -344,10 +344,11 @@ export default function ChattScreen({ route, navigation }) {
 
     markeraLäst(String(id));
     setLaddar(false);
-    setUppdaterar(false);
     // Chatten ska alltid öppnas längst ned i konversationen.
     scrollaTillBotten(false);
   }
+
+  const refresh = useLoggaRefresh(hämta);
 
   async function skickaFörfrågan(data) {
     if (motpartId == null) {
@@ -435,6 +436,7 @@ export default function ChattScreen({ route, navigation }) {
 
   return (
     <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === 'ios' ? 'padding' : undefined} keyboardVerticalOffset={90}>
+      {refresh.LoggaOverlay}
       {motpartNamn && (
         <View style={styles.passStrip}>
           <Text style={styles.passTitel} numberOfLines={1}>{motpartNamn}</Text>
@@ -454,7 +456,10 @@ export default function ChattScreen({ route, navigation }) {
         keyExtractor={(item) => item.key}
         contentContainerStyle={styles.meddelandeLista}
         onContentSizeChange={() => listRef.current?.scrollToEnd({ animated: false })}
-        refreshControl={<RefreshControl refreshing={uppdaterar} onRefresh={() => { setUppdaterar(true); hämta(); }} />}
+        refreshControl={refresh.refreshControl}
+        onScroll={refresh.onScroll}
+        scrollEventThrottle={refresh.scrollEventThrottle}
+        onLayout={refresh.onListLayout}
         ListEmptyComponent={<Text style={styles.tom}>Inga meddelanden ännu. Säg hej!</Text>}
         renderItem={({ item }) => {
           if (item.typ === 'förfrågan') {

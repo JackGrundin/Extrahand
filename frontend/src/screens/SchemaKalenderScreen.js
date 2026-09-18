@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { View, Text, ScrollView, StyleSheet, ActivityIndicator, RefreshControl, TouchableOpacity } from 'react-native';
+import { View, Text, ScrollView, StyleSheet, ActivityIndicator, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { api } from '../api/klient';
 import { useRealtidsPing } from '../context/RealtidsContext';
+import { useLoggaRefresh } from '../components/LoggaRefresh';
 import MånadsKalender from '../components/MånadsKalender';
 import { datumTillIso, formatDagDatum, veckodagsNamn } from '../utils/datumHelper';
 import { rollFärg } from '../utils/konstanter';
@@ -70,7 +71,6 @@ export default function SchemaKalenderScreen({ navigation }) {
   const [valtDatum, setValtDatum] = useState(datumTillIso(idag));
   const [pass, setPass] = useState([]);
   const [laddar, setLaddar] = useState(true);
-  const [uppdaterar, setUppdaterar] = useState(false);
 
   const hämta = useCallback(async () => {
     try {
@@ -82,9 +82,10 @@ export default function SchemaKalenderScreen({ navigation }) {
       console.error('Kalender fel:', fel);
     } finally {
       setLaddar(false);
-      setUppdaterar(false);
     }
   }, [år, månad]);
+
+  const refresh = useLoggaRefresh(hämta);
 
   useEffect(() => { hämta(); }, [hämta]);
   // Filtrera på 'ansokan': hämta() drar tre månaders kalenderdata, och ska inte köras om
@@ -119,9 +120,14 @@ export default function SchemaKalenderScreen({ navigation }) {
   if (laddar) return <ActivityIndicator style={{ flex: 1 }} size="large" />;
 
   return (
+    <>
+    {refresh.LoggaOverlay}
     <ScrollView
       style={styles.container}
-      refreshControl={<RefreshControl refreshing={uppdaterar} onRefresh={() => { setUppdaterar(true); hämta(); }} />}
+      refreshControl={refresh.refreshControl}
+      onScroll={refresh.onScroll}
+      scrollEventThrottle={refresh.scrollEventThrottle}
+      onLayout={refresh.onListLayout}
     >
       <MånadsKalender
         år={år}
@@ -212,6 +218,7 @@ export default function SchemaKalenderScreen({ navigation }) {
 
       <View style={{ height: 32 }} />
     </ScrollView>
+    </>
   );
 }
 

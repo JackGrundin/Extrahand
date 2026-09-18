@@ -1,5 +1,5 @@
 import { useCallback, useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Alert, ScrollView, ActivityIndicator, TextInput, Modal, Linking, Platform, RefreshControl, KeyboardAvoidingView } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, Alert, ScrollView, ActivityIndicator, TextInput, Modal, Linking, Platform, KeyboardAvoidingView } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { useHeaderHeight } from '@react-navigation/elements';
 import { Ionicons } from '@expo/vector-icons';
@@ -12,6 +12,7 @@ import { beräknaFakturapris, ansökanStatusVisning } from '../utils/konstanter'
 import { normaliseraKrav, saknadeKrav } from '../utils/behorighet';
 import BehörighetsKrav from '../components/BehörighetsKrav';
 import IntygandeRad from '../components/IntygandeRad';
+import { useLoggaRefresh } from '../components/LoggaRefresh';
 import { useJobbPåslag } from '../utils/useJobbPåslag';
 import RollBrickor from '../components/RollBrickor';
 
@@ -26,7 +27,6 @@ export default function SchemaDetaljScreen({ route, navigation }) {
   const { användare } = useAuth();
   const [schema, setSchema] = useState(null);
   const [laddar, setLaddar] = useState(true);
-  const [uppdaterar, setUppdaterar] = useState(false);
   const [sparar, setSparar] = useState(false);
   const [meddelande, setMeddelande] = useState('');
   const [sökt, setSökt] = useState(false);
@@ -51,9 +51,10 @@ export default function SchemaDetaljScreen({ route, navigation }) {
       Alert.alert('Fel', fel.message);
     } finally {
       setLaddar(false);
-      setUppdaterar(false);
     }
   }, [schemaId]);
+
+  const refresh = useLoggaRefresh(hämta);
 
   useFocusEffect(useCallback(() => { hämta(); }, [hämta]));
   useRealtidsPing(() => { hämta(); });
@@ -254,6 +255,7 @@ export default function SchemaDetaljScreen({ route, navigation }) {
 
   return (
     <>
+      {refresh.LoggaOverlay}
       <KeyboardAvoidingView
         style={styles.kavContainer}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -262,7 +264,10 @@ export default function SchemaDetaljScreen({ route, navigation }) {
       <ScrollView
         style={styles.container}
         keyboardShouldPersistTaps="handled"
-        refreshControl={<RefreshControl refreshing={uppdaterar} onRefresh={() => { setUppdaterar(true); hämta(); }} />}
+        refreshControl={refresh.refreshControl}
+        onScroll={refresh.onScroll}
+        scrollEventThrottle={refresh.scrollEventThrottle}
+        onLayout={refresh.onListLayout}
       >
         {schema.foretagNamn && <Text style={styles.foretagNamn}>{schema.foretagNamn}</Text>}
         <Text style={styles.titel}>{schema.titel}</Text>

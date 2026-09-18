@@ -1,4 +1,5 @@
-import { View, Text, StyleSheet } from 'react-native';
+import { useState } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, Modal, ScrollView, SafeAreaView } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
 // Delad betygsvy. Datan kommer från api.hämtaBetyg(id) som ger
@@ -38,29 +39,82 @@ export function BetygsSammanfattning({ betyg }) {
   );
 }
 
-// Lista med ett kort per recension. Returnerar null när inga betyg finns.
+// Ett recensionskort. Bruten ut så att listan och "Visa alla"-vyn renderar identiskt.
+function Recension({ b }) {
+  return (
+    <View style={styles.kort}>
+      <View style={styles.kortHuvud}>
+        <Stjärnor värde={b.stjarnor} />
+        <Text style={styles.datum}>{new Date(b.created_at).toLocaleDateString('sv-SE')}</Text>
+      </View>
+      {b.företagNamn && <Text style={styles.namn}>{b.företagNamn}</Text>}
+      {b.kommentar && <Text style={styles.kommentar}>{b.kommentar}</Text>}
+    </View>
+  );
+}
+
+// Rubrikrad med snitt + antal, delad av listan och modalens header.
+function RubrikRad({ rubrik, betyg }) {
+  return (
+    <View style={styles.rubrikRad}>
+      <Text style={styles.rubrik}>{rubrik}</Text>
+      <View style={styles.rubrikSnitt}>
+        <Ionicons name="star" size={13} color="#f59e0b" />
+        <Text style={styles.rubrikSnittText}>{betyg.snitt.toFixed(1)}</Text>
+        <Text style={styles.rubrikAntal}>· {antalText(betyg.antal)}</Text>
+      </View>
+    </View>
+  );
+}
+
+// Antal recensioner som visas direkt på profilen innan "Visa alla" öppnas.
+const MAX_SYNLIGA = 3;
+
+// Lista med ett kort per recension. Visar bara de MAX_SYNLIGA senaste; finns fler öppnar
+// "Visa alla"-knappen en fullskärmsmodal med hela listan (öppnar en ny vy utan att kräva
+// en registrerad skärm i varje navigator). Returnerar null när inga betyg finns.
 export function BetygsLista({ betyg, rubrik = 'Recensioner' }) {
+  const [visaAlla, setVisaAlla] = useState(false);
   if (!betyg || betyg.antal === 0) return null;
+
+  const synliga = betyg.betyg.slice(0, MAX_SYNLIGA);
+  const harFler = betyg.betyg.length > MAX_SYNLIGA;
+
   return (
     <View style={styles.sektion}>
-      <View style={styles.rubrikRad}>
-        <Text style={styles.rubrik}>{rubrik}</Text>
-        <View style={styles.rubrikSnitt}>
-          <Ionicons name="star" size={13} color="#f59e0b" />
-          <Text style={styles.rubrikSnittText}>{betyg.snitt.toFixed(1)}</Text>
-          <Text style={styles.rubrikAntal}>· {antalText(betyg.antal)}</Text>
-        </View>
-      </View>
-      {betyg.betyg.map((b, i) => (
-        <View key={i} style={styles.kort}>
-          <View style={styles.kortHuvud}>
-            <Stjärnor värde={b.stjarnor} />
-            <Text style={styles.datum}>{new Date(b.created_at).toLocaleDateString('sv-SE')}</Text>
+      <RubrikRad rubrik={rubrik} betyg={betyg} />
+      {synliga.map((b, i) => <Recension key={i} b={b} />)}
+
+      {harFler && (
+        <TouchableOpacity style={styles.visaAllaKnapp} onPress={() => setVisaAlla(true)}>
+          <Text style={styles.visaAllaText}>Visa alla {betyg.antal} recensioner</Text>
+          <Ionicons name="chevron-forward" size={16} color="#2563eb" />
+        </TouchableOpacity>
+      )}
+
+      <Modal
+        visible={visaAlla}
+        animationType="slide"
+        presentationStyle="pageSheet"
+        onRequestClose={() => setVisaAlla(false)}
+      >
+        <SafeAreaView style={styles.modalContainer}>
+          <View style={styles.modalHeader}>
+            <Text style={styles.modalTitel}>{rubrik}</Text>
+            <TouchableOpacity onPress={() => setVisaAlla(false)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+              <Ionicons name="close" size={26} color="#1a1a1a" />
+            </TouchableOpacity>
           </View>
-          {b.företagNamn && <Text style={styles.namn}>{b.företagNamn}</Text>}
-          {b.kommentar && <Text style={styles.kommentar}>{b.kommentar}</Text>}
-        </View>
-      ))}
+          <View style={styles.modalSnitt}>
+            <Ionicons name="star" size={16} color="#f59e0b" />
+            <Text style={styles.modalSnittText}>{betyg.snitt.toFixed(1)}</Text>
+            <Text style={styles.modalSnittAntal}>· {antalText(betyg.antal)}</Text>
+          </View>
+          <ScrollView contentContainerStyle={styles.modalLista}>
+            {betyg.betyg.map((b, i) => <Recension key={i} b={b} />)}
+          </ScrollView>
+        </SafeAreaView>
+      </Modal>
     </View>
   );
 }
@@ -82,4 +136,13 @@ const styles = StyleSheet.create({
   datum: { fontSize: 12, color: '#aaa' },
   namn: { fontSize: 13, fontWeight: '600', color: '#555', marginBottom: 4 },
   kommentar: { fontSize: 14, color: '#444', lineHeight: 20 },
+  visaAllaKnapp: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4, paddingVertical: 10, marginTop: 2 },
+  visaAllaText: { fontSize: 14, fontWeight: '600', color: '#2563eb' },
+  modalContainer: { flex: 1, backgroundColor: '#fff' },
+  modalHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingTop: 12, paddingBottom: 8 },
+  modalTitel: { fontSize: 20, fontWeight: '700', color: '#1a1a1a' },
+  modalSnitt: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 20, paddingBottom: 12, borderBottomWidth: 1, borderBottomColor: '#f0f0f0' },
+  modalSnittText: { fontSize: 15, fontWeight: '700', color: '#1a1a1a' },
+  modalSnittAntal: { fontSize: 13, color: '#888' },
+  modalLista: { padding: 20 },
 });

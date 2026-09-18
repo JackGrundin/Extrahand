@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { View, Text, FlatList, TouchableOpacity, StyleSheet, ActivityIndicator, RefreshControl, TextInput, ScrollView, Modal, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, Text, FlatList, TouchableOpacity, StyleSheet, ActivityIndicator, TextInput, ScrollView, Modal, KeyboardAvoidingView, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { api } from '../api/klient';
 import { useJobblistaPing } from '../context/RealtidsContext';
@@ -9,6 +9,7 @@ import { parsaArbetstider, formatDagDatum, parsaObTillagg } from '../utils/datum
 import { normaliseraKrav } from '../utils/behorighet';
 import StadInput from '../components/StadInput';
 import RollBrickor from '../components/RollBrickor';
+import { useLoggaRefresh } from '../components/LoggaRefresh';
 
 const SORTERING = ['Närmast datum', 'Nyast', 'Högst lön', 'Flest dagar'];
 
@@ -72,7 +73,6 @@ export default function JobbScreen({ navigation }) {
   // egna filterbehov, därför en egen lista i stället för att blandas in bland passen.
   const [läge, setLäge] = useState('pass');
   const [laddar, setLaddar] = useState(true);
-  const [uppdaterar, setUppdaterar] = useState(false);
   // Tom lista = alla typer, precis som valtaKategorier fungerar.
   const [valdaSchematyper, setValdaSchematyper] = useState([]);
   const [valtaKategorier, setValtaKategorier] = useState([]);
@@ -96,9 +96,10 @@ export default function JobbScreen({ navigation }) {
       console.error(fel);
     } finally {
       setLaddar(false);
-      setUppdaterar(false);
     }
   }
+
+  const refresh = useLoggaRefresh(hämta);
 
   useEffect(() => { hämta(); }, []);
 
@@ -172,6 +173,7 @@ export default function JobbScreen({ navigation }) {
 
   return (
     <View style={{ flex: 1, backgroundColor: '#f5f5f5' }}>
+      {refresh.LoggaOverlay}
       <View style={styles.lägeVäljare}>
         <TouchableOpacity
           style={[styles.lägeKnapp, läge === 'pass' && styles.lägeKnappAktiv]}
@@ -198,7 +200,10 @@ export default function JobbScreen({ navigation }) {
           data={filtreradeScheman}
           keyExtractor={(item) => item.id}
           contentContainerStyle={styles.lista}
-          refreshControl={<RefreshControl refreshing={uppdaterar} onRefresh={() => { setUppdaterar(true); hämta(); }} />}
+          refreshControl={refresh.refreshControl}
+          onScroll={refresh.onScroll}
+          scrollEventThrottle={refresh.scrollEventThrottle}
+          onLayout={refresh.onListLayout}
           ListHeaderComponent={
             <>
               <View style={styles.schemaHeader}>
@@ -314,7 +319,10 @@ export default function JobbScreen({ navigation }) {
         data={filtrerade}
         keyExtractor={(item) => item.id}
         contentContainerStyle={styles.lista}
-        refreshControl={<RefreshControl refreshing={uppdaterar} onRefresh={() => { setUppdaterar(true); hämta(); }} />}
+        refreshControl={refresh.refreshControl}
+        onScroll={refresh.onScroll}
+        scrollEventThrottle={refresh.scrollEventThrottle}
+        onLayout={refresh.onListLayout}
         ListEmptyComponent={<Text style={styles.tom}>Inga jobb matchar filtret</Text>}
         renderItem={({ item }) => {
           const schema = parsaArbetstider(item.arbetstider);

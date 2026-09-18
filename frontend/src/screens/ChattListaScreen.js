@@ -1,10 +1,11 @@
 import { useCallback, useState } from 'react';
-import { View, Text, SectionList, TouchableOpacity, StyleSheet, ActivityIndicator, RefreshControl, TextInput } from 'react-native';
+import { View, Text, SectionList, TouchableOpacity, StyleSheet, ActivityIndicator, TextInput } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../context/AuthContext';
 import { useNotifikationer } from '../context/NotifikationsContext';
 import { api } from '../api/klient';
+import { useLoggaRefresh } from '../components/LoggaRefresh';
 
 // Sorterar så att olästa chattar hamnar högst upp, därefter de med senaste meddelande
 function sorteraOlästaFörst(poster, olästaIds) {
@@ -54,7 +55,6 @@ export default function ChattListaScreen({ navigation }) {
 
   const [poster, setPoster] = useState([]);
   const [laddar, setLaddar] = useState(true);
-  const [uppdaterar, setUppdaterar] = useState(false);
   const [söktext, setSöktext] = useState('');
 
   async function hämta() {
@@ -66,9 +66,10 @@ export default function ChattListaScreen({ navigation }) {
       console.error(fel);
     } finally {
       setLaddar(false);
-      setUppdaterar(false);
     }
   }
+
+  const refresh = useLoggaRefresh(hämta);
 
   useFocusEffect(useCallback(() => { hämta(); }, []));
 
@@ -87,6 +88,7 @@ export default function ChattListaScreen({ navigation }) {
 
   return (
     <View style={styles.container}>
+      {refresh.LoggaOverlay}
       <View style={styles.sökRad}>
         <Ionicons name="search" size={18} color="#9ca3af" />
         <TextInput
@@ -110,7 +112,10 @@ export default function ChattListaScreen({ navigation }) {
         sections={sektioner}
         keyExtractor={(item) => item.id}
         contentContainerStyle={styles.listaInnehåll}
-        refreshControl={<RefreshControl refreshing={uppdaterar} onRefresh={() => { setUppdaterar(true); hämta(); }} />}
+        refreshControl={refresh.refreshControl}
+        onScroll={refresh.onScroll}
+        scrollEventThrottle={refresh.scrollEventThrottle}
+        onLayout={refresh.onListLayout}
         ListEmptyComponent={<Text style={styles.tom}>Inga aktiva chattar</Text>}
         renderSectionHeader={({ section }) => (
           <View style={[styles.sektionHuvud, section.brådskande && styles.sektionHuvudBrådskande]}>
