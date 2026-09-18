@@ -120,11 +120,26 @@ const s = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SECRET_KEY
   process.exit(0);
 })();
 "
-cd .. && rm -f frontend/.env.local && git status --short
+cd .. && rm -f frontend/.env.local
+
+# SISTA STEGET, ALLTID: verifiera att överstyrningen är borta. Filen MÅSTE raderas som
+# sista steg i varje session – ligger den kvar pekar nästa vanliga körning (och andra
+# utvecklares) mot din lokala backend, och den kan råka committas trots gitignore.
+if [ -f frontend/.env.local ]; then
+  echo "⚠️  VARNING: frontend/.env.local finns kvar – ta bort den NU innan du avslutar."
+else
+  echo "✅ PÅMINNELSE: frontend/.env.local är borttagen – sessionen är rensad."
+fi
+git status --short
 ```
 
 Databasen är **produktionsdatabasen** – det finns ingen separat testinstans. Därför
 `UITEST`-prefixet på allt du skapar, och därför är upprensningen obligatorisk.
+
+**Radering av `frontend/.env.local` är det obligatoriska sista steget i VARJE session.**
+Kör alltid verifieringen ovan och avsluta sessionen med att uttryckligen bekräfta för
+användaren att filen är borttagen (t.ex. "✅ frontend/.env.local borttagen"). Ser du
+`⚠️ VARNING` ovan är sessionen inte klar – ta bort filen och kör kontrollen igen.
 
 ## Gotchas
 
