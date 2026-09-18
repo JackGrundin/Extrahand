@@ -300,6 +300,16 @@ export default function ProfilScreen({ navigation }) {
       </TouchableOpacity>
 
       <TouchableOpacity
+        style={styles.integritetspolicyKnapp}
+        onPress={() => navigation.navigate('Integritetspolicy')}
+        accessibilityRole="button"
+        accessibilityLabel="Integritetspolicy"
+      >
+        <Ionicons name="shield-checkmark-outline" size={18} color="#2563eb" />
+        <Text style={styles.integritetspolicyText}>Integritetspolicy</Text>
+      </TouchableOpacity>
+
+      <TouchableOpacity
         style={styles.taBortKontoKnapp}
         onPress={bekräftaRadering}
         disabled={raderar}
@@ -333,6 +343,8 @@ const styles = StyleSheet.create({
   timmArText: { fontSize: 14, color: '#059669', fontWeight: '600' },
   redigeraKnapp: { flexDirection: 'row', alignItems: 'center', gap: 6, borderWidth: 1, borderColor: '#2563eb', borderRadius: 10, paddingVertical: 10, paddingHorizontal: 20, marginBottom: 24 },
   redigeraText: { color: '#2563eb', fontWeight: '600', fontSize: 15 },
+  integritetspolicyKnapp: { flexDirection: 'row', alignItems: 'center', gap: 6, borderWidth: 1, borderColor: '#ddd', borderRadius: 10, paddingVertical: 12, paddingHorizontal: 20, marginTop: 16 },
+  integritetspolicyText: { color: '#2563eb', fontWeight: '600', fontSize: 15 },
   sektion: { width: '100%', marginBottom: 20 },
   sektionsRubrik: { fontSize: 13, fontWeight: '700', color: '#888', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 6 },
   sektionsText: { fontSize: 15, color: '#333', lineHeight: 22 },

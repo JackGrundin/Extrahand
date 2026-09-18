@@ -208,6 +208,13 @@ export default function RegistreraScreen({ navigation }) {
           </>
         )}
 
+        <Text style={styles.policyText}>
+          Genom att skapa ett konto godkänner du vår{' '}
+          <Text style={styles.policyLänk} onPress={() => navigation.navigate('Integritetspolicy')}>
+            integritetspolicy
+          </Text>.
+        </Text>
+
         <TouchableOpacity style={styles.knapp} onPress={hanteraRegistrering} disabled={laddar}>
           {laddar ? <ActivityIndicator color="#fff" /> : <Text style={styles.knappText}>Skapa konto</Text>}
         </TouchableOpacity>
@@ -239,4 +246,6 @@ const styles = StyleSheet.create({
   knapp: { backgroundColor: '#2563eb', borderRadius: 10, padding: 16, alignItems: 'center', marginBottom: 16, marginTop: 8 },
   knappText: { color: '#fff', fontWeight: '600', fontSize: 16 },
   länk: { textAlign: 'center', color: '#2563eb', fontSize: 15 },
+  policyText: { fontSize: 13, color: '#666', textAlign: 'center', lineHeight: 20, marginBottom: 12 },
+  policyLänk: { color: '#2563eb', fontWeight: '600', textDecorationLine: 'underline' },
 });
