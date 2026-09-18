@@ -85,6 +85,13 @@ router.post('/', kräverInloggning, kräverTyp('företag'), async (req, res) => 
 router.get('/ansokan/:ansokningId', kräverInloggning, async (req, res) => {
   try {
     const rapport = await hämtaTidrapportFörAnsökan(req.params.ansokningId);
+    // Bara de två parterna får se rapporten – annars kan vem som helst räkna upp
+    // ansöknings-id och läsa andras timmar, OB, avdrag och utbetalning. Rapporten bär
+    // redan båda parternas id, så ingen extra fråga behövs. Saknas rapport finns inget
+    // att läcka och vi svarar null som förut.
+    if (rapport && rapport.anvandare_id !== req.användare.id && rapport.foretag_id !== req.användare.id) {
+      return res.status(403).json({ fel: 'Åtkomst nekad' });
+    }
     res.json(rapport ?? null);
   } catch (fel) {
     console.error('Tidrapport hämtning fel:', fel);

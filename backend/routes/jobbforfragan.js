@@ -12,6 +12,7 @@ const { hämtaPrenumeration, gällandePåslag, ökaPassDennaManad } = require('.
 const { skapaAnsökan, uppdateraStatus } = require('../db/ansokningar');
 const { hämtaPushToken, hämtaAnvändareViaId } = require('../db/användare');
 const { skickaNotifikation } = require('../utils/pushNotifikation');
+const { valideraObTillagg } = require('../utils/pris');
 const { sändRealtidsPing } = require('../realtid');
 
 const router = express.Router();
@@ -23,6 +24,14 @@ router.post('/', kräverInloggning, kräverTyp('företag'), async (req, res) => 
   if (!till_anvandare_id || !titel || !titel.trim() || !datum || !starttid || !sluttid || timlon == null) {
     return res.status(400).json({ fel: 'Mottagare, jobbtitel, datum, tider och timlön krävs' });
   }
+  // Backend är sista försvaret: en tom/0 timlön ger annars ett pass med en tidrapport på
+  // 0 kr, precis som för det vanliga jobbformuläret (valideraJobbInput).
+  if (!(Number(timlon) > 0)) {
+    return res.status(400).json({ fel: 'Timlönen måste vara större än noll' });
+  }
+  // All klient-OB måste valideras här – annars kastar beräknaObBelopp senare på trasig data.
+  const obFel = valideraObTillagg(ob_tillagg);
+  if (obFel) return res.status(400).json({ fel: obFel });
 
   try {
     const förfrågan = await skapaJobbforfragan({
