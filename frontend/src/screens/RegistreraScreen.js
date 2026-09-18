@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, ActivityIndicator, ScrollView, KeyboardAvoidingView, Platform } from 'react-native';
 import { useAuth } from '../context/AuthContext';
+import { felText } from '../api/klient';
 
 export default function RegistreraScreen({ navigation }) {
   const { registrera } = useAuth();
@@ -61,7 +62,7 @@ export default function RegistreraScreen({ navigation }) {
         navigation.replace('VerifieraEmail', { email });
       }
     } catch (fel) {
-      Alert.alert('Fel', fel.message);
+      Alert.alert('Fel', felText(fel));
     } finally {
       setLaddar(false);
     }

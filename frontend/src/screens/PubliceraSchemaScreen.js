@@ -19,7 +19,7 @@ import { useAppStateAktiv } from '../utils/useAppStateAktiv';
 import { valideraSchema } from '../utils/schemaValidering';
 import { formatDagDatum, veckodagsNamn, datumIntervall, veckodagsIndex } from '../utils/datumHelper';
 import { synkaPassMotDatum, uppdateraFält, tillämpaPåMarkerade, ärKomplett, tillPayload, nyttPassId, sorteraPass, hittaKrockar, harNolltid, antalPassEfterSynk } from '../utils/schemaPass';
-import { api } from '../api/klient';
+import { api, felText } from '../api/klient';
 import { KATEGORIER, SCHEMATYPER, PÅSLAG_GRATIS, beräknaFakturapris, formateraPris, beräknaAvdragFörPass, beräknaAvdragTotalt } from '../utils/konstanter';
 
 const STEG_ETIKETTER = ['Grunduppgifter', 'Period och datum', 'Detaljer per pass', 'Avdrag och publicering'];
@@ -429,7 +429,7 @@ export default function PubliceraSchemaScreen({ navigation }) {
       await publicera();
     } catch (error) {
       if (error.kod === 'KRAVER_PLANVAL') { setPlanModalVisas(true); return; }
-      Alert.alert('Fel', error.message);
+      Alert.alert('Fel', felText(error));
     } finally {
       setLaddar(false);
     }
@@ -439,7 +439,7 @@ export default function PubliceraSchemaScreen({ navigation }) {
     setPlanModalVisas(false);
     setLaddar(true);
     try { await publicera({ accepteraHögrePåslag: true }); }
-    catch (error) { Alert.alert('Fel', error.message); }
+    catch (error) { Alert.alert('Fel', felText(error)); }
     finally { setLaddar(false); }
   }
 
@@ -449,7 +449,7 @@ export default function PubliceraSchemaScreen({ navigation }) {
       const { url } = await api.skapaCheckout();
       await Linking.openURL(url);
       setPlanModalVisas(false);
-    } catch (error) { Alert.alert('Fel', error.message); }
+    } catch (error) { Alert.alert('Fel', felText(error)); }
     finally { setBetalningLaddar(false); }
   }
 

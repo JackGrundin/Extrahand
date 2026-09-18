@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { api } from '../api/klient';
+import { api, felText } from '../api/klient';
 import { parsaObTillagg } from '../utils/datumHelper';
 
 const STATUS = {
@@ -23,7 +23,7 @@ export default function JobbforfraganKort({ förfrågan, ärPrivatperson, onUppd
       }
       onUppdaterad();
     } catch (fel) {
-      Alert.alert('Fel', fel.message);
+      Alert.alert('Fel', felText(fel));
     } finally {
       setSparar(false);
     }

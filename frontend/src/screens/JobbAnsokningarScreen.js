@@ -2,7 +2,7 @@ import { useCallback, useState } from 'react';
 import { View, Text, FlatList, TouchableOpacity, StyleSheet, ActivityIndicator, Alert } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
-import { api } from '../api/klient';
+import { api, felText } from '../api/klient';
 import { harStartat, planeradeTimmar, parsaArbetstider } from '../utils/datumHelper';
 import { ansökanStatusVisning } from '../utils/konstanter';
 import AvslutaPassModal from '../components/AvslutaPassModal';
@@ -21,7 +21,7 @@ function StatusKnappar({ item, onUppdaterad, onAvsluta, navigation, tidigare, st
       await api.uppdateraStatus(item.id, 'godkänd');
       onUppdaterad();
     } catch (fel) {
-      Alert.alert('Fel', fel.message);
+      Alert.alert('Fel', felText(fel));
     } finally {
       setSparar(false);
     }
@@ -33,7 +33,7 @@ function StatusKnappar({ item, onUppdaterad, onAvsluta, navigation, tidigare, st
       await api.uppdateraStatus(item.id, 'väntande');
       onUppdaterad();
     } catch (fel) {
-      Alert.alert('Fel', fel.message);
+      Alert.alert('Fel', felText(fel));
     } finally {
       setSparar(false);
     }
@@ -160,7 +160,7 @@ export default function JobbAnsokningarScreen({ route, navigation }) {
       await api.växlaFavoritAnsökan(item.id, nyttVärde);
     } catch (fel) {
       setAnsökningar(prev => prev.map(a => (a.id === item.id ? { ...a, favorit: item.favorit } : a)));
-      Alert.alert('Fel', fel.message);
+      Alert.alert('Fel', felText(fel));
     }
   }
 
@@ -176,7 +176,7 @@ export default function JobbAnsokningarScreen({ route, navigation }) {
       navigation.goBack();
       Alert.alert('Skickat!', 'Tidrapporten har skickats till arbetstagaren för godkännande.');
     } catch (fel) {
-      Alert.alert('Fel', fel.message);
+      Alert.alert('Fel', felText(fel));
     } finally {
       setSparar(false);
     }

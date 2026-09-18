@@ -2,7 +2,7 @@ import { useState, useRef } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, ActivityIndicator, TouchableWithoutFeedback, Keyboard } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAuth } from '../context/AuthContext';
-import { api } from '../api/klient';
+import { api, felText } from '../api/klient';
 
 export default function VerifieraEmailScreen({ route, navigation }) {
   const { email } = route.params;
@@ -27,7 +27,7 @@ export default function VerifieraEmailScreen({ route, navigation }) {
       }
       sättAnvändare(svar.användare);
     } catch (fel) {
-      Alert.alert('Fel', fel.message);
+      Alert.alert('Fel', felText(fel));
     } finally {
       setVerifierar(false);
     }
@@ -40,7 +40,7 @@ export default function VerifieraEmailScreen({ route, navigation }) {
       Alert.alert('Klart', 'En ny kod har skickats till ' + email);
       setKod('');
     } catch {
-      Alert.alert('Fel', 'Kunde inte skicka nytt mail. Försök igen.');
+      Alert.alert('Kunde inte skicka mejl', 'Vi kunde inte skicka ett nytt verifieringsmejl just nu. Kontrollera din e-postadress och försök igen om en stund.');
     } finally {
       setSkickar(false);
     }

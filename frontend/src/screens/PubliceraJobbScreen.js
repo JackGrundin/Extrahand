@@ -10,7 +10,7 @@ import FältFel from '../components/FältFel';
 import BehörighetsKravRedigerare from '../components/BehörighetsKravRedigerare';
 import { useAppStateAktiv } from '../utils/useAppStateAktiv';
 import { valideraJobb } from '../utils/jobbValidering';
-import { api } from '../api/klient';
+import { api, felText } from '../api/klient';
 import { KATEGORIER, PÅSLAG_GRATIS, beräknaFakturapris, formateraPris, normalisera } from '../utils/konstanter';
 import StadInput from '../components/StadInput';
 import AdressInput from '../components/AdressInput';
@@ -173,7 +173,7 @@ export default function PubliceraJobbScreen({ navigation }) {
         setPlanModalVisas(true);
         return;
       }
-      Alert.alert('Fel', error.message);
+      Alert.alert('Fel', felText(error));
     } finally {
       setLaddar(false);
     }
@@ -186,7 +186,7 @@ export default function PubliceraJobbScreen({ navigation }) {
     try {
       await publicera({ accepteraHögrePåslag: true });
     } catch (fel) {
-      Alert.alert('Fel', fel.message);
+      Alert.alert('Fel', felText(fel));
     } finally {
       setLaddar(false);
     }
@@ -202,7 +202,7 @@ export default function PubliceraJobbScreen({ navigation }) {
       await Linking.openURL(url);
       setPlanModalVisas(false);
     } catch (fel) {
-      Alert.alert('Fel', fel.message);
+      Alert.alert('Fel', felText(fel));
     } finally {
       setBetalningLaddar(false);
     }

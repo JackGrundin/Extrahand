@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { api } from '../api/klient';
+import { api, felText } from '../api/klient';
 
 // Begär en återställningslänk via mejl. Själva lösenordsbytet sker på webbsidan som
 // länken öppnar (backendens /aterstall-losenord) – appen har ingen deep link, och en
@@ -26,7 +26,7 @@ export default function GlömtLösenordScreen({ navigation }) {
       // därför vara formulerad på samma sätt i båda fallen.
       setSkickat(true);
     } catch (fel) {
-      Alert.alert('Fel', fel.message);
+      Alert.alert('Fel', felText(fel));
     } finally {
       setLaddar(false);
     }

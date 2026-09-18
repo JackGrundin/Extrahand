@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { View, Text, FlatList, SectionList, StyleSheet, ActivityIndicator, TextInput, TouchableOpacity, Alert, Modal, KeyboardAvoidingView, Platform } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
-import { api } from '../api/klient';
+import { api, felText } from '../api/klient';
 
 // Datum visas överallt i samma ISO-format (sv-SE), så att en admin aldrig behöver gissa om
 // "08/09" är 8 sep eller 9 aug. "(N dagar sedan)" följer med som sekundär orientering.
@@ -73,7 +73,7 @@ export default function RapporterScreen({ navigation }) {
       setFaktureringsunderlag(faktureringRes.value);
       setFaktureringFel(null);
     } else {
-      setFaktureringFel(faktureringRes.reason?.message ?? 'Kunde inte hämta faktureringsunderlag');
+      setFaktureringFel(faktureringRes.reason ? felText(faktureringRes.reason) : 'Kunde inte hämta faktureringsunderlag');
     }
 
     if (raderadeRes.status === 'fulfilled') setRaderadeKonton(raderadeRes.value);
@@ -93,7 +93,7 @@ export default function RapporterScreen({ navigation }) {
             await api.markeraTidrapportBetald(id);
             setRapporter(prev => prev.filter(r => r.id !== id));
           } catch (fel) {
-            Alert.alert('Fel', fel.message);
+            Alert.alert('Fel', felText(fel));
           }
         }},
       ]
@@ -115,7 +115,7 @@ export default function RapporterScreen({ navigation }) {
             setRapporter(prev => prev.filter(r => !markerade.has(r.id)));
             setMarkerade(new Set());
           } catch (fel) {
-            Alert.alert('Fel', fel.message);
+            Alert.alert('Fel', felText(fel));
           }
         }},
       ]
@@ -170,7 +170,7 @@ export default function RapporterScreen({ navigation }) {
             await api.markeraFakturerad(id);
             setFaktureringsunderlag(prev => prev.filter(f => f.id !== id));
           } catch (fel) {
-            Alert.alert('Fel', fel.message);
+            Alert.alert('Fel', felText(fel));
           }
         }},
       ]
@@ -191,7 +191,7 @@ export default function RapporterScreen({ navigation }) {
             const kvar = new Set(idn);
             setFaktureringsunderlag(prev => prev.filter(f => !kvar.has(f.id)));
           } catch (fel) {
-            Alert.alert('Fel', fel.message);
+            Alert.alert('Fel', felText(fel));
           }
         }},
       ]
@@ -203,7 +203,7 @@ export default function RapporterScreen({ navigation }) {
       await api.godkännAvtal(id);
       setPrivatpersoner(prev => prev.map(p => p.id === id ? { ...p, avtal_godkant: true } : p));
     } catch (fel) {
-      Alert.alert('Fel', fel.message);
+      Alert.alert('Fel', felText(fel));
     }
   }
 
@@ -218,7 +218,7 @@ export default function RapporterScreen({ navigation }) {
       setAvtalModal(null);
       setAvtalOrsak('');
     } catch (fel) {
-      Alert.alert('Fel', fel.message);
+      Alert.alert('Fel', felText(fel));
     } finally {
       setÅterkallar(false);
     }
@@ -237,7 +237,7 @@ export default function RapporterScreen({ navigation }) {
             await api.återkallaAvtalRaderad(id);
             setRaderadeKonton(prev => prev.map(k => k.id === id ? { ...k, avtal_godkant: false } : k));
           } catch (fel) {
-            Alert.alert('Fel', fel.message);
+            Alert.alert('Fel', felText(fel));
           }
         }},
       ]

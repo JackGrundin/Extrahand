@@ -1,7 +1,7 @@
 import { useRef, useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, ScrollView, ActivityIndicator, KeyboardAvoidingView, Platform, Modal } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { api } from '../api/klient';
+import { api, felText } from '../api/klient';
 import { TYPER, KATEGORIER, beräknaFakturapris, formateraPris, normalisera } from '../utils/konstanter';
 import { useJobbPåslag } from '../utils/useJobbPåslag';
 import { valideraJobb } from '../utils/jobbValidering';
@@ -112,7 +112,7 @@ export default function RedigeraJobbScreen({ route, navigation }) {
         { text: 'OK', onPress: () => navigation.goBack() },
       ]);
     } catch (error) {
-      Alert.alert('Fel', error.message);
+      Alert.alert('Fel', felText(error));
     } finally {
       setLaddar(false);
     }

@@ -75,8 +75,9 @@ async function stripeWebhook(req, res) {
       STRIPE_WEBHOOK_SECRET
     );
   } catch (fel) {
+    // Den råa orsaken loggas serverside; svaret till Stripe hålls fritt från interna detaljer.
     console.error('Ogiltig Stripe-signatur:', fel.message);
-    return res.status(400).send(`Ogiltig signatur: ${fel.message}`);
+    return res.status(400).send('Ogiltig signatur');
   }
 
   try {

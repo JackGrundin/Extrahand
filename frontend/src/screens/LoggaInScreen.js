@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, ActivityIndicator, Image } from 'react-native';
 import { useAuth } from '../context/AuthContext';
-import { api } from '../api/klient';
+import { api, felText } from '../api/klient';
 
 export default function LoggaInScreen({ navigation }) {
   const { loggaIn } = useAuth();
@@ -24,7 +24,7 @@ export default function LoggaInScreen({ navigation }) {
       if (fel.kod === 'EMAIL_EJ_VERIFIERAD') {
         setEjVerifierad(true);
       } else {
-        Alert.alert('Fel', fel.message);
+        Alert.alert('Fel', felText(fel));
       }
     } finally {
       setLaddar(false);
@@ -37,7 +37,7 @@ export default function LoggaInScreen({ navigation }) {
       await api.skickaVerifieringsmail(email);
       Alert.alert('Klart', 'Ett nytt verifieringsmail har skickats till ' + email);
     } catch {
-      Alert.alert('Fel', 'Kunde inte skicka verifieringsmail. Försök igen.');
+      Alert.alert('Kunde inte skicka mejl', 'Vi kunde inte skicka verifieringsmejlet. Kontrollera att e-postadressen stämmer och försök igen om en stund.');
     } finally {
       setSkickarMail(false);
     }

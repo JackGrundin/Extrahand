@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, Alert, ActivityIndicator, KeyboardAvoidingView, Platform } from 'react-native';
-import { api } from '../api/klient';
+import { api, felText } from '../api/klient';
 import StadInput, { ärGiltigStad } from '../components/StadInput';
 
 export default function RedigeraProfilScreen({ route, navigation }) {
@@ -47,7 +47,7 @@ export default function RedigeraProfilScreen({ route, navigation }) {
         { text: 'OK', onPress: () => navigation.goBack() },
       ]);
     } catch (fel) {
-      Alert.alert('Fel', fel.message);
+      Alert.alert('Fel', felText(fel));
     } finally {
       setLaddar(false);
     }

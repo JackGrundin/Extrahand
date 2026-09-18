@@ -42,7 +42,7 @@ export default function SökandeProfilScreen({ route, navigation }) {
   if (laddar) return <ActivityIndicator style={{ flex: 1 }} size="large" />;
   if (!profil) return (
     <View style={styles.fel}>
-      <Text style={styles.felText}>Kunde inte ladda profilen.</Text>
+      <Text style={styles.felText}>Kunde inte ladda profilen. Gå tillbaka och öppna den igen om en stund.</Text>
     </View>
   );
 

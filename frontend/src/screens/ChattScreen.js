@@ -2,7 +2,7 @@ import { useEffect, useState, useRef, useCallback, useMemo } from 'react';
 import { View, Text, FlatList, ScrollView, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform, ActivityIndicator, Alert, Modal } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
-import { api } from '../api/klient';
+import { api, felText } from '../api/klient';
 import { useAuth } from '../context/AuthContext';
 import { useNotifikationer } from '../context/NotifikationsContext';
 import { STATUSFÄRGER_TIDRAPPORT } from '../utils/konstanter';
@@ -31,7 +31,7 @@ function TidrapportKort({ rapport, ärPrivatperson, ärSenaste, onUppdaterad }) 
       // godkände får ingen ping till sig själv – och det är precis här popupen ska komma.
       kollaBetyg();
     } catch (fel) {
-      Alert.alert('Fel', fel.message);
+      Alert.alert('Fel', felText(fel));
     } finally {
       setSparar(false);
     }
@@ -50,7 +50,7 @@ function TidrapportKort({ rapport, ärPrivatperson, ärSenaste, onUppdaterad }) 
       setBestridText('');
       onUppdaterad();
     } catch (fel) {
-      Alert.alert('Fel', fel.message);
+      Alert.alert('Fel', felText(fel));
     } finally {
       setSparar(false);
     }
@@ -72,7 +72,7 @@ function TidrapportKort({ rapport, ärPrivatperson, ärSenaste, onUppdaterad }) 
       setKorrigeraVisas(false);
       onUppdaterad();
     } catch (fel) {
-      Alert.alert('Fel', fel.message);
+      Alert.alert('Fel', felText(fel));
     } finally {
       setSparar(false);
     }
@@ -352,7 +352,7 @@ export default function ChattScreen({ route, navigation }) {
 
   async function skickaFörfrågan(data) {
     if (motpartId == null) {
-      Alert.alert('Fel', 'Kunde inte avgöra mottagare');
+      Alert.alert('Kunde inte öppna chatten', 'Vi kunde inte hitta vem meddelandet ska skickas till. Gå tillbaka och öppna chatten igen.');
       return;
     }
     setSkickarFörfrågan(true);
@@ -361,7 +361,7 @@ export default function ChattScreen({ route, navigation }) {
       setErbjudVisas(false);
       hämta();
     } catch (fel) {
-      Alert.alert('Fel', fel.message);
+      Alert.alert('Fel', felText(fel));
     } finally {
       setSkickarFörfrågan(false);
     }

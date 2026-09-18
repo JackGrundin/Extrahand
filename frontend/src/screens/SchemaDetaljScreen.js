@@ -6,7 +6,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../context/AuthContext';
 import { useRealtidsPing } from '../context/RealtidsContext';
 import { useAttAvsluta } from '../context/AttAvslutaContext';
-import { api } from '../api/klient';
+import { api, felText } from '../api/klient';
 import { parsaObTillagg, beräknaObBelopp, formatDagDatum, veckodagsNamn } from '../utils/datumHelper';
 import { beräknaFakturapris, ansökanStatusVisning } from '../utils/konstanter';
 import { normaliseraKrav, saknadeKrav } from '../utils/behorighet';
@@ -48,7 +48,7 @@ export default function SchemaDetaljScreen({ route, navigation }) {
     try {
       setSchema(await api.hämtaSchema(schemaId));
     } catch (fel) {
-      Alert.alert('Fel', fel.message);
+      Alert.alert('Fel', felText(fel));
     } finally {
       setLaddar(false);
     }
@@ -83,7 +83,7 @@ export default function SchemaDetaljScreen({ route, navigation }) {
       return;
     }
     if (!schema?.annons_jobb_id) {
-      Alert.alert('Fel', 'Schemat går inte att söka just nu.');
+      Alert.alert('Det gick inte att söka', 'Schemat är inte tillgängligt just nu. Ladda om sidan och försök igen om en stund.');
       return;
     }
     setSparar(true);
@@ -95,7 +95,7 @@ export default function SchemaDetaljScreen({ route, navigation }) {
       setSökt(true);
       Alert.alert('Klart!', 'Din ansökan om hela schemat har skickats.');
     } catch (fel) {
-      Alert.alert('Fel', fel.message);
+      Alert.alert('Fel', felText(fel));
     } finally {
       setSparar(false);
     }
@@ -115,7 +115,7 @@ export default function SchemaDetaljScreen({ route, navigation }) {
               await api.uppdateraStatus(ansökan.id, 'godkänd');
               await hämta();
             } catch (fel) {
-              Alert.alert('Fel', fel.message);
+              Alert.alert('Fel', felText(fel));
             } finally {
               setSparar(false);
             }
@@ -140,7 +140,7 @@ export default function SchemaDetaljScreen({ route, navigation }) {
               await api.uppdateraStatus(ansökan.id, 'väntande');
               await hämta();
             } catch (fel) {
-              Alert.alert('Fel', fel.message);
+              Alert.alert('Fel', felText(fel));
             } finally {
               setSparar(false);
             }
@@ -164,7 +164,7 @@ export default function SchemaDetaljScreen({ route, navigation }) {
               await api.ersättPersonISchema(schema.id, ansökan.sokande_id);
               await hämta();
             } catch (fel) {
-              Alert.alert('Fel', fel.message);
+              Alert.alert('Fel', felText(fel));
             } finally {
               setSparar(false);
             }
@@ -192,7 +192,7 @@ export default function SchemaDetaljScreen({ route, navigation }) {
               await api.avbrytSchema(schema.id);
               navigation.goBack();
             } catch (fel) {
-              Alert.alert('Fel', fel.message);
+              Alert.alert('Fel', felText(fel));
               setSparar(false);
             }
           },
@@ -224,7 +224,7 @@ export default function SchemaDetaljScreen({ route, navigation }) {
               await api.hoppaAvSchema(schema.id);
               await hämta();
             } catch (fel) {
-              Alert.alert('Fel', fel.message);
+              Alert.alert('Fel', felText(fel));
             } finally {
               setSparar(false);
             }

@@ -2,7 +2,7 @@ import { useCallback, useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, ScrollView, ActivityIndicator, KeyboardAvoidingView, Platform } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
-import { api } from '../api/klient';
+import { api, felText } from '../api/klient';
 import FältFel from '../components/FältFel';
 import StadInput, { ärGiltigStad } from '../components/StadInput';
 import AdressInput from '../components/AdressInput';
@@ -55,7 +55,7 @@ export default function RedigeraSchemaScreen({ route, navigation }) {
       setBehorighetsKrav(normaliseraKrav(data.behorighets_krav));
       setAvdrag(data.avdrag ?? []);
     } catch (f) {
-      Alert.alert('Fel', f.message);
+      Alert.alert('Fel', felText(f));
     } finally {
       setLaddar(false);
     }
@@ -102,7 +102,7 @@ export default function RedigeraSchemaScreen({ route, navigation }) {
       Alert.alert('Sparat', 'Schemat har uppdaterats.');
       await hämta();
     } catch (f) {
-      Alert.alert('Fel', f.message);
+      Alert.alert('Fel', felText(f));
     } finally {
       setSparar(false);
     }
@@ -124,7 +124,7 @@ export default function RedigeraSchemaScreen({ route, navigation }) {
       setAvdragFormVisas(false);
       await hämta();
     } catch (f) {
-      Alert.alert('Fel', f.message);
+      Alert.alert('Fel', felText(f));
     } finally {
       setSparar(false);
     }
@@ -139,7 +139,7 @@ export default function RedigeraSchemaScreen({ route, navigation }) {
           await api.taBortSchemaAvdrag(schemaId, a.id);
           await hämta();
         } catch (f) {
-          Alert.alert('Fel', f.message);
+          Alert.alert('Fel', felText(f));
         } finally {
           setSparar(false);
         }
@@ -170,7 +170,7 @@ export default function RedigeraSchemaScreen({ route, navigation }) {
       setPassFormVisas(false);
       await hämta();
     } catch (f) {
-      Alert.alert('Fel', f.message);
+      Alert.alert('Fel', felText(f));
     } finally {
       setSparar(false);
     }
@@ -188,7 +188,7 @@ export default function RedigeraSchemaScreen({ route, navigation }) {
             await api.taBortSchemaPass(schemaId, p.id);
             await hämta();
           } catch (f) {
-            Alert.alert('Fel', f.message);
+            Alert.alert('Fel', felText(f));
           } finally {
             setSparar(false);
           }

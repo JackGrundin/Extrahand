@@ -4,7 +4,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { useAuth } from '../context/AuthContext';
-import { api } from '../api/klient';
+import { api, felText } from '../api/klient';
 import { useRealtidsPing } from '../context/RealtidsContext';
 import { useAppStateAktiv } from '../utils/useAppStateAktiv';
 import { BetygsSammanfattning, BetygsLista } from '../components/BetygsSektion';
@@ -74,7 +74,7 @@ export default function ProfilScreen({ navigation }) {
       // appen skulle visa ett konto som inte längre finns.
       await loggaUt();
     } catch (fel) {
-      Alert.alert('Fel', fel.message);
+      Alert.alert('Fel', felText(fel));
       setRaderar(false);
     }
   }
@@ -87,7 +87,7 @@ export default function ProfilScreen({ navigation }) {
       const { url } = await api.skapaCheckout();
       await Linking.openURL(url);
     } catch (fel) {
-      Alert.alert('Fel', fel.message);
+      Alert.alert('Fel', felText(fel));
     } finally {
       setPrenumerationLaddar(false);
     }
@@ -101,7 +101,7 @@ export default function ProfilScreen({ navigation }) {
       const { url } = await api.öppnaPortal();
       await Linking.openURL(url);
     } catch (fel) {
-      Alert.alert('Fel', fel.message);
+      Alert.alert('Fel', felText(fel));
     } finally {
       setPrenumerationLaddar(false);
     }
@@ -153,7 +153,7 @@ export default function ProfilScreen({ navigation }) {
       const { url } = await api.laddaUppProfilBild(`data:image/jpeg;base64,${result.assets[0].base64}`);
       setProfil(prev => ({ ...prev, profilBild: url }));
     } catch (fel) {
-      Alert.alert('Fel', fel.message);
+      Alert.alert('Fel', felText(fel));
     } finally {
       setLaddaUppBild(false);
     }

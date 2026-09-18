@@ -47,6 +47,20 @@ export function harInternetanslutning() {
   return harAnslutning;
 }
 
+// Returnerar en garanterat användarvänlig svensk text för ett fångat fel. Skärmar visar den
+// i stället för fel.message direkt, så att inget rått JS/native-undantag (ofta engelskt, t.ex.
+// "Cannot open URL" eller en Supabase-sträng) någonsin når användaren.
+//
+// Nätverksfel (kod INGEN_ANSLUTNING) och fel från ett HTTP-svar (status satt – backendens
+// fel-fält är alltid ren svenska, inklusive valideringstexter som "Timlönen måste vara större
+// än noll") släpps igenom oförändrade. Allt annat är ett oväntat undantag och genericeras.
+export function felText(fel) {
+  if (fel && (fel.kod === INGEN_ANSLUTNING || fel.status != null) && typeof fel.message === 'string') {
+    return fel.message;
+  }
+  return 'Något gick fel. Försök igen.';
+}
+
 // Prenumeranter som vill veta när en autentiserad request avvisats (401 med token) –
 // alltså när sessionen är död: token saknas, är ogiltig eller har gått ut. AuthContext
 // hakar på här och loggar ut, så användaren skickas till inloggning i stället för att
@@ -115,12 +129,14 @@ async function anrop(metod, sökväg, kropp) {
     try {
       data = JSON.parse(rå);
     } catch {
-      throw new Error(`Servern svarade oväntat (${svar.status})`);
+      const err = new Error('Servern svarade på ett oväntat sätt. Försök igen om en stund.');
+      err.status = svar.status;
+      throw err;
     }
   }
 
   if (!svar.ok) {
-    const err = new Error((data && data.fel) || `Något gick fel (${svar.status})`);
+    const err = new Error((data && data.fel) || 'Något gick fel. Försök igen om en stund.');
     err.status = svar.status;
     if (data && data.kod) err.kod = data.kod;
 

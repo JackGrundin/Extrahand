@@ -3,7 +3,7 @@ import { View, Text, TouchableOpacity, StyleSheet, Alert, ScrollView, ActivityIn
 import { Ionicons } from '@expo/vector-icons';
 import { useHeaderHeight } from '@react-navigation/elements';
 import { useAuth } from '../context/AuthContext';
-import { api } from '../api/klient';
+import { api, felText } from '../api/klient';
 import { parsaArbetstider, formatDagDatum, parsaObTillagg, beräknaObBelopp } from '../utils/datumHelper';
 import { beräknaFakturapris } from '../utils/konstanter';
 import { normaliseraKrav, saknadeKrav } from '../utils/behorighet';
@@ -51,7 +51,7 @@ export default function JobbDetaljScreen({ route, navigation }) {
       setSökt(true);
       Alert.alert('Klart!', 'Din ansökan har skickats.');
     } catch (fel) {
-      Alert.alert('Fel', fel.message);
+      Alert.alert('Fel', felText(fel));
     } finally {
       setLaddar(false);
     }

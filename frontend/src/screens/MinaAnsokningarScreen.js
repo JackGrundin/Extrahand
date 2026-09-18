@@ -2,7 +2,7 @@ import { useCallback, useState } from 'react';
 import { View, Text, FlatList, TouchableOpacity, StyleSheet, ActivityIndicator, Alert, Modal, ScrollView } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
-import { api } from '../api/klient';
+import { api, felText } from '../api/klient';
 import { ansökanStatusVisning } from '../utils/konstanter';
 import { saknadeKrav } from '../utils/behorighet';
 import { useRealtidsPing } from '../context/RealtidsContext';
@@ -50,7 +50,7 @@ export default function MinaAnsokningarScreen({ navigation }) {
           await api.ångraAnsökan(id);
           setAnsökningar(prev => prev.filter(a => a.id !== id));
         } catch (fel) {
-          Alert.alert('Fel', fel.message);
+          Alert.alert('Fel', felText(fel));
         }
       }},
     ]);
@@ -71,7 +71,7 @@ export default function MinaAnsokningarScreen({ navigation }) {
       setBekräftar(null);
       await hämta();
     } catch (fel) {
-      Alert.alert('Fel', fel.message);
+      Alert.alert('Fel', felText(fel));
     } finally {
       setSparar(false);
     }

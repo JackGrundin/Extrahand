@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { View, Text, FlatList, TouchableOpacity, StyleSheet, ActivityIndicator, Alert, ActionSheetIOS, Platform } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
-import { api } from '../api/klient';
+import { api, felText } from '../api/klient';
 import { parsaArbetstider, formatDagDatum, behöverAvslutas, harStartat } from '../utils/datumHelper';
 import { STATUSFÄRGER_TIDRAPPORT as statusFärger, schematypEtikett } from '../utils/konstanter';
 import { useAttAvsluta } from '../context/AttAvslutaContext';
@@ -28,7 +28,7 @@ export default function MinaJobbScreen({ navigation, route }) {
           await api.taBortJobb(id);
           setJobb(prev => prev.filter(j => j.id !== id));
         } catch (fel) {
-          Alert.alert('Fel', fel.message);
+          Alert.alert('Fel', felText(fel));
         }
       }},
     ]);
