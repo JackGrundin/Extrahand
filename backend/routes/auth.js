@@ -47,7 +47,7 @@ router.post('/registrera', async (req, res) => {
   const { namn, email, lösenord, typ, beskrivning, bransch, stad, hemsida, telefonnummer, organisationsnummer, fakturaadress, postnummer, ort, fakturamail, referensperson } = req.body;
 
   if (!namn || !email || !lösenord || !typ) {
-    return res.status(400).json({ fel: 'Alla fält krävs: namn, email, lösenord, typ' });
+    return res.status(400).json({ fel: 'Alla fält krävs: namn, e-post, lösenord, typ' });
   }
 
   if (!['företag', 'privatperson'].includes(typ)) {
@@ -57,7 +57,7 @@ router.post('/registrera', async (req, res) => {
   try {
     const befintlig = await hämtaAnvändareViaEmail(email);
     if (befintlig) {
-      return res.status(409).json({ fel: 'Email används redan' });
+      return res.status(409).json({ fel: 'E-postadressen används redan' });
     }
 
     const hashatLösenord = await bcrypt.hash(lösenord, 10);
@@ -114,25 +114,25 @@ router.post('/logga-in', async (req, res) => {
   const { email, lösenord } = req.body;
 
   if (!email || !lösenord) {
-    return res.status(400).json({ fel: 'Email och lösenord krävs' });
+    return res.status(400).json({ fel: 'E-post och lösenord krävs' });
   }
 
   try {
     const användare = await hämtaAnvändareViaEmail(email);
     if (!användare) {
-      return res.status(401).json({ fel: 'Felaktig email eller lösenord' });
+      return res.status(401).json({ fel: 'Felaktig e-post eller lösenord' });
     }
 
     // Raderat konto. E-postadressen anonymiseras vid raderingen, så uppslaget ovan
     // hittar normalt ingenting – men kontrollen står kvar som sista försvar ifall
     // raderingen skulle avbrytas halvvägs. NULL = konto från före kolumnen fanns.
     if (användare.aktiv === false) {
-      return res.status(401).json({ fel: 'Felaktig email eller lösenord' });
+      return res.status(401).json({ fel: 'Felaktig e-post eller lösenord' });
     }
 
     const lösenordStämmer = await bcrypt.compare(lösenord, användare.Lösenord);
     if (!lösenordStämmer) {
-      return res.status(401).json({ fel: 'Felaktig email eller lösenord' });
+      return res.status(401).json({ fel: 'Felaktig e-post eller lösenord' });
     }
 
     // email_verifierad = false → blockera (null = gammal användare, tillåt)
@@ -155,7 +155,7 @@ router.post('/logga-in', async (req, res) => {
 router.post('/verifiera-kod', async (req, res) => {
   const { email, kod } = req.body;
   if (!email || !kod) {
-    return res.status(400).json({ fel: 'Email och kod krävs' });
+    return res.status(400).json({ fel: 'E-post och kod krävs' });
   }
 
   try {
@@ -189,7 +189,7 @@ router.post('/verifiera-kod', async (req, res) => {
 // POST /api/auth/skicka-verifieringsmail
 router.post('/skicka-verifieringsmail', async (req, res) => {
   const { email } = req.body;
-  if (!email) return res.status(400).json({ fel: 'Email krävs' });
+  if (!email) return res.status(400).json({ fel: 'E-post krävs' });
 
   try {
     const användare = await hämtaAnvändareViaEmail(email);
@@ -219,7 +219,7 @@ router.post('/skicka-verifieringsmail', async (req, res) => {
 // vilka som har konto hos oss.
 router.post('/glomt-losenord', async (req, res) => {
   const { email } = req.body;
-  if (!email) return res.status(400).json({ fel: 'Email krävs' });
+  if (!email) return res.status(400).json({ fel: 'E-post krävs' });
 
   try {
     const användare = await hämtaAnvändareViaEmail(email.trim());
