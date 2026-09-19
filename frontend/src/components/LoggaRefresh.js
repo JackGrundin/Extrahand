@@ -80,8 +80,14 @@ export function useLoggaRefresh(onRefresh) {
 
   // Reagera på refreshing: fyll loggan helt och pulsa medan datan laddar, töm när den är klar.
   useEffect(() => {
+    // aktiv-flaggan skyddar mot att den initiala 400 ms-timingens completion-callback
+    // startar en oändlig loop EFTER att komponenten avmonterats (eller efter att
+    // refreshing hunnit bli false igen). Utan den kan en loop leva kvar utan något som
+    // stoppar den, eftersom pulsRef ännu är null när cleanup körs mitt under fyllnaden.
+    let aktiv = true;
     if (refreshing) {
-      Animated.timing(fyllnad, { toValue: 1, duration: 400, useNativeDriver: false }).start(() => {
+      Animated.timing(fyllnad, { toValue: 1, duration: 400, useNativeDriver: false }).start(({ finished }) => {
+        if (!aktiv || !finished) return;
         pulsRef.current = Animated.loop(
           Animated.sequence([
             Animated.timing(fyllnad, { toValue: 0.82, duration: 500, useNativeDriver: false }),
@@ -95,7 +101,13 @@ export function useLoggaRefresh(onRefresh) {
       pulsRef.current = null;
       Animated.timing(fyllnad, { toValue: 0, duration: 250, useNativeDriver: false }).start();
     }
-    return () => { pulsRef.current?.stop(); };
+    return () => {
+      aktiv = false;
+      pulsRef.current?.stop();
+      pulsRef.current = null;
+      // Avbryt en ev. pågående initial-timing så att inget lever kvar efter unmount.
+      fyllnad.stopAnimation();
+    };
   }, [refreshing, fyllnad]);
 
   // iOS: overscroll ger negativ contentOffset.y → mata in i fyllnaden. Under laddning styr
