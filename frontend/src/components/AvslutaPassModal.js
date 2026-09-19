@@ -98,8 +98,13 @@ export default function AvslutaPassModal({ visible, onClose, timlön = 0, paslag
                       <Text style={styles.obIntervall}>{ob.start}–{ob.slut} ({ob.typ === 'procent' ? `${ob.värde}%` : `${ob.värde} kr/h`})</Text>
                       <Text style={styles.obBelopp}>+{kostnad.toLocaleString('sv-SE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} kr (er kostnad)</Text>
                     </View>
-                    <TouchableOpacity onPress={() => setEditerbartOb(prev => prev.filter((_, j) => j !== i))} style={{ padding: 4 }}>
-                      <Ionicons name="close-circle" size={20} color="#ef4444" />
+                    <TouchableOpacity
+                      onPress={() => setEditerbartOb(prev => prev.filter((_, j) => j !== i))}
+                      style={{ padding: 4 }}
+                      accessibilityRole="button"
+                      accessibilityLabel={`Ta bort OB-intervall ${ob.start} till ${ob.slut}`}
+                    >
+                      <Ionicons name="close-circle" size={20} color="#ef4444" accessible={false} importantForAccessibility="no" />
                     </TouchableOpacity>
                   </View>
                 );
@@ -145,8 +150,14 @@ export default function AvslutaPassModal({ visible, onClose, timlön = 0, paslag
                   </View>
                 </View>
               ) : (
-                <TouchableOpacity style={styles.obAddKnapp} onPress={() => setObFormVisas(true)} activeOpacity={0.7}>
-                  <Ionicons name="add-circle-outline" size={16} color="#ea580c" />
+                <TouchableOpacity
+                  style={styles.obAddKnapp}
+                  onPress={() => setObFormVisas(true)}
+                  activeOpacity={0.7}
+                  accessibilityRole="button"
+                  accessibilityLabel="Lägg till OB-intervall"
+                >
+                  <Ionicons name="add-circle-outline" size={16} color="#ea580c" accessible={false} importantForAccessibility="no" />
                   <Text style={styles.obAddText}>Lägg till OB-intervall</Text>
                 </TouchableOpacity>
               )}

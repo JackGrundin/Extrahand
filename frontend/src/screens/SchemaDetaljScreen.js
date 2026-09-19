@@ -280,7 +280,7 @@ export default function SchemaDetaljScreen({ route, navigation }) {
         <Text style={styles.lön}>{Number(schema.timlon).toLocaleString('sv-SE')} kr/tim</Text>
 
         <View style={styles.periodKort}>
-          <Ionicons name="calendar" size={16} color="#2563eb" />
+          <Ionicons name="calendar" size={16} color="#2563eb" accessible={false} importantForAccessibility="no" />
           <View style={{ flex: 1 }}>
             <Text style={styles.periodText}>
               {formatDagDatum(schema.startdatum)} – {formatDagDatum(schema.slutdatum)} · {schema.antalPass} pass
@@ -299,7 +299,7 @@ export default function SchemaDetaljScreen({ route, navigation }) {
 
         {ärTilldelad && (
           <View style={styles.tilldeladKort}>
-            <Ionicons name="person" size={16} color="#16a34a" />
+            <Ionicons name="person" size={16} color="#16a34a" accessible={false} importantForAccessibility="no" />
             <Text style={styles.tilldeladText}>
               {ärMitt ? 'Du är godkänd för det här schemat' : `${schema.personNamn ?? 'En person'} är godkänd för schemat`}
             </Text>
@@ -313,8 +313,10 @@ export default function SchemaDetaljScreen({ route, navigation }) {
             style={styles.redigeraKnapp}
             onPress={() => navigation.navigate('RedigeraSchema', { schemaId: schema.id })}
             activeOpacity={0.7}
+            accessibilityRole="button"
+            accessibilityLabel="Redigera schema"
           >
-            <Ionicons name="create-outline" size={16} color="#2563eb" />
+            <Ionicons name="create-outline" size={16} color="#2563eb" accessible={false} importantForAccessibility="no" />
             <Text style={styles.redigeraText}>Redigera schema</Text>
           </TouchableOpacity>
         )}
@@ -344,8 +346,10 @@ export default function SchemaDetaljScreen({ route, navigation }) {
                   <TouchableOpacity
                     style={styles.chattKnapp}
                     onPress={() => navigation.navigate('Chatt', { ansokningId: godkändAnsökan.id })}
+                    accessibilityRole="button"
+                    accessibilityLabel="Chatt"
                   >
-                    <Ionicons name="chatbubble-outline" size={15} color="#2563eb" />
+                    <Ionicons name="chatbubble-outline" size={15} color="#2563eb" accessible={false} importantForAccessibility="no" />
                     <Text style={styles.chattKnappText}>Chatt</Text>
                   </TouchableOpacity>
                   <TouchableOpacity style={styles.avvisaKnapp} onPress={() => återkalla(godkändAnsökan)} disabled={sparar}>
@@ -400,8 +404,10 @@ export default function SchemaDetaljScreen({ route, navigation }) {
                     <TouchableOpacity
                       style={styles.chattKnapp}
                       onPress={() => navigation.navigate('Chatt', { ansokningId: a.id })}
+                      accessibilityRole="button"
+                      accessibilityLabel="Chatt"
                     >
-                      <Ionicons name="chatbubble-outline" size={15} color="#2563eb" />
+                      <Ionicons name="chatbubble-outline" size={15} color="#2563eb" accessible={false} importantForAccessibility="no" />
                       <Text style={styles.chattKnappText}>Chatt</Text>
                     </TouchableOpacity>
                     {kanGodkännas && (
@@ -448,14 +454,14 @@ export default function SchemaDetaljScreen({ route, navigation }) {
         {schema.adress && (
           <View style={styles.adressKort}>
             <View style={styles.adressRad}>
-              <Ionicons name="location-outline" size={16} color="#2563eb" />
+              <Ionicons name="location-outline" size={16} color="#2563eb" accessible={false} importantForAccessibility="no" />
               <Text style={styles.adressText}>{schema.adress}</Text>
             </View>
             {/* Bara för den som överväger att söka – hen behöver veta om arbetsplatsen går
                 att ta sig till. Företaget känner sin egen adress. */}
             {!ärFöretag && (
-              <TouchableOpacity style={styles.kartaKnapp} onPress={öppnaKarta}>
-                <Ionicons name="map-outline" size={15} color="#2563eb" />
+              <TouchableOpacity style={styles.kartaKnapp} onPress={öppnaKarta} accessibilityRole="button" accessibilityLabel="Visa på karta">
+                <Ionicons name="map-outline" size={15} color="#2563eb" accessible={false} importantForAccessibility="no" />
                 <Text style={styles.kartaKnappText}>Visa på karta</Text>
               </TouchableOpacity>
             )}
@@ -475,7 +481,7 @@ export default function SchemaDetaljScreen({ route, navigation }) {
         {!ärFöretag && avdrag.length > 0 && (
           <View style={styles.avdragKort}>
             <View style={styles.avdragRubrikRad}>
-              <Ionicons name="remove-circle-outline" size={16} color="#dc2626" />
+              <Ionicons name="remove-circle-outline" size={16} color="#dc2626" accessible={false} importantForAccessibility="no" />
               <Text style={styles.avdragRubrik}>Löneavdrag</Text>
             </View>
             {avdrag.map(a => (
@@ -496,9 +502,12 @@ export default function SchemaDetaljScreen({ route, navigation }) {
           style={styles.passRubrikRad}
           onPress={() => setPassUtfällt(v => !v)}
           activeOpacity={0.7}
+          accessibilityRole="button"
+          accessibilityLabel={`Pass (${schema.pass?.length ?? 0})`}
+          accessibilityState={{ expanded: passUtfällt }}
         >
           <Text style={styles.sektionsRubrik}>Pass ({schema.pass?.length ?? 0})</Text>
-          <Ionicons name={passUtfällt ? 'chevron-up' : 'chevron-down'} size={18} color="#9ca3af" />
+          <Ionicons name={passUtfällt ? 'chevron-up' : 'chevron-down'} size={18} color="#9ca3af" accessible={false} importantForAccessibility="no" />
         </TouchableOpacity>
         {passUtfällt && (
         <View style={styles.passLista}>

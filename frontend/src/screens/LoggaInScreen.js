@@ -50,6 +50,7 @@ export default function LoggaInScreen({ navigation }) {
         style={styles.logga}
         resizeMode="contain"
         accessibilityIgnoresInvertColors
+        accessibilityLabel="FastGig"
       />
       <Text style={styles.rubrik}>FastGig</Text>
       <Text style={styles.underrubrik}>Logga in</Text>

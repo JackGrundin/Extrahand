@@ -30,10 +30,15 @@ export default function BehörighetsKravRedigerare({ värde = [], onÄndra }) {
         <View style={styles.lista}>
           {lista.map((krav, i) => (
             <View key={`${krav}-${i}`} style={styles.rad}>
-              <Ionicons name="shield-checkmark-outline" size={16} color="#b45309" />
+              <Ionicons name="shield-checkmark-outline" size={16} color="#b45309" accessible={false} importantForAccessibility="no" />
               <Text style={styles.kravText}>{krav}</Text>
-              <TouchableOpacity onPress={() => onÄndra(lista.filter((_, j) => j !== i))} hitSlop={8}>
-                <Ionicons name="close-circle" size={19} color="#ef4444" />
+              <TouchableOpacity
+                onPress={() => onÄndra(lista.filter((_, j) => j !== i))}
+                hitSlop={8}
+                accessibilityRole="button"
+                accessibilityLabel={`Ta bort krav: ${krav}`}
+              >
+                <Ionicons name="close-circle" size={19} color="#ef4444" accessible={false} importantForAccessibility="no" />
               </TouchableOpacity>
             </View>
           ))}

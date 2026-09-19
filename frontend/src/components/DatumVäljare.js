@@ -55,8 +55,10 @@ export default function DatumVäljare({
         style={[styles.knapp, fel && styles.knappFel, style]}
         onPress={öppna}
         activeOpacity={0.7}
+        accessibilityRole="button"
+        accessibilityLabel={värde ? `Välj datum, valt: ${text}` : placeholder}
       >
-        <Ionicons name="calendar-outline" size={16} color={värde ? '#1a1a1a' : '#aaa'} />
+        <Ionicons name="calendar-outline" size={16} color={värde ? '#1a1a1a' : '#aaa'} accessible={false} importantForAccessibility="no" />
         <Text style={[styles.text, !värde && styles.placeholder]} numberOfLines={1}>{text}</Text>
       </TouchableOpacity>
 

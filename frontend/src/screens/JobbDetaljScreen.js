@@ -117,7 +117,7 @@ export default function JobbDetaljScreen({ route, navigation }) {
           return (
             <View style={styles.dagSchema}>
               <View style={styles.dagSchemaRubrikRad}>
-                <Ionicons name="calendar" size={15} color="#2563eb" />
+                <Ionicons name="calendar" size={15} color="#2563eb" accessible={false} importantForAccessibility="no" />
                 <Text style={styles.dagSchemaRubrik}>
                   {schema.length} {schema.length === 1 ? 'dag' : 'dagar'}
                   {jobb.antal_dagar != null && jobb.antal_dagar !== schema.length ? ` · ${jobb.antal_dagar} planerade` : ''}
@@ -146,11 +146,11 @@ export default function JobbDetaljScreen({ route, navigation }) {
       {jobb.adress && (
         <View style={styles.adressKort}>
           <View style={styles.adressRad}>
-            <Ionicons name="location-outline" size={16} color="#2563eb" />
+            <Ionicons name="location-outline" size={16} color="#2563eb" accessible={false} importantForAccessibility="no" />
             <Text style={styles.adressText}>{jobb.adress}</Text>
           </View>
-          <TouchableOpacity style={styles.kartaKnapp} onPress={öppnaKarta}>
-            <Ionicons name="map-outline" size={15} color="#2563eb" />
+          <TouchableOpacity style={styles.kartaKnapp} onPress={öppnaKarta} accessibilityRole="button" accessibilityLabel="Visa på karta">
+            <Ionicons name="map-outline" size={15} color="#2563eb" accessible={false} importantForAccessibility="no" />
             <Text style={styles.kartaKnappText}>Visa på karta</Text>
           </TouchableOpacity>
         </View>

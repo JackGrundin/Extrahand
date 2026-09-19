@@ -13,8 +13,13 @@ export default function OfflineBanner() {
   if (uppkopplad) return null;
 
   return (
-    <View style={[styles.banner, { paddingTop: insets.top + 10 }]} pointerEvents="none">
-      <Ionicons name="cloud-offline-outline" size={16} color="#fff" />
+    <View
+      style={[styles.banner, { paddingTop: insets.top + 10 }]}
+      pointerEvents="none"
+      accessibilityLiveRegion="polite"
+      accessibilityRole="alert"
+    >
+      <Ionicons name="cloud-offline-outline" size={16} color="#fff" accessible={false} importantForAccessibility="no" />
       <Text style={styles.text}>
         Ingen internetanslutning – kontrollera din anslutning och försök igen
       </Text>

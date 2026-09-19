@@ -68,7 +68,7 @@ export default function StadInput({
       {öppen && förslag.length > 0 && (
         <View style={[styles.dropdown, absolutLista && styles.dropdownAbsolut]}>
           <View style={styles.dropdownHeader}>
-            <Ionicons name="location" size={13} color="#2563eb" style={{ marginRight: 6 }} />
+            <Ionicons name="location" size={13} color="#2563eb" style={{ marginRight: 6 }} accessible={false} importantForAccessibility="no" />
             <Text style={styles.dropdownHeaderText}>Välj en stad från listan</Text>
           </View>
           {förslag.map((ort, i) => (
@@ -77,8 +77,10 @@ export default function StadInput({
               style={[styles.rad, i === förslag.length - 1 && styles.radSista]}
               onPress={() => välj(ort)}
               activeOpacity={0.6}
+              accessibilityRole="button"
+              accessibilityLabel={`Välj stad: ${ort}`}
             >
-              <Ionicons name="location-outline" size={16} color="#2563eb" style={{ marginRight: 10 }} />
+              <Ionicons name="location-outline" size={16} color="#2563eb" style={{ marginRight: 10 }} accessible={false} importantForAccessibility="no" />
               <Text style={styles.radText}>{ort}</Text>
             </TouchableOpacity>
           ))}

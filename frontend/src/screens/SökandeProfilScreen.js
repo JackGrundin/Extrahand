@@ -49,7 +49,7 @@ export default function SökandeProfilScreen({ route, navigation }) {
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.innehall}>
       {profil.profilBild ? (
-        <Image source={{ uri: profil.profilBild }} style={styles.profilBild} />
+        <Image source={{ uri: profil.profilBild }} style={styles.profilBild} accessible={false} importantForAccessibility="no" />
       ) : (
         <View style={styles.avatar}>
           <Text style={styles.avatarText}>{profil.namn?.[0]?.toUpperCase()}</Text>
@@ -62,7 +62,7 @@ export default function SökandeProfilScreen({ route, navigation }) {
 
       {profil.totalTimmar > 0 && (
         <View style={styles.timmArBadge}>
-          <Ionicons name="time-outline" size={16} color="#059669" />
+          <Ionicons name="time-outline" size={16} color="#059669" accessible={false} importantForAccessibility="no" />
           <Text style={styles.timmArText}>{profil.totalTimmar} jobbade timmar</Text>
         </View>
       )}

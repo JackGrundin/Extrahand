@@ -89,12 +89,28 @@ export default function MånadsKalender({
   return (
     <View style={styles.container}>
       <View style={styles.rubrikRad}>
-        <TouchableOpacity onPress={() => onBytMånad(-1)} hitSlop={12} style={styles.pil} disabled={!kanBakåt}>
-          <Ionicons name="chevron-back" size={22} color={kanBakåt ? '#2563eb' : '#e5e7eb'} />
+        <TouchableOpacity
+          onPress={() => onBytMånad(-1)}
+          hitSlop={12}
+          style={styles.pil}
+          disabled={!kanBakåt}
+          accessibilityRole="button"
+          accessibilityLabel="Föregående månad"
+          accessibilityState={{ disabled: !kanBakåt }}
+        >
+          <Ionicons name="chevron-back" size={22} color={kanBakåt ? '#2563eb' : '#e5e7eb'} accessible={false} importantForAccessibility="no" />
         </TouchableOpacity>
         <Text style={styles.månadRubrik}>{MÅNADER[månad]} {år}</Text>
-        <TouchableOpacity onPress={() => onBytMånad(1)} hitSlop={12} style={styles.pil} disabled={!kanFramåt}>
-          <Ionicons name="chevron-forward" size={22} color={kanFramåt ? '#2563eb' : '#e5e7eb'} />
+        <TouchableOpacity
+          onPress={() => onBytMånad(1)}
+          hitSlop={12}
+          style={styles.pil}
+          disabled={!kanFramåt}
+          accessibilityRole="button"
+          accessibilityLabel="Nästa månad"
+          accessibilityState={{ disabled: !kanFramåt }}
+        >
+          <Ionicons name="chevron-forward" size={22} color={kanFramåt ? '#2563eb' : '#e5e7eb'} accessible={false} importantForAccessibility="no" />
         </TouchableOpacity>
       </View>
 
@@ -123,6 +139,9 @@ export default function MånadsKalender({
               onPress={() => onVäljDag(datum)}
               activeOpacity={0.7}
               disabled={släckt}
+              accessibilityRole="button"
+              accessibilityLabel={`${dag} ${MÅNADER[månad]}${ärIdag ? ', idag' : ''}`}
+              accessibilityState={{ selected: ärVald, disabled: släckt }}
             >
               <View style={[
                 styles.dagRuta,

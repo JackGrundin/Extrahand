@@ -40,7 +40,7 @@ export default function BehörighetsKrav({
   return (
     <View style={[styles.kort, style]}>
       <View style={styles.rubrikRad}>
-        <Ionicons name="shield-checkmark" size={16} color="#b45309" />
+        <Ionicons name="shield-checkmark" size={16} color="#b45309" accessible={false} importantForAccessibility="no" />
         <Text style={styles.rubrik}>{rubrik}</Text>
       </View>
       <Text style={styles.ingress}>
@@ -49,9 +49,17 @@ export default function BehörighetsKrav({
 
       {lista.map(k => (
         ärIntygande ? (
-          <TouchableOpacity key={k} style={styles.rad} onPress={() => toggla(k)} activeOpacity={0.7}>
+          <TouchableOpacity
+            key={k}
+            style={styles.rad}
+            onPress={() => toggla(k)}
+            activeOpacity={0.7}
+            accessibilityRole="checkbox"
+            accessibilityLabel={k}
+            accessibilityState={{ checked: valda.has(k) }}
+          >
             <View style={[styles.kryssRuta, valda.has(k) && styles.kryssRutaAktiv]}>
-              {valda.has(k) && <Ionicons name="checkmark" size={14} color="#fff" />}
+              {valda.has(k) && <Ionicons name="checkmark" size={14} color="#fff" accessible={false} importantForAccessibility="no" />}
             </View>
             <Text style={styles.kravText}>{k}</Text>
           </TouchableOpacity>

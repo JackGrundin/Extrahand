@@ -464,7 +464,7 @@ export default function PubliceraSchemaScreen({ navigation }) {
           {steg === 1 && (
             <>
               <View style={styles.infoRuta}>
-                <Ionicons name="information-circle-outline" size={18} color="#0369a1" />
+                <Ionicons name="information-circle-outline" size={18} color="#0369a1" accessible={false} importantForAccessibility="no" />
                 <Text style={styles.infoText}>
                   En person söker och godkänns för hela schemat. Tidrapporter skapas automatiskt
                   efter varje pass. Hela schemat räknas som ett pass mot gratisgränsen.
@@ -630,7 +630,7 @@ export default function PubliceraSchemaScreen({ navigation }) {
           {steg === 3 && (
             <>
               <View style={styles.hjälpRuta}>
-                <Ionicons name="information-circle-outline" size={18} color="#0369a1" />
+                <Ionicons name="information-circle-outline" size={18} color="#0369a1" accessible={false} importantForAccessibility="no" />
                 <Text style={styles.hjälpText}>
                   Tryck på ett pass för att fylla i tider, roll och OB. Kryssa i flera pass
                   för att fylla i dem samtidigt.
@@ -669,9 +669,12 @@ export default function PubliceraSchemaScreen({ navigation }) {
                           onPress={() => markeraPass(p.id)}
                           hitSlop={6}
                           activeOpacity={0.7}
+                          accessibilityRole="checkbox"
+                          accessibilityLabel={`Markera pass ${formatDagDatum(p.datum)}`}
+                          accessibilityState={{ checked: markerad }}
                         >
                           <View style={[styles.kryssRuta, markerad && styles.kryssRutaAktiv]}>
-                            {markerad && <Ionicons name="checkmark" size={13} color="#fff" />}
+                            {markerad && <Ionicons name="checkmark" size={13} color="#fff" accessible={false} importantForAccessibility="no" />}
                           </View>
                         </TouchableOpacity>
                         <View style={styles.passDatum}>
@@ -679,12 +682,12 @@ export default function PubliceraSchemaScreen({ navigation }) {
                           <Text style={styles.passDatumText}>{formatDagDatum(p.datum)}</Text>
                         </View>
                         <View style={{ flex: 1 }} />
-                        {komplett && !fel && <Ionicons name="checkmark-circle" size={20} color="#16a34a" style={{ marginRight: 2 }} />}
-                        <TouchableOpacity onPress={() => läggTillPassSammaDag(p)} hitSlop={8} style={styles.ikonKnapp}>
-                          <Ionicons name="add-circle-outline" size={22} color="#2563eb" />
+                        {komplett && !fel && <Ionicons name="checkmark-circle" size={20} color="#16a34a" style={{ marginRight: 2 }} accessible={false} importantForAccessibility="no" />}
+                        <TouchableOpacity onPress={() => läggTillPassSammaDag(p)} hitSlop={8} style={styles.ikonKnapp} accessibilityRole="button" accessibilityLabel="Lägg till pass samma dag">
+                          <Ionicons name="add-circle-outline" size={22} color="#2563eb" accessible={false} importantForAccessibility="no" />
                         </TouchableOpacity>
-                        <TouchableOpacity onPress={() => taBortPass(p.id)} hitSlop={8} style={styles.ikonKnapp}>
-                          <Ionicons name="close-circle" size={22} color="#ef4444" />
+                        <TouchableOpacity onPress={() => taBortPass(p.id)} hitSlop={8} style={styles.ikonKnapp} accessibilityRole="button" accessibilityLabel={`Ta bort pass ${formatDagDatum(p.datum)}`}>
+                          <Ionicons name="close-circle" size={22} color="#ef4444" accessible={false} importantForAccessibility="no" />
                         </TouchableOpacity>
                       </View>
 
@@ -692,14 +695,14 @@ export default function PubliceraSchemaScreen({ navigation }) {
                       <View style={styles.tidFältRad}>
                         <View style={styles.tidFält}>
                           <View style={styles.tidEtikettRad}>
-                            <Ionicons name="time-outline" size={13} color="#6b7280" />
+                            <Ionicons name="time-outline" size={13} color="#6b7280" accessible={false} importantForAccessibility="no" />
                             <Text style={styles.tidEtikett}>Från</Text>
                           </View>
                           <TidVäljare value={p.starttid} onChange={(v) => ändraPass(p.id, 'starttid', v)} placeholder="Starttid" />
                         </View>
                         <View style={styles.tidFält}>
                           <View style={styles.tidEtikettRad}>
-                            <Ionicons name="time-outline" size={13} color="#6b7280" />
+                            <Ionicons name="time-outline" size={13} color="#6b7280" accessible={false} importantForAccessibility="no" />
                             <Text style={styles.tidEtikett}>Till</Text>
                           </View>
                           <TidVäljare value={p.sluttid} onChange={(v) => ändraPass(p.id, 'sluttid', v)} placeholder="Sluttid" />
@@ -717,6 +720,9 @@ export default function PubliceraSchemaScreen({ navigation }) {
                         style={styles.rollRad}
                         onPress={() => (markerade.size > 0 ? markeraPass(p.id) : öppnaPass(p.id))}
                         activeOpacity={0.7}
+                        accessibilityRole="button"
+                        accessibilityLabel="Roll och OB"
+                        accessibilityState={{ expanded: öppet }}
                       >
                         {p.kategori?.trim() || p.ob_tillagg?.length > 0 ? (
                           <View style={styles.passBrickor}>
@@ -729,11 +735,11 @@ export default function PubliceraSchemaScreen({ navigation }) {
                           </View>
                         ) : (
                           <View style={styles.rollHint}>
-                            <Ionicons name="add" size={15} color="#2563eb" />
+                            <Ionicons name="add" size={15} color="#2563eb" accessible={false} importantForAccessibility="no" />
                             <Text style={styles.rollHintText}>Roll & OB</Text>
                           </View>
                         )}
-                        <Ionicons name={öppet ? 'chevron-up' : 'chevron-down'} size={18} color="#9ca3af" />
+                        <Ionicons name={öppet ? 'chevron-up' : 'chevron-down'} size={18} color="#9ca3af" accessible={false} importantForAccessibility="no" />
                       </TouchableOpacity>
 
                       {/* Editorn ligger I raden, så den är alltid vid passet oavsett hur lång
@@ -803,8 +809,8 @@ export default function PubliceraSchemaScreen({ navigation }) {
                       {a.belopp} kr {a.typ === 'totalt' ? 'totalt för perioden' : 'per pass'}
                     </Text>
                   </View>
-                  <TouchableOpacity onPress={() => setAvdrag(prev => prev.filter((_, j) => j !== i))} style={{ padding: 4 }}>
-                    <Ionicons name="close-circle" size={20} color="#ef4444" />
+                  <TouchableOpacity onPress={() => setAvdrag(prev => prev.filter((_, j) => j !== i))} style={{ padding: 4 }} accessibilityRole="button" accessibilityLabel={`Ta bort löneavdrag: ${a.namn}`}>
+                    <Ionicons name="close-circle" size={20} color="#ef4444" accessible={false} importantForAccessibility="no" />
                   </TouchableOpacity>
                 </View>
               ))}
@@ -835,8 +841,8 @@ export default function PubliceraSchemaScreen({ navigation }) {
                   </View>
                 </View>
               ) : (
-                <TouchableOpacity style={styles.avdragAddKnapp} onPress={() => setAvdragFormVisas(true)} activeOpacity={0.7}>
-                  <Ionicons name="add-circle-outline" size={18} color="#dc2626" />
+                <TouchableOpacity style={styles.avdragAddKnapp} onPress={() => setAvdragFormVisas(true)} activeOpacity={0.7} accessibilityRole="button" accessibilityLabel="Lägg till avdrag">
+                  <Ionicons name="add-circle-outline" size={18} color="#dc2626" accessible={false} importantForAccessibility="no" />
                   <Text style={styles.avdragAddText}>Lägg till avdrag</Text>
                 </TouchableOpacity>
               )}
@@ -878,19 +884,19 @@ export default function PubliceraSchemaScreen({ navigation }) {
 
         <View style={styles.navRad}>
           {steg > 1 && (
-            <TouchableOpacity style={styles.tillbakaKnapp} onPress={tillbaka} activeOpacity={0.8}>
-              <Ionicons name="chevron-back" size={18} color="#2563eb" />
+            <TouchableOpacity style={styles.tillbakaKnapp} onPress={tillbaka} activeOpacity={0.8} accessibilityRole="button" accessibilityLabel="Tillbaka">
+              <Ionicons name="chevron-back" size={18} color="#2563eb" accessible={false} importantForAccessibility="no" />
               <Text style={styles.tillbakaText}>Tillbaka</Text>
             </TouchableOpacity>
           )}
           {steg < 4 ? (
-            <TouchableOpacity style={styles.nästaKnapp} onPress={nästa} activeOpacity={0.8}>
+            <TouchableOpacity style={styles.nästaKnapp} onPress={nästa} activeOpacity={0.8} accessibilityRole="button" accessibilityLabel="Nästa">
               {/* Antalet bara i datumsteget, där det säger något. "(0 pass)" vore
                   meningslöst – nästa blockerar ändå med fel.datum. */}
               <Text style={styles.nästaText}>
                 {steg === 2 && antalPass > 0 ? `Nästa (${antalPass} pass)` : 'Nästa'}
               </Text>
-              <Ionicons name="chevron-forward" size={18} color="#fff" />
+              <Ionicons name="chevron-forward" size={18} color="#fff" accessible={false} importantForAccessibility="no" />
             </TouchableOpacity>
           ) : (
             <TouchableOpacity style={[styles.nästaKnapp, laddar && styles.knappInaktiv]} onPress={hanteraPublicering} disabled={laddar} activeOpacity={0.8}>

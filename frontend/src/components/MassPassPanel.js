@@ -47,11 +47,18 @@ export default function MassPassPanel({
   return (
     <View style={styles.panel}>
       <View style={styles.huvud}>
-        <TouchableOpacity style={styles.huvudVänster} onPress={() => setUtfällt(v => !v)} activeOpacity={0.7}>
-          <Ionicons name={utfällt ? 'chevron-down' : 'chevron-up'} size={18} color="#2563eb" />
+        <TouchableOpacity
+          style={styles.huvudVänster}
+          onPress={() => setUtfällt(v => !v)}
+          activeOpacity={0.7}
+          accessibilityRole="button"
+          accessibilityLabel={`${antal} ${antal === 1 ? 'pass markerat' : 'pass markerade'}`}
+          accessibilityState={{ expanded: utfällt }}
+        >
+          <Ionicons name={utfällt ? 'chevron-down' : 'chevron-up'} size={18} color="#2563eb" accessible={false} importantForAccessibility="no" />
           <Text style={styles.antal}>{antal} {antal === 1 ? 'pass markerat' : 'pass markerade'}</Text>
         </TouchableOpacity>
-        <TouchableOpacity onPress={onRensaMarkering} hitSlop={8}>
+        <TouchableOpacity onPress={onRensaMarkering} hitSlop={8} accessibilityRole="button" accessibilityLabel="Rensa markering">
           <Text style={styles.rensaLänk}>Rensa</Text>
         </TouchableOpacity>
       </View>
@@ -78,8 +85,14 @@ export default function MassPassPanel({
           />
           {/* Ett tomt OB-utkast betyder "rör inte OB", så utan den här knappen går det inte
               att ta bort OB från flera pass på en gång. */}
-          <TouchableOpacity onPress={() => tillämpa({ rensaOb: true })} style={styles.taBortObRad} hitSlop={6}>
-            <Ionicons name="close-circle-outline" size={15} color="#dc2626" />
+          <TouchableOpacity
+            onPress={() => tillämpa({ rensaOb: true })}
+            style={styles.taBortObRad}
+            hitSlop={6}
+            accessibilityRole="button"
+            accessibilityLabel="Ta bort OB på markerade pass"
+          >
+            <Ionicons name="close-circle-outline" size={15} color="#dc2626" accessible={false} importantForAccessibility="no" />
             <Text style={styles.taBortObText}>Ta bort OB på markerade pass</Text>
           </TouchableOpacity>
         </ScrollView>

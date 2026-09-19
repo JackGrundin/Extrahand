@@ -66,8 +66,13 @@ export default function ObRedigerare({ värde = [], onÄndra, timlön = 0, pasla
                 <Text style={styles.belopp}>+{formateraPris(kostnad)} kr (er kostnad)</Text>
               )}
             </View>
-            <TouchableOpacity onPress={() => onÄndra(lista.filter((_, j) => j !== i))} style={{ padding: 4 }}>
-              <Ionicons name="close-circle" size={20} color="#ef4444" />
+            <TouchableOpacity
+              onPress={() => onÄndra(lista.filter((_, j) => j !== i))}
+              style={{ padding: 4 }}
+              accessibilityRole="button"
+              accessibilityLabel={`Ta bort OB-intervall ${ob.start} till ${ob.slut}`}
+            >
+              <Ionicons name="close-circle" size={20} color="#ef4444" accessible={false} importantForAccessibility="no" />
             </TouchableOpacity>
           </View>
         );
@@ -110,8 +115,14 @@ export default function ObRedigerare({ värde = [], onÄndra, timlön = 0, pasla
           </View>
         </View>
       ) : (
-        <TouchableOpacity style={styles.addKnapp} onPress={() => setFormVisas(true)} activeOpacity={0.7}>
-          <Ionicons name="add-circle-outline" size={16} color="#ea580c" />
+        <TouchableOpacity
+          style={styles.addKnapp}
+          onPress={() => setFormVisas(true)}
+          activeOpacity={0.7}
+          accessibilityRole="button"
+          accessibilityLabel="Lägg till OB-intervall"
+        >
+          <Ionicons name="add-circle-outline" size={16} color="#ea580c" accessible={false} importantForAccessibility="no" />
           <Text style={styles.addText}>Lägg till OB-intervall</Text>
         </TouchableOpacity>
       )}

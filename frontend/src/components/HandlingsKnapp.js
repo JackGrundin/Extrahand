@@ -16,9 +16,12 @@ export default function HandlingsKnapp({ text, onPress, variant = 'lank', ikon, 
         style={[styles.knapp, fylld ? styles.fylld : styles.lank]}
         onPress={onPress}
         activeOpacity={0.85}
+        accessibilityRole="button"
+        accessibilityLabel={text}
       >
+        {/* Ikonen är dekorativ – knappens text läses redan upp via labeln. */}
         {ikon && (
-          <Ionicons name={ikon} size={18} color={fylld ? '#fff' : '#2563eb'} style={styles.ikon} />
+          <Ionicons name={ikon} size={18} color={fylld ? '#fff' : '#2563eb'} style={styles.ikon} accessible={false} importantForAccessibility="no" />
         )}
         <Text style={[styles.text, fylld ? styles.textFylld : styles.textLank]}>{text}</Text>
       </TouchableOpacity>

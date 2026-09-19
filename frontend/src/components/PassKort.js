@@ -20,7 +20,7 @@ export default function PassKort({ pass }) {
   return (
     <View style={styles.kort}>
       <View style={styles.huvud}>
-        <Ionicons name="calendar-outline" size={18} color="#2563eb" />
+        <Ionicons name="calendar-outline" size={18} color="#2563eb" accessible={false} importantForAccessibility="no" />
         <Text style={styles.rubrik} numberOfLines={1}>{pass.jobbTitel ?? 'Pass'}</Text>
         <View style={[styles.statusBricka, { backgroundColor: färg.bg }]}>
           <Text style={[styles.statusText, { color: färg.text }]}>{färg.etikett}</Text>

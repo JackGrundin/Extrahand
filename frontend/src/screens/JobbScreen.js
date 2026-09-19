@@ -28,14 +28,21 @@ function närmasteDatum(jobb) {
 
 function FilterVal({ label, vald, onPress, multiSelect }) {
   return (
-    <TouchableOpacity onPress={onPress} style={styles.filterVal} activeOpacity={0.7}>
+    <TouchableOpacity
+      onPress={onPress}
+      style={styles.filterVal}
+      activeOpacity={0.7}
+      accessibilityRole={multiSelect ? 'checkbox' : 'button'}
+      accessibilityLabel={label}
+      accessibilityState={{ checked: !!vald, selected: !!vald }}
+    >
       <Text style={styles.filterValText}>{label}</Text>
       {multiSelect ? (
         <View style={[styles.checkbox, vald && styles.checkboxAktiv]}>
-          {vald && <Ionicons name="checkmark" size={14} color="#fff" />}
+          {vald && <Ionicons name="checkmark" size={14} color="#fff" accessible={false} importantForAccessibility="no" />}
         </View>
       ) : (
-        vald && <Ionicons name="checkmark" size={20} color="#2563eb" />
+        vald && <Ionicons name="checkmark" size={20} color="#2563eb" accessible={false} importantForAccessibility="no" />
       )}
     </TouchableOpacity>
   );
@@ -43,11 +50,11 @@ function FilterVal({ label, vald, onPress, multiSelect }) {
 
 function KategoriRad({ label, värde, onPress }) {
   return (
-    <TouchableOpacity onPress={onPress} style={styles.kategoriRad} activeOpacity={0.7}>
+    <TouchableOpacity onPress={onPress} style={styles.kategoriRad} activeOpacity={0.7} accessibilityRole="button" accessibilityLabel={värde ? `${label}: ${värde}` : label}>
       <Text style={styles.kategoriRadText}>{label}</Text>
       <View style={styles.kategoriRadHöger}>
         {värde ? <Text style={styles.kategoriRadVärde} numberOfLines={1}>{värde}</Text> : null}
-        <Ionicons name="chevron-forward" size={18} color="#9ca3af" />
+        <Ionicons name="chevron-forward" size={18} color="#9ca3af" accessible={false} importantForAccessibility="no" />
       </View>
     </TouchableOpacity>
   );
@@ -60,7 +67,7 @@ function KravBricka({ krav }) {
   if (!antal) return null;
   return (
     <View style={styles.kravBadge}>
-      <Ionicons name="shield-checkmark" size={11} color="#b45309" />
+      <Ionicons name="shield-checkmark" size={11} color="#b45309" accessible={false} importantForAccessibility="no" />
       <Text style={styles.kravBadgeText}>{antal} krav</Text>
     </View>
   );
@@ -243,8 +250,11 @@ export default function JobbScreen({ navigation }) {
                         prev.includes(t.värde) ? prev.filter(x => x !== t.värde) : [...prev, t.värde]
                       )}
                       activeOpacity={0.7}
+                      accessibilityRole="checkbox"
+                      accessibilityLabel={t.etikett}
+                      accessibilityState={{ checked: vald }}
                     >
-                      {vald && <Ionicons name="checkmark" size={13} color="#fff" />}
+                      {vald && <Ionicons name="checkmark" size={13} color="#fff" accessible={false} importantForAccessibility="no" />}
                       <Text style={[styles.typChipText, vald && styles.typChipTextAktiv]}>
                         {t.etikett}
                       </Text>
@@ -270,7 +280,7 @@ export default function JobbScreen({ navigation }) {
               <RollBrickor roller={item.kategorier} style={{ marginBottom: 6 }} />
 
               <View style={styles.datumRad}>
-                <Ionicons name="calendar" size={14} color="#2563eb" />
+                <Ionicons name="calendar" size={14} color="#2563eb" accessible={false} importantForAccessibility="no" />
                 <View style={styles.datumChip}>
                   <Text style={styles.datumChipText}>
                     {formatDagDatum(item.startdatum)} – {formatDagDatum(item.slutdatum)}
@@ -304,8 +314,8 @@ export default function JobbScreen({ navigation }) {
           absolutLista
           autoCapitalize="none"
         />
-        <TouchableOpacity style={styles.filterKnapp} onPress={() => setModalVisas(true)} activeOpacity={0.8}>
-          <Ionicons name="options-outline" size={16} color="#2563eb" />
+        <TouchableOpacity style={styles.filterKnapp} onPress={() => setModalVisas(true)} activeOpacity={0.8} accessibilityRole="button" accessibilityLabel="Filter">
+          <Ionicons name="options-outline" size={16} color="#2563eb" accessible={false} importantForAccessibility="no" />
           <Text style={styles.filterKnappText}>Filter</Text>
           {aktivaFilter > 0 && (
             <View style={styles.badge}>
@@ -339,7 +349,7 @@ export default function JobbScreen({ navigation }) {
 
               {datum.length > 0 && (
                 <View style={styles.datumRad}>
-                  <Ionicons name="calendar" size={14} color="#2563eb" />
+                  <Ionicons name="calendar" size={14} color="#2563eb" accessible={false} importantForAccessibility="no" />
                   {visaDatum.map((d, i) => (
                     <View key={i} style={styles.datumChip}>
                       <Text style={styles.datumChipText}>{formatDagDatum(d)}</Text>
@@ -411,8 +421,10 @@ export default function JobbScreen({ navigation }) {
                   style={styles.tillbakaKnapp}
                   onPress={() => { setAktivSektion(null); setSokKategori(''); }}
                   activeOpacity={0.7}
+                  accessibilityRole="button"
+                  accessibilityLabel="Tillbaka"
                 >
-                  <Ionicons name="chevron-back" size={20} color="#2563eb" />
+                  <Ionicons name="chevron-back" size={20} color="#2563eb" accessible={false} importantForAccessibility="no" />
                   <Text style={styles.tillbakaText}>
                     {aktivSektion === 'sortering' ? 'Sortering'
                       : aktivSektion === 'kategori' ? 'Kategori'

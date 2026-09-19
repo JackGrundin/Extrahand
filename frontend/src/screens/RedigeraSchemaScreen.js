@@ -222,7 +222,7 @@ export default function RedigeraSchemaScreen({ route, navigation }) {
       <ScrollView style={styles.container} keyboardShouldPersistTaps="handled">
         {ärTillsatt && (
           <View style={styles.infoRuta}>
-            <Ionicons name="information-circle-outline" size={18} color="#0369a1" />
+            <Ionicons name="information-circle-outline" size={18} color="#0369a1" accessible={false} importantForAccessibility="no" />
             <Text style={styles.infoText}>
               {schema.personNamn ?? 'En person'} är godkänd för schemat. Datum och tider på
               befintliga pass är låsta, men du kan lägga till nya pass. Ändrar du timlönen
@@ -313,8 +313,8 @@ export default function RedigeraSchemaScreen({ route, navigation }) {
                 {Number(a.belopp).toLocaleString('sv-SE')} kr {a.typ === 'totalt' ? 'totalt för perioden' : 'per pass'}
               </Text>
             </View>
-            <TouchableOpacity onPress={() => taBortAvdrag(a)} disabled={sparar} style={{ padding: 4 }}>
-              <Ionicons name="close-circle" size={20} color="#dc2626" />
+            <TouchableOpacity onPress={() => taBortAvdrag(a)} disabled={sparar} style={{ padding: 4 }} accessibilityRole="button" accessibilityLabel={`Ta bort löneavdrag: ${a.namn}`}>
+              <Ionicons name="close-circle" size={20} color="#dc2626" accessible={false} importantForAccessibility="no" />
             </TouchableOpacity>
           </View>
         ))}
@@ -368,8 +368,8 @@ export default function RedigeraSchemaScreen({ route, navigation }) {
             </View>
           </View>
         ) : (
-          <TouchableOpacity style={styles.addKnapp} onPress={() => setAvdragFormVisas(true)} disabled={sparar} activeOpacity={0.7}>
-            <Ionicons name="add-circle-outline" size={18} color="#dc2626" />
+          <TouchableOpacity style={styles.addKnapp} onPress={() => setAvdragFormVisas(true)} disabled={sparar} activeOpacity={0.7} accessibilityRole="button" accessibilityLabel="Lägg till löneavdrag">
+            <Ionicons name="add-circle-outline" size={18} color="#dc2626" accessible={false} importantForAccessibility="no" />
             <Text style={styles.addText}>Lägg till löneavdrag</Text>
           </TouchableOpacity>
         )}
@@ -392,8 +392,8 @@ export default function RedigeraSchemaScreen({ route, navigation }) {
               <Text style={styles.passTid}>{p.starttid} – {p.sluttid}</Text>
               {p.kategori ? <Text style={styles.passRoll}>{p.kategori}</Text> : null}
             </View>
-            <TouchableOpacity onPress={() => taBortPass(p)} disabled={sparar} style={{ padding: 4 }}>
-              <Ionicons name="close-circle" size={20} color="#ef4444" />
+            <TouchableOpacity onPress={() => taBortPass(p)} disabled={sparar} style={{ padding: 4 }} accessibilityRole="button" accessibilityLabel={`Ta bort pass ${formatDagDatum(p.datum)}`}>
+              <Ionicons name="close-circle" size={20} color="#ef4444" accessible={false} importantForAccessibility="no" />
             </TouchableOpacity>
           </View>
         ))}
@@ -434,8 +434,8 @@ export default function RedigeraSchemaScreen({ route, navigation }) {
             </View>
           </View>
         ) : (
-          <TouchableOpacity style={styles.addKnapp} onPress={() => setPassFormVisas(true)} disabled={sparar} activeOpacity={0.7}>
-            <Ionicons name="add-circle-outline" size={18} color="#2563eb" />
+          <TouchableOpacity style={styles.addKnapp} onPress={() => setPassFormVisas(true)} disabled={sparar} activeOpacity={0.7} accessibilityRole="button" accessibilityLabel="Lägg till pass">
+            <Ionicons name="add-circle-outline" size={18} color="#2563eb" accessible={false} importantForAccessibility="no" />
             <Text style={[styles.addText, { color: '#2563eb' }]}>Lägg till pass</Text>
           </TouchableOpacity>
         )}

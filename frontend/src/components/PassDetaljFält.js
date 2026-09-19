@@ -66,7 +66,14 @@ export default function PassDetaljFält({
       {förslag.length > 0 && (
         <View style={styles.chipRad}>
           {förslag.map(k => (
-            <TouchableOpacity key={k} style={styles.chip} onPress={() => onKategori(k)} activeOpacity={0.7}>
+            <TouchableOpacity
+              key={k}
+              style={styles.chip}
+              onPress={() => onKategori(k)}
+              activeOpacity={0.7}
+              accessibilityRole="button"
+              accessibilityLabel={`Välj roll: ${k}`}
+            >
               <Text style={styles.chipText}>{k}</Text>
             </TouchableOpacity>
           ))}

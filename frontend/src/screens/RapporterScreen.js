@@ -404,8 +404,15 @@ export default function RapporterScreen({ navigation }) {
               return (
                 <View style={[styles.kort, vald && styles.kortVald]}>
                   <View style={styles.kortHuvud}>
-                    <TouchableOpacity onPress={() => växlaMarkerad(item.id)} style={styles.kryssruta} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-                      <Ionicons name={vald ? 'checkbox' : 'square-outline'} size={22} color={vald ? '#2563eb' : '#cbd5e1'} />
+                    <TouchableOpacity
+                      onPress={() => växlaMarkerad(item.id)}
+                      style={styles.kryssruta}
+                      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                      accessibilityRole="checkbox"
+                      accessibilityLabel={`Markera ${item.anvandareNamn ?? 'tidrapport'}`}
+                      accessibilityState={{ checked: vald }}
+                    >
+                      <Ionicons name={vald ? 'checkbox' : 'square-outline'} size={22} color={vald ? '#2563eb' : '#cbd5e1'} accessible={false} importantForAccessibility="no" />
                     </TouchableOpacity>
                     <View style={{ flex: 1 }}>
                       <Text style={styles.namn}>{item.anvandareNamn ?? '–'}</Text>
@@ -523,7 +530,7 @@ export default function RapporterScreen({ navigation }) {
       ) : aktivFlik === 'företag' ? (
         <>
           <View style={styles.sökContainer}>
-            <Ionicons name="search-outline" size={18} color="#aaa" style={styles.sökIkon} />
+            <Ionicons name="search-outline" size={18} color="#aaa" style={styles.sökIkon} accessible={false} importantForAccessibility="no" />
             <TextInput
               style={styles.sökInput}
               placeholder="Sök på namn, org.nr eller mejl..."
@@ -595,7 +602,7 @@ export default function RapporterScreen({ navigation }) {
       ) : (
         <>
           <View style={styles.sökContainer}>
-            <Ionicons name="search-outline" size={18} color="#aaa" style={styles.sökIkon} />
+            <Ionicons name="search-outline" size={18} color="#aaa" style={styles.sökIkon} accessible={false} importantForAccessibility="no" />
             <TextInput
               style={styles.sökInput}
               placeholder="Sök på namn eller mejl..."
@@ -623,9 +630,9 @@ export default function RapporterScreen({ navigation }) {
                   ) : null}
                 </View>
                 {item.avtal_godkant ? (
-                  <Ionicons name="checkmark-circle" size={26} color="#16a34a" />
+                  <Ionicons name="checkmark-circle" size={26} color="#16a34a" accessibilityLabel="Avtal godkänt" />
                 ) : (
-                  <Ionicons name="close-circle" size={26} color="#ef4444" />
+                  <Ionicons name="close-circle" size={26} color="#ef4444" accessibilityLabel="Avtal ej godkänt" />
                 )}
               </View>
               {!item.avtal_godkant && (

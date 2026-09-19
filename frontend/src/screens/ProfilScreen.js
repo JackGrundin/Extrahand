@@ -163,9 +163,15 @@ export default function ProfilScreen({ navigation }) {
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.innehall}>
-      <TouchableOpacity onPress={väljaProfilBild} style={styles.avatarWrapper} disabled={laddaUppBild}>
+      <TouchableOpacity
+        onPress={väljaProfilBild}
+        style={styles.avatarWrapper}
+        disabled={laddaUppBild}
+        accessibilityRole="button"
+        accessibilityLabel="Byt profilbild"
+      >
         {profil?.profilBild ? (
-          <Image source={{ uri: profil.profilBild }} style={styles.profilBild} />
+          <Image source={{ uri: profil.profilBild }} style={styles.profilBild} accessible={false} importantForAccessibility="no" />
         ) : (
           <View style={styles.avatar}>
             <Text style={styles.avatarText}>{användare?.namn?.[0]?.toUpperCase()}</Text>
@@ -174,7 +180,7 @@ export default function ProfilScreen({ navigation }) {
         <View style={styles.kameraIkon}>
           {laddaUppBild
             ? <ActivityIndicator size="small" color="#fff" />
-            : <Ionicons name="camera" size={14} color="#fff" />
+            : <Ionicons name="camera" size={14} color="#fff" accessible={false} importantForAccessibility="no" />
           }
         </View>
       </TouchableOpacity>
@@ -190,7 +196,7 @@ export default function ProfilScreen({ navigation }) {
 
       {ärPrivatperson && profil?.totalTimmar > 0 && (
         <View style={styles.timmArBadge}>
-          <Ionicons name="time-outline" size={16} color="#059669" />
+          <Ionicons name="time-outline" size={16} color="#059669" accessible={false} importantForAccessibility="no" />
           <Text style={styles.timmArText}>{profil.totalTimmar} jobbade timmar</Text>
         </View>
       )}
@@ -198,8 +204,10 @@ export default function ProfilScreen({ navigation }) {
       <TouchableOpacity
         style={styles.redigeraKnapp}
         onPress={() => navigation.navigate('RedigeraProfil', { profil })}
+        accessibilityRole="button"
+        accessibilityLabel="Redigera profil"
       >
-        <Ionicons name="create-outline" size={18} color="#2563eb" />
+        <Ionicons name="create-outline" size={18} color="#2563eb" accessible={false} importantForAccessibility="no" />
         <Text style={styles.redigeraText}>Redigera profil</Text>
       </TouchableOpacity>
 
@@ -208,8 +216,10 @@ export default function ProfilScreen({ navigation }) {
         <TouchableOpacity
           style={styles.redigeraKnapp}
           onPress={() => navigation.navigate('SchemaKalender')}
+          accessibilityRole="button"
+          accessibilityLabel="Schemaöversikt"
         >
-          <Ionicons name="calendar-outline" size={18} color="#2563eb" />
+          <Ionicons name="calendar-outline" size={18} color="#2563eb" accessible={false} importantForAccessibility="no" />
           <Text style={styles.redigeraText}>Schemaöversikt</Text>
         </TouchableOpacity>
       )}
@@ -233,7 +243,7 @@ export default function ProfilScreen({ navigation }) {
             <View style={styles.prenumerationKort}>
               <View style={styles.proRad}>
                 <View style={styles.proBadge}>
-                  <Ionicons name="star" size={12} color="#fff" />
+                  <Ionicons name="star" size={12} color="#fff" accessible={false} importantForAccessibility="no" />
                   <Text style={styles.proBadgeText}>PRO</Text>
                 </View>
                 <Text style={styles.proAktivText}>Lägsta pris på alla pass</Text>
@@ -244,12 +254,14 @@ export default function ProfilScreen({ navigation }) {
                 onPress={hanteraPrenumeration}
                 disabled={prenumerationLaddar}
                 activeOpacity={0.8}
+                accessibilityRole="button"
+                accessibilityLabel="Hantera prenumeration"
               >
                 {prenumerationLaddar ? (
                   <ActivityIndicator color="#2563eb" size="small" />
                 ) : (
                   <>
-                    <Ionicons name="card-outline" size={18} color="#2563eb" />
+                    <Ionicons name="card-outline" size={18} color="#2563eb" accessible={false} importantForAccessibility="no" />
                     <Text style={styles.hanteraText}>Hantera prenumeration</Text>
                   </>
                 )}
@@ -262,12 +274,14 @@ export default function ProfilScreen({ navigation }) {
                 onPress={uppgraderaTillPro}
                 disabled={prenumerationLaddar}
                 activeOpacity={0.8}
+                accessibilityRole="button"
+                accessibilityLabel={`Uppgradera till Pro – ${PRO_PRIS_KR} kr per månad`}
               >
                 {prenumerationLaddar ? (
                   <ActivityIndicator color="#fff" size="small" />
                 ) : (
                   <>
-                    <Ionicons name="star" size={16} color="#fff" />
+                    <Ionicons name="star" size={16} color="#fff" accessible={false} importantForAccessibility="no" />
                     <Text style={styles.uppgraderaText}>Uppgradera till Pro – {PRO_PRIS_KR} kr/mån</Text>
                   </>
                 )}
@@ -305,7 +319,7 @@ export default function ProfilScreen({ navigation }) {
         accessibilityRole="button"
         accessibilityLabel="Integritetspolicy"
       >
-        <Ionicons name="shield-checkmark-outline" size={18} color="#2563eb" />
+        <Ionicons name="shield-checkmark-outline" size={18} color="#2563eb" accessible={false} importantForAccessibility="no" />
         <Text style={styles.integritetspolicyText}>Integritetspolicy</Text>
       </TouchableOpacity>
 

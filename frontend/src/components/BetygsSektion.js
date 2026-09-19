@@ -13,9 +13,9 @@ import { Ionicons } from '@expo/vector-icons';
 // Fem stjärnor, fyllda upp till `värde`.
 export function Stjärnor({ värde = 0, storlek = 14 }) {
   return (
-    <View style={styles.stjärnRad}>
+    <View style={styles.stjärnRad} accessible accessibilityLabel={`Betyg ${värde} av 5`}>
       {[1, 2, 3, 4, 5].map(n => (
-        <Ionicons key={n} name={n <= värde ? 'star' : 'star-outline'} size={storlek} color="#f59e0b" />
+        <Ionicons key={n} name={n <= värde ? 'star' : 'star-outline'} size={storlek} color="#f59e0b" accessible={false} importantForAccessibility="no" />
       ))}
     </View>
   );
@@ -32,7 +32,7 @@ export function BetygsSammanfattning({ betyg }) {
   }
   return (
     <View style={styles.sammanfattning}>
-      <Ionicons name="star" size={18} color="#f59e0b" />
+      <Ionicons name="star" size={18} color="#f59e0b" accessible={false} importantForAccessibility="no" />
       <Text style={styles.snitt}>{betyg.snitt.toFixed(1)}</Text>
       <Text style={styles.antal}>({antalText(betyg.antal)})</Text>
     </View>
@@ -59,7 +59,7 @@ function RubrikRad({ rubrik, betyg }) {
     <View style={styles.rubrikRad}>
       <Text style={styles.rubrik}>{rubrik}</Text>
       <View style={styles.rubrikSnitt}>
-        <Ionicons name="star" size={13} color="#f59e0b" />
+        <Ionicons name="star" size={13} color="#f59e0b" accessible={false} importantForAccessibility="no" />
         <Text style={styles.rubrikSnittText}>{betyg.snitt.toFixed(1)}</Text>
         <Text style={styles.rubrikAntal}>· {antalText(betyg.antal)}</Text>
       </View>
@@ -86,9 +86,14 @@ export function BetygsLista({ betyg, rubrik = 'Recensioner' }) {
       {synliga.map((b, i) => <Recension key={i} b={b} />)}
 
       {harFler && (
-        <TouchableOpacity style={styles.visaAllaKnapp} onPress={() => setVisaAlla(true)}>
+        <TouchableOpacity
+          style={styles.visaAllaKnapp}
+          onPress={() => setVisaAlla(true)}
+          accessibilityRole="button"
+          accessibilityLabel={`Visa alla ${betyg.antal} recensioner`}
+        >
           <Text style={styles.visaAllaText}>Visa alla {betyg.antal} recensioner</Text>
-          <Ionicons name="chevron-forward" size={16} color="#2563eb" />
+          <Ionicons name="chevron-forward" size={16} color="#2563eb" accessible={false} importantForAccessibility="no" />
         </TouchableOpacity>
       )}
 
@@ -101,12 +106,17 @@ export function BetygsLista({ betyg, rubrik = 'Recensioner' }) {
         <SafeAreaView style={styles.modalContainer}>
           <View style={styles.modalHeader}>
             <Text style={styles.modalTitel}>{rubrik}</Text>
-            <TouchableOpacity onPress={() => setVisaAlla(false)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-              <Ionicons name="close" size={26} color="#1a1a1a" />
+            <TouchableOpacity
+              onPress={() => setVisaAlla(false)}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              accessibilityRole="button"
+              accessibilityLabel="Stäng"
+            >
+              <Ionicons name="close" size={26} color="#1a1a1a" accessible={false} importantForAccessibility="no" />
             </TouchableOpacity>
           </View>
           <View style={styles.modalSnitt}>
-            <Ionicons name="star" size={16} color="#f59e0b" />
+            <Ionicons name="star" size={16} color="#f59e0b" accessible={false} importantForAccessibility="no" />
             <Text style={styles.modalSnittText}>{betyg.snitt.toFixed(1)}</Text>
             <Text style={styles.modalSnittAntal}>· {antalText(betyg.antal)}</Text>
           </View>

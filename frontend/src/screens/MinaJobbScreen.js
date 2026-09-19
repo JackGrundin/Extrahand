@@ -148,13 +148,13 @@ export default function MinaJobbScreen({ navigation, route }) {
       >
         {måsteAvslutas && (
           <View style={styles.avslutaBadge}>
-            <Ionicons name="alert-circle" size={14} color="#fff" />
+            <Ionicons name="alert-circle" size={14} color="#fff" accessible={false} importantForAccessibility="no" />
             <Text style={styles.avslutaBadgeText}>Behöver avslutas</Text>
           </View>
         )}
         {item.nyaAnsökningar > 0 && (
           <View style={styles.nyaAnsBadge}>
-            <Ionicons name="person-add" size={13} color="#fff" />
+            <Ionicons name="person-add" size={13} color="#fff" accessible={false} importantForAccessibility="no" />
             <Text style={styles.nyaAnsBadgeText}>
               {item.nyaAnsökningar} {item.nyaAnsökningar === 1 ? 'ny ansökan' : 'nya ansökningar'}
             </Text>
@@ -171,7 +171,7 @@ export default function MinaJobbScreen({ navigation, route }) {
 
         {datum.length > 0 && (
           <View style={styles.datumRad}>
-            <Ionicons name="calendar" size={14} color="#2563eb" />
+            <Ionicons name="calendar" size={14} color="#2563eb" accessible={false} importantForAccessibility="no" />
             {visaDatum.map((d, i) => (
               <View key={i} style={styles.datumChip}>
                 <Text style={styles.datumChipText}>{formatDagDatum(d)}</Text>
@@ -186,8 +186,8 @@ export default function MinaJobbScreen({ navigation, route }) {
         <View style={styles.kortBotten}>
           <Text style={styles.seAnsokningar}>Se ansökningar →</Text>
           {kanÄndras && (
-            <TouchableOpacity style={styles.menyKnapp} onPress={() => öppnaÅtgärder(item)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-              <Text style={styles.menyIkon}>•••</Text>
+            <TouchableOpacity style={styles.menyKnapp} onPress={() => öppnaÅtgärder(item)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }} accessibilityRole="button" accessibilityLabel="Fler åtgärder">
+              <Text style={styles.menyIkon} accessible={false} importantForAccessibility="no">•••</Text>
             </TouchableOpacity>
           )}
         </View>

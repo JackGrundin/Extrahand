@@ -134,7 +134,7 @@ export default function MinaAnsokningarScreen({ navigation }) {
           {item.saknadeKrav?.length > 0 && (
             <View style={styles.kravVarning}>
               <View style={styles.kravVarningRad}>
-                <Ionicons name="alert-circle" size={15} color="#b45309" />
+                <Ionicons name="alert-circle" size={15} color="#b45309" accessible={false} importantForAccessibility="no" />
                 <Text style={styles.kravVarningRubrik}>Nya behörighetskrav</Text>
               </View>
               <Text style={styles.kravVarningText}>

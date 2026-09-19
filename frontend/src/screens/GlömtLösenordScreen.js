@@ -36,7 +36,7 @@ export default function GlömtLösenordScreen({ navigation }) {
     return (
       <View style={styles.container}>
         <View style={styles.klarIkon}>
-          <Ionicons name="mail-outline" size={36} color="#2563eb" />
+          <Ionicons name="mail-outline" size={36} color="#2563eb" accessible={false} importantForAccessibility="no" />
         </View>
         <Text style={styles.rubrik}>Kolla din inkorg</Text>
         <Text style={styles.brödtext}>

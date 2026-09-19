@@ -19,10 +19,13 @@ export default function StegIndikator({ steg, antal, etiketter = [], onVäljSteg
                 disabled={!avklarat}
                 activeOpacity={0.7}
                 hitSlop={8}
+                accessibilityRole="button"
+                accessibilityLabel={`Steg ${nummer}${etiketter[i] ? `, ${etiketter[i]}` : ''}${avklarat ? ', avklarat' : aktivt ? ', aktivt' : ''}`}
+                accessibilityState={{ disabled: !avklarat, selected: aktivt }}
               >
                 <View style={[styles.prick, avklarat && styles.prickAvklarad, aktivt && styles.prickAktiv]}>
                   {avklarat
-                    ? <Ionicons name="checkmark" size={13} color="#fff" />
+                    ? <Ionicons name="checkmark" size={13} color="#fff" accessible={false} importantForAccessibility="no" />
                     : <Text style={[styles.prickText, aktivt && styles.prickTextAktiv]}>{nummer}</Text>}
                 </View>
               </TouchableOpacity>

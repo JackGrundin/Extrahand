@@ -191,8 +191,8 @@ export default function RedigeraJobbScreen({ route, navigation }) {
                   return kostnad > 0 ? ` = +${formateraPris(kostnad)} kr (er kostnad)` : '';
                 })() : ''}
               </Text>
-              <TouchableOpacity onPress={() => setObTillagg(prev => prev.filter((_, j) => j !== i))}>
-                <Ionicons name="close-circle" size={20} color="#ef4444" />
+              <TouchableOpacity onPress={() => setObTillagg(prev => prev.filter((_, j) => j !== i))} accessibilityRole="button" accessibilityLabel={`Ta bort OB-intervall ${ob.start} till ${ob.slut}`}>
+                <Ionicons name="close-circle" size={20} color="#ef4444" accessible={false} importantForAccessibility="no" />
               </TouchableOpacity>
             </View>
           ))}
@@ -229,8 +229,8 @@ export default function RedigeraJobbScreen({ route, navigation }) {
               </View>
             </View>
           ) : (
-            <TouchableOpacity style={styles.obAddKnapp} onPress={() => setObFormVisas(true)} activeOpacity={0.7}>
-              <Ionicons name="add-circle-outline" size={18} color="#ea580c" />
+            <TouchableOpacity style={styles.obAddKnapp} onPress={() => setObFormVisas(true)} activeOpacity={0.7} accessibilityRole="button" accessibilityLabel="Lägg till OB-intervall">
+              <Ionicons name="add-circle-outline" size={18} color="#ea580c" accessible={false} importantForAccessibility="no" />
               <Text style={styles.obAddText}>Lägg till OB-intervall</Text>
             </TouchableOpacity>
           )}
@@ -247,11 +247,11 @@ export default function RedigeraJobbScreen({ route, navigation }) {
           </View>
 
           <Text style={styles.label}>Kategori *</Text>
-          <TouchableOpacity style={[styles.väljarKnapp, fel.kategori && styles.inputFel]} onPress={() => setKategoriModalVisas(true)} activeOpacity={0.7}>
+          <TouchableOpacity style={[styles.väljarKnapp, fel.kategori && styles.inputFel]} onPress={() => setKategoriModalVisas(true)} activeOpacity={0.7} accessibilityRole="button" accessibilityLabel={kategori ? `Kategori: ${kategori}` : 'Välj kategori'}>
             <Text style={[styles.väljarText, !kategori && styles.väljarPlaceholder]}>
               {kategori || 'Välj kategori...'}
             </Text>
-            <Ionicons name="chevron-forward" size={18} color="#9ca3af" />
+            <Ionicons name="chevron-forward" size={18} color="#9ca3af" accessible={false} importantForAccessibility="no" />
           </TouchableOpacity>
           <FältFel text={fel.kategori} />
 
@@ -293,7 +293,7 @@ export default function RedigeraJobbScreen({ route, navigation }) {
                     onPress={() => { setKategori(k); rensaFel('kategori'); setKategoriModalVisas(false); setSokKategori(''); }}
                   >
                     <Text style={styles.kategoriRadText}>{k}</Text>
-                    {kategori === k && <Ionicons name="checkmark" size={20} color="#2563eb" />}
+                    {kategori === k && <Ionicons name="checkmark" size={20} color="#2563eb" accessible={false} importantForAccessibility="no" />}
                   </TouchableOpacity>
                 ))
               )}

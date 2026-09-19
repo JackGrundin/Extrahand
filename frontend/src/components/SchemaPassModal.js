@@ -56,7 +56,7 @@ export default function SchemaPassModal({
   return (
     <Modal visible={visible} transparent animationType="slide" statusBarTranslucent onRequestClose={onStäng}>
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-        <TouchableOpacity style={styles.backdrop} activeOpacity={1} onPress={onStäng} />
+        <TouchableOpacity style={styles.backdrop} activeOpacity={1} onPress={onStäng} accessibilityRole="button" accessibilityLabel="Stäng" />
         <View style={styles.panel}>
           <View style={styles.handtag} />
           <Text style={styles.rubrik}>{rubrik}</Text>
@@ -92,8 +92,8 @@ export default function SchemaPassModal({
               <TouchableOpacity style={styles.avbryt} onPress={onStäng}>
                 <Text style={styles.avbrytText}>Avbryt</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={styles.spara} onPress={spara}>
-                <Ionicons name="checkmark" size={17} color="#fff" />
+              <TouchableOpacity style={styles.spara} onPress={spara} accessibilityRole="button" accessibilityLabel="Spara pass">
+                <Ionicons name="checkmark" size={17} color="#fff" accessible={false} importantForAccessibility="no" />
                 <Text style={styles.sparaText}>Spara pass</Text>
               </TouchableOpacity>
             </View>

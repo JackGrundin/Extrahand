@@ -116,8 +116,14 @@ export default function ErbjudPassModal({ visible, onClose, onSkicka, skickar })
             />
 
             <Text style={styles.label}>Datum</Text>
-            <TouchableOpacity style={styles.datumKnapp} onPress={öppnaDatum} activeOpacity={0.7}>
-              <Ionicons name="calendar-outline" size={18} color={datum ? '#1a1a1a' : '#aaa'} />
+            <TouchableOpacity
+              style={styles.datumKnapp}
+              onPress={öppnaDatum}
+              activeOpacity={0.7}
+              accessibilityRole="button"
+              accessibilityLabel={datum ? `Välj datum, valt: ${formatDatum(new Date(datum + 'T12:00:00'))}` : 'Välj datum'}
+            >
+              <Ionicons name="calendar-outline" size={18} color={datum ? '#1a1a1a' : '#aaa'} accessible={false} importantForAccessibility="no" />
               <Text style={[styles.datumText, !datum && styles.placeholder]}>
                 {datum ? formatDatum(new Date(datum + 'T12:00:00')) : 'Välj datum'}
               </Text>
@@ -145,8 +151,12 @@ export default function ErbjudPassModal({ visible, onClose, onSkicka, skickar })
                 <Text style={styles.obRadText}>
                   {ob.start}–{ob.slut}: {ob.värde}{ob.typ === 'procent' ? '%' : ' kr/h'}
                 </Text>
-                <TouchableOpacity onPress={() => setObTillagg(prev => prev.filter((_, j) => j !== i))}>
-                  <Ionicons name="close-circle" size={20} color="#ef4444" />
+                <TouchableOpacity
+                  onPress={() => setObTillagg(prev => prev.filter((_, j) => j !== i))}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Ta bort OB-intervall ${ob.start} till ${ob.slut}`}
+                >
+                  <Ionicons name="close-circle" size={20} color="#ef4444" accessible={false} importantForAccessibility="no" />
                 </TouchableOpacity>
               </View>
             ))}
@@ -183,8 +193,14 @@ export default function ErbjudPassModal({ visible, onClose, onSkicka, skickar })
                 </View>
               </View>
             ) : (
-              <TouchableOpacity style={styles.obAddKnapp} onPress={() => setObFormVisas(true)} activeOpacity={0.7}>
-                <Ionicons name="add-circle-outline" size={18} color="#ea580c" />
+              <TouchableOpacity
+                style={styles.obAddKnapp}
+                onPress={() => setObFormVisas(true)}
+                activeOpacity={0.7}
+                accessibilityRole="button"
+                accessibilityLabel="Lägg till OB-intervall"
+              >
+                <Ionicons name="add-circle-outline" size={18} color="#ea580c" accessible={false} importantForAccessibility="no" />
                 <Text style={styles.obAddText}>Lägg till OB-intervall</Text>
               </TouchableOpacity>
             )}

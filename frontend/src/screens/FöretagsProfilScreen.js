@@ -41,7 +41,7 @@ export default function FöretagsProfilScreen({ route, navigation }) {
     <ScrollView style={styles.container}>
       <View style={styles.huvud}>
         {profil.profilBild
-          ? <Image source={{ uri: profil.profilBild }} style={styles.logga} />
+          ? <Image source={{ uri: profil.profilBild }} style={styles.logga} accessible={false} importantForAccessibility="no" />
           : <View style={styles.loggaPlaceholder}><Text style={styles.loggaInitial}>{profil.namn?.[0] ?? '?'}</Text></View>
         }
         <Text style={styles.namn}>{profil.namn}</Text>

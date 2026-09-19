@@ -11,11 +11,21 @@ export default function StjärnVal({ värde, onÄndra, storlek = 44 }) {
     <>
       <View style={styles.rad}>
         {[1, 2, 3, 4, 5].map((n) => (
-          <TouchableOpacity key={n} onPress={() => onÄndra(n)} style={styles.stjärna} activeOpacity={0.7}>
+          <TouchableOpacity
+            key={n}
+            onPress={() => onÄndra(n)}
+            style={styles.stjärna}
+            activeOpacity={0.7}
+            accessibilityRole="button"
+            accessibilityLabel={`Sätt betyg ${n} av 5`}
+            accessibilityState={{ selected: n <= värde }}
+          >
             <Ionicons
               name={n <= värde ? 'star' : 'star-outline'}
               size={storlek}
               color={n <= värde ? '#f59e0b' : '#d1d5db'}
+              accessible={false}
+              importantForAccessibility="no"
             />
           </TouchableOpacity>
         ))}

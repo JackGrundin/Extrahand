@@ -57,7 +57,13 @@ export default function TidVäljare({ value, onChange, placeholder = 'HH:MM', st
 
   return (
     <>
-      <TouchableOpacity style={[styles.knapp, style]} onPress={öppna} activeOpacity={0.7}>
+      <TouchableOpacity
+        style={[styles.knapp, style]}
+        onPress={öppna}
+        activeOpacity={0.7}
+        accessibilityRole="button"
+        accessibilityLabel={value ? `Välj tid, vald: ${value}` : 'Välj tid'}
+      >
         <Text style={[styles.text, !value && styles.placeholder]}>{value || placeholder}</Text>
       </TouchableOpacity>
 

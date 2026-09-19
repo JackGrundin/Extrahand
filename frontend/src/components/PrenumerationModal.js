@@ -37,7 +37,7 @@ export default function PrenumerationModal({
             {/* Vänster block – Pro */}
             <View style={[styles.plan, styles.planPro]}>
               <View style={styles.proBadge}>
-                <Ionicons name="star" size={12} color="#fff" />
+                <Ionicons name="star" size={12} color="#fff" accessible={false} importantForAccessibility="no" />
                 <Text style={styles.proBadgeText}>PRO</Text>
               </View>
               <Text style={styles.planPris}>{PRO_PRIS_KR} kr</Text>

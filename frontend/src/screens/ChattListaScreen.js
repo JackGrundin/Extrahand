@@ -90,7 +90,7 @@ export default function ChattListaScreen({ navigation }) {
     <View style={styles.container}>
       {refresh.LoggaOverlay}
       <View style={styles.sökRad}>
-        <Ionicons name="search" size={18} color="#9ca3af" />
+        <Ionicons name="search" size={18} color="#9ca3af" accessible={false} importantForAccessibility="no" />
         <TextInput
           style={styles.sökInput}
           placeholder={ärFöretag ? 'Sök medarbetare eller jobbtitel' : 'Sök företag eller jobbtitel'}
@@ -101,8 +101,8 @@ export default function ChattListaScreen({ navigation }) {
           clearButtonMode="while-editing"
         />
         {söktext.length > 0 && (
-          <TouchableOpacity onPress={() => setSöktext('')}>
-            <Ionicons name="close-circle" size={18} color="#9ca3af" />
+          <TouchableOpacity onPress={() => setSöktext('')} accessibilityRole="button" accessibilityLabel="Rensa sökning">
+            <Ionicons name="close-circle" size={18} color="#9ca3af" accessible={false} importantForAccessibility="no" />
           </TouchableOpacity>
         )}
       </View>

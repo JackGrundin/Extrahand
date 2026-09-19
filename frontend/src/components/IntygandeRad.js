@@ -25,7 +25,7 @@ export default function IntygandeRad({ ansökan, style }) {
     <View style={style}>
       {intygade.length > 0 && (
         <View style={styles.rad}>
-          <Ionicons name="shield-checkmark" size={13} color="#16a34a" />
+          <Ionicons name="shield-checkmark" size={13} color="#16a34a" accessible={false} importantForAccessibility="no" />
           <Text style={styles.intygatText}>
             Intygade {intygade.length} {intygade.length === 1 ? 'krav' : 'krav'}
             {datum ? ` · ${datum}` : ''}
@@ -36,7 +36,7 @@ export default function IntygandeRad({ ansökan, style }) {
       {saknade.length > 0 && (
         <View style={styles.varning}>
           <View style={styles.rad}>
-            <Ionicons name="alert-circle" size={13} color="#b45309" />
+            <Ionicons name="alert-circle" size={13} color="#b45309" accessible={false} importantForAccessibility="no" />
             <Text style={styles.varningRubrik}>Kräver ny bekräftelse</Text>
           </View>
           <Text style={styles.varningText}>{saknade.join(' · ')}</Text>

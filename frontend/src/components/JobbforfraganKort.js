@@ -36,7 +36,7 @@ export default function JobbforfraganKort({ förfrågan, ärPrivatperson, onUppd
   return (
     <View style={styles.kort}>
       <View style={styles.huvud}>
-        <Ionicons name="briefcase-outline" size={18} color="#2563eb" />
+        <Ionicons name="briefcase-outline" size={18} color="#2563eb" accessible={false} importantForAccessibility="no" />
         <Text style={styles.rubrik}>Passförfrågan</Text>
         <View style={[styles.statusBricka, { backgroundColor: färg.bg }]}>
           <Text style={[styles.statusText, { color: färg.text }]}>{färg.etikett}</Text>

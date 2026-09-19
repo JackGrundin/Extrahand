@@ -104,7 +104,7 @@ export default function AdressInput({
       {öppen && förslag.length > 0 && (
         <View style={[styles.dropdown, absolutLista && styles.dropdownAbsolut]}>
           <View style={styles.dropdownHeader}>
-            <Ionicons name="navigate" size={13} color="#2563eb" style={{ marginRight: 6 }} />
+            <Ionicons name="navigate" size={13} color="#2563eb" style={{ marginRight: 6 }} accessible={false} importantForAccessibility="no" />
             <Text style={styles.dropdownHeaderText}>Välj adress eller skriv fritt</Text>
           </View>
           {förslag.map((f, i) => (
@@ -113,8 +113,10 @@ export default function AdressInput({
               style={[styles.rad, i === förslag.length - 1 && styles.radSista]}
               onPress={() => välj(f)}
               activeOpacity={0.6}
+              accessibilityRole="button"
+              accessibilityLabel={`Välj adress: ${f.etikett}`}
             >
-              <Ionicons name="location-outline" size={16} color="#2563eb" style={{ marginRight: 10 }} />
+              <Ionicons name="location-outline" size={16} color="#2563eb" style={{ marginRight: 10 }} accessible={false} importantForAccessibility="no" />
               <Text style={styles.radText} numberOfLines={2}>{f.etikett}</Text>
             </TouchableOpacity>
           ))}

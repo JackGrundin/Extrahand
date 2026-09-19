@@ -222,11 +222,16 @@ export default function JobbAnsokningarScreen({ route, navigation }) {
                 onPress={() => växlaFavorit(item)}
                 hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
                 style={styles.favoritKnapp}
+                accessibilityRole="button"
+                accessibilityLabel={item.favorit ? 'Ta bort favorit' : 'Markera som favorit'}
+                accessibilityState={{ selected: !!item.favorit }}
               >
                 <Ionicons
                   name={item.favorit ? 'star' : 'star-outline'}
                   size={24}
                   color={item.favorit ? '#f59e0b' : '#9ca3af'}
+                  accessible={false}
+                  importantForAccessibility="no"
                 />
               </TouchableOpacity>
             </View>

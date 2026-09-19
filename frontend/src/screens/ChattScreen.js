@@ -83,7 +83,7 @@ function TidrapportKort({ rapport, ärPrivatperson, ärSenaste, onUppdaterad }) 
   return (
     <View style={styles.rapportKort}>
       <View style={styles.rapportHuvud}>
-        <Ionicons name="document-text-outline" size={18} color="#2563eb" />
+        <Ionicons name="document-text-outline" size={18} color="#2563eb" accessible={false} importantForAccessibility="no" />
         <Text style={styles.rapportRubrik}>Tidrapport</Text>
         <View style={[styles.statusBricka, { backgroundColor: färg.bg }]}>
           <Text style={[styles.statusText, { color: färg.text }]}>{färg.etikett}</Text>
@@ -192,8 +192,10 @@ function TidrapportKort({ rapport, ärPrivatperson, ärSenaste, onUppdaterad }) 
           style={[styles.korrigeraKnapp, sparar && { opacity: 0.5 }]}
           onPress={() => setKorrigeraVisas(true)}
           disabled={sparar}
+          accessibilityRole="button"
+          accessibilityLabel={kanKorrigeraPåPlats ? 'Justera timmar' : 'Skicka korrigerad tidrapport'}
         >
-          <Ionicons name="create-outline" size={16} color="#2563eb" />
+          <Ionicons name="create-outline" size={16} color="#2563eb" accessible={false} importantForAccessibility="no" />
           <Text style={styles.korrigeraText}>
             {kanKorrigeraPåPlats ? 'Justera timmar' : 'Skicka korrigerad tidrapport'}
           </Text>
@@ -258,7 +260,7 @@ function BestriddKort({ rapport }) {
   return (
     <View style={styles.bestriddKort}>
       <View style={styles.bestriddHuvud}>
-        <Ionicons name="alert-circle" size={18} color="#dc2626" />
+        <Ionicons name="alert-circle" size={18} color="#dc2626" accessible={false} importantForAccessibility="no" />
         <Text style={styles.bestriddRubrik}>Tidrapport bestriden</Text>
       </View>
       <Text style={styles.bestriddText}>{rapport.bestridande_orsak}</Text>
@@ -292,8 +294,10 @@ export default function ChattScreen({ route, navigation }) {
           <TouchableOpacity
             onPress={() => navigation.navigate('Betygsatt', { ansokningId: aktivAnsokanId })}
             style={{ marginRight: 16 }}
+            accessibilityRole="button"
+            accessibilityLabel="Betygsätt"
           >
-            <Ionicons name="star-outline" size={22} color="#f59e0b" />
+            <Ionicons name="star-outline" size={22} color="#f59e0b" accessible={false} importantForAccessibility="no" />
           </TouchableOpacity>
         ) : null
       ),
@@ -444,8 +448,8 @@ export default function ChattScreen({ route, navigation }) {
       )}
 
       {!ärPrivatperson && (
-        <TouchableOpacity style={styles.erbjudKnapp} onPress={() => setErbjudVisas(true)} activeOpacity={0.85}>
-          <Ionicons name="add-circle-outline" size={18} color="#2563eb" />
+        <TouchableOpacity style={styles.erbjudKnapp} onPress={() => setErbjudVisas(true)} activeOpacity={0.85} accessibilityRole="button" accessibilityLabel="Erbjud pass">
+          <Ionicons name="add-circle-outline" size={18} color="#2563eb" accessible={false} importantForAccessibility="no" />
           <Text style={styles.erbjudText}>Erbjud pass</Text>
         </TouchableOpacity>
       )}

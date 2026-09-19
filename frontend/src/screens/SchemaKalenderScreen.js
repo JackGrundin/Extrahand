@@ -153,7 +153,7 @@ export default function SchemaKalenderScreen({ navigation }) {
       )}
 
       <View style={styles.sammanfattning}>
-        <Ionicons name="people-outline" size={16} color="#2563eb" />
+        <Ionicons name="people-outline" size={16} color="#2563eb" accessible={false} importantForAccessibility="no" />
         <Text style={styles.sammanfattningText}>
           {bemannade === 0 && väntande === 0
             ? 'Inga pass inbokade den här månaden'
@@ -203,10 +203,10 @@ export default function SchemaKalenderScreen({ navigation }) {
                     )}
                   </View>
                   <View style={styles.passRad}>
-                    <Ionicons name="time-outline" size={14} color="#6b7280" />
+                    <Ionicons name="time-outline" size={14} color="#6b7280" accessible={false} importantForAccessibility="no" />
                     <Text style={styles.passTid}>{p.starttid ?? '–'} – {p.sluttid ?? '–'}</Text>
                     <View style={{ flex: 1 }} />
-                    <Ionicons name="chevron-forward" size={16} color="#c7ccd4" />
+                    <Ionicons name="chevron-forward" size={16} color="#c7ccd4" accessible={false} importantForAccessibility="no" />
                   </View>
                   {p.titel ? <Text style={styles.passTitel} numberOfLines={1}>{p.titel}</Text> : null}
                 </TouchableOpacity>
