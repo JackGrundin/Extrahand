@@ -134,6 +134,14 @@ router.post('/profil-bild', kräverInloggning, async (req, res) => {
   try {
     const base64 = bild.includes(',') ? bild.split(',')[1] : bild;
     const buffer = Buffer.from(base64, 'base64');
+
+    // Explicit storlekstak. Den globala express.json-gränsen (5 MB) bromsar redan
+    // råa jättebodys, men en tydlig kontroll ger ett begripligt fel och skyddar
+    // mot att onödigt stora bilder tar plats i Storage.
+    if (buffer.length > 3 * 1024 * 1024) {
+      return res.status(400).json({ fel: 'Bilden är för stor (max 3 MB)' });
+    }
+
     const filNamn = `${req.användare.id}.jpg`;
 
     const { error: uploadFel } = await supabase.storage
@@ -221,7 +229,7 @@ router.delete('/konto', kräverInloggning, async (req, res) => {
   }
 });
 
-const ADMIN_EMAIL = 'info@fastgig.se';
+const ADMIN_EMAIL = process.env.ADMIN_EMAIL || 'info@fastgig.se';
 
 // GET /api/users/admin/privatpersoner — admin: lista alla privatpersoner
 router.get('/admin/privatpersoner', kräverInloggning, async (req, res) => {

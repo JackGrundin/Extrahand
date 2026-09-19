@@ -1,5 +1,6 @@
 const express = require('express');
 const cors = require('cors');
+const helmet = require('helmet');
 require('dotenv').config();
 
 const authRoutes = require('./routes/auth');
@@ -24,7 +25,34 @@ const { startaSchemaPåminnelse } = require('./cron/schemaPaminnelse');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-app.use(cors());
+// Appen körs bakom Railways proxy. Utan detta ser express varje klients IP som
+// proxyns IP, vilket gör att rate-limitern räknar alla användare som en enda.
+app.set('trust proxy', 1);
+
+// Säkerhetsheaders (HSTS, X-Content-Type-Options, frameguard m.m.). CSP är avstängd
+// eftersom de HTML-sidor vi serverar (återställningssidan och /prenumeration/klar)
+// använder inline-script och inline-style som helmets default-CSP annars blockerar.
+app.use(helmet({ contentSecurityPolicy: false }));
+
+// CORS. API:t konsumeras främst av den nativa mobilappen (Bearer-token i header,
+// inga cookies), som inte skickar någon Origin-header – därför tillåts anrop helt
+// utan origin. Webb-origins begränsas till en allowlist i TILLÅTNA_ORIGINS. Saknas
+// variabeln behålls det tidigare tillåtande beteendet så inget bryts vid deploy.
+const tillåtnaOrigins = (process.env.TILLÅTNA_ORIGINS || '')
+  .split(',')
+  .map((o) => o.trim())
+  .filter(Boolean);
+
+app.use(cors({
+  origin(origin, callback) {
+    // Anrop utan origin (mobilapp, serveranrop, curl) släpps alltid igenom.
+    if (!origin) return callback(null, true);
+    // Ingen allowlist konfigurerad → tillåt allt (bakåtkompatibelt).
+    if (tillåtnaOrigins.length === 0) return callback(null, true);
+    if (tillåtnaOrigins.includes(origin)) return callback(null, true);
+    return callback(new Error('Origin ej tillåten av CORS'));
+  },
+}));
 
 // Stripe-webhooken måste läsa den RÅA bodyn för att kunna verifiera signaturen, och
 // monteras därför före express.json(). Byter man ordning här slutar alla webhooks

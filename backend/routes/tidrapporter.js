@@ -10,7 +10,7 @@ const { sändRealtidsPing } = require('../realtid');
 
 const router = express.Router();
 
-const ADMIN_EMAIL = 'info@fastgig.se';
+const ADMIN_EMAIL = process.env.ADMIN_EMAIL || 'info@fastgig.se';
 
 // POST /api/tidrapporter — företag avslutar pass och rapporterar timmar
 router.post('/', kräverInloggning, kräverTyp('företag'), async (req, res) => {

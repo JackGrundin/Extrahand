@@ -14,6 +14,7 @@ const {
 const { skickaVerifieringsMail, skickaÅterställningsMail } = require('../utils/email');
 const { valideraLösenord } = require('../utils/losenord');
 const { JWT_HEMLIG_NYCKEL } = require('../utils/jwt');
+const { inloggningsGräns, känsligGräns } = require('../middleware/rateLimit');
 
 const router = express.Router();
 
@@ -43,7 +44,7 @@ function skapaToken(användare) {
 }
 
 // POST /api/auth/registrera
-router.post('/registrera', async (req, res) => {
+router.post('/registrera', känsligGräns, async (req, res) => {
   const { namn, email, lösenord, typ, beskrivning, bransch, stad, hemsida, telefonnummer, organisationsnummer, fakturaadress, postnummer, ort, fakturamail, referensperson } = req.body;
 
   if (!namn || !email || !lösenord || !typ) {
@@ -110,7 +111,7 @@ router.post('/registrera', async (req, res) => {
 });
 
 // POST /api/auth/logga-in
-router.post('/logga-in', async (req, res) => {
+router.post('/logga-in', inloggningsGräns, async (req, res) => {
   const { email, lösenord } = req.body;
 
   if (!email || !lösenord) {
@@ -152,7 +153,7 @@ router.post('/logga-in', async (req, res) => {
 });
 
 // POST /api/auth/verifiera-kod
-router.post('/verifiera-kod', async (req, res) => {
+router.post('/verifiera-kod', känsligGräns, async (req, res) => {
   const { email, kod } = req.body;
   if (!email || !kod) {
     return res.status(400).json({ fel: 'E-post och kod krävs' });
@@ -187,7 +188,7 @@ router.post('/verifiera-kod', async (req, res) => {
 });
 
 // POST /api/auth/skicka-verifieringsmail
-router.post('/skicka-verifieringsmail', async (req, res) => {
+router.post('/skicka-verifieringsmail', känsligGräns, async (req, res) => {
   const { email } = req.body;
   if (!email) return res.status(400).json({ fel: 'E-post krävs' });
 
@@ -217,7 +218,7 @@ router.post('/skicka-verifieringsmail', async (req, res) => {
 // Svarar ALLTID { ok: true }, även när adressen inte finns. Ett svar som skiljer
 // på "finns" och "finns inte" gör endpointen till ett verktyg för att kartlägga
 // vilka som har konto hos oss.
-router.post('/glomt-losenord', async (req, res) => {
+router.post('/glomt-losenord', känsligGräns, async (req, res) => {
   const { email } = req.body;
   if (!email) return res.status(400).json({ fel: 'E-post krävs' });
 
@@ -248,7 +249,7 @@ router.post('/glomt-losenord', async (req, res) => {
 
 // POST /api/auth/aterstall-losenord — sätter nytt lösenord med token från mejlet.
 // Anropas av webbsidan på /aterstall-losenord, inte av appen.
-router.post('/aterstall-losenord', async (req, res) => {
+router.post('/aterstall-losenord', känsligGräns, async (req, res) => {
   const { token, lösenord } = req.body;
   if (!token) return res.status(400).json({ fel: 'Återställningslänken är ogiltig' });
 

@@ -3,7 +3,7 @@ const { kräverInloggning } = require('../middleware/auth');
 const { hämtaFaktureringsunderlag, markeraFakturerad } = require('../db/fakturering');
 
 const router = express.Router();
-const ADMIN_EMAIL = 'info@fastgig.se';
+const ADMIN_EMAIL = process.env.ADMIN_EMAIL || 'info@fastgig.se';
 
 // GET /api/fakturering — admin: lista ej fakturerade underlag
 router.get('/', kräverInloggning, async (req, res) => {

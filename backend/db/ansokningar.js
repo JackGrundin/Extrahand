@@ -200,7 +200,14 @@ async function finnsDubblettAnsökan(jobb_id, sokande_id) {
   return !!data;
 }
 
+const GILTIGA_STATUSAR = ['väntande', 'godkänd', 'avvisad'];
+
 async function uppdateraStatus(id, status) {
+  // Extra skydd: routerna skickar redan bara giltiga värden, men om ett felaktigt
+  // status någonsin når hit ska det avvisas i stället för att skrivas till databasen.
+  if (!GILTIGA_STATUSAR.includes(status)) {
+    throw new Error(`Ogiltig ansökningsstatus: ${status}`);
+  }
   const { error } = await supabase
     .from('ansokningar')
     .update({ status })
