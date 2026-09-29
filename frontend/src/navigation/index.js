@@ -37,6 +37,7 @@ import SchemaKalenderScreen from '../screens/SchemaKalenderScreen';
 import GlömtLösenordScreen from '../screens/GlömtLösenordScreen';
 import IntegritetspolicyScreen from '../screens/IntegritetspolicyScreen';
 import OfflineBanner from '../components/OfflineBanner';
+import OnboardingGate from '../components/OnboardingGate';
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -430,6 +431,9 @@ export default function Navigation() {
       <NavigationContainer>
         {användare ? <HuvudNavigator /> : <AuthNavigator />}
       </NavigationContainer>
+      {/* Onboarding-guiden ritas ovanför navigatorn (Modal) och visas en gång för nya
+          privatpersoner. Gaten avgör själv om något ska synas. */}
+      {användare && <OnboardingGate användare={användare} />}
       <OfflineBanner />
     </View>
   );

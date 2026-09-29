@@ -23,6 +23,9 @@ export default function StadInput({
   fel = false,
   absolutLista = false,
   autoCapitalize = 'words',
+  // Valfri: anropas när användaren VÄLJER en stad ur listan (inte vid varje tangenttryck).
+  // Utan prop är beteendet oförändrat – används bara av jobblistan för sökhistorik.
+  onVälj,
 }) {
   const [förslag, setFörslag] = useState([]);
   const [öppen, setÖppen] = useState(false);
@@ -51,6 +54,7 @@ export default function StadInput({
   // Användaren väljer en ort från listan
   function välj(ort) {
     onÄndra(ort);
+    onVälj?.(ort);
     setFörslag([]);
     setÖppen(false);
   }

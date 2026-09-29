@@ -12,6 +12,7 @@ import RollBrickor from '../components/RollBrickor';
 import { useLoggaRefresh } from '../components/LoggaRefresh';
 import SkeletonLista from '../components/SkeletonKort';
 import TomtTillstånd from '../components/TomtTillstånd';
+import { hämtaStäder, läggTillStad, lyssnaPåSökhistorik } from '../utils/sokhistorik';
 
 const SORTERING = ['Närmast datum', 'Nyast', 'Högst lön', 'Flest dagar'];
 
@@ -92,6 +93,8 @@ export default function JobbScreen({ navigation }) {
   const [modalVisas, setModalVisas] = useState(false);
   const [aktivSektion, setAktivSektion] = useState(null);
   const [sokKategori, setSokKategori] = useState('');
+  // De senaste städerna användaren sökt efter, som snabbval under sökfältet.
+  const [historikStäder, setHistorikStäder] = useState([]);
 
   async function hämta() {
     try {
@@ -111,6 +114,18 @@ export default function JobbScreen({ navigation }) {
   const refresh = useLoggaRefresh(hämta);
 
   useEffect(() => { hämta(); }, []);
+
+  // Läs in sökhistoriken och håll den uppdaterad när ett nytt val sparas.
+  useEffect(() => {
+    hämtaStäder().then(setHistorikStäder);
+    return lyssnaPåSökhistorik(setHistorikStäder);
+  }, []);
+
+  // Sätter sökfältet till en tidigare stad och lyfter den till toppen av historiken.
+  function väljHistorikStad(stad) {
+    setStadFilter(stad);
+    läggTillStad(stad);
+  }
 
   // Realtid: uppdatera listan direkt när ett jobb publiceras, ändras, tas bort eller
   // blir tillsatt/ledigt – utan att privatpersonen behöver dra för att ladda om.
@@ -324,6 +339,7 @@ export default function JobbScreen({ navigation }) {
         <StadInput
           värde={stadFilter}
           onÄndra={setStadFilter}
+          onVälj={läggTillStad}
           placeholder="Sök på stad..."
           inputStyle={styles.stadInput}
           containerStyle={styles.stadInputWrapper}
@@ -341,6 +357,28 @@ export default function JobbScreen({ navigation }) {
         </TouchableOpacity>
       </View>
 
+      {/* Snabbval: senaste sökta städer, bara när sökfältet är tomt. */}
+      {!stadFilter.trim() && historikStäder.length > 0 && (
+        <View style={styles.historikRad}>
+          <Text style={styles.historikRubrik}>Senaste sökningar</Text>
+          <View style={styles.historikChips}>
+            {historikStäder.map((stad) => (
+              <TouchableOpacity
+                key={stad}
+                style={styles.historikChip}
+                onPress={() => väljHistorikStad(stad)}
+                activeOpacity={0.7}
+                accessibilityRole="button"
+                accessibilityLabel={`Sök i ${stad}`}
+              >
+                <Ionicons name="time-outline" size={13} color="#6b7280" accessible={false} importantForAccessibility="no" />
+                <Text style={styles.historikChipText}>{stad}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </View>
+      )}
+
       <FlatList
         data={filtrerade}
         keyExtractor={(item) => item.id}
@@ -350,7 +388,7 @@ export default function JobbScreen({ navigation }) {
         scrollEventThrottle={refresh.scrollEventThrottle}
         onLayout={refresh.onListLayout}
         ListEmptyComponent={
-          aktivaFilter > 0 ? (
+          aktivaFilter > 0 || stadFilter.trim() ? (
             <TomtTillstånd
               ikon="briefcase-outline"
               rubrik={stadFilter.trim() ? `Inga jobb i ${stadFilter.trim()}` : 'Inga jobb matchar filtret'}
@@ -563,6 +601,12 @@ const styles = StyleSheet.create({
   filterKnappText: { fontSize: 14, fontWeight: '600', color: '#2563eb' },
   badge: { backgroundColor: '#2563eb', borderRadius: 10, minWidth: 18, height: 18, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 4 },
   badgeText: { fontSize: 11, fontWeight: '700', color: '#fff' },
+
+  historikRad: { backgroundColor: '#fff', paddingHorizontal: 16, paddingBottom: 12, borderBottomWidth: 1, borderBottomColor: '#eee' },
+  historikRubrik: { fontSize: 12, fontWeight: '700', color: '#9ca3af', textTransform: 'uppercase', letterSpacing: 0.4, marginBottom: 8 },
+  historikChips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  historikChip: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: '#f3f4f6', borderRadius: 16, paddingHorizontal: 12, paddingVertical: 7 },
+  historikChipText: { fontSize: 13, color: '#374151', fontWeight: '600' },
 
   lista: { padding: 16 },
   kort: { backgroundColor: '#fff', borderRadius: 12, padding: 16, marginBottom: 12, shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 4, elevation: 2 },
