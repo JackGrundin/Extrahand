@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { View, Text, FlatList, TouchableOpacity, StyleSheet, ActivityIndicator, TextInput, ScrollView, Modal, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, Text, FlatList, TouchableOpacity, StyleSheet, TextInput, ScrollView, Modal, KeyboardAvoidingView, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { api } from '../api/klient';
 import { useJobblistaPing } from '../context/RealtidsContext';
@@ -10,6 +10,8 @@ import { normaliseraKrav } from '../utils/behorighet';
 import StadInput from '../components/StadInput';
 import RollBrickor from '../components/RollBrickor';
 import { useLoggaRefresh } from '../components/LoggaRefresh';
+import SkeletonLista from '../components/SkeletonKort';
+import TomtTillstånd from '../components/TomtTillstånd';
 
 const SORTERING = ['Närmast datum', 'Nyast', 'Högst lön', 'Flest dagar'];
 
@@ -171,8 +173,6 @@ export default function JobbScreen({ navigation }) {
     normalisera(k).includes(normalisera(sokKategori))
   );
 
-  if (laddar) return <ActivityIndicator style={{ flex: 1 }} size="large" />;
-
   const filtreradeScheman = scheman.filter(s =>
     (!stadFilter.trim() || (s.plats ?? '').toLowerCase().includes(stadFilter.trim().toLowerCase())) &&
     (valdaSchematyper.length === 0 || valdaSchematyper.includes(s.typ))
@@ -202,7 +202,9 @@ export default function JobbScreen({ navigation }) {
         </TouchableOpacity>
       </View>
 
-      {läge === 'scheman' ? (
+      {laddar ? (
+        <SkeletonLista style={styles.lista} />
+      ) : läge === 'scheman' ? (
         <FlatList
           data={filtreradeScheman}
           keyExtractor={(item) => item.id}
@@ -264,7 +266,21 @@ export default function JobbScreen({ navigation }) {
               </ScrollView>
             </>
           }
-          ListEmptyComponent={<Text style={styles.tom}>Inga längre uppdrag just nu</Text>}
+          ListEmptyComponent={
+            stadFilter.trim() || valdaSchematyper.length > 0 ? (
+              <TomtTillstånd
+                ikon="calendar-outline"
+                rubrik="Inga scheman matchar filtret"
+                text="Prova en annan stad eller rensa filtret."
+              />
+            ) : (
+              <TomtTillstånd
+                ikon="calendar-outline"
+                rubrik="Inga längre uppdrag just nu"
+                text="Nya scheman dyker upp här när företag publicerar dem."
+              />
+            )
+          }
           renderItem={({ item }) => (
             <TouchableOpacity
               style={styles.kort}
@@ -333,7 +349,21 @@ export default function JobbScreen({ navigation }) {
         onScroll={refresh.onScroll}
         scrollEventThrottle={refresh.scrollEventThrottle}
         onLayout={refresh.onListLayout}
-        ListEmptyComponent={<Text style={styles.tom}>Inga jobb matchar filtret</Text>}
+        ListEmptyComponent={
+          aktivaFilter > 0 ? (
+            <TomtTillstånd
+              ikon="briefcase-outline"
+              rubrik={stadFilter.trim() ? `Inga jobb i ${stadFilter.trim()}` : 'Inga jobb matchar filtret'}
+              text="Prova en annan stad eller rensa filtret."
+            />
+          ) : (
+            <TomtTillstånd
+              ikon="briefcase-outline"
+              rubrik="Inga jobb ute just nu"
+              text="Dra neråt för att uppdatera – nya pass dyker upp här."
+            />
+          )
+        }
         renderItem={({ item }) => {
           const schema = parsaArbetstider(item.arbetstider);
           const datum = schema ? schema.map(d => d.datum).filter(Boolean) : [];

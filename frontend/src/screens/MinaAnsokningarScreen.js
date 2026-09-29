@@ -9,6 +9,8 @@ import { useRealtidsPing } from '../context/RealtidsContext';
 import { useLoggaRefresh } from '../components/LoggaRefresh';
 import HandlingsKnapp from '../components/HandlingsKnapp';
 import BehörighetsKrav from '../components/BehörighetsKrav';
+import SkeletonLista from '../components/SkeletonKort';
+import TomtTillstånd from '../components/TomtTillstånd';
 
 export default function MinaAnsokningarScreen({ navigation }) {
   const [ansökningar, setAnsökningar] = useState([]);
@@ -81,7 +83,7 @@ export default function MinaAnsokningarScreen({ navigation }) {
     ? saknadeKrav(bekräftar.behorighetsKrav, [...ikryssade]).length
     : 0;
 
-  if (laddar) return <ActivityIndicator style={{ flex: 1 }} size="large" />;
+  if (laddar) return <SkeletonLista style={styles.lista} />;
 
   return (
     <>
@@ -95,9 +97,11 @@ export default function MinaAnsokningarScreen({ navigation }) {
       scrollEventThrottle={refresh.scrollEventThrottle}
       onLayout={refresh.onListLayout}
       ListEmptyComponent={
-        <View style={styles.tomContainer}>
-          <Text style={styles.tomText}>Du har inte sökt några jobb ännu</Text>
-        </View>
+        <TomtTillstånd
+          ikon="documents-outline"
+          rubrik="Du har inte sökt några jobb ännu"
+          text="Hitta ett pass under Jobb och skicka din första ansökan."
+        />
       }
       renderItem={({ item }) => (
         <View style={styles.kort}>

@@ -1,11 +1,13 @@
 import { useCallback, useState } from 'react';
-import { View, Text, SectionList, TouchableOpacity, StyleSheet, ActivityIndicator, TextInput } from 'react-native';
+import { View, Text, SectionList, TouchableOpacity, StyleSheet, TextInput } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../context/AuthContext';
 import { useNotifikationer } from '../context/NotifikationsContext';
 import { api } from '../api/klient';
 import { useLoggaRefresh } from '../components/LoggaRefresh';
+import SkeletonLista from '../components/SkeletonKort';
+import TomtTillstånd from '../components/TomtTillstånd';
 
 // Sorterar så att olästa chattar hamnar högst upp, därefter de med senaste meddelande
 function sorteraOlästaFörst(poster, olästaIds) {
@@ -73,8 +75,6 @@ export default function ChattListaScreen({ navigation }) {
 
   useFocusEffect(useCallback(() => { hämta(); }, []));
 
-  if (laddar) return <ActivityIndicator style={{ flex: 1 }} size="large" />;
-
   const q = söktext.trim().toLowerCase();
   const filtrerade = q
     ? poster.filter((p) => {
@@ -107,6 +107,9 @@ export default function ChattListaScreen({ navigation }) {
         )}
       </View>
 
+      {laddar ? (
+        <SkeletonLista style={styles.listaInnehåll} />
+      ) : (
       <SectionList
         style={styles.lista}
         sections={sektioner}
@@ -116,7 +119,21 @@ export default function ChattListaScreen({ navigation }) {
         onScroll={refresh.onScroll}
         scrollEventThrottle={refresh.scrollEventThrottle}
         onLayout={refresh.onListLayout}
-        ListEmptyComponent={<Text style={styles.tom}>Inga aktiva chattar</Text>}
+        ListEmptyComponent={
+          q ? (
+            <TomtTillstånd
+              ikon="search-outline"
+              rubrik={`Inga träffar för "${söktext.trim()}"`}
+              text="Prova ett annat namn eller en annan jobbtitel."
+            />
+          ) : (
+            <TomtTillstånd
+              ikon="chatbubbles-outline"
+              rubrik="Inga aktiva chattar ännu"
+              text="När du matchas med ett jobb dyker konversationen upp här."
+            />
+          )
+        }
         renderSectionHeader={({ section }) => (
           <View style={[styles.sektionHuvud, section.brådskande && styles.sektionHuvudBrådskande]}>
             {section.brådskande && <View style={styles.brådskandePunkt} />}
@@ -164,6 +181,7 @@ export default function ChattListaScreen({ navigation }) {
           );
         }}
       />
+      )}
     </View>
   );
 }

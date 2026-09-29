@@ -11,6 +11,7 @@ import BehörighetsKravRedigerare from '../components/BehörighetsKravRedigerare
 import { useAppStateAktiv } from '../utils/useAppStateAktiv';
 import { valideraJobb } from '../utils/jobbValidering';
 import { api, felText } from '../api/klient';
+import { haptik } from '../utils/haptik';
 import { KATEGORIER, PÅSLAG_GRATIS, beräknaFakturapris, formateraPris, normalisera } from '../utils/konstanter';
 import StadInput from '../components/StadInput';
 import AdressInput from '../components/AdressInput';
@@ -148,6 +149,7 @@ export default function PubliceraJobbScreen({ navigation }) {
       ...(accepteraHögrePåslag ? { acceptera_hogre_paslag: true } : {}),
     });
 
+    haptik.lyckat();
     Alert.alert('Klart!', 'Jobbet har publicerats.', [
       { text: 'OK', onPress: () => navigation.goBack() },
     ]);
@@ -173,6 +175,7 @@ export default function PubliceraJobbScreen({ navigation }) {
         setPlanModalVisas(true);
         return;
       }
+      haptik.fel();
       Alert.alert('Fel', felText(error));
     } finally {
       setLaddar(false);

@@ -3,6 +3,7 @@ import { View, Text, TouchableOpacity, StyleSheet, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { api, felText } from '../api/klient';
 import { parsaObTillagg } from '../utils/datumHelper';
+import { haptik } from '../utils/haptik';
 
 const STATUS = {
   väntar:      { bg: '#fef9c3', text: '#854d0e', etikett: 'Väntar på svar' },
@@ -21,8 +22,10 @@ export default function JobbforfraganKort({ förfrågan, ärPrivatperson, onUppd
       } else {
         await api.avbojJobbforfragan(förfrågan.id);
       }
+      haptik.lyckat();
       onUppdaterad();
     } catch (fel) {
+      haptik.fel();
       Alert.alert('Fel', felText(fel));
     } finally {
       setSparar(false);

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { View, Text, FlatList, TouchableOpacity, StyleSheet, ActivityIndicator, Alert, ActionSheetIOS, Platform } from 'react-native';
+import { View, Text, FlatList, TouchableOpacity, StyleSheet, Alert, ActionSheetIOS, Platform } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { api, felText } from '../api/klient';
@@ -10,6 +10,8 @@ import { useRealtidsPing } from '../context/RealtidsContext';
 import { useLoggaRefresh } from '../components/LoggaRefresh';
 import HandlingsKnapp from '../components/HandlingsKnapp';
 import RollBrickor from '../components/RollBrickor';
+import SkeletonLista from '../components/SkeletonKort';
+import TomtTillstånd from '../components/TomtTillstånd';
 
 export default function MinaJobbScreen({ navigation, route }) {
   const [jobb, setJobb] = useState([]);
@@ -195,8 +197,6 @@ export default function MinaJobbScreen({ navigation, route }) {
     );
   }
 
-  if (laddar) return <ActivityIndicator style={{ flex: 1 }} size="large" />;
-
   return (
     <View style={{ flex: 1, backgroundColor: '#f5f5f5' }}>
       {refresh.LoggaOverlay}
@@ -227,7 +227,9 @@ export default function MinaJobbScreen({ navigation, route }) {
         </TouchableOpacity>
       </View>
 
-      {aktivFlik === 'scheman' ? (
+      {laddar ? (
+        <SkeletonLista style={styles.lista} />
+      ) : aktivFlik === 'scheman' ? (
         <FlatList
           style={styles.lista}
           data={scheman}
@@ -237,9 +239,11 @@ export default function MinaJobbScreen({ navigation, route }) {
           scrollEventThrottle={refresh.scrollEventThrottle}
           onLayout={refresh.onListLayout}
           ListEmptyComponent={
-            <View style={styles.tomContainer}>
-              <Text style={styles.tomText}>Inga scheman ännu</Text>
-            </View>
+            <TomtTillstånd
+              ikon="calendar-outline"
+              rubrik="Inga scheman ännu"
+              text="Publicera ett schema för längre uppdrag som säsongsjobb."
+            />
           }
           renderItem={({ item }) => (
             <TouchableOpacity
@@ -308,9 +312,11 @@ export default function MinaJobbScreen({ navigation, route }) {
           ListEmptyComponent={
             // Visa tom-texten bara när det inte heller finns några "Inga sökande"-jobb.
             ingaSökande.length === 0 ? (
-              <View style={styles.tomContainer}>
-                <Text style={styles.tomText}>Du har inte publicerat några jobb ännu</Text>
-              </View>
+              <TomtTillstånd
+                ikon="briefcase-outline"
+                rubrik="Inga publicerade jobb ännu"
+                text="Tryck på plus för att publicera ditt första pass."
+              />
             ) : null
           }
           ListFooterComponent={
@@ -336,9 +342,11 @@ export default function MinaJobbScreen({ navigation, route }) {
           scrollEventThrottle={refresh.scrollEventThrottle}
           onLayout={refresh.onListLayout}
           ListEmptyComponent={
-            <View style={styles.tomContainer}>
-              <Text style={styles.tomText}>Inga avslutade pass ännu</Text>
-            </View>
+            <TomtTillstånd
+              ikon="time-outline"
+              rubrik="Inga avslutade pass ännu"
+              text="Genomförda pass och deras tidrapporter samlas här."
+            />
           }
           renderItem={({ item }) => {
             const färg = statusFärger[item.status] ?? statusFärger.väntar;

@@ -9,6 +9,7 @@ import { beräknaFakturapris } from '../utils/konstanter';
 import { normaliseraKrav, saknadeKrav } from '../utils/behorighet';
 import BehörighetsKrav from '../components/BehörighetsKrav';
 import { useJobbPåslag } from '../utils/useJobbPåslag';
+import { haptik } from '../utils/haptik';
 
 export default function JobbDetaljScreen({ route, navigation }) {
   const { jobb } = route.params;
@@ -48,9 +49,11 @@ export default function JobbDetaljScreen({ route, navigation }) {
         meddelande: meddelande.trim() || null,
         intygade_krav: [...ikryssade],
       });
+      haptik.lyckat();
       setSökt(true);
       Alert.alert('Klart!', 'Din ansökan har skickats.');
     } catch (fel) {
+      haptik.fel();
       Alert.alert('Fel', felText(fel));
     } finally {
       setLaddar(false);

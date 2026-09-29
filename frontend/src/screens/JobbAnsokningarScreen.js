@@ -8,6 +8,8 @@ import { ansökanStatusVisning } from '../utils/konstanter';
 import AvslutaPassModal from '../components/AvslutaPassModal';
 import HandlingsKnapp from '../components/HandlingsKnapp';
 import IntygandeRad from '../components/IntygandeRad';
+import TomtTillstånd from '../components/TomtTillstånd';
+import { haptik } from '../utils/haptik';
 import { useRealtidsPing } from '../context/RealtidsContext';
 import { useAttAvsluta } from '../context/AttAvslutaContext';
 import { useLoggaRefresh } from '../components/LoggaRefresh';
@@ -19,8 +21,10 @@ function StatusKnappar({ item, onUppdaterad, onAvsluta, navigation, tidigare, st
     setSparar(true);
     try {
       await api.uppdateraStatus(item.id, 'godkänd');
+      haptik.lyckat();
       onUppdaterad();
     } catch (fel) {
+      haptik.fel();
       Alert.alert('Fel', felText(fel));
     } finally {
       setSparar(false);
@@ -168,6 +172,7 @@ export default function JobbAnsokningarScreen({ route, navigation }) {
     setSparar(true);
     try {
       await api.skapaRapport({ ansokan_id: valtAnsokningId, timmar, ob_tillagg });
+      haptik.lyckat();
       setModalSynlig(false);
       setAvslutadeIds(prev => new Set([...prev, valtAnsokningId]));
       // Navigera tillbaka till "Mina jobb" direkt. Skärmens useFocusEffect hämtar då om
@@ -176,6 +181,7 @@ export default function JobbAnsokningarScreen({ route, navigation }) {
       navigation.goBack();
       Alert.alert('Skickat!', 'Tidrapporten har skickats till arbetstagaren för godkännande.');
     } catch (fel) {
+      haptik.fel();
       Alert.alert('Fel', felText(fel));
     } finally {
       setSparar(false);
@@ -202,7 +208,13 @@ export default function JobbAnsokningarScreen({ route, navigation }) {
         onScroll={refresh.onScroll}
         scrollEventThrottle={refresh.scrollEventThrottle}
         onLayout={refresh.onListLayout}
-        ListEmptyComponent={<Text style={styles.tom}>Inga aktiva ansökningar</Text>}
+        ListEmptyComponent={
+          <TomtTillstånd
+            ikon="people-outline"
+            rubrik="Inga ansökningar ännu"
+            text="När någon söker det här passet dyker de upp här."
+          />
+        }
         renderItem={({ item }) => (
           <TouchableOpacity
             style={styles.kort}

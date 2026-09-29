@@ -15,6 +15,7 @@ import IntygandeRad from '../components/IntygandeRad';
 import { useLoggaRefresh } from '../components/LoggaRefresh';
 import { useJobbPåslag } from '../utils/useJobbPåslag';
 import RollBrickor from '../components/RollBrickor';
+import { haptik } from '../utils/haptik';
 
 const PASSFÄRGER = {
   planerad: { bg: '#eff6ff', text: '#2563eb', etikett: 'Planerad' },
@@ -92,9 +93,11 @@ export default function SchemaDetaljScreen({ route, navigation }) {
         meddelande: meddelande.trim() || null,
         intygade_krav: [...ikryssade],
       });
+      haptik.lyckat();
       setSökt(true);
       Alert.alert('Klart!', 'Din ansökan om hela schemat har skickats.');
     } catch (fel) {
+      haptik.fel();
       Alert.alert('Fel', felText(fel));
     } finally {
       setSparar(false);
@@ -113,8 +116,10 @@ export default function SchemaDetaljScreen({ route, navigation }) {
             setSparar(true);
             try {
               await api.uppdateraStatus(ansökan.id, 'godkänd');
+              haptik.lyckat();
               await hämta();
             } catch (fel) {
+              haptik.fel();
               Alert.alert('Fel', felText(fel));
             } finally {
               setSparar(false);
@@ -138,8 +143,10 @@ export default function SchemaDetaljScreen({ route, navigation }) {
             setSparar(true);
             try {
               await api.uppdateraStatus(ansökan.id, 'väntande');
+              haptik.lyckat();
               await hämta();
             } catch (fel) {
+              haptik.fel();
               Alert.alert('Fel', felText(fel));
             } finally {
               setSparar(false);
@@ -162,8 +169,10 @@ export default function SchemaDetaljScreen({ route, navigation }) {
             setSparar(true);
             try {
               await api.ersättPersonISchema(schema.id, ansökan.sokande_id);
+              haptik.lyckat();
               await hämta();
             } catch (fel) {
+              haptik.fel();
               Alert.alert('Fel', felText(fel));
             } finally {
               setSparar(false);
@@ -190,8 +199,10 @@ export default function SchemaDetaljScreen({ route, navigation }) {
             setSparar(true);
             try {
               await api.avbrytSchema(schema.id);
+              haptik.lyckat();
               navigation.goBack();
             } catch (fel) {
+              haptik.fel();
               Alert.alert('Fel', felText(fel));
               setSparar(false);
             }
@@ -222,8 +233,10 @@ export default function SchemaDetaljScreen({ route, navigation }) {
             setSparar(true);
             try {
               await api.hoppaAvSchema(schema.id);
+              haptik.lyckat();
               await hämta();
             } catch (fel) {
+              haptik.fel();
               Alert.alert('Fel', felText(fel));
             } finally {
               setSparar(false);

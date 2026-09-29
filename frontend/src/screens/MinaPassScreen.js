@@ -1,5 +1,5 @@
 import { useCallback, useState } from 'react';
-import { View, Text, SectionList, TouchableOpacity, StyleSheet, ActivityIndicator } from 'react-native';
+import { View, Text, SectionList, TouchableOpacity, StyleSheet } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { api } from '../api/klient';
 import { useRealtidsPing } from '../context/RealtidsContext';
@@ -7,6 +7,8 @@ import { useAppStateAktiv } from '../utils/useAppStateAktiv';
 import { useLoggaRefresh } from '../components/LoggaRefresh';
 import HandlingsKnapp from '../components/HandlingsKnapp';
 import RollBrickor from '../components/RollBrickor';
+import SkeletonLista from '../components/SkeletonKort';
+import TomtTillstånd from '../components/TomtTillstånd';
 
 import { parsaArbetstider, formatDagDatum, formatBricka, passSlutTidpunkt, förstaArbetsdatum } from '../utils/datumHelper';
 
@@ -108,8 +110,6 @@ export default function MinaPassScreen({ navigation }) {
 
   const sektioner = grupperaPerMånad(aktivFlik === 'kommande' ? kommande : genomförda);
 
-  if (laddar) return <ActivityIndicator style={{ flex: 1 }} size="large" />;
-
   return (
     <View style={{ flex: 1, backgroundColor: '#f5f5f5' }}>
       {refresh.LoggaOverlay}
@@ -134,6 +134,9 @@ export default function MinaPassScreen({ navigation }) {
         </TouchableOpacity>
       </View>
 
+      {laddar ? (
+        <SkeletonLista style={styles.lista} />
+      ) : (
       <SectionList
         sections={sektioner}
         keyExtractor={(item) => item.id}
@@ -146,13 +149,19 @@ export default function MinaPassScreen({ navigation }) {
           <Text style={styles.månadRubrik}>{section.titel.toUpperCase()}</Text>
         )}
         ListEmptyComponent={
-          <View style={styles.tomContainer}>
-            <Text style={styles.tomText}>
-              {aktivFlik === 'kommande'
-                ? 'Inga kommande pass'
-                : 'Inga genomförda pass ännu'}
-            </Text>
-          </View>
+          aktivFlik === 'kommande' ? (
+            <TomtTillstånd
+              ikon="calendar-outline"
+              rubrik="Du har inga kommande pass ännu"
+              text="Sök och ansök till jobb – godkända pass hamnar här."
+            />
+          ) : (
+            <TomtTillstånd
+              ikon="checkmark-done-outline"
+              rubrik="Inga genomförda pass ännu"
+              text="Här samlas pass du har jobbat klart."
+            />
+          )
         }
         renderItem={({ item }) => {
           const schema = parsaArbetstider(item.arbetstider);
@@ -231,6 +240,7 @@ export default function MinaPassScreen({ navigation }) {
           );
         }}
       />
+      )}
     </View>
   );
 }

@@ -14,6 +14,8 @@ import AvslutaPassModal from '../components/AvslutaPassModal';
 import { useRealtidsPing } from '../context/RealtidsContext';
 import { useBetyg } from '../context/BetygsContext';
 import { useLoggaRefresh } from '../components/LoggaRefresh';
+import TomtTillstånd from '../components/TomtTillstånd';
+import { haptik } from '../utils/haptik';
 
 function TidrapportKort({ rapport, ärPrivatperson, ärSenaste, onUppdaterad }) {
   const [sparar, setSparar] = useState(false);
@@ -26,11 +28,13 @@ function TidrapportKort({ rapport, ärPrivatperson, ärSenaste, onUppdaterad }) 
     setSparar(true);
     try {
       await api.uppdateraTidrapportStatus(rapport.id, 'godkänd');
+      haptik.lyckat();
       onUppdaterad();
       // Företaget får sin prompt via realtidspingen från backend, men den som själv
       // godkände får ingen ping till sig själv – och det är precis här popupen ska komma.
       kollaBetyg();
     } catch (fel) {
+      haptik.fel();
       Alert.alert('Fel', felText(fel));
     } finally {
       setSparar(false);
@@ -382,6 +386,7 @@ export default function ChattScreen({ route, navigation }) {
     setSkickar(true);
     try {
       const nytt = await api.skicka(aktivAnsokanId, { innehall: text.trim() });
+      haptik.lätt();
       setMeddelanden((prev) => [...prev, nytt]);
       setText('');
       scrollaTillBotten(true);
@@ -464,7 +469,13 @@ export default function ChattScreen({ route, navigation }) {
         onScroll={refresh.onScroll}
         scrollEventThrottle={refresh.scrollEventThrottle}
         onLayout={refresh.onListLayout}
-        ListEmptyComponent={<Text style={styles.tom}>Inga meddelanden ännu. Säg hej!</Text>}
+        ListEmptyComponent={
+          <TomtTillstånd
+            ikon="chatbubbles-outline"
+            rubrik="Inga meddelanden ännu"
+            text="Säg hej och kom överens om detaljerna för passet."
+          />
+        }
         renderItem={({ item }) => {
           if (item.typ === 'förfrågan') {
             return (

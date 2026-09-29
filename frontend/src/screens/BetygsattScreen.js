@@ -3,6 +3,7 @@ import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, ActivityInd
 import StjärnVal from '../components/StjärnVal';
 import { api, felText } from '../api/klient';
 import { useAuth } from '../context/AuthContext';
+import { haptik } from '../utils/haptik';
 
 export default function BetygsattScreen({ route, navigation }) {
   const { ansokningId } = route.params;
@@ -21,10 +22,12 @@ export default function BetygsattScreen({ route, navigation }) {
     setLaddar(true);
     try {
       await api.sättaBetyg(ansokningId, { stjarnor, kommentar: kommentar.trim() || undefined });
+      haptik.lyckat();
       Alert.alert('Tack!', 'Ditt betyg har sparats.', [
         { text: 'OK', onPress: () => navigation.goBack() },
       ]);
     } catch (fel) {
+      haptik.fel();
       Alert.alert('Fel', felText(fel));
     } finally {
       setLaddar(false);

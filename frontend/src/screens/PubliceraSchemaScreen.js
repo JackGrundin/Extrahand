@@ -20,6 +20,7 @@ import { valideraSchema } from '../utils/schemaValidering';
 import { formatDagDatum, veckodagsNamn, datumIntervall, veckodagsIndex } from '../utils/datumHelper';
 import { synkaPassMotDatum, uppdateraFält, tillämpaPåMarkerade, ärKomplett, tillPayload, nyttPassId, sorteraPass, hittaKrockar, harNolltid, antalPassEfterSynk } from '../utils/schemaPass';
 import { api, felText } from '../api/klient';
+import { haptik } from '../utils/haptik';
 import { KATEGORIER, SCHEMATYPER, PÅSLAG_GRATIS, beräknaFakturapris, formateraPris, beräknaAvdragFörPass, beräknaAvdragTotalt } from '../utils/konstanter';
 
 const STEG_ETIKETTER = ['Grunduppgifter', 'Period och datum', 'Detaljer per pass', 'Avdrag och publicering'];
@@ -399,6 +400,7 @@ export default function PubliceraSchemaScreen({ navigation }) {
       ...(accepteraHögrePåslag ? { acceptera_hogre_paslag: true } : {}),
     });
 
+    haptik.lyckat();
     Alert.alert('Klart!', `Schemat har publicerats med ${pass.length} pass.`, [
       { text: 'OK', onPress: tillMinaScheman },
     ]);
@@ -429,6 +431,7 @@ export default function PubliceraSchemaScreen({ navigation }) {
       await publicera();
     } catch (error) {
       if (error.kod === 'KRAVER_PLANVAL') { setPlanModalVisas(true); return; }
+      haptik.fel();
       Alert.alert('Fel', felText(error));
     } finally {
       setLaddar(false);
