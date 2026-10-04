@@ -4,6 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { api } from '../api/klient';
 import HandlingsKnapp from '../components/HandlingsKnapp';
 import { BetygsSammanfattning, BetygsLista } from '../components/BetygsSektion';
+import DokumentLista from '../components/DokumentLista';
 
 function Sektion({ rubrik, innehall }) {
   if (!innehall) return null;
@@ -67,6 +68,16 @@ export default function SökandeProfilScreen({ route, navigation }) {
         </View>
       )}
 
+      {ansokningId && (
+        <HandlingsKnapp
+          variant="fylld"
+          ikon="chatbubble-outline"
+          text="Öppna chatt"
+          style={styles.chattKnappAvstånd}
+          onPress={() => navigation.navigate('Chatt', { ansokningId })}
+        />
+      )}
+
       <View style={styles.divider} />
 
       {!profil.cv && !profil.erfarenheter && !profil.kompetenser && !profil.intressen ? (
@@ -80,17 +91,9 @@ export default function SökandeProfilScreen({ route, navigation }) {
         </>
       )}
 
-      <BetygsLista betyg={betyg} rubrik="Betyg från arbetsgivare" />
+      <DokumentLista dokument={profil.dokument} />
 
-      {ansokningId && (
-        <HandlingsKnapp
-          variant="fylld"
-          ikon="chatbubble-outline"
-          text="Öppna chatt"
-          style={styles.chattKnappAvstånd}
-          onPress={() => navigation.navigate('Chatt', { ansokningId })}
-        />
-      )}
+      <BetygsLista betyg={betyg} rubrik="Betyg från arbetsgivare" />
     </ScrollView>
   );
 }
@@ -109,7 +112,7 @@ const styles = StyleSheet.create({
   sektionsRubrik: { fontSize: 13, fontWeight: '700', color: '#888', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 6 },
   sektionsText: { fontSize: 15, color: '#333', lineHeight: 22 },
   tomProfil: { fontSize: 14, color: '#aaa', textAlign: 'center', lineHeight: 22 },
-  chattKnappAvstånd: { marginTop: 24 },
+  chattKnappAvstånd: { marginTop: 4 },
   fel: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   felText: { color: '#999', fontSize: 16 },
 });

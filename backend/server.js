@@ -59,6 +59,12 @@ app.use(cors({
 // att verifieras och prenumerationsstatusen uppdateras aldrig.
 app.post('/webhooks/stripe', express.raw({ type: 'application/json' }), stripeWebhook);
 
+// Dokumentuppladdning skickar filen som base64 – en 10 MB-fil blir ~13 MB JSON. Egen
+// parser med högre gräns FÖRE den globala 5 MB-parsern (som annars skulle svara 413
+// innan routen nås). Samma mönster som Stripe-raden ovanför. Den sätter req._body så
+// att den globala parsern hoppar över samma anrop.
+app.use('/api/users/dokument', express.json({ limit: '15mb' }));
+
 app.use(express.json({ limit: '5mb' }));
 
 // Hälsocheck

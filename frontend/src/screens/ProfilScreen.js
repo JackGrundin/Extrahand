@@ -8,6 +8,7 @@ import { api, felText } from '../api/klient';
 import { useRealtidsPing } from '../context/RealtidsContext';
 import { useAppStateAktiv } from '../utils/useAppStateAktiv';
 import { BetygsSammanfattning, BetygsLista } from '../components/BetygsSektion';
+import DokumentLista from '../components/DokumentLista';
 import {
   PÅSLAG_PRO,
   PÅSLAG_GRATIS,
@@ -234,6 +235,8 @@ export default function ProfilScreen({ navigation }) {
           {!profil?.cv && !profil?.erfarenheter && !profil?.kompetenser && !profil?.intressen && (
             <Text style={styles.tomProfil}>Fyll i ditt CV och erfarenheter för att sticka ut när du söker jobb.</Text>
           )}
+
+          <DokumentLista redigerbar dokument={profil?.dokument} onÄndrad={hämta} />
         </>
       )}
 

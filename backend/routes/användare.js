@@ -1,8 +1,10 @@
 const express = require('express');
+const crypto = require('crypto');
 const { createClient } = require('@supabase/supabase-js');
 const ws = require('ws');
-const { kräverInloggning } = require('../middleware/auth');
+const { kräverInloggning, kräverTyp } = require('../middleware/auth');
 const { hämtaAnvändareViaEmail, hämtaAnvändareViaId, uppdateraProfil, uppdateraProfilBild, uppdateraStad, sparaPushToken, hämtaPushToken, hämtaAllaPrivatpersoner, godkännAvtal, återkallaAvtal, hämtaAllaFöretag, raderaKonto, hämtaRaderadeKonton } = require('../db/användare');
+const { skapaDokument, hämtaDokumentFörAnvändare, hämtaDokument, räknaDokument, raderaDokument, hämtaLagringPathsFörAnvändare, raderaAllaDokumentFörAnvändare } = require('../db/dokument');
 const { hämtaTotalTimmar, avvisaVäntandeAnsökningar } = require('../db/ansokningar');
 const { ärPro } = require('../db/prenumeration');
 const { skickaNotifikation } = require('../utils/pushNotifikation');
@@ -21,9 +23,10 @@ const supabase = createClient(
 // GET /api/users/profil — kräver giltig JWT
 router.get('/profil', kräverInloggning, async (req, res) => {
   try {
-    const [användare, totalTimmar] = await Promise.all([
+    const [användare, totalTimmar, dokument] = await Promise.all([
       hämtaAnvändareViaEmail(req.användare.email),
       hämtaTotalTimmar(req.användare.id),
+      hämtaDokumentFörAnvändare(req.användare.id),
     ]);
 
     if (!användare) {
@@ -45,6 +48,7 @@ router.get('/profil', kräverInloggning, async (req, res) => {
       bransch: användare.bransch ?? null,
       stad: användare.stad ?? null,
       hemsida: användare.hemsida ?? null,
+      dokument,
       totalTimmar,
       avtalGodkant: användare.avtal_godkant ?? false,
       prenumerationStatus: användare.prenumeration_status ?? 'gratis',
@@ -66,9 +70,10 @@ router.get('/:id/profil', kräverInloggning, async (req, res) => {
       return res.status(404).json({ fel: 'Användaren hittades inte' });
     }
 
-    const [totalTimmar, aktivaJobb] = await Promise.all([
+    const [totalTimmar, aktivaJobb, dokument] = await Promise.all([
       hämtaTotalTimmar(req.params.id),
       användare.Typ === 'företag' ? hämtaJobbFörFöretag(req.params.id, { endastAktiva: true }) : Promise.resolve([]),
+      användare.Typ === 'privatperson' ? hämtaDokumentFörAnvändare(req.params.id) : Promise.resolve([]),
     ]);
 
     res.json({
@@ -84,6 +89,7 @@ router.get('/:id/profil', kräverInloggning, async (req, res) => {
       bransch: användare.bransch ?? null,
       stad: användare.stad ?? null,
       hemsida: användare.hemsida ?? null,
+      dokument,
       totalTimmar,
       aktivaJobb,
     });
@@ -160,6 +166,99 @@ router.post('/profil-bild', kräverInloggning, async (req, res) => {
   }
 });
 
+// Tillåtna filtyper för profildokument. Nyckeln är MIME-typen klienten skickar,
+// värdet filändelsen i Storage. PDF + vanliga bildformat räcker för CV, körkort,
+// truck-/certifikat­bilder och intyg.
+const TILLÅTNA_DOKUMENTTYPER = {
+  'application/pdf': 'pdf',
+  'image/jpeg': 'jpg',
+  'image/png': 'png',
+};
+const MAX_DOKUMENT = 10;
+const MAX_DOKUMENT_BYTE = 10 * 1024 * 1024;
+
+// POST /api/users/dokument — privatperson laddar upp ett dokument (CV, intyg, körkort).
+// Filen skickas som base64 (samma mönster som profilbilden) och proxas till Supabase
+// Storage med service-nyckeln. Den dedikerade body-parsern i server.js släpper fram
+// den större bodyn; den globala 5 MB-gränsen hade annars gett 413 innan routen nås.
+router.post('/dokument', kräverInloggning, kräverTyp('privatperson'), async (req, res) => {
+  const { namn, fil, mimeType } = req.body;
+
+  const rensatNamn = typeof namn === 'string' ? namn.trim() : '';
+  if (!rensatNamn) return res.status(400).json({ fel: 'Ange ett namn på dokumentet' });
+
+  const ext = TILLÅTNA_DOKUMENTTYPER[mimeType];
+  if (!ext) return res.status(400).json({ fel: 'Otillåten filtyp. Tillåtet: PDF, JPG, PNG' });
+
+  if (!fil) return res.status(400).json({ fel: 'Fil saknas' });
+
+  try {
+    const base64 = fil.includes(',') ? fil.split(',')[1] : fil;
+    const buffer = Buffer.from(base64, 'base64');
+
+    if (buffer.length > MAX_DOKUMENT_BYTE) {
+      return res.status(400).json({ fel: 'Filen är för stor (max 10 MB)' });
+    }
+
+    // Taket kontrolleras mot databasen, inte mot klienten. Det finns en teoretisk
+    // kapplöpning vid två samtidiga uppladdningar, men en elfte fil är ofarlig och
+    // nästa uppladdning stoppas ändå.
+    const antal = await räknaDokument(req.användare.id);
+    if (antal >= MAX_DOKUMENT) {
+      return res.status(400).json({ fel: `Du kan ha max ${MAX_DOKUMENT} dokument` });
+    }
+
+    // Slumpat UUID i sökvägen så att den publika URL:en inte går att gissa.
+    const lagring_path = `${req.användare.id}/${crypto.randomUUID()}.${ext}`;
+
+    const { error: uploadFel } = await supabase.storage
+      .from('dokument')
+      .upload(lagring_path, buffer, { contentType: mimeType, upsert: false });
+
+    if (uploadFel) throw uploadFel;
+
+    const { data: { publicUrl } } = supabase.storage.from('dokument').getPublicUrl(lagring_path);
+
+    const dokument = await skapaDokument({
+      anvandare_id: req.användare.id,
+      namn: rensatNamn,
+      lagring_path,
+      url: publicUrl,
+      mime_type: mimeType,
+      storlek: buffer.length,
+    });
+
+    res.status(201).json(dokument);
+  } catch (fel) {
+    console.error('Dokumentuppladdning fel:', fel);
+    res.status(500).json({ fel: 'Serverfel vid uppladdning' });
+  }
+});
+
+// DELETE /api/users/dokument/:id — tar bort ett eget dokument ur Storage och databasen.
+router.delete('/dokument/:id', kräverInloggning, async (req, res) => {
+  try {
+    const dokument = await hämtaDokument(req.params.id);
+    if (!dokument) return res.status(404).json({ fel: 'Dokumentet hittades inte' });
+    // Ägarkontroll: 403 (inte 404) – användaren förblir inloggad, resursen är bara
+    // inte hens. id:n är bigint respektive från token, jämför löst.
+    if (dokument.anvandare_id != req.användare.id) {
+      return res.status(403).json({ fel: 'Åtkomst nekad' });
+    }
+
+    // Filen först, sedan raden. Misslyckas Storage loggas det men raderingen av raden
+    // får gå igenom – en kvarglömd fil är bättre än en rad som pekar på ingenting.
+    const { error: bildFel } = await supabase.storage.from('dokument').remove([dokument.lagring_path]);
+    if (bildFel) console.error('Kunde inte ta bort dokumentfil ur Storage:', bildFel);
+
+    await raderaDokument(dokument.id);
+    res.json({ ok: true });
+  } catch (fel) {
+    console.error('Dokumentradering fel:', fel);
+    res.status(500).json({ fel: 'Serverfel vid radering' });
+  }
+});
+
 // POST /api/users/testa-notifikation — skickar en testnotifikation till inloggad användare
 router.post('/testa-notifikation', kräverInloggning, async (req, res) => {
   try {
@@ -219,6 +318,20 @@ router.delete('/konto', kräverInloggning, async (req, res) => {
       if (bildFel) throw bildFel;
     } catch (bildFel) {
       console.error('Kunde inte ta bort profilbild vid kontoradering:', bildFel);
+    }
+
+    // Profildokument är också personuppgifter och måste bort ur både Storage och
+    // databasen. Användarraden raderas aldrig, så FK-cascade fäller inte raderna.
+    // Icke-kritiskt: raderingen av kontot ska gå igenom även om något av detta strular.
+    try {
+      const paths = await hämtaLagringPathsFörAnvändare(användare.id);
+      if (paths.length) {
+        const { error: dokFel } = await supabase.storage.from('dokument').remove(paths);
+        if (dokFel) throw dokFel;
+      }
+      await raderaAllaDokumentFörAnvändare(användare.id);
+    } catch (dokFel) {
+      console.error('Kunde inte ta bort dokument vid kontoradering:', dokFel);
     }
 
     await raderaKonto(användare.id);

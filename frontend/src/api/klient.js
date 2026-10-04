@@ -207,6 +207,9 @@ export const api = {
   uppdateraProfil: (kropp) => anrop('PUT', '/users/profil', kropp),
   uppdateraStad: (stad) => anrop('PUT', '/users/stad', { stad }),
   laddaUppProfilBild: (bild) => anrop('POST', '/users/profil-bild', { bild }),
+  // Profildokument (CV, intyg, körkort). kropp: { namn, fil (base64), mimeType }
+  laddaUppDokument: (kropp) => anrop('POST', '/users/dokument', kropp),
+  raderaDokument: (id) => anrop('DELETE', `/users/dokument/${id}`),
   uppdateraStatus: (ansokningId, status) => anrop('PATCH', `/ansokningar/${ansokningId}/status`, { status }),
   växlaFavoritAnsökan: (ansokningId, favorit) => anrop('PATCH', `/ansokningar/${ansokningId}/favorit`, { favorit }),
 
