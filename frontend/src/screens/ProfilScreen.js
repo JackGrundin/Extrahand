@@ -212,6 +212,10 @@ export default function ProfilScreen({ navigation }) {
         <Text style={styles.redigeraText}>Redigera profil</Text>
       </TouchableOpacity>
 
+      {ärPrivatperson && (
+        <DokumentLista redigerbar dokument={profil?.dokument} onÄndrad={hämta} />
+      )}
+
       {/* Bemanningsöversikt: vilka dagar företaget har personal och vem som jobbar när. */}
       {!ärPrivatperson && (
         <TouchableOpacity
@@ -235,8 +239,6 @@ export default function ProfilScreen({ navigation }) {
           {!profil?.cv && !profil?.erfarenheter && !profil?.kompetenser && !profil?.intressen && (
             <Text style={styles.tomProfil}>Fyll i ditt CV och erfarenheter för att sticka ut när du söker jobb.</Text>
           )}
-
-          <DokumentLista redigerbar dokument={profil?.dokument} onÄndrad={hämta} />
         </>
       )}
 
