@@ -14,9 +14,17 @@ const VARIANTER = {
   fara: 'bg-white text-fel border border-fel hover:bg-fel-mjuk',
 };
 
+// Storlekar: normal = standardknapp, liten = kompakt (t.ex. navbar). liten återanvänds
+// i den framtida webbappens täta ytor.
+const STORLEKAR = {
+  normal: 'px-5 py-3 text-[15px]',
+  liten: 'px-4 py-2 text-[14px]',
+};
+
 export default function Knapp({
   children,
   variant = 'primär',
+  storlek = 'normal',
   href,
   type = 'button',
   full = false,
@@ -26,10 +34,10 @@ export default function Knapp({
   ...props
 }) {
   const bas =
-    'inline-flex items-center justify-center gap-2 rounded-sm px-5 py-3 text-[15px] font-bold transition-all duration-150 active:scale-[0.98] disabled:opacity-60 disabled:pointer-events-none';
-  const klasser = `${bas} ${VARIANTER[variant] ?? VARIANTER.primär} ${
-    full ? 'w-full' : ''
-  } ${className}`;
+    'inline-flex items-center justify-center gap-2 rounded-sm font-bold transition-all duration-150 active:scale-[0.98] disabled:opacity-60 disabled:pointer-events-none';
+  const klasser = `${bas} ${STORLEKAR[storlek] ?? STORLEKAR.normal} ${
+    VARIANTER[variant] ?? VARIANTER.primär
+  } ${full ? 'w-full' : ''} ${className}`;
 
   const innehåll = laddar ? 'Vänta…' : children;
 

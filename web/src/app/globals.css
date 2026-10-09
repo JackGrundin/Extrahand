@@ -7,6 +7,9 @@ html,
 body {
   padding: 0;
   margin: 0;
+  /* Skyddsnät mot horisontell scroll från dekorativa element (gradient-glöd och
+     telefon-mockup sträcker sig medvetet utanför vyn på vissa brytpunkter). */
+  overflow-x: hidden;
   background-color: #f8fafc; /* FÄRG.bakgrund */
   color: #0f172a; /* FÄRG.text */
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
@@ -25,6 +28,13 @@ a {
 
 /* Typografiskala (speglar TEXT i appens tema.js). Färg sätts av konsumenten. */
 @layer components {
+  /* Stor hero-rubrik i Vercel-stil – tajt tracking, generös storlek. */
+  .rubrik-hero {
+    font-size: 56px;
+    font-weight: 700;
+    letter-spacing: -1.6px;
+    line-height: 1.05;
+  }
   .rubrik-xl {
     font-size: 44px;
     font-weight: 700;
@@ -32,9 +42,9 @@ a {
     line-height: 1.1;
   }
   .rubrik-l {
-    font-size: 28px;
+    font-size: 30px;
     font-weight: 700;
-    letter-spacing: -0.4px;
+    letter-spacing: -0.6px;
     line-height: 1.2;
   }
   .rubrik-m {
@@ -50,9 +60,90 @@ a {
   }
 }
 
-/* Responsiv hero-rubrik på små skärmar. */
+/* ── Animationer ───────────────────────────────────────────────────────────
+   Ren CSS, inga beroenden. Entré-animationer körs en gång vid paint; glöden och
+   mockup-flytningen loopar långsamt. Allt stängs av vid prefers-reduced-motion. */
+
+/* Långsam drift + pulsering på gradient-glöden bakom hero-rubriken. */
+@keyframes gloed {
+  0% {
+    transform: translate3d(0, 0, 0) scale(1);
+    opacity: 0.55;
+  }
+  100% {
+    transform: translate3d(6%, -4%, 0) scale(1.15);
+    opacity: 0.8;
+  }
+}
+
+/* Fade + glid upp vid sidladdning. */
+@keyframes fadeUp {
+  from {
+    opacity: 0;
+    transform: translateY(18px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Subtil upp/ner-flytning på telefon-mockupen. */
+@keyframes flyt {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
+}
+
+.anim-gloed {
+  animation: gloed 20s ease-in-out infinite alternate;
+}
+
+.anim-fade-up {
+  animation: fadeUp 0.7s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+/* Stagger: rubrik → text → knappar → mockup. */
+.d-1 {
+  animation-delay: 0.08s;
+}
+.d-2 {
+  animation-delay: 0.16s;
+}
+.d-3 {
+  animation-delay: 0.24s;
+}
+.d-4 {
+  animation-delay: 0.34s;
+}
+
+.anim-flyt {
+  animation: flyt 6s ease-in-out infinite;
+}
+
+/* Tillgänglighet: respektera användarens val att minska rörelse. */
+@media (prefers-reduced-motion: reduce) {
+  .anim-gloed,
+  .anim-fade-up,
+  .anim-flyt {
+    animation: none !important;
+  }
+}
+
+/* Responsiva rubriker på små skärmar. */
 @media (max-width: 640px) {
+  .rubrik-hero {
+    font-size: 34px;
+    letter-spacing: -1px;
+  }
   .rubrik-xl {
     font-size: 32px;
+  }
+  .rubrik-l {
+    font-size: 24px;
   }
 }

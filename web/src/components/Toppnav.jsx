@@ -21,7 +21,7 @@ export default function Toppnav() {
             width={132}
             height={34}
             priority
-            style={{ height: 34, width: 'auto' }}
+            className="h-7 w-auto sm:h-[34px]"
           />
         </Link>
 
@@ -31,16 +31,23 @@ export default function Toppnav() {
               <span className="hidden text-[14px] text-text-dämpad sm:inline">
                 Inloggad som {användare?.namn}
               </span>
-              <Knapp variant="kontur" onClick={loggaUt}>
+              <Knapp variant="kontur" storlek="liten" onClick={loggaUt}>
                 Logga ut
               </Knapp>
             </>
           ) : (
             <>
-              <Knapp variant="kontur" href="/logga-in">
+              {/* "Logga in" döljs på de smalaste skärmarna så navet inte svämmar över –
+                  inloggning nås ändå från hero, sidfoten och "Skapa konto"-sidan. */}
+              <Knapp
+                variant="kontur"
+                storlek="liten"
+                href="/logga-in"
+                className="hidden xs:inline-flex"
+              >
                 Logga in
               </Knapp>
-              <Knapp variant="primär" href="/registrera">
+              <Knapp variant="primär" storlek="liten" href="/registrera">
                 Skapa konto
               </Knapp>
             </>

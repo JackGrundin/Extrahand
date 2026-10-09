@@ -7,6 +7,11 @@ module.exports = {
   content: ['./src/**/*.{js,jsx,ts,tsx}'],
   theme: {
     extend: {
+      // Extra liten brytpunkt för de smalaste telefonerna (de flesta är 360–430px breda).
+      // Används bl.a. för att visa/dölja sekundära navknappar.
+      screens: {
+        xs: '380px',
+      },
       colors: {
         primär: FÄRG.primär,
         'primär-djup': FÄRG.primärDjup,
