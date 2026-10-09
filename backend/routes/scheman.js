@@ -105,6 +105,17 @@ function valideraPassLista(pass, befintliga = []) {
     const obFel = valideraObTillagg(p.ob_tillagg);
     if (obFel) return obFel;
 
+    // Rast per pass (minuter) dras av från de rapporterade timmarna. Måste vara ett
+    // heltal ≥ 0 och KORTARE än passet – en rast lika lång som passet ger en tidrapport
+    // på noll timmar, vilket inte är en giltig rast utan ett inställt pass.
+    if (p.rast_minuter != null) {
+      const rast = Number(p.rast_minuter);
+      if (!Number.isInteger(rast) || rast < 0) return 'Rast måste anges i hela minuter (0 eller mer)';
+      if (rast >= passTimmar({ datum: p.datum, starttid: p.starttid, sluttid: p.sluttid }) * 60) {
+        return 'Rasten kan inte vara lika lång som eller längre än passet';
+      }
+    }
+
     // Samma datum + starttid två gånger skulle ge två tidrapporter för samma pass.
     // Olika starttid samma datum är däremot tillåtet – det är så en dag med två roller ser ut.
     const nyckel = `${p.datum} ${p.starttid}`;
@@ -242,6 +253,8 @@ router.post('/', kräverInloggning, kräverTyp('företag'), async (req, res) => 
       // [] betyder medvetet inget OB, null betyder ärv. Skicka bara [] när klienten
       // faktiskt angett en (tom) lista.
       ob_tillagg: Array.isArray(p.ob_tillagg) ? p.ob_tillagg : null,
+      // Rast i minuter, per pass (ärver inget). 0 = ingen rast.
+      rast_minuter: Number.isInteger(Number(p.rast_minuter)) ? Math.max(0, Number(p.rast_minuter)) : 0,
     })));
 
     for (const a of (Array.isArray(avdrag) ? avdrag : [])) {
@@ -484,6 +497,8 @@ router.post('/:id/pass', kräverInloggning, kräverTyp('företag'), async (req, 
       // inte '', annars ärver passet inte längre.
       kategori: p.kategori?.trim() || null,
       ob_tillagg: p.ob_tillagg ?? null,
+      // Rast i minuter, per pass (ärver inget). 0 = ingen rast.
+      rast_minuter: Number.isInteger(Number(p.rast_minuter)) ? Math.max(0, Number(p.rast_minuter)) : 0,
       status: 'planerad',
     })));
 

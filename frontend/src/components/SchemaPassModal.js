@@ -29,6 +29,7 @@ export default function SchemaPassModal({
   const [sluttid, setSluttid] = useState('');
   const [kategori, setKategori] = useState('');
   const [obTillagg, setObTillagg] = useState([]);
+  const [rastMinuter, setRastMinuter] = useState(0);
 
   // Fylls om varje gång modalen öppnas. initialPass bär antingen passet som redigeras
   // eller det förifyllda innehållet från "Kopiera föregående".
@@ -39,6 +40,7 @@ export default function SchemaPassModal({
     setSluttid(initialPass?.sluttid ?? '');
     setKategori(initialPass?.kategori ?? '');
     setObTillagg(Array.isArray(initialPass?.ob_tillagg) ? initialPass.ob_tillagg : []);
+    setRastMinuter(initialPass?.rast_minuter ?? 0);
   }, [visible, initialPass]);
 
   function spara() {
@@ -50,6 +52,7 @@ export default function SchemaPassModal({
       sluttid,
       kategori: kategori.trim() || null,
       ob_tillagg: obTillagg,
+      rast_minuter: rastMinuter || 0,
     });
   }
 
@@ -81,6 +84,8 @@ export default function SchemaPassModal({
               onSluttid={setSluttid}
               onKategori={setKategori}
               onObTillagg={setObTillagg}
+              rastMinuter={rastMinuter}
+              onRastMinuter={setRastMinuter}
               egnaKategorier={egnaKategorier}
               standardKategorier={standardKategorier}
               timlön={timlön}

@@ -68,6 +68,14 @@ async function kollaPassAttRapportera(nu = Date.now()) {
         continue;
       }
 
+      // Rasten dras av från de rapporterade timmarna: schemalagda timmar − rast = netto.
+      // Den sänker både faktureringsbeloppet och utbetalningen (obetald rast räknas åt
+      // ingen). OB beräknas däremot på passets HELA intervall – rasten flyttar inte vilka
+      // klockslag som är OB-tid. Valideringen i routes/scheman.js garanterar rast < passet,
+      // men vi klampar ändå mot 0 för gamla/orörda rader.
+      const rastMinuter = Math.max(0, Math.floor(Number(p.rast_minuter) || 0));
+      const nettoTimmar = Math.max(0, Math.round((timmar - rastMinuter / 60) * 100) / 100);
+
       // Passets egna OB, med fallback till schemats för pass som lades innan OB flyttades
       // till passnivå.
       const { ob_tillagg: obTillagg } = passMedArv(schema, p);
@@ -77,7 +85,7 @@ async function kollaPassAttRapportera(nu = Date.now()) {
       // Löneavdragen fryses på rapporten. De påverkar inte faktureringsbeloppet – bara vad
       // personen får ut – så totalt_belopp förblir bruttot.
       const { rader: avdragsrader, summa: avdragsSumma } = beräknaAvdragFörPass(avdrag, antalPass);
-      const belopp = beräknaBelopp({ timmar, timlon, obBelopp, avdragBelopp: avdragsSumma });
+      const belopp = beräknaBelopp({ timmar: nettoTimmar, timlon, obBelopp, avdragBelopp: avdragsSumma });
 
       const rapport = await skapaTidrapport({
         ansokan_id: p.ansokan_id,
@@ -85,13 +93,15 @@ async function kollaPassAttRapportera(nu = Date.now()) {
         anvandare_id: p.anvandare_id,
         // Passets datum, inte dagens – rapporten hör till den dag som arbetades.
         datum: p.datum,
-        timmar,
+        timmar: nettoTimmar,
         timlon,
         ob_belopp: obBelopp,
         ob_tillagg: obTillagg,
         totalt_belopp: belopp.brutto,
         avdrag: avdragsrader,
         avdrag_belopp: belopp.avdrag,
+        // Rasten fryses på rapporten så att en senare schemaredigering inte ändrar den.
+        rast_minuter: rastMinuter,
         // Påslaget frystes på schemat när personen godkändes.
         paslag: påslagEller40(schema.paslag),
         auto_skapad: true,

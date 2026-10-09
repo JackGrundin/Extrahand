@@ -686,9 +686,6 @@ export default function PubliceraSchemaScreen({ navigation }) {
                         </View>
                         <View style={{ flex: 1 }} />
                         {komplett && !fel && <Ionicons name="checkmark-circle" size={20} color="#16a34a" style={{ marginRight: 2 }} accessible={false} importantForAccessibility="no" />}
-                        <TouchableOpacity onPress={() => läggTillPassSammaDag(p)} hitSlop={8} style={styles.ikonKnapp} accessibilityRole="button" accessibilityLabel="Lägg till pass samma dag">
-                          <Ionicons name="add-circle-outline" size={22} color="#2563eb" accessible={false} importantForAccessibility="no" />
-                        </TouchableOpacity>
                         <TouchableOpacity onPress={() => taBortPass(p.id)} hitSlop={8} style={styles.ikonKnapp} accessibilityRole="button" accessibilityLabel={`Ta bort pass ${formatDagDatum(p.datum)}`}>
                           <Ionicons name="close-circle" size={22} color="#ef4444" accessible={false} importantForAccessibility="no" />
                         </TouchableOpacity>
@@ -773,6 +770,8 @@ export default function PubliceraSchemaScreen({ navigation }) {
                             onSluttid={(v) => ändraPass(p.id, 'sluttid', v)}
                             onKategori={(v) => ändraPass(p.id, 'kategori', v)}
                             onObTillagg={(v) => ändraPass(p.id, 'ob_tillagg', v)}
+                            rastMinuter={p.rast_minuter ?? 0}
+                            onRastMinuter={(v) => ändraPass(p.id, 'rast_minuter', v)}
                             egnaKategorier={egnaKategorier}
                             standardKategorier={KATEGORIER}
                             timlön={timlönTal}
@@ -781,6 +780,11 @@ export default function PubliceraSchemaScreen({ navigation }) {
                           />
                         </View>
                       )}
+
+                      <TouchableOpacity style={styles.läggTillPassKnapp} onPress={() => läggTillPassSammaDag(p)} hitSlop={8} activeOpacity={0.7} accessibilityRole="button" accessibilityLabel="Lägg till pass samma dag">
+                        <Ionicons name="add-circle-outline" size={16} color="#2563eb" accessible={false} importantForAccessibility="no" />
+                        <Text style={styles.läggTillPassText}>Lägg till pass samma dag</Text>
+                      </TouchableOpacity>
                     </View>
                   );
                 })}
@@ -1013,6 +1017,8 @@ const styles = StyleSheet.create({
   rollRad: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 12, paddingVertical: 12, marginTop: 4 },
   rollHint: { flexDirection: 'row', alignItems: 'center', gap: 3 },
   rollHintText: { fontSize: 13, color: '#2563eb', fontWeight: '600' },
+  läggTillPassKnapp: { flexDirection: 'row', alignItems: 'center', gap: 6, alignSelf: 'flex-start', paddingVertical: 6 },
+  läggTillPassText: { fontSize: 13, color: '#2563eb', fontWeight: '600' },
   passBrickor: { flexDirection: 'row', flexWrap: 'wrap', gap: 5, flex: 1 },
   rollBricka: { backgroundColor: '#eff6ff', borderRadius: 6, paddingHorizontal: 7, paddingVertical: 2 },
   rollBrickaText: { fontSize: 11, color: '#2563eb', fontWeight: '700' },

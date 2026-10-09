@@ -33,7 +33,7 @@ export function synkaPassMotDatum(valdaDatum, befintligaPass) {
 
   const nya = [...valda]
     .filter(d => !datumMedPass.has(d))
-    .map(datum => ({ id: nyttPassId(), datum, starttid: '', sluttid: '', kategori: null, ob_tillagg: [] }));
+    .map(datum => ({ id: nyttPassId(), datum, starttid: '', sluttid: '', kategori: null, ob_tillagg: [], rast_minuter: 0 }));
 
   return sorteraPass([...kvar, ...nya]);
 }
@@ -99,6 +99,12 @@ export function tillämpaPåMarkerade(pass, idn, utkast, { rensaOb = false } = {
     resultat = uppdateraFält(resultat, mål, 'ob_tillagg', []);
   } else if (Array.isArray(utkast?.ob_tillagg) && utkast.ob_tillagg.length) {
     resultat = uppdateraFält(resultat, mål, 'ob_tillagg', utkast.ob_tillagg);
+  }
+
+  // Rast tillämpas bara när den faktiskt angetts. null = orörd (lämna passens rast som den
+  // är); 0 betyder "ingen rast" och ska skrivas. Därför != null, inte en truthy-kontroll.
+  if (utkast?.rast_minuter != null) {
+    resultat = uppdateraFält(resultat, mål, 'rast_minuter', Number(utkast.rast_minuter));
   }
 
   // Sorteras om här och inte i uppdateraFält: en ny starttid kan flytta passet i listan,

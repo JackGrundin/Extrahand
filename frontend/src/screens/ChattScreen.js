@@ -103,6 +103,15 @@ function TidrapportKort({ rapport, ärPrivatperson, ärSenaste, onUppdaterad }) 
           <Text style={styles.rapportEtikett}>Timmar</Text>
           <Text style={styles.rapportVärde}>{rapport.timmar} tim</Text>
         </View>
+        {/* Rastavdraget: bruttot härleds ur de frysta värdena (timmar + rast/60), så raden
+            går alltid ihop, även efter en manuell korrigering av timmarna. */}
+        {rapport.rast_minuter > 0 && (
+          <Text style={styles.rastRad}>
+            {(rapport.timmar + rapport.rast_minuter / 60).toLocaleString('sv-SE', { maximumFractionDigits: 2 })} tim
+            {' − '}{rapport.rast_minuter} min rast ={' '}
+            {Number(rapport.timmar).toLocaleString('sv-SE', { maximumFractionDigits: 2 })} tim
+          </Text>
+        )}
         <View style={styles.rapportRad}>
           <Text style={styles.rapportEtikett}>Timlön</Text>
           <Text style={styles.rapportVärde}>{rapport.timlon?.toLocaleString('sv-SE')} kr/tim</Text>
@@ -570,6 +579,7 @@ const styles = StyleSheet.create({
   rapportRad: { flexDirection: 'row', justifyContent: 'space-between' },
   rapportEtikett: { fontSize: 14, color: '#888' },
   rapportVärde: { fontSize: 14, fontWeight: '500', color: '#1a1a1a' },
+  rastRad: { fontSize: 13, color: '#6b7280', fontStyle: 'italic', marginTop: 2 },
   totalRad: { borderTopWidth: 1, borderTopColor: '#eee', paddingTop: 8, marginTop: 4 },
   totalEtikett: { fontSize: 15, fontWeight: '700', color: '#1a1a1a' },
   totalVärde: { fontSize: 15, fontWeight: '700', color: '#2563eb' },

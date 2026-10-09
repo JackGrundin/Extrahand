@@ -26,6 +26,9 @@ export default function MassPassPanel({
   const [sluttid, setSluttid] = useState('');
   const [kategori, setKategori] = useState('');
   const [obTillagg, setObTillagg] = useState([]);
+  // null = orörd. Till skillnad från de övriga fälten är 0 ett giltigt val ("Ingen rast"),
+  // så tomheten kan inte representeras med 0 – den måste vara null.
+  const [rastMinuter, setRastMinuter] = useState(null);
   const [utfällt, setUtfällt] = useState(true);
 
   function nollställ() {
@@ -33,12 +36,13 @@ export default function MassPassPanel({
     setSluttid('');
     setKategori('');
     setObTillagg([]);
+    setRastMinuter(null);
   }
 
-  const harNågot = Boolean(starttid || sluttid || kategori.trim() || obTillagg.length);
+  const harNågot = Boolean(starttid || sluttid || kategori.trim() || obTillagg.length) || rastMinuter != null;
 
   function tillämpa({ rensaOb = false } = {}) {
-    onTillämpa({ starttid, sluttid, kategori, ob_tillagg: obTillagg }, { rensaOb });
+    onTillämpa({ starttid, sluttid, kategori, ob_tillagg: obTillagg, ...(rastMinuter != null ? { rast_minuter: rastMinuter } : {}) }, { rensaOb });
     // Markeringen behålls med flit – man sätter ofta roll först och OB sedan. Utkastet
     // nollställs däremot, annars ser det ut som om värdena ligger kvar och väntar.
     nollställ();
@@ -77,6 +81,8 @@ export default function MassPassPanel({
             onSluttid={setSluttid}
             onKategori={setKategori}
             onObTillagg={setObTillagg}
+            rastMinuter={rastMinuter}
+            onRastMinuter={setRastMinuter}
             egnaKategorier={egnaKategorier}
             standardKategorier={standardKategorier}
             timlön={timlön}

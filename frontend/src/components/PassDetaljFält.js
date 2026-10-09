@@ -3,6 +3,13 @@ import TidVäljare from './TidVäljare';
 import ObRedigerare from './ObRedigerare';
 import { normalisera } from '../utils/konstanter';
 
+// Snabbval för rast. "Ingen rast" = 0, inte null: ett aktivt val som markerar knappen.
+const RAST_VAL = [
+  { etikett: 'Ingen rast', värde: 0 },
+  { etikett: '30 min', värde: 30 },
+  { etikett: '60 min', värde: 60 },
+];
+
 // Fälten som beskriver ETT pass utöver datumet: tider, roll och OB.
 //
 // Delas av SchemaPassModal (ett enskilt pass) och av standardpanelen i schemapubliceringens
@@ -25,6 +32,10 @@ export default function PassDetaljFält({
   timlön = 0,
   paslag,
   obRubrik = 'OB-tillägg',
+  // Rast i minuter. null = orörd (används av massredigeringen för att inte skriva över),
+  // 0 = ingen rast. onRastMinuter får alltid ett tal (0 när fältet töms).
+  rastMinuter = null,
+  onRastMinuter,
   // Steg 3 visar tiderna direkt på passkortet och sätter därför visaTider={false} så att
   // de inte dubbleras i den utfällda editorn. Övriga anropare behåller tiderna här.
   visaTider = true,
@@ -53,6 +64,38 @@ export default function PassDetaljFält({
           </View>
         </>
       )}
+
+      <Text style={styles.etikett}>Rast</Text>
+      <View style={styles.rastRad}>
+        {RAST_VAL.map(({ etikett, värde }) => {
+          const vald = rastMinuter === värde;
+          return (
+            <TouchableOpacity
+              key={värde}
+              style={[styles.rastKnapp, vald && styles.rastKnappVald]}
+              onPress={() => onRastMinuter?.(värde)}
+              activeOpacity={0.7}
+              accessibilityRole="button"
+              accessibilityState={{ selected: vald }}
+              accessibilityLabel={`Rast: ${etikett}`}
+            >
+              <Text style={[styles.rastKnappText, vald && styles.rastKnappTextVald]}>{etikett}</Text>
+            </TouchableOpacity>
+          );
+        })}
+      </View>
+      <TextInput
+        style={[styles.input, { marginTop: 8 }]}
+        placeholder="Egen tid i minuter, t.ex. 45"
+        value={rastMinuter ? String(rastMinuter) : ''}
+        onChangeText={(t) => {
+          const siffror = t.replace(/[^0-9]/g, '');
+          onRastMinuter?.(siffror === '' ? 0 : Number(siffror));
+        }}
+        keyboardType="numeric"
+        maxLength={4}
+      />
+      <Text style={styles.hjälp}>Rasten dras av automatiskt från passets timmar på tidrapporten.</Text>
 
       <Text style={styles.etikett}>Roll / avdelning</Text>
       <TextInput
@@ -103,4 +146,9 @@ const styles = StyleSheet.create({
   chip: { backgroundColor: '#eff6ff', borderRadius: 8, paddingHorizontal: 10, paddingVertical: 6 },
   chipText: { fontSize: 13, color: '#2563eb', fontWeight: '600' },
   hjälp: { fontSize: 12, color: '#9ca3af', marginTop: 6 },
+  rastRad: { flexDirection: 'row', gap: 8 },
+  rastKnapp: { flex: 1, alignItems: 'center', borderWidth: 1, borderColor: '#ddd', borderRadius: 10, paddingVertical: 10, backgroundColor: '#fafafa' },
+  rastKnappVald: { borderColor: '#2563eb', backgroundColor: '#eff6ff' },
+  rastKnappText: { fontSize: 14, color: '#444', fontWeight: '600' },
+  rastKnappTextVald: { color: '#2563eb' },
 });

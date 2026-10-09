@@ -13,7 +13,7 @@ import { normaliseraKrav } from '../utils/behorighet';
 import { formatDagDatum, veckodagsNamn } from '../utils/datumHelper';
 import { KATEGORIER, SCHEMATYPER, formateraPris, beräknaAvdragFörPass } from '../utils/konstanter';
 
-const TOMT_PASS = { datum: '', starttid: '', sluttid: '', kategori: '', ob_tillagg: [] };
+const TOMT_PASS = { datum: '', starttid: '', sluttid: '', kategori: '', ob_tillagg: [], rast_minuter: 0 };
 
 // Redigering EFTER publicering. Befintliga pass har låsta datum och tider – de är avtalade
 // med den som sökt. Nya pass går att lägga till, och kommande pass att ställa in.
@@ -165,6 +165,7 @@ export default function RedigeraSchemaScreen({ route, navigation }) {
         // Tom roll blir null = ärv schemats värde, inte tom sträng.
         kategori: nyttPass.kategori?.trim() || null,
         ob_tillagg: nyttPass.ob_tillagg?.length ? nyttPass.ob_tillagg : null,
+        rast_minuter: nyttPass.rast_minuter || 0,
       }]);
       setNyttPass(TOMT_PASS);
       setPassFormVisas(false);
@@ -416,6 +417,8 @@ export default function RedigeraSchemaScreen({ route, navigation }) {
               onSluttid={v => setNyttPass(p => ({ ...p, sluttid: v }))}
               onKategori={v => setNyttPass(p => ({ ...p, kategori: v }))}
               onObTillagg={v => setNyttPass(p => ({ ...p, ob_tillagg: v }))}
+              rastMinuter={nyttPass.rast_minuter ?? 0}
+              onRastMinuter={v => setNyttPass(p => ({ ...p, rast_minuter: v }))}
               standardKategorier={KATEGORIER}
               timlön={parseFloat(String(timlon).replace(',', '.')) || 0}
               paslag={schema.paslag}
