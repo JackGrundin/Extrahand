@@ -1,7 +1,8 @@
-import { useCallback, useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView, ActivityIndicator, Image, Alert, Linking } from 'react-native';
+import { useCallback, useState, useRef, useEffect } from 'react';
+import { View, Text, TouchableOpacity, StyleSheet, ScrollView, ActivityIndicator, Image, Alert, Linking, Animated } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import * as ImagePicker from 'expo-image-picker';
 import { useAuth } from '../context/AuthContext';
 import { api, felText } from '../api/klient';
@@ -9,6 +10,8 @@ import { useRealtidsPing } from '../context/RealtidsContext';
 import { useAppStateAktiv } from '../utils/useAppStateAktiv';
 import { BetygsSammanfattning, BetygsLista } from '../components/BetygsSektion';
 import DokumentLista from '../components/DokumentLista';
+import Knapp from '../components/Knapp';
+import { FÄRG, TEXT, RADIE, STIL, SKUGGA } from '../utils/tema';
 import {
   PÅSLAG_PRO,
   PÅSLAG_GRATIS,
@@ -39,6 +42,14 @@ export default function ProfilScreen({ navigation }) {
   const [laddaUppBild, setLaddaUppBild] = useState(false);
   const [prenumerationLaddar, setPrenumerationLaddar] = useState(false);
   const [raderar, setRaderar] = useState(false);
+
+  // Mjuk entré: innehållet tonar in och glider upp en aning när profilen laddats.
+  const tona = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    if (laddar) return;
+    Animated.timing(tona, { toValue: 1, duration: 350, useNativeDriver: true }).start();
+  }, [laddar]);
+  const glid = tona.interpolate({ inputRange: [0, 1], outputRange: [12, 0] });
 
   // Radering av konto i två steg. Det är ett oåterkalleligt val som ligger direkt
   // under "Logga ut", så den första dialogen förklarar konsekvensen och den andra
@@ -163,7 +174,10 @@ export default function ProfilScreen({ navigation }) {
   if (laddar) return <ActivityIndicator style={{ flex: 1 }} size="large" />;
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.innehall}>
+    <ScrollView style={styles.container} contentContainerStyle={styles.scrollInnehall}>
+      <Animated.View style={{ opacity: tona, transform: [{ translateY: glid }] }}>
+        <LinearGradient colors={FÄRG.gradient} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.banner} />
+        <View style={styles.innehall}>
       <TouchableOpacity
         onPress={väljaProfilBild}
         style={styles.avatarWrapper}
@@ -208,7 +222,7 @@ export default function ProfilScreen({ navigation }) {
         accessibilityRole="button"
         accessibilityLabel="Redigera profil"
       >
-        <Ionicons name="create-outline" size={18} color="#2563eb" accessible={false} importantForAccessibility="no" />
+        <Ionicons name="create-outline" size={18} color={FÄRG.primär} accessible={false} importantForAccessibility="no" />
         <Text style={styles.redigeraText}>Redigera profil</Text>
       </TouchableOpacity>
 
@@ -224,7 +238,7 @@ export default function ProfilScreen({ navigation }) {
           accessibilityRole="button"
           accessibilityLabel="Schemaöversikt"
         >
-          <Ionicons name="calendar-outline" size={18} color="#2563eb" accessible={false} importantForAccessibility="no" />
+          <Ionicons name="calendar-outline" size={18} color={FÄRG.primär} accessible={false} importantForAccessibility="no" />
           <Text style={styles.redigeraText}>Schemaöversikt</Text>
         </TouchableOpacity>
       )}
@@ -263,10 +277,10 @@ export default function ProfilScreen({ navigation }) {
                 accessibilityLabel="Hantera prenumeration"
               >
                 {prenumerationLaddar ? (
-                  <ActivityIndicator color="#2563eb" size="small" />
+                  <ActivityIndicator color={FÄRG.primär} size="small" />
                 ) : (
                   <>
-                    <Ionicons name="card-outline" size={18} color="#2563eb" accessible={false} importantForAccessibility="no" />
+                    <Ionicons name="card-outline" size={18} color={FÄRG.primär} accessible={false} importantForAccessibility="no" />
                     <Text style={styles.hanteraText}>Hantera prenumeration</Text>
                   </>
                 )}
@@ -314,9 +328,7 @@ export default function ProfilScreen({ navigation }) {
 
       <BetygsLista betyg={betyg} rubrik={ärPrivatperson ? 'Betyg från arbetsgivare' : 'Omdömen från personal'} />
 
-      <TouchableOpacity style={styles.loggaUtKnapp} onPress={loggaUt}>
-        <Text style={styles.loggaUtText}>Logga ut</Text>
-      </TouchableOpacity>
+      <Knapp text="Logga ut" variant="fara" onPress={loggaUt} style={styles.loggaUtKnapp} />
 
       <TouchableOpacity
         style={styles.integritetspolicyKnapp}
@@ -324,7 +336,7 @@ export default function ProfilScreen({ navigation }) {
         accessibilityRole="button"
         accessibilityLabel="Integritetspolicy"
       >
-        <Ionicons name="shield-checkmark-outline" size={18} color="#2563eb" accessible={false} importantForAccessibility="no" />
+        <Ionicons name="shield-checkmark-outline" size={18} color={FÄRG.primär} accessible={false} importantForAccessibility="no" />
         <Text style={styles.integritetspolicyText}>Integritetspolicy</Text>
       </TouchableOpacity>
 
@@ -336,56 +348,60 @@ export default function ProfilScreen({ navigation }) {
         accessibilityLabel="Ta bort konto"
       >
         {raderar
-          ? <ActivityIndicator color="#94a3b8" size="small" />
+          ? <ActivityIndicator color={FÄRG.textSvag} size="small" />
           : <Text style={styles.taBortKontoText}>Ta bort konto</Text>
         }
       </TouchableOpacity>
 
-      <Text style={styles.appNamn}>FastGig</Text>
+          <Text style={styles.appNamn}>FastGig</Text>
+        </View>
+      </Animated.View>
     </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#fff' },
-  innehall: { alignItems: 'center', padding: 32, paddingBottom: 48 },
-  avatarWrapper: { position: 'relative', marginBottom: 16 },
-  avatar: { width: 88, height: 88, borderRadius: 44, backgroundColor: '#2563eb', justifyContent: 'center', alignItems: 'center' },
-  profilBild: { width: 88, height: 88, borderRadius: 44 },
-  avatarText: { color: '#fff', fontSize: 34, fontWeight: 'bold' },
-  kameraIkon: { position: 'absolute', bottom: 0, right: 0, backgroundColor: '#2563eb', borderRadius: 12, width: 24, height: 24, justifyContent: 'center', alignItems: 'center', borderWidth: 2, borderColor: '#fff' },
-  namn: { fontSize: 22, fontWeight: 'bold', color: '#1a1a1a', marginBottom: 4 },
-  email: { fontSize: 15, color: '#666', marginBottom: 12 },
-  typBadge: { backgroundColor: '#eff6ff', paddingHorizontal: 14, paddingVertical: 6, borderRadius: 20, marginBottom: 16 },
-  typText: { color: '#2563eb', fontWeight: '600' },
-  timmArBadge: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#f0fdf4', borderRadius: 20, paddingHorizontal: 14, paddingVertical: 7, marginBottom: 20 },
-  timmArText: { fontSize: 14, color: '#059669', fontWeight: '600' },
-  redigeraKnapp: { flexDirection: 'row', alignItems: 'center', gap: 6, borderWidth: 1, borderColor: '#2563eb', borderRadius: 10, paddingVertical: 10, paddingHorizontal: 20, marginBottom: 24 },
-  redigeraText: { color: '#2563eb', fontWeight: '600', fontSize: 15 },
-  integritetspolicyKnapp: { flexDirection: 'row', alignItems: 'center', gap: 6, borderWidth: 1, borderColor: '#ddd', borderRadius: 10, paddingVertical: 12, paddingHorizontal: 20, marginTop: 16 },
-  integritetspolicyText: { color: '#2563eb', fontWeight: '600', fontSize: 15 },
-  sektion: { width: '100%', marginBottom: 20 },
-  sektionsRubrik: { fontSize: 13, fontWeight: '700', color: '#888', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 6 },
-  sektionsText: { fontSize: 15, color: '#333', lineHeight: 22 },
-  tomProfil: { fontSize: 14, color: '#aaa', textAlign: 'center', lineHeight: 22, marginBottom: 24, paddingHorizontal: 8 },
-  loggaUtKnapp: { borderWidth: 1, borderColor: '#ef4444', borderRadius: 10, paddingVertical: 14, paddingHorizontal: 40, marginTop: 8 },
+  container: { flex: 1, backgroundColor: FÄRG.bakgrund },
+  scrollInnehall: { paddingBottom: 48 },
+  // Gradient-banner i toppen; avataren överlappar dess nederkant.
+  banner: { height: 128, width: '100%' },
+  innehall: { alignItems: 'center', paddingHorizontal: 24, paddingBottom: 8, marginTop: -56 },
+  avatarWrapper: { position: 'relative', marginBottom: 14 },
+  avatar: { width: 104, height: 104, borderRadius: 52, backgroundColor: FÄRG.primär, justifyContent: 'center', alignItems: 'center', borderWidth: 4, borderColor: FÄRG.yta, ...SKUGGA.lyft },
+  profilBild: { width: 104, height: 104, borderRadius: 52, borderWidth: 4, borderColor: FÄRG.yta, ...SKUGGA.lyft },
+  avatarText: { color: '#fff', fontSize: 40, fontWeight: 'bold' },
+  kameraIkon: { position: 'absolute', bottom: 2, right: 2, backgroundColor: FÄRG.primär, borderRadius: 14, width: 28, height: 28, justifyContent: 'center', alignItems: 'center', borderWidth: 2.5, borderColor: FÄRG.yta },
+  namn: { ...TEXT.rubrikL, color: FÄRG.text, marginBottom: 4 },
+  email: { fontSize: 15, color: FÄRG.textDämpad, marginBottom: 12 },
+  typBadge: { backgroundColor: FÄRG.primärMjuk, paddingHorizontal: 14, paddingVertical: 6, borderRadius: RADIE.pill, marginBottom: 16 },
+  typText: { color: FÄRG.primär, fontWeight: '700' },
+  timmArBadge: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: FÄRG.framgångMjuk, borderRadius: RADIE.pill, paddingHorizontal: 14, paddingVertical: 7, marginBottom: 20 },
+  timmArText: { fontSize: 14, color: '#059669', fontWeight: '700' },
+  redigeraKnapp: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, alignSelf: 'stretch', borderWidth: 1.5, borderColor: FÄRG.primärKant, backgroundColor: FÄRG.primärMjuk, borderRadius: RADIE.sm, paddingVertical: 13, paddingHorizontal: 20, marginBottom: 14 },
+  redigeraText: { color: FÄRG.primär, fontWeight: '700', fontSize: 15 },
+  integritetspolicyKnapp: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, alignSelf: 'stretch', borderWidth: 1.5, borderColor: FÄRG.kant, borderRadius: RADIE.sm, paddingVertical: 13, paddingHorizontal: 20, marginTop: 14 },
+  integritetspolicyText: { color: FÄRG.primär, fontWeight: '700', fontSize: 15 },
+  sektion: { width: '100%', ...STIL.kort, marginBottom: 14 },
+  sektionsRubrik: { ...TEXT.överlinje, color: FÄRG.textDämpad, marginBottom: 6 },
+  sektionsText: { fontSize: 15, color: FÄRG.text, lineHeight: 22 },
+  tomProfil: { fontSize: 14, color: FÄRG.textSvag, textAlign: 'center', lineHeight: 22, marginBottom: 24, paddingHorizontal: 8 },
+  loggaUtKnapp: { marginTop: 16 },
 
-  prenumerationKort: { width: '100%', backgroundColor: '#f8faff', borderWidth: 1, borderColor: '#dbeafe', borderRadius: 14, padding: 16, marginBottom: 20 },
+  prenumerationKort: { width: '100%', backgroundColor: '#f5f7ff', borderWidth: 1, borderColor: FÄRG.primärKant, borderRadius: RADIE.md, padding: 16, marginBottom: 14, ...SKUGGA.mjuk },
   proRad: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 },
-  proBadge: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: '#2563eb', borderRadius: 20, paddingVertical: 3, paddingHorizontal: 10 },
+  proBadge: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: FÄRG.primär, borderRadius: RADIE.pill, paddingVertical: 3, paddingHorizontal: 10 },
   proBadgeText: { color: '#fff', fontSize: 10, fontWeight: '700', letterSpacing: 0.5 },
-  proAktivText: { fontSize: 14, fontWeight: '600', color: '#1a1a1a' },
-  hanteraKnapp: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, borderWidth: 1, borderColor: '#2563eb', borderRadius: 10, paddingVertical: 12, minHeight: 44 },
-  hanteraText: { color: '#2563eb', fontWeight: '600', fontSize: 14 },
-  uppgraderaKnapp: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, backgroundColor: '#2563eb', borderRadius: 10, paddingVertical: 13, minHeight: 44 },
+  proAktivText: { fontSize: 14, fontWeight: '600', color: FÄRG.text },
+  hanteraKnapp: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, borderWidth: 1.5, borderColor: FÄRG.primärKant, backgroundColor: FÄRG.yta, borderRadius: RADIE.sm, paddingVertical: 12, minHeight: 44 },
+  hanteraText: { color: FÄRG.primär, fontWeight: '700', fontSize: 14 },
+  uppgraderaKnapp: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, backgroundColor: FÄRG.primär, borderRadius: RADIE.sm, paddingVertical: 14, minHeight: 44, ...SKUGGA.lyft, shadowColor: FÄRG.primärDjup },
   uppgraderaText: { color: '#fff', fontWeight: '700', fontSize: 14 },
-  exempelText: { fontSize: 12, color: '#64748b', marginTop: 10, lineHeight: 18, textAlign: 'center' },
-  exempelFramhävd: { fontWeight: '700', color: '#2563eb' },
-  exempelÖverstruken: { textDecorationLine: 'line-through', color: '#94a3b8' },
-  loggaUtText: { color: '#ef4444', fontWeight: '600', fontSize: 15 },
+  exempelText: { fontSize: 12, color: FÄRG.textDämpad, marginTop: 10, lineHeight: 18, textAlign: 'center' },
+  exempelFramhävd: { fontWeight: '700', color: FÄRG.primär },
+  exempelÖverstruken: { textDecorationLine: 'line-through', color: FÄRG.textSvag },
   // Nedtonad jämfört med "Logga ut": raderingen ska gå att hitta (App Store kräver
   // det) utan att bjuda in till feltryck.
   taBortKontoKnapp: { marginTop: 20, paddingVertical: 10, paddingHorizontal: 16, minHeight: 40, justifyContent: 'center' },
-  taBortKontoText: { color: '#94a3b8', fontSize: 14, textDecorationLine: 'underline' },
-  appNamn: { marginTop: 32, fontSize: 13, fontWeight: '700', color: '#2563eb', letterSpacing: 1 },
+  taBortKontoText: { color: FÄRG.textSvag, fontSize: 14, textDecorationLine: 'underline' },
+  appNamn: { marginTop: 32, fontSize: 13, fontWeight: '700', color: FÄRG.primär, letterSpacing: 1 },
 });

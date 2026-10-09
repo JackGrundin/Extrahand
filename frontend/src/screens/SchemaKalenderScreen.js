@@ -92,6 +92,31 @@ export default function SchemaKalenderScreen({ navigation }) {
   // för varje chattping. Samma resonemang som i MinaJobbScreen.
   useRealtidsPing((payload) => { if (payload?.typ === 'ansokan') hämta(); });
 
+  // Tryck på ett passkort öppnar chatten med personen direkt. Finns ingen aktiv chatt
+  // (inga utbytta meddelanden) går vi till personens profil, där chatten kan startas.
+  async function öppnaPerson(p) {
+    // Obemannat pass: ingen person att chatta med – behåll schemavyn.
+    if (p.personId == null) {
+      if (p.schemaId) navigation.navigate('SchemaDetalj', { schemaId: p.schemaId });
+      return;
+    }
+    try {
+      const konv = await api.hämtaKonversation(p.personId);
+      if (konv?.meddelanden?.length > 0) {
+        navigation.navigate('Chatt', {
+          medAnvandareId: p.personId,
+          motpartNamn: p.personNamn,
+          ansokningId: konv.aktivAnsokanId,
+        });
+      } else {
+        navigation.navigate('SökanadeProfil', { sokandeId: p.personId, ansokningId: konv?.aktivAnsokanId ?? undefined });
+      }
+    } catch (fel) {
+      console.error('Kunde inte avgöra chattstatus:', fel);
+      navigation.navigate('SökanadeProfil', { sokandeId: p.personId });
+    }
+  }
+
   const passPerDatum = useMemo(() => {
     const grupper = {};
     for (const p of pass) (grupper[p.datum] ??= []).push(p);
@@ -189,7 +214,7 @@ export default function SchemaKalenderScreen({ navigation }) {
                 <TouchableOpacity
                   key={`${p.datum}-${p.personId}-${i}`}
                   style={styles.passKort}
-                  onPress={() => p.schemaId && navigation.navigate('SchemaDetalj', { schemaId: p.schemaId })}
+                  onPress={() => öppnaPerson(p)}
                   activeOpacity={0.7}
                 >
                   <View style={styles.passHuvud}>
@@ -223,7 +248,7 @@ export default function SchemaKalenderScreen({ navigation }) {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f5f5f5' },
+  container: { flex: 1, backgroundColor: '#f8fafc' },
 
   sammanfattning: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: '#fff', paddingHorizontal: 16, paddingVertical: 12, borderTopWidth: 1, borderTopColor: '#f0f0f0' },
   sammanfattningText: { fontSize: 13, color: '#6b7280', flex: 1 },

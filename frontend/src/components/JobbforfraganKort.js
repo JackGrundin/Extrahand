@@ -4,11 +4,13 @@ import { Ionicons } from '@expo/vector-icons';
 import { api, felText } from '../api/klient';
 import { parsaObTillagg } from '../utils/datumHelper';
 import { haptik } from '../utils/haptik';
+import Kort from './Kort';
+import { FÄRG, RADIE } from '../utils/tema';
 
 const STATUS = {
   väntar:      { bg: '#fef9c3', text: '#854d0e', etikett: 'Väntar på svar' },
-  accepterad:  { bg: '#dcfce7', text: '#16a34a', etikett: 'Accepterad' },
-  avslagen:    { bg: '#fee2e2', text: '#dc2626', etikett: 'Avböjd' },
+  accepterad:  { bg: FÄRG.framgångMjuk, text: FÄRG.framgång, etikett: 'Accepterad' },
+  avslagen:    { bg: FÄRG.felMjuk, text: FÄRG.fel, etikett: 'Avböjd' },
 };
 
 export default function JobbforfraganKort({ förfrågan, ärPrivatperson, onUppdaterad }) {
@@ -37,9 +39,9 @@ export default function JobbforfraganKort({ förfrågan, ärPrivatperson, onUppd
   const ob = parsaObTillagg(förfrågan.ob_tillagg);
 
   return (
-    <View style={styles.kort}>
+    <Kort style={styles.kort} tryckbar={false}>
       <View style={styles.huvud}>
-        <Ionicons name="briefcase-outline" size={18} color="#2563eb" accessible={false} importantForAccessibility="no" />
+        <Ionicons name="briefcase-outline" size={18} color={FÄRG.primär} accessible={false} importantForAccessibility="no" />
         <Text style={styles.rubrik}>Passförfrågan</Text>
         <View style={[styles.statusBricka, { backgroundColor: färg.bg }]}>
           <Text style={[styles.statusText, { color: färg.text }]}>{färg.etikett}</Text>
@@ -99,27 +101,27 @@ export default function JobbforfraganKort({ förfrågan, ärPrivatperson, onUppd
       {!ärPrivatperson && förfrågan.status === 'väntar' && (
         <Text style={styles.väntarText}>Väntar på att personen svarar…</Text>
       )}
-    </View>
+    </Kort>
   );
 }
 
 const styles = StyleSheet.create({
-  kort: { backgroundColor: '#fff', borderRadius: 14, padding: 16, marginTop: 12, borderWidth: 1, borderColor: '#e0e7ff' },
+  kort: { marginTop: 12 },
   huvud: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 14 },
-  rubrik: { fontSize: 15, fontWeight: '700', color: '#1a1a1a', flex: 1 },
-  statusBricka: { borderRadius: 10, paddingHorizontal: 10, paddingVertical: 4 },
-  statusText: { fontSize: 12, fontWeight: '600' },
+  rubrik: { fontSize: 15, fontWeight: '700', color: FÄRG.text, flex: 1 },
+  statusBricka: { borderRadius: RADIE.sm, paddingHorizontal: 10, paddingVertical: 4 },
+  statusText: { fontSize: 12, fontWeight: '700' },
   rader: { gap: 8, marginBottom: 14 },
   rad: { flexDirection: 'row', justifyContent: 'space-between' },
-  etikett: { fontSize: 14, color: '#888' },
-  värde: { fontSize: 14, fontWeight: '500', color: '#1a1a1a' },
-  obSektion: { backgroundColor: '#fff7ed', borderRadius: 8, padding: 10, marginTop: 4, borderWidth: 1, borderColor: '#fed7aa' },
+  etikett: { fontSize: 14, color: FÄRG.textDämpad },
+  värde: { fontSize: 14, fontWeight: '600', color: FÄRG.text },
+  obSektion: { backgroundColor: FÄRG.varningMjuk, borderRadius: RADIE.sm, padding: 10, marginTop: 4, borderWidth: 1, borderColor: FÄRG.varningKant },
   obRubrik: { fontSize: 12, fontWeight: '700', color: '#9a3412', marginBottom: 4 },
   obIntervall: { fontSize: 13, color: '#7c2d12', paddingVertical: 1 },
   knappar: { flexDirection: 'row', gap: 10 },
-  avbojKnapp: { flex: 1, borderWidth: 1, borderColor: '#ef4444', borderRadius: 10, paddingVertical: 10, alignItems: 'center' },
-  avbojText: { color: '#ef4444', fontWeight: '600', fontSize: 14 },
-  accepteraKnapp: { flex: 1, backgroundColor: '#16a34a', borderRadius: 10, paddingVertical: 10, alignItems: 'center' },
-  accepteraText: { color: '#fff', fontWeight: '600', fontSize: 14 },
-  väntarText: { fontSize: 13, color: '#9ca3af', fontStyle: 'italic', textAlign: 'center' },
+  avbojKnapp: { flex: 1, borderWidth: 1.5, borderColor: FÄRG.fel, borderRadius: RADIE.sm, paddingVertical: 11, alignItems: 'center' },
+  avbojText: { color: FÄRG.fel, fontWeight: '700', fontSize: 14 },
+  accepteraKnapp: { flex: 1, backgroundColor: FÄRG.framgång, borderRadius: RADIE.sm, paddingVertical: 11, alignItems: 'center' },
+  accepteraText: { color: '#fff', fontWeight: '700', fontSize: 14 },
+  väntarText: { fontSize: 13, color: FÄRG.textSvag, fontStyle: 'italic', textAlign: 'center' },
 });

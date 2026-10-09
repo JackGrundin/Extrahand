@@ -187,10 +187,10 @@ export default function ChattListaScreen({ navigation }) {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f5f5f5' },
+  container: { flex: 1, backgroundColor: '#f8fafc' },
   sökRad: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: '#fff', marginHorizontal: 16, marginTop: 12, paddingHorizontal: 12, paddingVertical: 10, borderRadius: 10, borderWidth: 1, borderColor: '#e5e7eb' },
   sökInput: { flex: 1, fontSize: 15, color: '#1a1a1a', padding: 0, letterSpacing: 0 },
-  lista: { flex: 1, backgroundColor: '#f5f5f5' },
+  lista: { flex: 1, backgroundColor: '#f8fafc' },
   listaInnehåll: { padding: 16, paddingBottom: 32 },
 
   sektionHuvud: { flexDirection: 'row', alignItems: 'center', marginTop: 16, marginBottom: 8, paddingHorizontal: 2 },

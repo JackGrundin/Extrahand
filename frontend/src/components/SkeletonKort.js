@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { View, Animated, StyleSheet } from 'react-native';
+import { FÄRG, RADIE, SKUGGA } from '../utils/tema';
 
 // Skeleton-laddning: grå platshållarkort som antyder innehållet som är på väg, i stället
 // för en tom snurra mitt på skärmen. Renderas medan listdatan hämtas första gången.
@@ -52,14 +53,13 @@ export default function SkeletonLista({ antal = 6, style }) {
 }
 
 const styles = StyleSheet.create({
-  skelett: { backgroundColor: '#e5e7eb', borderRadius: 6 },
+  skelett: { backgroundColor: FÄRG.ytaDämpad, borderRadius: 6 },
   kort: {
-    backgroundColor: '#fff',
-    borderRadius: 12,
+    backgroundColor: FÄRG.yta,
+    borderRadius: RADIE.md,
     padding: 16,
     marginBottom: 12,
-    borderWidth: 1,
-    borderColor: '#f0f0f0',
+    ...SKUGGA.mjuk,
   },
   titel: { height: 18, width: '65%', marginBottom: 14 },
   rad: { height: 12, width: '90%', marginBottom: 8 },

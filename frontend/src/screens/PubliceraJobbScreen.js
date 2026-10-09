@@ -466,7 +466,7 @@ export default function PubliceraJobbScreen({ navigation }) {
                     onPress={() => { setKategori(k); rensaFel('kategori'); setKategoriModalVisas(false); setSokKategori(''); }}
                   >
                     <Text style={styles.kategoriRadText}>{k}</Text>
-                    {kategori === k && <Ionicons name="checkmark" size={20} color="#2563eb" accessible={false} importantForAccessibility="no" />}
+                    {kategori === k && <Ionicons name="checkmark" size={20} color="#1d4ed8" accessible={false} importantForAccessibility="no" />}
                   </TouchableOpacity>
                 ))
               )}
@@ -479,24 +479,24 @@ export default function PubliceraJobbScreen({ navigation }) {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#fff', padding: 20 },
+  container: { flex: 1, backgroundColor: '#f8fafc', padding: 20 },
   label: { fontSize: 14, fontWeight: '600', color: '#444', marginBottom: 6, marginTop: 16 },
 
   lägeVäljare: { flexDirection: 'row', gap: 8, marginTop: 12 },
-  lägeKnapp: { flex: 1, paddingVertical: 10, borderRadius: 10, alignItems: 'center', backgroundColor: '#f3f4f6' },
-  lägeKnappAktiv: { backgroundColor: '#2563eb' },
+  lägeKnapp: { flex: 1, paddingVertical: 10, borderRadius: 10, alignItems: 'center', backgroundColor: '#f1f5f9' },
+  lägeKnappAktiv: { backgroundColor: '#1d4ed8' },
   lägeText: { fontSize: 14, fontWeight: '600', color: '#6b7280' },
   lägeTextAktiv: { color: '#fff' },
-  input: { borderWidth: 1, borderColor: '#ddd', borderRadius: 10, padding: 14, fontSize: 15, backgroundColor: '#fafafa', letterSpacing: 0 },
+  input: { borderWidth: 1, borderColor: '#e2e8f0', borderRadius: 10, padding: 14, fontSize: 15, backgroundColor: '#f1f5f9', letterSpacing: 0 },
   textArea: { height: 120 },
 
-  väljarKnapp: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderWidth: 1, borderColor: '#ddd', borderRadius: 10, padding: 14, backgroundColor: '#fafafa' },
+  väljarKnapp: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderWidth: 1, borderColor: '#e2e8f0', borderRadius: 10, padding: 14, backgroundColor: '#f1f5f9' },
   väljarText: { fontSize: 15, color: '#1a1a1a' },
   väljarPlaceholder: { color: '#aaa' },
 
   typVäljare: { flexDirection: 'row', gap: 8, marginBottom: 8 },
-  typKnapp: { flex: 1, padding: 12, borderRadius: 10, borderWidth: 1, borderColor: '#ddd', alignItems: 'center' },
-  typKnappAktiv: { backgroundColor: '#2563eb', borderColor: '#2563eb' },
+  typKnapp: { flex: 1, padding: 12, borderRadius: 10, borderWidth: 1, borderColor: '#e2e8f0', alignItems: 'center' },
+  typKnappAktiv: { backgroundColor: '#1d4ed8', borderColor: '#1d4ed8' },
   typText: { color: '#555', fontWeight: '500', fontSize: 14 },
   typTextAktiv: { color: '#fff' },
 
@@ -506,10 +506,10 @@ const styles = StyleSheet.create({
   prisFet: { fontWeight: '700', color: '#0369a1' },
   prisFetBlå: { fontWeight: '700', color: '#1d4ed8' },
 
-  dagSektion: { marginTop: 12, borderWidth: 1, borderColor: '#e5e7eb', borderRadius: 12, padding: 14, backgroundColor: '#fafafa' },
+  dagSektion: { marginTop: 12, borderWidth: 1, borderColor: '#e5e7eb', borderRadius: 12, padding: 14, backgroundColor: '#f1f5f9' },
   kryssRad: { flexDirection: 'row', alignItems: 'center', marginBottom: 14 },
-  kryssRuta: { width: 20, height: 20, borderRadius: 5, borderWidth: 2, borderColor: '#2563eb', justifyContent: 'center', alignItems: 'center', marginRight: 10 },
-  kryssRutaAktiv: { backgroundColor: '#2563eb' },
+  kryssRuta: { width: 20, height: 20, borderRadius: 5, borderWidth: 2, borderColor: '#1d4ed8', justifyContent: 'center', alignItems: 'center', marginRight: 10 },
+  kryssRutaAktiv: { backgroundColor: '#1d4ed8' },
   kryssText: { fontSize: 14, color: '#374151', fontWeight: '500' },
   dagRad: { marginBottom: 12 },
   dagEtikett: { fontSize: 13, fontWeight: '700', color: '#6b7280', marginBottom: 6 },
@@ -517,16 +517,16 @@ const styles = StyleSheet.create({
   tidInput: { flex: 1, textAlign: 'center' },
   tidStreck: { fontSize: 16, color: '#9ca3af' },
 
-  knapp: { backgroundColor: '#2563eb', borderRadius: 12, padding: 16, alignItems: 'center', marginTop: 28, marginBottom: 40 },
+  knapp: { backgroundColor: '#1d4ed8', borderRadius: 12, padding: 16, alignItems: 'center', marginTop: 28, marginBottom: 40 },
   knappInaktiv: { backgroundColor: '#93c5fd' },
   knappText: { color: '#fff', fontWeight: '600', fontSize: 16 },
 
 
   backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)' },
   panel: { backgroundColor: '#fff', borderTopLeftRadius: 20, borderTopRightRadius: 20, paddingHorizontal: 20, paddingTop: 12, paddingBottom: 32, maxHeight: '80%' },
-  handtag: { width: 40, height: 4, backgroundColor: '#ddd', borderRadius: 2, alignSelf: 'center', marginBottom: 16 },
+  handtag: { width: 40, height: 4, backgroundColor: '#e2e8f0', borderRadius: 2, alignSelf: 'center', marginBottom: 16 },
   panelTitel: { fontSize: 18, fontWeight: '700', color: '#1a1a1a', textAlign: 'center', marginBottom: 14 },
-  sokInput: { borderWidth: 1, borderColor: '#ddd', borderRadius: 10, paddingHorizontal: 14, paddingVertical: 9, fontSize: 15, color: '#1a1a1a', backgroundColor: '#fafafa', marginBottom: 10 },
+  sokInput: { borderWidth: 1, borderColor: '#e2e8f0', borderRadius: 10, paddingHorizontal: 14, paddingVertical: 9, fontSize: 15, color: '#1a1a1a', backgroundColor: '#f1f5f9', marginBottom: 10 },
   kategoriRad: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: '#f0f0f0' },
   kategoriRadText: { fontSize: 16, color: '#1a1a1a' },
   ingaResultat: { fontSize: 15, color: '#999', textAlign: 'center', marginTop: 24 },

@@ -111,7 +111,7 @@ export default function MinaPassScreen({ navigation }) {
   const sektioner = grupperaPerMånad(aktivFlik === 'kommande' ? kommande : genomförda);
 
   return (
-    <View style={{ flex: 1, backgroundColor: '#f5f5f5' }}>
+    <View style={{ flex: 1, backgroundColor: '#f8fafc' }}>
       {refresh.LoggaOverlay}
       <View style={styles.flikar}>
         <TouchableOpacity

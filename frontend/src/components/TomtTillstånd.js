@@ -1,5 +1,6 @@
 import { View, Text, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { FÄRG } from '../utils/tema';
 
 // Delat tomt tillstånd för alla listor. Ersätter fyra ad hoc-stilar (tom, tomText,
 // ingaJobb …) som glidit isär i marginal och färg. En rubrik alltid, ikon och undertext
@@ -15,7 +16,7 @@ export default function TomtTillstånd({ ikon, rubrik, text, style }) {
         <Ionicons
           name={ikon}
           size={44}
-          color="#d1d5db"
+          color={FÄRG.kantStark}
           style={styles.ikon}
           accessible={false}
           importantForAccessibility="no"
@@ -30,6 +31,6 @@ export default function TomtTillstånd({ ikon, rubrik, text, style }) {
 const styles = StyleSheet.create({
   behållare: { alignItems: 'center', justifyContent: 'center', paddingVertical: 64, paddingHorizontal: 32 },
   ikon: { marginBottom: 14 },
-  rubrik: { fontSize: 16, fontWeight: '700', color: '#4b5563', textAlign: 'center' },
-  text: { fontSize: 14, color: '#9ca3af', textAlign: 'center', marginTop: 6, lineHeight: 20 },
+  rubrik: { fontSize: 16, fontWeight: '700', color: FÄRG.textDämpad, textAlign: 'center' },
+  text: { fontSize: 14, color: FÄRG.textSvag, textAlign: 'center', marginTop: 6, lineHeight: 20 },
 });

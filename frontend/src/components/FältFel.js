@@ -1,4 +1,5 @@
 import { Text, StyleSheet } from 'react-native';
+import { FÄRG } from '../utils/tema';
 
 // Röd felrad som visas under ett formulärfält. Renderar ingenting när text saknas,
 // så den kan ligga kvar villkorslöst i JSX: <FältFel text={fel.titel} />.
@@ -8,5 +9,5 @@ export default function FältFel({ text }) {
 }
 
 const styles = StyleSheet.create({
-  felText: { color: '#dc2626', fontSize: 13, marginTop: 6, fontWeight: '500' },
+  felText: { color: FÄRG.fel, fontSize: 13, marginTop: 6, fontWeight: '500' },
 });

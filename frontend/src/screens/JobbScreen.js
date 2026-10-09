@@ -9,10 +9,12 @@ import { parsaArbetstider, formatDagDatum, parsaObTillagg } from '../utils/datum
 import { normaliseraKrav } from '../utils/behorighet';
 import StadInput from '../components/StadInput';
 import RollBrickor from '../components/RollBrickor';
+import Kort from '../components/Kort';
 import { useLoggaRefresh } from '../components/LoggaRefresh';
 import SkeletonLista from '../components/SkeletonKort';
 import TomtTillstånd from '../components/TomtTillstånd';
 import { hämtaStäder, läggTillStad, lyssnaPåSökhistorik } from '../utils/sokhistorik';
+import { FÄRG, RADIE, STIL } from '../utils/tema';
 
 const SORTERING = ['Närmast datum', 'Nyast', 'Högst lön', 'Flest dagar'];
 
@@ -194,7 +196,7 @@ export default function JobbScreen({ navigation }) {
   );
 
   return (
-    <View style={{ flex: 1, backgroundColor: '#f5f5f5' }}>
+    <View style={{ flex: 1, backgroundColor: FÄRG.bakgrund }}>
       {refresh.LoggaOverlay}
       <View style={styles.lägeVäljare}>
         <TouchableOpacity
@@ -271,7 +273,7 @@ export default function JobbScreen({ navigation }) {
                       accessibilityLabel={t.etikett}
                       accessibilityState={{ checked: vald }}
                     >
-                      {vald && <Ionicons name="checkmark" size={13} color="#fff" accessible={false} importantForAccessibility="no" />}
+                      {vald && <Ionicons name="checkmark" size={13} color={FÄRG.primär} accessible={false} importantForAccessibility="no" />}
                       <Text style={[styles.typChipText, vald && styles.typChipTextAktiv]}>
                         {t.etikett}
                       </Text>
@@ -297,21 +299,18 @@ export default function JobbScreen({ navigation }) {
             )
           }
           renderItem={({ item }) => (
-            <TouchableOpacity
+            <Kort
               style={styles.kort}
               onPress={() => navigation.navigate('SchemaDetalj', { schemaId: item.id })}
-              activeOpacity={0.85}
             >
-              <View style={styles.kortTopp}>
-                <Text style={styles.titel} numberOfLines={1}>{item.foretagNamn ?? 'Okänt företag'}</Text>
-              </View>
-              <Text style={styles.jobbTitel} numberOfLines={1}>{item.titel}</Text>
+              <Text style={styles.foretag} numberOfLines={1}>{item.foretagNamn ?? 'Okänt företag'}</Text>
+              <Text style={styles.jobbTitel} numberOfLines={2}>{item.titel}</Text>
               {/* Ett schema har ingen egen kategori – rollerna sätts per pass. Visa de
                   vanligaste i stället (backend sorterar dem på frekvens). */}
-              <RollBrickor roller={item.kategorier} style={{ marginBottom: 6 }} />
+              <RollBrickor roller={item.kategorier} style={{ marginBottom: 10, marginTop: 2 }} />
 
               <View style={styles.datumRad}>
-                <Ionicons name="calendar" size={14} color="#2563eb" accessible={false} importantForAccessibility="no" />
+                <Ionicons name="calendar" size={14} color={FÄRG.primär} accessible={false} importantForAccessibility="no" />
                 <View style={styles.datumChip}>
                   <Text style={styles.datumChipText}>
                     {formatDagDatum(item.startdatum)} – {formatDagDatum(item.slutdatum)}
@@ -320,7 +319,10 @@ export default function JobbScreen({ navigation }) {
                 <Text style={styles.flerDatumText}>{item.antalPass} pass</Text>
               </View>
 
-              <Text style={styles.info}>{item.plats} · {schematypEtikett(item.typ)}</Text>
+              <View style={styles.platsRad}>
+                <Ionicons name="location-outline" size={14} color={FÄRG.textSvag} accessible={false} importantForAccessibility="no" />
+                <Text style={styles.info}>{item.plats} · {schematypEtikett(item.typ)}</Text>
+              </View>
               <View style={styles.extraRad}>
                 {item.timlon != null && (
                   <Text style={styles.lön}>{Number(item.timlon).toLocaleString('sv-SE')} kr/tim</Text>
@@ -330,7 +332,7 @@ export default function JobbScreen({ navigation }) {
                 )}
                 <KravBricka krav={item.behorighets_krav} />
               </View>
-            </TouchableOpacity>
+            </Kort>
           )}
         />
       ) : (
@@ -408,16 +410,20 @@ export default function JobbScreen({ navigation }) {
           const visaDatum = datum.slice(0, 3);
           const flerDatum = datum.length > 3 ? datum.length - 3 : 0;
           return (
-            <TouchableOpacity style={styles.kort} onPress={() => navigation.navigate('JobbDetalj', { jobb: item })}>
+            <Kort style={styles.kort} onPress={() => navigation.navigate('JobbDetalj', { jobb: item })}>
               <View style={styles.kortTopp}>
-                <Text style={styles.titel} numberOfLines={1}>{item.foretagNamn ?? 'Okänt företag'}</Text>
-                {item.Kategori && <Text style={styles.kategoriTag}>{item.Kategori}</Text>}
+                <Text style={styles.foretag} numberOfLines={1}>{item.foretagNamn ?? 'Okänt företag'}</Text>
+                {item.Kategori && (
+                  <View style={styles.kategoriTag}>
+                    <Text style={styles.kategoriTagText} numberOfLines={1}>{item.Kategori}</Text>
+                  </View>
+                )}
               </View>
-              <Text style={styles.jobbTitel} numberOfLines={1}>{item.Titel}</Text>
+              <Text style={styles.jobbTitel} numberOfLines={2}>{item.Titel}</Text>
 
               {datum.length > 0 && (
                 <View style={styles.datumRad}>
-                  <Ionicons name="calendar" size={14} color="#2563eb" accessible={false} importantForAccessibility="no" />
+                  <Ionicons name="calendar" size={14} color={FÄRG.primär} accessible={false} importantForAccessibility="no" />
                   {visaDatum.map((d, i) => (
                     <View key={i} style={styles.datumChip}>
                       <Text style={styles.datumChipText}>{formatDagDatum(d)}</Text>
@@ -429,7 +435,10 @@ export default function JobbScreen({ navigation }) {
                 </View>
               )}
 
-              <Text style={styles.info}>{item.Plats} · {item.Typ}</Text>
+              <View style={styles.platsRad}>
+                <Ionicons name="location-outline" size={14} color={FÄRG.textSvag} accessible={false} importantForAccessibility="no" />
+                <Text style={styles.info}>{item.Plats} · {item.Typ}</Text>
+              </View>
               <View style={styles.extraRad}>
                 {item.Lon && <Text style={styles.lön}>{item.Lon.toLocaleString('sv-SE')} kr/tim</Text>}
                 {parsaObTillagg(item.ob_tillagg).length > 0 && (
@@ -438,7 +447,7 @@ export default function JobbScreen({ navigation }) {
                 <KravBricka krav={item.behorighets_krav} />
                 {item.antal_dagar != null && <Text style={styles.extraInfo}>{item.antal_dagar} dagar</Text>}
               </View>
-            </TouchableOpacity>
+            </Kort>
           );
         }}
       />
@@ -582,83 +591,85 @@ export default function JobbScreen({ navigation }) {
 }
 
 const styles = StyleSheet.create({
-  lägeVäljare: { flexDirection: 'row', gap: 8, backgroundColor: '#fff', paddingHorizontal: 16, paddingTop: 12, paddingBottom: 4 },
-  lägeKnapp: { flex: 1, paddingVertical: 8, borderRadius: 10, alignItems: 'center', backgroundColor: '#f3f4f6' },
-  lägeKnappAktiv: { backgroundColor: '#2563eb' },
-  lägeText: { fontSize: 14, fontWeight: '600', color: '#6b7280' },
+  lägeVäljare: { flexDirection: 'row', gap: 8, backgroundColor: FÄRG.yta, paddingHorizontal: 16, paddingTop: 12, paddingBottom: 8 },
+  lägeKnapp: { flex: 1, paddingVertical: 10, borderRadius: RADIE.sm, alignItems: 'center', backgroundColor: FÄRG.ytaDämpad },
+  lägeKnappAktiv: { backgroundColor: FÄRG.primär },
+  lägeText: { fontSize: 14, fontWeight: '700', color: FÄRG.textDämpad },
   lägeTextAktiv: { color: '#fff' },
   schemaHeader: { flexDirection: 'row', marginBottom: 12, zIndex: 30 },
   typChipRad: { flexDirection: 'row', gap: 8, paddingBottom: 12, paddingRight: 4 },
-  typChip: { flexDirection: 'row', alignItems: 'center', gap: 5, borderWidth: 1.5, borderColor: '#ddd', borderRadius: 20, paddingHorizontal: 14, paddingVertical: 8, backgroundColor: '#fff' },
-  typChipAktiv: { backgroundColor: '#2563eb', borderColor: '#2563eb' },
-  typChipText: { fontSize: 13, color: '#444', fontWeight: '600' },
-  typChipTextAktiv: { color: '#fff' },
+  typChip: { flexDirection: 'row', alignItems: 'center', gap: 5, borderWidth: 1.5, borderColor: FÄRG.kant, borderRadius: RADIE.pill, paddingHorizontal: 14, paddingVertical: 8, backgroundColor: FÄRG.yta },
+  typChipAktiv: { backgroundColor: FÄRG.primärMjuk, borderColor: FÄRG.primär },
+  typChipText: { fontSize: 13, color: FÄRG.textDämpad, fontWeight: '600' },
+  typChipTextAktiv: { color: FÄRG.primär },
 
-  headerContainer: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: '#fff', paddingHorizontal: 16, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: '#eee', zIndex: 30 },
+  headerContainer: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: FÄRG.yta, paddingHorizontal: 16, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: FÄRG.kant, zIndex: 30 },
   stadInputWrapper: { flex: 1, zIndex: 30 },
-  stadInput: { borderWidth: 1, borderColor: '#ddd', borderRadius: 10, paddingHorizontal: 14, paddingVertical: 9, fontSize: 15, backgroundColor: '#fafafa', color: '#1a1a1a', letterSpacing: 0 },
-  filterKnapp: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 12, paddingVertical: 9, borderRadius: 10, borderWidth: 1, borderColor: '#2563eb', backgroundColor: '#eff6ff' },
-  filterKnappText: { fontSize: 14, fontWeight: '600', color: '#2563eb' },
-  badge: { backgroundColor: '#2563eb', borderRadius: 10, minWidth: 18, height: 18, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 4 },
+  stadInput: { borderWidth: 1, borderColor: FÄRG.kant, borderRadius: RADIE.sm, paddingHorizontal: 14, paddingVertical: 11, fontSize: 15, backgroundColor: FÄRG.ytaDämpad, color: FÄRG.text, letterSpacing: 0 },
+  filterKnapp: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 14, paddingVertical: 11, borderRadius: RADIE.sm, borderWidth: 1, borderColor: FÄRG.primärKant, backgroundColor: FÄRG.primärMjuk },
+  filterKnappText: { fontSize: 14, fontWeight: '700', color: FÄRG.primär },
+  badge: { backgroundColor: FÄRG.primär, borderRadius: 10, minWidth: 18, height: 18, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 4 },
   badgeText: { fontSize: 11, fontWeight: '700', color: '#fff' },
 
-  historikRad: { backgroundColor: '#fff', paddingHorizontal: 16, paddingBottom: 12, borderBottomWidth: 1, borderBottomColor: '#eee' },
-  historikRubrik: { fontSize: 12, fontWeight: '700', color: '#9ca3af', textTransform: 'uppercase', letterSpacing: 0.4, marginBottom: 8 },
+  historikRad: { backgroundColor: FÄRG.yta, paddingHorizontal: 16, paddingBottom: 12, paddingTop: 2, borderBottomWidth: 1, borderBottomColor: FÄRG.kant },
+  historikRubrik: { fontSize: 12, fontWeight: '700', color: FÄRG.textSvag, textTransform: 'uppercase', letterSpacing: 0.4, marginBottom: 8 },
   historikChips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  historikChip: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: '#f3f4f6', borderRadius: 16, paddingHorizontal: 12, paddingVertical: 7 },
-  historikChipText: { fontSize: 13, color: '#374151', fontWeight: '600' },
+  historikChip: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: FÄRG.ytaDämpad, borderRadius: RADIE.pill, paddingHorizontal: 12, paddingVertical: 7 },
+  historikChipText: { fontSize: 13, color: FÄRG.textDämpad, fontWeight: '600' },
 
-  lista: { padding: 16 },
-  kort: { backgroundColor: '#fff', borderRadius: 12, padding: 16, marginBottom: 12, shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 4, elevation: 2 },
-  kortTopp: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 },
-  titel: { fontSize: 17, fontWeight: '600', color: '#1a1a1a', flex: 1 },
-  jobbTitel: { fontSize: 14, color: '#555', marginBottom: 4 },
-  kategoriTag: { fontSize: 12, color: '#2563eb', backgroundColor: '#eff6ff', borderRadius: 10, paddingHorizontal: 8, paddingVertical: 3, marginLeft: 8 },
-  info: { fontSize: 14, color: '#666', marginBottom: 4 },
-  lön: { fontSize: 14, color: '#2563eb', fontWeight: '500' },
-  datumRad: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 6, marginBottom: 8, marginTop: 6 },
-  datumChip: { backgroundColor: '#eff6ff', borderRadius: 8, paddingHorizontal: 8, paddingVertical: 4, borderWidth: 1, borderColor: '#bfdbfe' },
-  datumChipText: { fontSize: 13, fontWeight: '700', color: '#2563eb' },
-  flerDatumText: { fontSize: 13, color: '#6b7280', fontWeight: '500' },
-  extraRad: { flexDirection: 'row', gap: 12, marginTop: 4, alignItems: 'center' },
-  extraInfo: { fontSize: 13, color: '#888' },
-  obBadge: { backgroundColor: '#fff7ed', borderRadius: 6, paddingHorizontal: 6, paddingVertical: 2, borderWidth: 1, borderColor: '#fed7aa' },
-  kravBadge: { flexDirection: 'row', alignItems: 'center', gap: 3, backgroundColor: '#fffbeb', borderRadius: 6, paddingHorizontal: 6, paddingVertical: 2, borderWidth: 1, borderColor: '#fde68a' },
-  kravBadgeText: { fontSize: 11, color: '#b45309', fontWeight: '700' },
-  obBadgeText: { fontSize: 11, fontWeight: '700', color: '#ea580c' },
-  tom: { textAlign: 'center', color: '#999', marginTop: 60, fontSize: 16 },
+  lista: { padding: 16, backgroundColor: FÄRG.bakgrund },
+  kort: { marginBottom: 12 },
+  kortTopp: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
+  foretag: { fontSize: 13, fontWeight: '600', color: FÄRG.textDämpad, flex: 1 },
+  jobbTitel: { fontSize: 17, fontWeight: '700', color: FÄRG.text, marginTop: 2, marginBottom: 10 },
+  kategoriTag: { backgroundColor: FÄRG.primärMjuk, borderRadius: RADIE.pill, paddingHorizontal: 10, paddingVertical: 4, maxWidth: 150 },
+  kategoriTagText: { fontSize: 12, color: FÄRG.primär, fontWeight: '700' },
+  platsRad: { flexDirection: 'row', alignItems: 'center', gap: 5, marginBottom: 10 },
+  info: { fontSize: 14, color: FÄRG.textDämpad, flex: 1 },
+  lön: { fontSize: 16, color: FÄRG.primär, fontWeight: '800' },
+  datumRad: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 6, marginBottom: 10 },
+  datumChip: { backgroundColor: FÄRG.primärMjuk, borderRadius: RADIE.sm, paddingHorizontal: 9, paddingVertical: 4, borderWidth: 1, borderColor: FÄRG.primärKant },
+  datumChipText: { fontSize: 13, fontWeight: '700', color: FÄRG.primär },
+  flerDatumText: { fontSize: 13, color: FÄRG.textDämpad, fontWeight: '600' },
+  extraRad: { flexDirection: 'row', gap: 10, alignItems: 'center', flexWrap: 'wrap' },
+  extraInfo: { fontSize: 13, color: FÄRG.textSvag, fontWeight: '500' },
+  obBadge: { backgroundColor: FÄRG.varningMjuk, borderRadius: RADIE.sm, paddingHorizontal: 8, paddingVertical: 3, borderWidth: 1, borderColor: FÄRG.varningKant },
+  kravBadge: { flexDirection: 'row', alignItems: 'center', gap: 3, backgroundColor: '#fffbeb', borderRadius: RADIE.sm, paddingHorizontal: 8, paddingVertical: 3, borderWidth: 1, borderColor: '#fde68a' },
+  kravBadgeText: { fontSize: 11, color: FÄRG.varningText, fontWeight: '700' },
+  obBadgeText: { fontSize: 11, fontWeight: '700', color: FÄRG.varning },
+  tom: { textAlign: 'center', color: FÄRG.textSvag, marginTop: 60, fontSize: 16 },
 
-  modalBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)' },
-  modalPanel: { backgroundColor: '#fff', borderTopLeftRadius: 20, borderTopRightRadius: 20, paddingHorizontal: 20, paddingTop: 12, paddingBottom: 32, maxHeight: '85%' },
-  modalHandtag: { width: 40, height: 4, backgroundColor: '#ddd', borderRadius: 2, alignSelf: 'center', marginBottom: 16 },
-  modalTitel: { fontSize: 18, fontWeight: '700', color: '#1a1a1a', textAlign: 'center', marginBottom: 20 },
+  modalBackdrop: { flex: 1, backgroundColor: 'rgba(15,23,42,0.45)' },
+  modalPanel: { backgroundColor: FÄRG.yta, borderTopLeftRadius: 24, borderTopRightRadius: 24, paddingHorizontal: 20, paddingTop: 12, paddingBottom: 32, maxHeight: '85%' },
+  modalHandtag: { width: 40, height: 4, backgroundColor: FÄRG.kantStark, borderRadius: 2, alignSelf: 'center', marginBottom: 16 },
+  modalTitel: { fontSize: 18, fontWeight: '700', color: FÄRG.text, textAlign: 'center', marginBottom: 20 },
 
-  kategoriRad: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 16, borderBottomWidth: 1, borderBottomColor: '#f0f0f0' },
-  kategoriRadText: { fontSize: 16, color: '#1a1a1a' },
+  kategoriRad: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 16, borderBottomWidth: 1, borderBottomColor: FÄRG.kant },
+  kategoriRadText: { fontSize: 16, color: FÄRG.text },
   kategoriRadHöger: { flexDirection: 'row', alignItems: 'center', gap: 6, flex: 1, justifyContent: 'flex-end' },
-  kategoriRadVärde: { fontSize: 14, color: '#2563eb', maxWidth: 140 },
+  kategoriRadVärde: { fontSize: 14, color: FÄRG.primär, maxWidth: 140 },
 
   tillbakaKnapp: { flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: 14 },
-  tillbakaText: { fontSize: 17, fontWeight: '600', color: '#2563eb' },
+  tillbakaText: { fontSize: 17, fontWeight: '600', color: FÄRG.primär },
 
-  sokInput: { borderWidth: 1, borderColor: '#ddd', borderRadius: 10, paddingHorizontal: 14, paddingVertical: 9, fontSize: 15, color: '#1a1a1a', backgroundColor: '#fafafa', marginBottom: 10, letterSpacing: 0 },
+  sokInput: { ...STIL.input, paddingVertical: 11, marginBottom: 10, letterSpacing: 0 },
 
-  filterVal: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: '#f0f0f0' },
-  filterValText: { fontSize: 16, color: '#1a1a1a' },
-  checkbox: { width: 22, height: 22, borderRadius: 6, borderWidth: 2, borderColor: '#d1d5db', alignItems: 'center', justifyContent: 'center' },
-  checkboxAktiv: { backgroundColor: '#2563eb', borderColor: '#2563eb' },
+  filterVal: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: FÄRG.kant },
+  filterValText: { fontSize: 16, color: FÄRG.text },
+  checkbox: { width: 22, height: 22, borderRadius: 6, borderWidth: 2, borderColor: FÄRG.kantStark, alignItems: 'center', justifyContent: 'center' },
+  checkboxAktiv: { backgroundColor: FÄRG.primär, borderColor: FÄRG.primär },
 
   rensaKnapp: { paddingVertical: 10, marginBottom: 4 },
-  rensaText: { fontSize: 14, color: '#ef4444', fontWeight: '600' },
-  ingaResultat: { fontSize: 15, color: '#999', textAlign: 'center', marginTop: 24 },
+  rensaText: { fontSize: 14, color: FÄRG.fel, fontWeight: '600' },
+  ingaResultat: { fontSize: 15, color: FÄRG.textSvag, textAlign: 'center', marginTop: 24 },
 
-  inputEtikett: { fontSize: 14, fontWeight: '600', color: '#374151', marginBottom: 6, marginTop: 12 },
-  modalInput: { borderWidth: 1, borderColor: '#ddd', borderRadius: 10, paddingHorizontal: 14, paddingVertical: 10, fontSize: 15, backgroundColor: '#fafafa', marginBottom: 4, letterSpacing: 0 },
+  inputEtikett: { fontSize: 14, fontWeight: '600', color: FÄRG.textDämpad, marginBottom: 6, marginTop: 12 },
+  modalInput: { ...STIL.input, paddingVertical: 11, marginBottom: 4, letterSpacing: 0 },
 
   modalKnappar: { flexDirection: 'row', gap: 12, marginTop: 20 },
-  återställKnapp: { flex: 1, paddingVertical: 13, borderRadius: 12, borderWidth: 1, borderColor: '#d1d5db', alignItems: 'center' },
-  återställText: { fontSize: 15, fontWeight: '600', color: '#374151' },
-  visaKnapp: { flex: 2, paddingVertical: 13, borderRadius: 12, backgroundColor: '#2563eb', alignItems: 'center' },
-  väljKnapp: { paddingVertical: 14, borderRadius: 12, backgroundColor: '#2563eb', alignItems: 'center', marginTop: 16 },
-  visaText: { fontSize: 15, fontWeight: '600', color: '#fff' },
+  återställKnapp: { flex: 1, paddingVertical: 14, borderRadius: RADIE.sm, borderWidth: 1.5, borderColor: FÄRG.kant, alignItems: 'center' },
+  återställText: { fontSize: 15, fontWeight: '700', color: FÄRG.textDämpad },
+  visaKnapp: { flex: 2, paddingVertical: 14, borderRadius: RADIE.sm, backgroundColor: FÄRG.primär, alignItems: 'center' },
+  väljKnapp: { paddingVertical: 15, borderRadius: RADIE.sm, backgroundColor: FÄRG.primär, alignItems: 'center', marginTop: 16 },
+  visaText: { fontSize: 15, fontWeight: '700', color: '#fff' },
 });

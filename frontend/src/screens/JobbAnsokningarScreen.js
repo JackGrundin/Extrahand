@@ -275,7 +275,7 @@ export default function JobbAnsokningarScreen({ route, navigation }) {
 }
 
 const styles = StyleSheet.create({
-  lista: { flex: 1, backgroundColor: '#f5f5f5', padding: 16 },
+  lista: { flex: 1, backgroundColor: '#f8fafc', padding: 16 },
   kort: { backgroundColor: '#fff', borderRadius: 12, padding: 16, marginBottom: 12, shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 4, elevation: 2 },
   kortHuvud: { flexDirection: 'row', alignItems: 'center', marginBottom: 10 },
   avatar: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#eff6ff', justifyContent: 'center', alignItems: 'center', marginRight: 12 },

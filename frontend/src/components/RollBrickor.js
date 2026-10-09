@@ -1,5 +1,6 @@
 import { View, Text, StyleSheet } from 'react-native';
 import { rollFärg } from '../utils/konstanter';
+import { FÄRG } from '../utils/tema';
 
 // Rollerna i ett schema som färgade brickor. Färgen kommer från rollFärg, samma som
 // kalenderns prickar och förklaringsrad använder, så att ett schemakort och kalendern går
@@ -42,7 +43,7 @@ const styles = StyleSheet.create({
   bricka: { flexDirection: 'row', alignItems: 'center', gap: 4, borderRadius: 7, borderWidth: 1, paddingHorizontal: 7, paddingVertical: 3, maxWidth: 130 },
   prick: { width: 5, height: 5, borderRadius: 3 },
   text: { fontSize: 11, fontWeight: '700', flexShrink: 1 },
-  fler: { fontSize: 11, color: '#9ca3af', fontWeight: '600' },
-  schemaBricka: { backgroundColor: '#eff6ff', borderRadius: 7, borderWidth: 1, borderColor: '#bfdbfe', paddingHorizontal: 7, paddingVertical: 3 },
-  schemaText: { fontSize: 11, fontWeight: '700', color: '#2563eb' },
+  fler: { fontSize: 11, color: FÄRG.textSvag, fontWeight: '600' },
+  schemaBricka: { backgroundColor: FÄRG.primärMjuk, borderRadius: 7, borderWidth: 1, borderColor: FÄRG.primärKant, paddingHorizontal: 7, paddingVertical: 3 },
+  schemaText: { fontSize: 11, fontWeight: '700', color: FÄRG.primär },
 });

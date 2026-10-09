@@ -205,7 +205,7 @@ export default function MinaAnsokningarScreen({ navigation }) {
 }
 
 const styles = StyleSheet.create({
-  lista: { flex: 1, backgroundColor: '#f5f5f5', padding: 16 },
+  lista: { flex: 1, backgroundColor: '#f8fafc', padding: 16 },
   kort: { backgroundColor: '#fff', borderRadius: 12, padding: 16, marginBottom: 12, shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 4, elevation: 2 },
   kortHuvud: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 6 },
   jobbTitel: { fontSize: 15, fontWeight: '600', color: '#1a1a1a' },

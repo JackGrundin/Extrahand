@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { api } from '../api/klient';
+import { FÄRG, RADIE, STIL } from '../utils/tema';
 
 // Adressfält med sökförslag från /api/adress/sok (Nominatim via backend-proxy).
 //
@@ -33,6 +34,7 @@ export default function AdressInput({
   const [förslag, setFörslag] = useState([]);
   const [öppen, setÖppen] = useState(false);
   const [laddar, setLaddar] = useState(false);
+  const [fokuserad, setFokuserad] = useState(false);
 
   // Räknare i stället för att jämföra söksträngar: bara det senaste anropet får skriva
   // förslagen. Utan detta kan ett långsamt svar på "Stor" landa efter ett snabbare på
@@ -92,19 +94,22 @@ export default function AdressInput({
     <View style={[styles.wrapper, containerStyle]}>
       <View>
         <TextInput
-          style={[styles.input, fel && styles.inputFel, inputStyle]}
+          style={[styles.input, fokuserad && styles.inputFokus, fel && styles.inputFel, inputStyle]}
           placeholder={placeholder}
+          placeholderTextColor={FÄRG.textSvag}
           value={värde}
           onChangeText={onÄndra}
+          onFocus={() => setFokuserad(true)}
+          onBlur={() => setFokuserad(false)}
           autoCorrect={false}
         />
-        {laddar && <ActivityIndicator size="small" color="#2563eb" style={styles.spinner} />}
+        {laddar && <ActivityIndicator size="small" color={FÄRG.primär} style={styles.spinner} />}
       </View>
 
       {öppen && förslag.length > 0 && (
         <View style={[styles.dropdown, absolutLista && styles.dropdownAbsolut]}>
           <View style={styles.dropdownHeader}>
-            <Ionicons name="navigate" size={13} color="#2563eb" style={{ marginRight: 6 }} accessible={false} importantForAccessibility="no" />
+            <Ionicons name="navigate" size={13} color={FÄRG.primär} style={{ marginRight: 6 }} accessible={false} importantForAccessibility="no" />
             <Text style={styles.dropdownHeaderText}>Välj adress eller skriv fritt</Text>
           </View>
           {förslag.map((f, i) => (
@@ -116,7 +121,7 @@ export default function AdressInput({
               accessibilityRole="button"
               accessibilityLabel={`Välj adress: ${f.etikett}`}
             >
-              <Ionicons name="location-outline" size={16} color="#2563eb" style={{ marginRight: 10 }} accessible={false} importantForAccessibility="no" />
+              <Ionicons name="location-outline" size={16} color={FÄRG.primär} style={{ marginRight: 10 }} accessible={false} importantForAccessibility="no" />
               <Text style={styles.radText} numberOfLines={2}>{f.etikett}</Text>
             </TouchableOpacity>
           ))}
@@ -128,14 +133,15 @@ export default function AdressInput({
 
 const styles = StyleSheet.create({
   wrapper: { position: 'relative', zIndex: 9 },
-  input: { borderWidth: 1, borderColor: '#ddd', borderRadius: 10, padding: 14, fontSize: 15, backgroundColor: '#fafafa' },
-  inputFel: { borderColor: '#dc2626', borderWidth: 1.5, backgroundColor: '#fef2f2' },
+  input: STIL.input,
+  inputFokus: STIL.inputFokus,
+  inputFel: STIL.inputFel,
   spinner: { position: 'absolute', right: 14, top: 0, bottom: 0 },
   dropdown: {
     borderWidth: 1.5,
-    borderColor: '#2563eb',
-    borderRadius: 12,
-    backgroundColor: '#fff',
+    borderColor: FÄRG.primär,
+    borderRadius: RADIE.md,
+    backgroundColor: FÄRG.yta,
     marginTop: 6,
     overflow: 'hidden',
     shadowColor: '#1e3a8a',
@@ -145,9 +151,9 @@ const styles = StyleSheet.create({
     elevation: 12,
   },
   dropdownAbsolut: { position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 29 },
-  dropdownHeader: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, paddingVertical: 9, backgroundColor: '#eff6ff', borderBottomWidth: 1, borderBottomColor: '#dbeafe' },
-  dropdownHeaderText: { fontSize: 12, fontWeight: '700', color: '#2563eb', textTransform: 'uppercase', letterSpacing: 0.4 },
+  dropdownHeader: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, paddingVertical: 9, backgroundColor: FÄRG.primärMjuk, borderBottomWidth: 1, borderBottomColor: FÄRG.primärKant },
+  dropdownHeaderText: { fontSize: 12, fontWeight: '700', color: FÄRG.primär, textTransform: 'uppercase', letterSpacing: 0.4 },
   rad: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, paddingVertical: 13, borderBottomWidth: 1, borderBottomColor: '#f1f5f9' },
   radSista: { borderBottomWidth: 0 },
-  radText: { flex: 1, fontSize: 15, color: '#1a1a1a' },
+  radText: { flex: 1, fontSize: 15, color: FÄRG.text },
 });

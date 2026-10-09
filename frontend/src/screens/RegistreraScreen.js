@@ -1,7 +1,9 @@
 import { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, ActivityIndicator, ScrollView, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, ScrollView, KeyboardAvoidingView, Platform } from 'react-native';
 import { useAuth } from '../context/AuthContext';
 import { felText } from '../api/klient';
+import Knapp from '../components/Knapp';
+import { FÄRG, TEXT, STIL, RADIE } from '../utils/tema';
 
 export default function RegistreraScreen({ navigation }) {
   const { registrera } = useAuth();
@@ -215,11 +217,9 @@ export default function RegistreraScreen({ navigation }) {
           </Text>.
         </Text>
 
-        <TouchableOpacity style={styles.knapp} onPress={hanteraRegistrering} disabled={laddar}>
-          {laddar ? <ActivityIndicator color="#fff" /> : <Text style={styles.knappText}>Skapa konto</Text>}
-        </TouchableOpacity>
+        <Knapp text="Skapa konto" onPress={hanteraRegistrering} laddar={laddar} style={styles.knapp} />
 
-        <TouchableOpacity onPress={() => navigation.goBack()}>
+        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.länkKnapp}>
           <Text style={styles.länk}>Har du redan ett konto? Logga in</Text>
         </TouchableOpacity>
       </ScrollView>
@@ -228,24 +228,24 @@ export default function RegistreraScreen({ navigation }) {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#fff' },
+  container: { flex: 1, backgroundColor: FÄRG.bakgrund },
   innehåll: { padding: 24, paddingBottom: 48 },
-  rubrik: { fontSize: 28, fontWeight: 'bold', textAlign: 'center', marginBottom: 28, color: '#1a1a1a' },
-  input: { borderWidth: 1, borderColor: '#ddd', borderRadius: 10, padding: 14, marginBottom: 12, fontSize: 16, backgroundColor: '#fafafa', letterSpacing: 0 },
+  rubrik: { ...TEXT.rubrikXL, textAlign: 'center', marginBottom: 28, color: FÄRG.text },
+  input: { ...STIL.input, fontSize: 16, marginBottom: 12, letterSpacing: 0 },
   textArea: { height: 110, textAlignVertical: 'top' },
   rad: { flexDirection: 'row', gap: 10 },
   radFältLitet: { flex: 2 },
   radFältStort: { flex: 3 },
-  label: { fontSize: 15, color: '#444', marginBottom: 8 },
-  sektionsRubrik: { fontSize: 15, fontWeight: '600', color: '#1a1a1a', marginBottom: 10, marginTop: 4 },
+  label: { fontSize: 15, color: FÄRG.textDämpad, marginBottom: 8, fontWeight: '600' },
+  sektionsRubrik: { fontSize: 15, fontWeight: '700', color: FÄRG.text, marginBottom: 10, marginTop: 4 },
   typVäljare: { flexDirection: 'row', gap: 10, marginBottom: 20 },
-  typKnapp: { flex: 1, padding: 12, borderRadius: 10, borderWidth: 1, borderColor: '#ddd', alignItems: 'center' },
-  typKnappAktiv: { backgroundColor: '#2563eb', borderColor: '#2563eb' },
-  typText: { color: '#444', fontWeight: '500' },
-  typTextAktiv: { color: '#fff' },
-  knapp: { backgroundColor: '#2563eb', borderRadius: 10, padding: 16, alignItems: 'center', marginBottom: 16, marginTop: 8 },
-  knappText: { color: '#fff', fontWeight: '600', fontSize: 16 },
-  länk: { textAlign: 'center', color: '#2563eb', fontSize: 15 },
-  policyText: { fontSize: 13, color: '#666', textAlign: 'center', lineHeight: 20, marginBottom: 12 },
-  policyLänk: { color: '#2563eb', fontWeight: '600', textDecorationLine: 'underline' },
+  typKnapp: { flex: 1, padding: 13, borderRadius: RADIE.sm, borderWidth: 1.5, borderColor: FÄRG.kant, alignItems: 'center', backgroundColor: FÄRG.yta },
+  typKnappAktiv: { backgroundColor: FÄRG.primärMjuk, borderColor: FÄRG.primär },
+  typText: { color: FÄRG.textDämpad, fontWeight: '600' },
+  typTextAktiv: { color: FÄRG.primär },
+  knapp: { marginBottom: 16, marginTop: 8 },
+  länkKnapp: { paddingVertical: 4 },
+  länk: { textAlign: 'center', color: FÄRG.primär, fontSize: 15, fontWeight: '600' },
+  policyText: { fontSize: 13, color: FÄRG.textDämpad, textAlign: 'center', lineHeight: 20, marginBottom: 12 },
+  policyLänk: { color: FÄRG.primär, fontWeight: '600', textDecorationLine: 'underline' },
 });

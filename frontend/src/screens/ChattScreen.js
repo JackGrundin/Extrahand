@@ -548,7 +548,7 @@ export default function ChattScreen({ route, navigation }) {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f5f5f5' },
+  container: { flex: 1, backgroundColor: '#f8fafc' },
   passStrip: { backgroundColor: '#fff', paddingHorizontal: 16, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: '#e5e7eb' },
   passTitel: { fontSize: 13, fontWeight: '700', color: '#2563eb', marginBottom: 6 },
   datumRad: { flexDirection: 'row' },

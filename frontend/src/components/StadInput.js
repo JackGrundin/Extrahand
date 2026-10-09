@@ -3,6 +3,7 @@ import { View, Text, TextInput, TouchableOpacity, StyleSheet } from 'react-nativ
 import { Ionicons } from '@expo/vector-icons';
 import { SVENSKA_ORTER } from '../utils/svenskaOrter';
 import { normalisera } from '../utils/konstanter';
+import { FÄRG, RADIE, STIL } from '../utils/tema';
 
 // Kontrollerar om ett värde är en giltig stad vald från listan
 export function ärGiltigStad(värde) {
@@ -29,6 +30,7 @@ export default function StadInput({
 }) {
   const [förslag, setFörslag] = useState([]);
   const [öppen, setÖppen] = useState(false);
+  const [fokuserad, setFokuserad] = useState(false);
 
   // Filtrerar fram matchande orter när användaren skriver. Jämförelsen är
   // diakritokänslig via normalisera(), samma hjälpare som kategorisökningen använder:
@@ -62,17 +64,20 @@ export default function StadInput({
   return (
     <View style={[styles.wrapper, containerStyle]}>
       <TextInput
-        style={[styles.input, fel && styles.inputFel, inputStyle]}
+        style={[styles.input, fokuserad && styles.inputFokus, fel && styles.inputFel, inputStyle]}
         placeholder={placeholder}
+        placeholderTextColor={FÄRG.textSvag}
         value={värde}
         onChangeText={hanteraInput}
+        onFocus={() => setFokuserad(true)}
+        onBlur={() => setFokuserad(false)}
         autoCorrect={false}
         autoCapitalize={autoCapitalize}
       />
       {öppen && förslag.length > 0 && (
         <View style={[styles.dropdown, absolutLista && styles.dropdownAbsolut]}>
           <View style={styles.dropdownHeader}>
-            <Ionicons name="location" size={13} color="#2563eb" style={{ marginRight: 6 }} accessible={false} importantForAccessibility="no" />
+            <Ionicons name="location" size={13} color={FÄRG.primär} style={{ marginRight: 6 }} accessible={false} importantForAccessibility="no" />
             <Text style={styles.dropdownHeaderText}>Välj en stad från listan</Text>
           </View>
           {förslag.map((ort, i) => (
@@ -84,7 +89,7 @@ export default function StadInput({
               accessibilityRole="button"
               accessibilityLabel={`Välj stad: ${ort}`}
             >
-              <Ionicons name="location-outline" size={16} color="#2563eb" style={{ marginRight: 10 }} accessible={false} importantForAccessibility="no" />
+              <Ionicons name="location-outline" size={16} color={FÄRG.primär} style={{ marginRight: 10 }} accessible={false} importantForAccessibility="no" />
               <Text style={styles.radText}>{ort}</Text>
             </TouchableOpacity>
           ))}
@@ -96,13 +101,14 @@ export default function StadInput({
 
 const styles = StyleSheet.create({
   wrapper: { position: 'relative', zIndex: 10 },
-  input: { borderWidth: 1, borderColor: '#ddd', borderRadius: 10, padding: 14, fontSize: 15, backgroundColor: '#fafafa', letterSpacing: 0 },
-  inputFel: { borderColor: '#dc2626', borderWidth: 1.5, backgroundColor: '#fef2f2' },
+  input: { ...STIL.input, letterSpacing: 0 },
+  inputFokus: STIL.inputFokus,
+  inputFel: STIL.inputFel,
   dropdown: {
     borderWidth: 1.5,
-    borderColor: '#2563eb',
-    borderRadius: 12,
-    backgroundColor: '#fff',
+    borderColor: FÄRG.primär,
+    borderRadius: RADIE.md,
+    backgroundColor: FÄRG.yta,
     marginTop: 6,
     overflow: 'hidden',
     shadowColor: '#1e3a8a',
@@ -112,9 +118,9 @@ const styles = StyleSheet.create({
     elevation: 12,
   },
   dropdownAbsolut: { position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 30 },
-  dropdownHeader: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, paddingVertical: 9, backgroundColor: '#eff6ff', borderBottomWidth: 1, borderBottomColor: '#dbeafe' },
-  dropdownHeaderText: { fontSize: 12, fontWeight: '700', color: '#2563eb', textTransform: 'uppercase', letterSpacing: 0.4 },
-  rad: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: '#eef2f7', backgroundColor: '#fff' },
+  dropdownHeader: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, paddingVertical: 9, backgroundColor: FÄRG.primärMjuk, borderBottomWidth: 1, borderBottomColor: FÄRG.primärKant },
+  dropdownHeaderText: { fontSize: 12, fontWeight: '700', color: FÄRG.primär, textTransform: 'uppercase', letterSpacing: 0.4 },
+  rad: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: '#eef2f7', backgroundColor: FÄRG.yta },
   radSista: { borderBottomWidth: 0 },
-  radText: { fontSize: 15, color: '#111827', fontWeight: '500' },
+  radText: { fontSize: 15, color: FÄRG.text, fontWeight: '500' },
 });

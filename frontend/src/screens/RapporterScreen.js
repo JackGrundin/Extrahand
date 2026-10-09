@@ -689,7 +689,7 @@ export default function RapporterScreen({ navigation }) {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f5f5f5' },
+  container: { flex: 1, backgroundColor: '#f8fafc' },
   flikar: { flexDirection: 'row', backgroundColor: '#fff', borderBottomWidth: 1, borderBottomColor: '#eee' },
   flik: { flex: 1, paddingVertical: 12, alignItems: 'center', gap: 3 },
   flikAktiv: { borderBottomWidth: 2, borderBottomColor: '#2563eb' },

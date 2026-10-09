@@ -38,9 +38,22 @@ import GlömtLösenordScreen from '../screens/GlömtLösenordScreen';
 import IntegritetspolicyScreen from '../screens/IntegritetspolicyScreen';
 import OfflineBanner from '../components/OfflineBanner';
 import OnboardingGate from '../components/OnboardingGate';
+import { FÄRG } from '../utils/tema';
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
+
+// Delad header-stil för alla stacknavigatorer: ljus yta, dämpad underkant i stället för
+// tung skugga, indigo tint och svensk slide-övergång. Innehållsytan får appens bakgrund så
+// att skärmar utan egen bakgrundsfärg inte blir gråa/vita om vartannat.
+const headerTema = {
+  headerStyle: { backgroundColor: FÄRG.yta },
+  headerTitleStyle: { fontSize: 17, fontWeight: '700', color: FÄRG.text },
+  headerTintColor: FÄRG.primär,
+  headerShadowVisible: false,
+  contentStyle: { backgroundColor: FÄRG.bakgrund },
+  animation: 'slide_from_right',
+};
 
 function ChatKnapp({ navigation }) {
   const { totalOlästa } = useNotifikationer();
@@ -54,7 +67,7 @@ function ChatKnapp({ navigation }) {
       accessibilityLabel="Öppna chattar"
     >
       <View style={badgeStyles.ikonYta}>
-        <Ionicons name="chatbubbles-outline" size={26} color="#2563eb" />
+        <Ionicons name="chatbubbles-outline" size={26} color={FÄRG.primär} />
         {totalOlästa > 0 && (
           <View style={badgeStyles.badge}>
             <Text style={badgeStyles.badgeText}>
@@ -85,6 +98,7 @@ function JobbNavigator() {
   return (
     <Stack.Navigator
       screenOptions={({ navigation }) => ({
+        ...headerTema,
         headerRight: () => <ChatKnapp navigation={navigation} />,
       })}
     >
@@ -102,6 +116,7 @@ function AnsökningarNavigator() {
   return (
     <Stack.Navigator
       screenOptions={({ navigation }) => ({
+        ...headerTema,
         headerRight: () => <ChatKnapp navigation={navigation} />,
       })}
     >
@@ -116,6 +131,7 @@ function MinaPassNavigator() {
   return (
     <Stack.Navigator
       screenOptions={({ navigation }) => ({
+        ...headerTema,
         headerRight: () => <ChatKnapp navigation={navigation} />,
       })}
     >
@@ -128,7 +144,7 @@ function MinaPassNavigator() {
 
 function ChattNavigator() {
   return (
-    <Stack.Navigator>
+    <Stack.Navigator screenOptions={headerTema}>
       <Stack.Screen name="ChattLista" component={ChattListaScreen} options={{ title: 'Chattar' }} />
       <Stack.Screen name="Chatt" component={ChattScreen} options={{ title: 'Chatt' }} />
       <Stack.Screen name="Betygsatt" component={BetygsattScreen} options={{ title: 'Betygsätt' }} />
@@ -141,6 +157,7 @@ function ProfilNavigator() {
   return (
     <Stack.Navigator
       screenOptions={({ navigation }) => ({
+        ...headerTema,
         headerRight: () => <ChatKnapp navigation={navigation} />,
       })}
     >
@@ -158,6 +175,9 @@ function ProfilNavigator() {
       {/* Sökandelistan i SchemaDetalj är klickbar, och schemat nås härifrån via
           Schemaöversikt – utan registreringen leder namnet ingenstans i den här stacken. */}
       <Stack.Screen name="SökanadeProfil" component={SökandeProfilScreen} options={{ title: 'Sökandes profil' }} />
+      {/* Schemaöversikten öppnar chatten direkt när man trycker på en person, och
+          SökandeProfils "Öppna chatt"-knapp pekar också hit – måste finnas i stacken. */}
+      <Stack.Screen name="Chatt" component={ChattScreen} options={{ title: 'Chatt' }} />
     </Stack.Navigator>
   );
 }
@@ -166,6 +186,7 @@ function MinaJobbNavigator() {
   return (
     <Stack.Navigator
       screenOptions={({ navigation }) => ({
+        ...headerTema,
         headerRight: () => <ChatKnapp navigation={navigation} />,
       })}
     >
@@ -187,6 +208,7 @@ function PubliceraNavigator() {
   return (
     <Stack.Navigator
       screenOptions={({ navigation }) => ({
+        ...headerTema,
         headerRight: () => <ChatKnapp navigation={navigation} />,
       })}
     >
@@ -198,7 +220,7 @@ function PubliceraNavigator() {
 
 function RapporterNavigator() {
   return (
-    <Stack.Navigator>
+    <Stack.Navigator screenOptions={headerTema}>
       <Stack.Screen name="RapporterHuvud" component={RapporterScreen} options={{ title: 'Tidrapporter' }} />
       <Stack.Screen name="SökanadeProfil" component={SökandeProfilScreen} options={{ title: 'Sökandes profil' }} />
       <Stack.Screen name="FöretagsProfil" component={FöretagsProfilScreen} options={{ title: 'Företagsprofil' }} />
@@ -280,8 +302,10 @@ function HuvudNavigator() {
     <Tab.Navigator
       screenOptions={({ route }) => ({
         headerShown: false,
-        tabBarActiveTintColor: '#2563eb',
-        tabBarInactiveTintColor: '#9ca3af',
+        tabBarActiveTintColor: FÄRG.primär,
+        tabBarInactiveTintColor: FÄRG.textSvag,
+        tabBarStyle: { backgroundColor: FÄRG.yta, borderTopColor: FÄRG.kant, borderTopWidth: 1, height: 60, paddingBottom: 8, paddingTop: 6 },
+        tabBarLabelStyle: { fontSize: 11, fontWeight: '600' },
         tabBarIcon: ({ color, size, focused }) => {
           const ikoner = {
             JobbTab:        focused ? 'briefcase'       : 'briefcase-outline',
@@ -315,7 +339,7 @@ function HuvudNavigator() {
             tabBarBadge: (antalAttAvsluta + antalNyaAnsökningar) > 0
               ? ((antalAttAvsluta + antalNyaAnsökningar) > 9 ? '9+' : (antalAttAvsluta + antalNyaAnsökningar))
               : undefined,
-            tabBarBadgeStyle: { backgroundColor: '#ea580c' },
+            tabBarBadgeStyle: { backgroundColor: FÄRG.varning },
           }}
         />
       )}
@@ -352,12 +376,12 @@ function HuvudNavigator() {
 }
 
 const styles = StyleSheet.create({
-  välkomstÖverlägg: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center', padding: 32 },
-  välkomstRuta: { backgroundColor: '#fff', borderRadius: 16, padding: 28, width: '100%', maxWidth: 360, alignItems: 'center' },
-  välkomstRubrik: { fontSize: 20, fontWeight: 'bold', color: '#1a1a1a', marginBottom: 12, textAlign: 'center' },
-  välkomstText: { fontSize: 15, color: '#444', textAlign: 'center', lineHeight: 22, marginBottom: 24 },
-  välkomstKnapp: { backgroundColor: '#2563eb', borderRadius: 10, paddingVertical: 14, paddingHorizontal: 32, alignItems: 'center', width: '100%' },
-  välkomstKnappText: { color: '#fff', fontWeight: '600', fontSize: 16 },
+  välkomstÖverlägg: { flex: 1, backgroundColor: 'rgba(15,23,42,0.55)', justifyContent: 'center', alignItems: 'center', padding: 32 },
+  välkomstRuta: { backgroundColor: FÄRG.yta, borderRadius: 20, padding: 28, width: '100%', maxWidth: 360, alignItems: 'center' },
+  välkomstRubrik: { fontSize: 20, fontWeight: 'bold', color: FÄRG.text, marginBottom: 12, textAlign: 'center' },
+  välkomstText: { fontSize: 15, color: FÄRG.textDämpad, textAlign: 'center', lineHeight: 22, marginBottom: 24 },
+  välkomstKnapp: { backgroundColor: FÄRG.primär, borderRadius: 12, paddingVertical: 14, paddingHorizontal: 32, alignItems: 'center', width: '100%' },
+  välkomstKnappText: { color: '#fff', fontWeight: '700', fontSize: 16 },
 });
 
 const badgeStyles = StyleSheet.create({
@@ -392,12 +416,12 @@ const badgeStyles = StyleSheet.create({
 });
 
 const laddningsStyles = StyleSheet.create({
-  container: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#ffffff' },
+  container: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: FÄRG.bakgrund },
   // resizeMode 'contain' i JSX:en gör att märket behåller sina proportioner även om
   // filen inte är kvadratisk – rutan här är bara en övre gräns.
   logga: { width: 96, height: 96, marginBottom: 20 },
-  logotyp: { fontSize: 52, fontWeight: 'bold', color: '#2563eb', letterSpacing: -1, marginBottom: 8 },
-  tagline: { fontSize: 15, color: '#9ca3af' },
+  logotyp: { fontSize: 52, fontWeight: 'bold', color: FÄRG.primär, letterSpacing: -1, marginBottom: 8 },
+  tagline: { fontSize: 15, color: FÄRG.textSvag },
 });
 
 export default function Navigation() {

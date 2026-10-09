@@ -91,7 +91,7 @@ export default function FöretagsProfilScreen({ route, navigation }) {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f5f5f5' },
+  container: { flex: 1, backgroundColor: '#f8fafc' },
   huvud: { backgroundColor: '#fff', alignItems: 'center', padding: 28, marginBottom: 12 },
   logga: { width: 88, height: 88, borderRadius: 44, marginBottom: 14 },
   loggaPlaceholder: { width: 88, height: 88, borderRadius: 44, backgroundColor: '#2563eb', alignItems: 'center', justifyContent: 'center', marginBottom: 14 },
