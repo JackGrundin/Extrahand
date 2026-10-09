@@ -1,0 +1,58 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Systemfont-stack, precis som appen (ingen custom font laddas). */
+html,
+body {
+  padding: 0;
+  margin: 0;
+  background-color: #f8fafc; /* FÄRG.bakgrund */
+  color: #0f172a; /* FÄRG.text */
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
+    'Helvetica Neue', Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+/* Typografiskala (speglar TEXT i appens tema.js). Färg sätts av konsumenten. */
+@layer components {
+  .rubrik-xl {
+    font-size: 44px;
+    font-weight: 700;
+    letter-spacing: -1px;
+    line-height: 1.1;
+  }
+  .rubrik-l {
+    font-size: 28px;
+    font-weight: 700;
+    letter-spacing: -0.4px;
+    line-height: 1.2;
+  }
+  .rubrik-m {
+    font-size: 20px;
+    font-weight: 700;
+  }
+  .överlinje {
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    color: #64748b;
+  }
+}
+
+/* Responsiv hero-rubrik på små skärmar. */
+@media (max-width: 640px) {
+  .rubrik-xl {
+    font-size: 32px;
+  }
+}

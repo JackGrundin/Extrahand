@@ -6,6 +6,9 @@
 # att en fräsch klon och EAS-builds får produktionsadressen. Lokala överstyrningar hör
 # hemma i frontend/.env.local, som frontend/.gitignore fångar med .env*.local.
 !frontend/.env
+# Samma sak för webben: web/.env innehåller bara NEXT_PUBLIC_API_URL (produktionsadressen)
+# och SKA versioneras. Lokala överstyrningar hör hemma i web/.env.local (web/.gitignore).
+!web/.env
 node_modules
 
 # macOS
