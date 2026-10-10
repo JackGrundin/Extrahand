@@ -61,20 +61,8 @@ a {
 }
 
 /* ── Animationer ───────────────────────────────────────────────────────────
-   Ren CSS, inga beroenden. Entré-animationer körs en gång vid paint; glöden och
-   mockup-flytningen loopar långsamt. Allt stängs av vid prefers-reduced-motion. */
-
-/* Långsam drift + pulsering på gradient-glöden bakom hero-rubriken. */
-@keyframes gloed {
-  0% {
-    transform: translate3d(0, 0, 0) scale(1);
-    opacity: 0.55;
-  }
-  100% {
-    transform: translate3d(6%, -4%, 0) scale(1.15);
-    opacity: 0.8;
-  }
-}
+   Ren CSS, inga beroenden. En diskret entré-animation körs en gång vid paint.
+   Stängs av vid prefers-reduced-motion. */
 
 /* Fade + glid upp vid sidladdning. */
 @keyframes fadeUp {
@@ -88,26 +76,11 @@ a {
   }
 }
 
-/* Subtil upp/ner-flytning på telefon-mockupen. */
-@keyframes flyt {
-  0%,
-  100% {
-    transform: translateY(0);
-  }
-  50% {
-    transform: translateY(-10px);
-  }
-}
-
-.anim-gloed {
-  animation: gloed 20s ease-in-out infinite alternate;
-}
-
 .anim-fade-up {
   animation: fadeUp 0.7s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
-/* Stagger: rubrik → text → knappar → mockup. */
+/* Stagger: överlinje → rubrik → text → knappar. */
 .d-1 {
   animation-delay: 0.08s;
 }
@@ -121,30 +94,9 @@ a {
   animation-delay: 0.34s;
 }
 
-.anim-flyt {
-  animation: flyt 6s ease-in-out infinite;
-}
-
-/* Liten lekfull gung-rörelse för klistermärket/stämpeln. */
-@keyframes gunga {
-  0%,
-  100% {
-    transform: rotate(-8deg);
-  }
-  50% {
-    transform: rotate(-4deg);
-  }
-}
-.anim-gunga {
-  animation: gunga 4s ease-in-out infinite;
-}
-
 /* Tillgänglighet: respektera användarens val att minska rörelse. */
 @media (prefers-reduced-motion: reduce) {
-  .anim-gloed,
-  .anim-fade-up,
-  .anim-flyt,
-  .anim-gunga {
+  .anim-fade-up {
     animation: none !important;
   }
 }

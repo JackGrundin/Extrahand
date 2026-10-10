@@ -111,7 +111,7 @@ export default function TelefonMockup() {
   return (
     <div
       aria-hidden="true"
-      className="anim-flyt relative mx-auto h-[540px] w-[300px] sm:w-[400px]"
+      className="relative mx-auto h-[540px] w-[300px] sm:w-[400px]"
     >
       {/* Bakre telefon – chatt (roterad, bakom). Döljs på små skärmar. */}
       <div className="absolute right-0 top-0 z-0 hidden rotate-[7deg] sm:block">
