@@ -125,11 +125,26 @@ a {
   animation: flyt 6s ease-in-out infinite;
 }
 
+/* Liten lekfull gung-rörelse för klistermärket/stämpeln. */
+@keyframes gunga {
+  0%,
+  100% {
+    transform: rotate(-8deg);
+  }
+  50% {
+    transform: rotate(-4deg);
+  }
+}
+.anim-gunga {
+  animation: gunga 4s ease-in-out infinite;
+}
+
 /* Tillgänglighet: respektera användarens val att minska rörelse. */
 @media (prefers-reduced-motion: reduce) {
   .anim-gloed,
   .anim-fade-up,
-  .anim-flyt {
+  .anim-flyt,
+  .anim-gunga {
     animation: none !important;
   }
 }

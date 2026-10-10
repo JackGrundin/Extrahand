@@ -35,6 +35,13 @@ module.exports = {
         'varning-mjuk': FÄRG.varningMjuk,
         'varning-kant': FÄRG.varningKant,
         stjärna: FÄRG.stjärna,
+        // Lekfulla extrafärger för färgband och doodles (tints/toner).
+        cream: '#fffdf8',
+        korall: '#ea580c',
+        mint: '#dcfce7',
+        persika: '#fff7ed',
+        himmel: '#e0f2fe',
+        lavendel: '#eef2ff',
       },
       borderRadius: {
         sm: RADIE.sm,
@@ -45,6 +52,9 @@ module.exports = {
       boxShadow: {
         mjuk: SKUGGA.mjuk,
         lyft: SKUGGA.lyft,
+        // Hård offset-skugga (ingen blur) för den lekfulla, handgjorda looken.
+        hard: '6px 6px 0 #0f172a',
+        'hard-sm': '4px 4px 0 #0f172a',
       },
       backgroundImage: {
         'gradient-primär': FÄRG.gradient,
