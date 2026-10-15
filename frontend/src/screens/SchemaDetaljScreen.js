@@ -7,7 +7,7 @@ import { useAuth } from '../context/AuthContext';
 import { useRealtidsPing } from '../context/RealtidsContext';
 import { useAttAvsluta } from '../context/AttAvslutaContext';
 import { api, felText } from '../api/klient';
-import { parsaObTillagg, beräknaObBelopp, formatDagDatum, veckodagsNamn } from '../utils/datumHelper';
+import { parsaObTillagg, beräknaObBelopp, formatDagDatum, veckodagsNamn, sökStängd } from '../utils/datumHelper';
 import { beräknaFakturapris, ansökanStatusVisning } from '../utils/konstanter';
 import { normaliseraKrav, saknadeKrav } from '../utils/behorighet';
 import BehörighetsKrav from '../components/BehörighetsKrav';
@@ -265,6 +265,9 @@ export default function SchemaDetaljScreen({ route, navigation }) {
   // inte dit, även om de fortfarande listas nedanför med sin status.
   const antalVäntande = övrigaAnsökningar.filter(a => a.status === 'väntande').length;
   const obTillagg = parsaObTillagg(schema.ob_tillagg);
+  // Ansökan stänger när sista ansökningsdagen passerat. Backend är sista försvaret (se
+  // routes/ansokningar.js), det här är spegeln som inaktiverar knappen i appen.
+  const ansökningarStängda = sökStängd(schema.sista_ansokningsdag);
 
   return (
     <>
@@ -309,6 +312,36 @@ export default function SchemaDetaljScreen({ route, navigation }) {
             )}
           </View>
         </View>
+
+        {/* Frivilliga ansökningsdatum. "Sök senast" blir röd när den passerat, så den som
+            tittar ser direkt att det inte längre går att ansöka. "Besked senast" är bara
+            information om när företaget lovar att svara. */}
+        {(schema.sista_ansokningsdag || schema.senast_besked) && (
+          <View style={styles.datumInfoKort}>
+            {schema.sista_ansokningsdag && (
+              <View style={styles.datumInfoRad}>
+                <Ionicons
+                  name={ansökningarStängda ? 'lock-closed-outline' : 'time-outline'}
+                  size={15}
+                  color={ansökningarStängda ? '#dc2626' : '#b45309'}
+                  accessible={false}
+                  importantForAccessibility="no"
+                />
+                <Text style={[styles.datumInfoText, ansökningarStängda && styles.datumInfoStängd]}>
+                  {ansökningarStängda
+                    ? `Ansökan stängd (${formatDagDatum(schema.sista_ansokningsdag)})`
+                    : `Sök senast ${formatDagDatum(schema.sista_ansokningsdag)}`}
+                </Text>
+              </View>
+            )}
+            {schema.senast_besked && (
+              <View style={styles.datumInfoRad}>
+                <Ionicons name="chatbox-ellipses-outline" size={15} color="#2563eb" accessible={false} importantForAccessibility="no" />
+                <Text style={styles.datumInfoText}>Besked senast {formatDagDatum(schema.senast_besked)}</Text>
+              </View>
+            )}
+          </View>
+        )}
 
         {ärTilldelad && (
           <View style={styles.tilldeladKort}>
@@ -595,15 +628,16 @@ export default function SchemaDetaljScreen({ route, navigation }) {
               </>
             )}
             <TouchableOpacity
-              style={[styles.knapp, (sökt || kvarAttKryssa > 0) && styles.knappInaktiv]}
+              style={[styles.knapp, (sökt || kvarAttKryssa > 0 || ansökningarStängda) && styles.knappInaktiv]}
               onPress={hanteraSökan}
-              disabled={sparar || sökt || kvarAttKryssa > 0}
+              disabled={sparar || sökt || kvarAttKryssa > 0 || ansökningarStängda}
             >
               {sparar
                 ? <ActivityIndicator color="#fff" />
                 : (
                   <Text style={styles.knappText}>
-                    {sökt ? 'Ansökan skickad'
+                    {ansökningarStängda ? 'Ansökan stängd'
+                      : sökt ? 'Ansökan skickad'
                       : kvarAttKryssa > 0 ? `${kvarAttKryssa} krav kvar att kryssa i`
                       : 'Sök hela schemat'}
                   </Text>
@@ -644,6 +678,11 @@ const styles = StyleSheet.create({
   periodKort: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: '#f8faff', borderRadius: 12, padding: 14, marginBottom: 12, borderWidth: 1, borderColor: '#bfdbfe' },
   periodText: { fontSize: 14, fontWeight: '600', color: '#2563eb' },
   periodTimmar: { fontSize: 13, fontWeight: '500', color: '#3b82f6', marginTop: 2 },
+
+  datumInfoKort: { gap: 8, backgroundColor: '#fffbeb', borderRadius: 12, padding: 14, marginBottom: 12, borderWidth: 1, borderColor: '#fde68a' },
+  datumInfoRad: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  datumInfoText: { fontSize: 14, fontWeight: '600', color: '#92400e', flex: 1 },
+  datumInfoStängd: { color: '#dc2626' },
 
   tilldeladKort: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: '#f0fdf4', borderRadius: 12, padding: 14, marginBottom: 12, borderWidth: 1, borderColor: '#bbf7d0' },
   tilldeladText: { fontSize: 14, fontWeight: '600', color: '#15803d', flex: 1 },

@@ -44,6 +44,10 @@ export default function PubliceraSchemaScreen({ navigation }) {
   const [typ, setTyp] = useState('');
   const [timlon, setTimlon] = useState('');
   const [behorighetsKrav, setBehorighetsKrav] = useState([]);
+  // Frivilliga datum. Sista ansökningsdag stänger ansökningar när den passerat; senast besked
+  // är rent informativt för den som söker.
+  const [sistaAnsokningsdag, setSistaAnsokningsdag] = useState('');
+  const [senastBesked, setSenastBesked] = useState('');
 
   // Steg 2 – perioden är ren UI-ställning. Servern härleder schemats period ur passens
   // datum (se härledPeriod i backend/routes/scheman.js), så den skickas aldrig med.
@@ -397,6 +401,8 @@ export default function PubliceraSchemaScreen({ navigation }) {
       pass: tillPayload(pass),
       avdrag,
       behorighets_krav: behorighetsKrav,
+      sista_ansokningsdag: sistaAnsokningsdag || null,
+      senast_besked: senastBesked || null,
       ...(accepteraHögrePåslag ? { acceptera_hogre_paslag: true } : {}),
     });
 
@@ -549,6 +555,24 @@ export default function PubliceraSchemaScreen({ navigation }) {
                   <ProBesparing timlön={timlönTal} paslag={gällandePåslag} />
                 </View>
               )}
+
+              {/* Frivilliga datum. Sista ansökningsdag stänger ansökningar när den passerat;
+                  senast besked är bara information till den som söker. */}
+              <Text style={styles.label}>Sista ansökningsdag</Text>
+              <DatumVäljare
+                värde={sistaAnsokningsdag}
+                onÄndra={setSistaAnsokningsdag}
+                placeholder="Frivilligt – välj datum"
+                minimumDate={new Date()}
+              />
+
+              <Text style={styles.label}>Senast besked</Text>
+              <DatumVäljare
+                värde={senastBesked}
+                onÄndra={setSenastBesked}
+                placeholder="Frivilligt – välj datum"
+                minimumDate={new Date()}
+              />
             </>
           )}
 

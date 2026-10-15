@@ -34,7 +34,7 @@ function passMedArv(schema, pass) {
 
 // ---------------------------------------------------------------- Scheman
 
-async function skapaSchema({ foretag_id, titel, beskrivning, plats, adress, kategori, typ, startdatum, slutdatum, timlon, ob_tillagg, behorighets_krav }) {
+async function skapaSchema({ foretag_id, titel, beskrivning, plats, adress, kategori, typ, startdatum, slutdatum, timlon, ob_tillagg, behorighets_krav, sista_ansokningsdag, senast_besked }) {
   const { data, error } = await supabase
     .from('scheman')
     .insert([{
@@ -43,6 +43,9 @@ async function skapaSchema({ foretag_id, titel, beskrivning, plats, adress, kate
       startdatum, slutdatum, timlon,
       ob_tillagg: ob_tillagg || [],
       behorighets_krav: behorighets_krav || [],
+      // Frivilliga datum – null när företaget inte angett dem.
+      sista_ansokningsdag: sista_ansokningsdag || null,
+      senast_besked: senast_besked || null,
     }])
     .select()
     .single();

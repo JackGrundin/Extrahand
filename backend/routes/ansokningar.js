@@ -5,7 +5,9 @@ const { hämtaPushToken, hämtaAnvändareViaId, hämtaAvtalGodkant } = require('
 const { hämtaJobbViaId, sättJobbPåslag } = require('../db/jobb');
 const { hämtaPrenumeration, gällandePåslag, ökaPassDennaManad, minskaPassDennaManad } = require('../db/prenumeration');
 const { tilldelaSchema, räknaTilldelbaraPass, frigörFramtidaPass, återställSchema } = require('../db/schemaTilldelning');
+const { hämtaSchemaViaAnnonsJobb } = require('../db/scheman');
 const { normaliseraKrav, saknadeKrav } = require('../utils/behorighet');
+const { idagStockholm } = require('../utils/tid');
 const { skickaNotifikation } = require('../utils/pushNotifikation');
 const { sändRealtidsPing, sändJobblistaPing } = require('../realtid');
 
@@ -29,6 +31,17 @@ router.post('/:jobbId', kräverInloggning, kräverTyp('privatperson'), async (re
     const jobbet = await hämtaJobbViaId(jobbId);
     if (!jobbet || jobbet.schema_pass_id) {
       return res.status(404).json({ fel: 'Jobbet hittades inte' });
+    }
+
+    // Sista ansökningsdag på ett schema. En schemaansökan går mot annons-jobbet, alltså
+    // genom just den här routen, så spärren räcker här. Datumet bor på schemat (rent
+    // schema-begrepp, inte speglat till Jobb), så vi slår upp det via annons-jobbet.
+    // Jämförelsen är inklusiv: ansökan tillåts t.o.m. hela sista dagen.
+    if (jobbet.schema_id) {
+      const schema = await hämtaSchemaViaAnnonsJobb(jobbId);
+      if (schema?.sista_ansokningsdag && idagStockholm() > schema.sista_ansokningsdag) {
+        return res.status(403).json({ fel: 'Sista ansökningsdag har passerat – schemat tar inte emot fler ansökningar.', kod: 'ANSOKAN_STANGD' });
+      }
     }
 
     // Passet är tillsatt om någon redan blivit godkänd – då går det inte längre att söka

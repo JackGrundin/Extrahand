@@ -5,7 +5,7 @@ import { api } from '../api/klient';
 import { useJobblistaPing } from '../context/RealtidsContext';
 
 import { KATEGORIER, SCHEMATYPER, schematypEtikett, normalisera } from '../utils/konstanter';
-import { parsaArbetstider, formatDagDatum, parsaObTillagg } from '../utils/datumHelper';
+import { parsaArbetstider, formatDagDatum, parsaObTillagg, sökStängd } from '../utils/datumHelper';
 import { normaliseraKrav } from '../utils/behorighet';
 import StadInput from '../components/StadInput';
 import RollBrickor from '../components/RollBrickor';
@@ -298,7 +298,9 @@ export default function JobbScreen({ navigation }) {
               />
             )
           }
-          renderItem={({ item }) => (
+          renderItem={({ item }) => {
+            const stängd = sökStängd(item.sista_ansokningsdag);
+            return (
             <Kort
               style={styles.kort}
               onPress={() => navigation.navigate('SchemaDetalj', { schemaId: item.id })}
@@ -332,8 +334,29 @@ export default function JobbScreen({ navigation }) {
                 )}
                 <KravBricka krav={item.behorighets_krav} />
               </View>
+
+              {/* Frivilliga ansökningsdatum. Kortet ligger kvar i listan även när ansökan
+                  stängt – då visas en tydlig bricka i stället för en söktid. */}
+              {(item.sista_ansokningsdag || item.senast_besked) && (
+                <View style={styles.schemaDatumRad}>
+                  {item.sista_ansokningsdag && (
+                    stängd ? (
+                      <View style={styles.stängdBricka}>
+                        <Ionicons name="lock-closed" size={11} color="#dc2626" accessible={false} importantForAccessibility="no" />
+                        <Text style={styles.stängdBrickaText}>Ansökan stängd</Text>
+                      </View>
+                    ) : (
+                      <Text style={styles.schemaDatumText}>Sök senast {formatDagDatum(item.sista_ansokningsdag)}</Text>
+                    )
+                  )}
+                  {item.senast_besked && (
+                    <Text style={styles.schemaDatumText}>Besked senast {formatDagDatum(item.senast_besked)}</Text>
+                  )}
+                </View>
+              )}
             </Kort>
-          )}
+            );
+          }}
         />
       ) : (
       <>
@@ -633,6 +656,10 @@ const styles = StyleSheet.create({
   flerDatumText: { fontSize: 13, color: FÄRG.textDämpad, fontWeight: '600' },
   extraRad: { flexDirection: 'row', gap: 10, alignItems: 'center', flexWrap: 'wrap' },
   extraInfo: { fontSize: 13, color: FÄRG.textSvag, fontWeight: '500' },
+  schemaDatumRad: { flexDirection: 'row', gap: 10, alignItems: 'center', flexWrap: 'wrap', marginTop: 8 },
+  schemaDatumText: { fontSize: 13, color: FÄRG.textSvag, fontWeight: '600' },
+  stängdBricka: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: '#fef2f2', borderRadius: RADIE.sm, paddingHorizontal: 8, paddingVertical: 3, borderWidth: 1, borderColor: '#fecaca' },
+  stängdBrickaText: { fontSize: 11, color: '#dc2626', fontWeight: '700' },
   obBadge: { backgroundColor: FÄRG.varningMjuk, borderRadius: RADIE.sm, paddingHorizontal: 8, paddingVertical: 3, borderWidth: 1, borderColor: FÄRG.varningKant },
   kravBadge: { flexDirection: 'row', alignItems: 'center', gap: 3, backgroundColor: '#fffbeb', borderRadius: RADIE.sm, paddingHorizontal: 8, paddingVertical: 3, borderWidth: 1, borderColor: '#fde68a' },
   kravBadgeText: { fontSize: 11, color: FÄRG.varningText, fontWeight: '700' },

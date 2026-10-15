@@ -125,7 +125,15 @@ function valideraPassLista(pass, befintliga = []) {
   return null;
 }
 
-function valideraSchemaInput({ titel, beskrivning, typ, plats, adress, kategori, timlon, pass, avdrag, behorighets_krav }) {
+// Validerar ett frivilligt datum (YYYY-MM-DD). Tomt/utelämnat är giltigt – fälten är inte
+// obligatoriska. Returnerar felmeddelande eller null.
+function valideraValfrittDatum(värde, etikett) {
+  if (värde == null || värde === '') return null;
+  if (!DATUM_MÖNSTER.test(String(värde))) return `${etikett} måste anges som YYYY-MM-DD`;
+  return null;
+}
+
+function valideraSchemaInput({ titel, beskrivning, typ, plats, adress, kategori, timlon, pass, avdrag, behorighets_krav, sista_ansokningsdag, senast_besked }) {
   if (!titel || !String(titel).trim()) return 'Titel krävs';
   if (!beskrivning || !String(beskrivning).trim()) return 'Beskrivning krävs';
   if (typ && !GILTIGA_TYPER.includes(typ)) return 'Ogiltig typ';
@@ -137,6 +145,18 @@ function valideraSchemaInput({ titel, beskrivning, typ, plats, adress, kategori,
 
   const passFel = valideraPassLista(pass);
   if (passFel) return passFel;
+
+  // Frivilliga datum. Formatet kontrolleras alltid, men en redan passerad
+  // sista_ansokningsdag avvisas BARA vid publicering (här) – att publicera ett schema som
+  // ingen kan söka är ett misstag. I PUT tillåts passerat datum, så företaget kan stänga
+  // ansökningar i förtid.
+  const sistaFel = valideraValfrittDatum(sista_ansokningsdag, 'Sista ansökningsdag');
+  if (sistaFel) return sistaFel;
+  if (sista_ansokningsdag && String(sista_ansokningsdag) < idagStockholm()) {
+    return 'Sista ansökningsdag kan inte ligga i det förflutna';
+  }
+  const beskedFel = valideraValfrittDatum(senast_besked, 'Senast besked');
+  if (beskedFel) return beskedFel;
 
   for (const a of (Array.isArray(avdrag) ? avdrag : [])) {
     if (!a?.namn || !String(a.namn).trim()) return 'Varje avdrag måste ha ett namn';
@@ -161,10 +181,12 @@ router.post('/', kräverInloggning, kräverTyp('företag'), async (req, res) => 
   const {
     titel, beskrivning, plats, adress, kategori, typ,
     timlon, pass, avdrag, behorighets_krav, acceptera_hogre_paslag,
+    sista_ansokningsdag, senast_besked,
   } = req.body;
 
   const valideringsfel = valideraSchemaInput({
     titel, beskrivning, typ, plats, adress, kategori, timlon, pass, avdrag, behorighets_krav,
+    sista_ansokningsdag, senast_besked,
   });
   if (valideringsfel) return res.status(400).json({ fel: valideringsfel });
 
@@ -208,6 +230,9 @@ router.post('/', kräverInloggning, kräverTyp('företag'), async (req, res) => 
       // gamla, där den fortfarande ärvs av pass utan eget OB.
       ob_tillagg: [],
       behorighets_krav: normaliseraKrav(behorighets_krav),
+      // Frivilliga datum. Spärren för sista_ansokningsdag sitter i POST /api/ansokningar.
+      sista_ansokningsdag: sista_ansokningsdag || null,
+      senast_besked: senast_besked || null,
     });
 
     // Annons-jobbet. Det bär schemats ansökningar och därmed chatten, och det är här
@@ -801,13 +826,23 @@ router.post('/:id/avbryt', kräverInloggning, kräverTyp('företag'), async (req
 
 // PUT /api/scheman/:id — företag redigerar ett ännu inte tillsatt schema
 router.put('/:id', kräverInloggning, kräverTyp('företag'), async (req, res) => {
-  const { titel, beskrivning, plats, adress, kategori, typ, timlon, behorighets_krav } = req.body;
+  const { titel, beskrivning, plats, adress, kategori, typ, timlon, behorighets_krav, sista_ansokningsdag, senast_besked } = req.body;
   if (!titel || !String(titel).trim()) return res.status(400).json({ fel: 'Titel krävs' });
   if (timlon != null && !(Number(timlon) > 0)) return res.status(400).json({ fel: 'Giltig timlön krävs' });
   // Samma GILTIGA_TYPER som POST använder – ingen andra sanning om vilka typer som finns.
   if (typ !== undefined && !GILTIGA_TYPER.includes(typ)) return res.status(400).json({ fel: 'Ogiltig typ' });
   const kravFel = valideraBehorighetsKrav(behorighets_krav);
   if (kravFel) return res.status(400).json({ fel: kravFel });
+  // Bara formatet kontrolleras här. Ett passerat sista_ansokningsdag tillåts med flit – det
+  // är så företaget kan stänga ansökningar i förtid. Tomt värde nollar datumet.
+  if (sista_ansokningsdag) {
+    const f = valideraValfrittDatum(sista_ansokningsdag, 'Sista ansökningsdag');
+    if (f) return res.status(400).json({ fel: f });
+  }
+  if (senast_besked) {
+    const f = valideraValfrittDatum(senast_besked, 'Senast besked');
+    if (f) return res.status(400).json({ fel: f });
+  }
 
   try {
     // Läs timlönen och kravlistan före uppdateringen – jämförelserna efteråt avgör om
@@ -828,6 +863,9 @@ router.put('/:id', kräverInloggning, kräverTyp('företag'), async (req, res) =
       ...(typ !== undefined ? { typ } : {}),
       ...(timlon != null ? { timlon: Number(timlon) } : {}),
       ...(behorighets_krav !== undefined ? { behorighets_krav: normaliseraKrav(behorighets_krav) } : {}),
+      // Tom sträng nollar datumet (company tar bort det), annars sätts det valda datumet.
+      ...(sista_ansokningsdag !== undefined ? { sista_ansokningsdag: sista_ansokningsdag || null } : {}),
+      ...(senast_besked !== undefined ? { senast_besked: senast_besked || null } : {}),
     });
 
     // Inget matchade: schemat finns inte, ägs av någon annan, eller är redan tillsatt.

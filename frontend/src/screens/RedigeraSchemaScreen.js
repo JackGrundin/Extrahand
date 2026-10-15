@@ -32,6 +32,9 @@ export default function RedigeraSchemaScreen({ route, navigation }) {
   const [typ, setTyp] = useState('');
   const [timlon, setTimlon] = useState('');
   const [behorighetsKrav, setBehorighetsKrav] = useState([]);
+  // Frivilliga datum. Tom sträng = inget datum satt; backend nollar kolumnen då.
+  const [sistaAnsokningsdag, setSistaAnsokningsdag] = useState('');
+  const [senastBesked, setSenastBesked] = useState('');
 
   const [avdrag, setAvdrag] = useState([]);
   const [avdragFormVisas, setAvdragFormVisas] = useState(false);
@@ -53,6 +56,8 @@ export default function RedigeraSchemaScreen({ route, navigation }) {
       setTyp(data.typ ?? '');
       setTimlon(data.timlon != null ? String(data.timlon) : '');
       setBehorighetsKrav(normaliseraKrav(data.behorighets_krav));
+      setSistaAnsokningsdag(data.sista_ansokningsdag ?? '');
+      setSenastBesked(data.senast_besked ?? '');
       setAvdrag(data.avdrag ?? []);
     } catch (f) {
       Alert.alert('Fel', felText(f));
@@ -98,6 +103,9 @@ export default function RedigeraSchemaScreen({ route, navigation }) {
         typ,
         timlon: lön,
         behorighets_krav: behorighetsKrav,
+        // Tom sträng nollar datumet på servern.
+        sista_ansokningsdag: sistaAnsokningsdag || null,
+        senast_besked: senastBesked || null,
       });
       Alert.alert('Sparat', 'Schemat har uppdaterats.');
       await hämta();
@@ -216,7 +224,9 @@ export default function RedigeraSchemaScreen({ route, navigation }) {
     plats !== (schema.plats ?? '') ||
     adress !== (schema.adress ?? '') ||
     typ !== (schema.typ ?? '') ||
-    timlon !== (schema.timlon != null ? String(schema.timlon) : '');
+    timlon !== (schema.timlon != null ? String(schema.timlon) : '') ||
+    sistaAnsokningsdag !== (schema.sista_ansokningsdag ?? '') ||
+    senastBesked !== (schema.senast_besked ?? '');
 
   return (
     <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
@@ -299,6 +309,22 @@ export default function RedigeraSchemaScreen({ route, navigation }) {
           keyboardType="numeric"
         />
         <FältFel text={fel.timlon} />
+
+        {/* Frivilliga datum. Sista ansökningsdag stänger ansökningar när den passerat –
+            företaget kan sätta ett passerat datum här för att stänga i förtid. */}
+        <Text style={styles.label}>Sista ansökningsdag</Text>
+        <DatumVäljare
+          värde={sistaAnsokningsdag}
+          onÄndra={setSistaAnsokningsdag}
+          placeholder="Frivilligt – välj datum"
+        />
+
+        <Text style={styles.label}>Senast besked</Text>
+        <DatumVäljare
+          värde={senastBesked}
+          onÄndra={setSenastBesked}
+          placeholder="Frivilligt – välj datum"
+        />
 
         {/* ------------------------------------------------------ Löneavdrag */}
 

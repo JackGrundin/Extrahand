@@ -77,6 +77,15 @@ export function datumTillIso(date) {
   return `${år}-${mån}-${dag}`;
 }
 
+// Har sista ansökningsdagen passerat? Speglar backend-regeln i routes/ansokningar.js: ansökan
+// tillåts t.o.m. hela sista dagen, alltså stängt först när dagens datum är SENARE än datumet.
+// Tomt datum = ingen deadline = aldrig stängt. Delas av schemakortet och schemadetaljvyn så
+// att etiketten och den inaktiverade knappen alltid är överens.
+export function sökStängd(sistaAnsokningsdag) {
+  if (!sistaAnsokningsdag) return false;
+  return datumTillIso(new Date()) > sistaAnsokningsdag;
+}
+
 // Dagen efter ett ISO-datum. Stegar i UTC så att sommartidsskiften inte kan hoppa över
 // eller dubblera en dag. Används av "Kopiera föregående pass".
 export function nästaDatumIso(isoStr) {
