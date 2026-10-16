@@ -158,8 +158,12 @@ export const api = {
     anrop('PATCH', `/ansokningar/${ansökningId}/favorit`, { favorit }),
   företagsKonversationer: () => anrop('GET', '/ansokningar/foretag'),
 
-  // Tidrapporter (historik-fliken)
+  // Tidrapporter (historik-fliken + avsluta pass)
   tidrapporterFörFöretag: () => anrop('GET', '/tidrapporter/foretag'),
+  // Avsluta ett pass: skicka BARA ansokan_id + timmar (+ valfri ob_tillagg) – backend
+  // beräknar alla belopp (timlön, påslag, OB, avdrag, datum).
+  skapaRapport: (kropp) => anrop('POST', '/tidrapporter', kropp),
+  hämtaTidrapport: (ansökanId) => anrop('GET', `/tidrapporter/ansokan/${ansökanId}`),
 
   // Meddelanden (chatt). Realtidssignalen kommer via Supabase Broadcast; datan hämtas här.
   hämtaMeddelanden: (ansökanId) => anrop('GET', `/meddelanden/${ansökanId}`),

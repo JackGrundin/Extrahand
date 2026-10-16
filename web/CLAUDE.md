@@ -116,7 +116,13 @@ möts av ett "använd appen"-besked). Skalet är en sidomeny (`components/app/Ap
 `Sidomeny.jsx`). All data via samma backend som appen; metoderna ligger i `lib/api.js`.
 - **`/oversikt`** – dashboard: summeringskort (aktiva annonser, pass att avsluta, nya
   ansökningar, plan), kommande pass, senaste ansökningar, Stripe-returbesked (`?status`).
-  "Pass att avsluta" räknas exakt som appens `AttAvslutaContext`.
+  "Pass att avsluta" räknas exakt som appens `AttAvslutaContext` och länkar till `/avsluta`.
+- **`/avsluta`** – avsluta pass / fyll i jobbade timmar. Listar passen som behöver avslutas
+  (samma härledning som dashboarden). "Avsluta pass" slår upp jobbets **godkända** ansökan
+  (`ansökningarFörJobb` → `status === 'godkänd'`) och öppnar `AvslutaPassModal` (timmar + OB
+  via `OBTilläggRedigerare`). Klienten skickar BARA `{ ansokan_id, timmar, ob_tillagg }` till
+  `POST /tidrapporter` (`api.skapaRapport`); backend beräknar alla belopp. Kostnadsraden i
+  modalen är en uppskattning, inte facit. 409 = tidrapport finns redan.
 - **`/annonser`** – Mina annonser, tre flikar (Pass / Scheman / Historik) med
   `JobbKort`, `SchemaKort` och tidrapportslista.
 - **`/publicera/jobb`** – enstaka pass. `valideraJobb`, prispreview, dag-för-dag,
@@ -155,10 +161,10 @@ sista importerar `ärGiltigStad` från `utils/stad.js`).
 ## Återstår
 - **Privatpersonens webbvyer** – jobblista/sök, ansökningar, mina pass, profil. Finns bara
   i appen; webben visar "använd appen" för privatkonton.
-- **Tidrapporter/avsluta pass, betyg, redigera jobb/schema** – chatt-tråden visar bara
-  meddelanden (ren text), inte den fulla tidslinjen med tidrapporter/jobbförfrågningar som
-  appens `ChattScreen`. Tidrapportsmodalen (avsluta pass), betyg och redigering efter
-  publicering görs fortfarande i appen.
+- **Bestridande/korrigering, betyg, redigera jobb/schema** – avsluta pass (skapa tidrapport)
+  finns nu på webben (`/avsluta`), men ett bestritt/korrigerat pass, betygssättning och
+  redigering efter publicering görs fortfarande i appen. Chatt-tråden visar bara meddelanden
+  (ren text), inte den fulla tidslinjen med tidrapporter/jobbförfrågningar som `ChattScreen`.
 - **Återställ lösenord på webben** – görs i dag av backends egen sida; ingen Next-route.
 - **Olästmarkeringar i chatten** – inboxen visar senaste meddelandet men ingen oläst-badge
   (ingen read-state-endpoint används ännu).

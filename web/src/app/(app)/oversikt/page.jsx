@@ -181,7 +181,8 @@ function ÖversiktInnehåll() {
           etikett="Pass att avsluta"
           värde={härledd.attAvsluta}
           accent={härledd.attAvsluta > 0 ? 'varning' : 'neutral'}
-          under={härledd.attAvsluta > 0 ? 'Skapa tidrapport i appen' : 'Allt klart'}
+          href="/avsluta"
+          under={härledd.attAvsluta > 0 ? 'Fyll i jobbade timmar' : 'Allt klart'}
         />
         <Summeringskort
           etikett="Nya ansökningar"
