@@ -120,6 +120,47 @@ export const api = {
 
   // Profil (för sessionsåterställning)
   hämtaProfil: () => anrop('GET', '/users/profil'),
+
+  // ── Företagsvyer ──────────────────────────────────────────────────────────
+  // Paths speglar frontend/src/api/klient.js. OBS: POST/PUT /jobb tar emot GEMENA
+  // fält (titel, lon, plats …) men svaren kommer i PascalCase (Titel, Lon, Plats).
+
+  // Jobb
+  minaJobb: () => anrop('GET', '/jobb/mina'),
+  minaTidigareJobb: () => anrop('GET', '/jobb/mina/tidigare'),
+  hämtaJobb: (id) => anrop('GET', `/jobb/${id}`),
+  publicera: (kropp) => anrop('POST', '/jobb', kropp),
+  uppdateraJobb: (id, kropp) => anrop('PUT', `/jobb/${id}`, kropp),
+  taBortJobb: (id) => anrop('DELETE', `/jobb/${id}`),
+  markeraAnsökningarSedda: (jobbId) =>
+    anrop('POST', `/jobb/${jobbId}/markera-ansokningar-sedda`, {}),
+
+  // Scheman
+  minaScheman: () => anrop('GET', '/scheman/mina'),
+  skapaSchema: (kropp) => anrop('POST', '/scheman', kropp),
+  hämtaSchema: (id) => anrop('GET', `/scheman/${id}`),
+  markeraSchemaAnsökningarSedda: (schemaId) =>
+    anrop('POST', `/scheman/${schemaId}/markera-ansokningar-sedda`, {}),
+
+  // Ansökningar
+  ansökningarFörJobb: (jobbId) => anrop('GET', `/ansokningar/jobb/${jobbId}`),
+  uppdateraStatus: (ansökningId, status) =>
+    anrop('PATCH', `/ansokningar/${ansökningId}/status`, { status }),
+  växlaFavoritAnsökan: (ansökningId, favorit) =>
+    anrop('PATCH', `/ansokningar/${ansökningId}/favorit`, { favorit }),
+  företagsKonversationer: () => anrop('GET', '/ansokningar/foretag'),
+
+  // Tidrapporter (historik-fliken)
+  tidrapporterFörFöretag: () => anrop('GET', '/tidrapporter/foretag'),
+
+  // Prenumeration (Stripe). Checkout/portal returnerar { url } att redirecta till.
+  prenumerationStatus: () => anrop('GET', '/prenumeration/status'),
+  skapaCheckout: () => anrop('POST', '/prenumeration/checkout', {}),
+  öppnaPortal: () => anrop('POST', '/prenumeration/portal', {}),
+
+  // Adress – backend-proxy mot Nominatim (ALDRIG direkt från klienten).
+  sökAdress: (q, stad) =>
+    anrop('GET', `/adress/sok?q=${encodeURIComponent(q)}&stad=${encodeURIComponent(stad ?? '')}`),
 };
 
 export default api;

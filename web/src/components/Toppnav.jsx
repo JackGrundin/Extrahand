@@ -63,10 +63,13 @@ export default function Toppnav() {
         <div className="flex items-center gap-2 sm:gap-3">
           {inloggad ? (
             <>
-              <span className="hidden text-[14px] text-text-dämpad sm:inline">
-                Inloggad som {användare?.namn}
-              </span>
-              <Knapp variant="kontur" storlek="liten" onClick={loggaUt}>
+              {/* Företag har en webbapp att gå till; privatpersoner använder mobilappen. */}
+              {användare?.typ === 'företag' && (
+                <Knapp variant="kontur" storlek="liten" href="/oversikt">
+                  Översikt
+                </Knapp>
+              )}
+              <Knapp variant="primär" storlek="liten" onClick={loggaUt}>
                 Logga ut
               </Knapp>
             </>

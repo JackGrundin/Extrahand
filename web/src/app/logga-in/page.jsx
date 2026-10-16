@@ -29,8 +29,9 @@ export default function LoggaIn() {
     setEjVerifierad(false);
     setLaddar(true);
     try {
-      await loggaIn(email.trim(), lösenord);
-      router.push('/');
+      const svar = await loggaIn(email.trim(), lösenord);
+      // Företag skickas direkt till sin webbapp; övriga till startsidan.
+      router.push(svar?.användare?.typ === 'företag' ? '/oversikt' : '/');
     } catch (f) {
       if (f.kod === 'EMAIL_EJ_VERIFIERAD') {
         setEjVerifierad(true);
