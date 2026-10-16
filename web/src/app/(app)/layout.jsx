@@ -6,6 +6,7 @@
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
+import { RealtidsProvider } from '@/context/RealtidsContext';
 import AppSkal from '@/components/app/AppSkal';
 
 export default function FöretagsLayout({ children }) {
@@ -44,5 +45,9 @@ export default function FöretagsLayout({ children }) {
     );
   }
 
-  return <AppSkal>{children}</AppSkal>;
+  return (
+    <RealtidsProvider>
+      <AppSkal>{children}</AppSkal>
+    </RealtidsProvider>
+  );
 }

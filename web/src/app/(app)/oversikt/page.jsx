@@ -14,15 +14,49 @@ import { api } from '@/lib/api';
 import { behöverAvslutas, förstaArbetsdatum, formatDagDatum, formatPeriod, parsaArbetstider } from '@/utils/datumHelper';
 import { STATUSFÄRGER_ANSÖKAN } from '@/utils/konstanter';
 
-function Summeringskort({ etikett, värde, under, href }) {
+// accent styr en tunn färgad topplist som drar ögat till det som kräver handling.
+const ACCENTER = {
+  primär: 'border-t-primär',
+  varning: 'border-t-varning',
+  neutral: 'border-t-kant',
+};
+
+function Summeringskort({ etikett, värde, under, href, accent = 'neutral', aktiv = false }) {
   const innehåll = (
-    <div className="rounded-lg border border-kant bg-yta p-5 shadow-mjuk transition-shadow hover:shadow-lyft">
-      <p className="text-[13px] font-semibold uppercase tracking-wider text-text-svag">{etikett}</p>
-      <p className="mt-2 text-[32px] font-bold leading-none text-text">{värde}</p>
-      {under && <p className="mt-2 text-[13px] text-text-dämpad">{under}</p>}
+    <div
+      className={`flex h-full flex-col rounded-lg border border-kant border-t-[3px] ${
+        ACCENTER[accent]
+      } bg-yta p-6 shadow-mjuk transition-shadow ${href ? 'hover:shadow-lyft' : ''}`}
+    >
+      <p className="text-[12px] font-semibold uppercase tracking-wider text-text-svag">{etikett}</p>
+      <p className={`mt-3 text-[36px] font-bold leading-none ${aktiv ? 'text-primär' : 'text-text'}`}>{värde}</p>
+      {under && <p className="mt-auto pt-3 text-[13px] text-text-dämpad">{under}</p>}
     </div>
   );
-  return href ? <Link href={href}>{innehåll}</Link> : innehåll;
+  return href ? (
+    <Link href={href} className="block h-full">
+      {innehåll}
+    </Link>
+  ) : (
+    innehåll
+  );
+}
+
+// Sektionsrubrik med valfri räknare och "visa alla"-länk.
+function SektionsRubrik({ children, antal, länk, länkText }) {
+  return (
+    <div className="mb-4 flex items-baseline justify-between">
+      <h2 className="text-[17px] font-bold text-text">
+        {children}
+        {antal != null && <span className="ml-2 text-[15px] font-semibold text-text-svag">· {antal}</span>}
+      </h2>
+      {länk && (
+        <Link href={länk} className="text-[14px] font-semibold text-primär hover:underline">
+          {länkText || 'Visa alla'}
+        </Link>
+      )}
+    </div>
+  );
 }
 
 function ÖversiktInnehåll() {
@@ -104,11 +138,33 @@ function ÖversiktInnehåll() {
       ? `${prenumeration.gratisPassKvar} gratispass kvar`
       : 'Gratis';
 
+  const idagText = new Date().toLocaleDateString('sv-SE', {
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+  });
+
   return (
     <div>
-      <div className="mb-8">
-        <h1 className="rubrik-l text-text">Översikt</h1>
-        <p className="mt-1 text-[15px] text-text-dämpad">Hej {användare?.namn}!</p>
+      <div className="mb-10 flex flex-wrap items-end justify-between gap-4">
+        <div>
+          <p className="text-[13px] font-semibold uppercase tracking-wider text-text-svag">{idagText}</p>
+          <h1 className="mt-1 rubrik-l text-text">Hej {användare?.namn}!</h1>
+        </div>
+        <div className="flex flex-wrap gap-3">
+          <Link
+            href="/publicera/jobb"
+            className="rounded-sm bg-gradient-primär px-5 py-2.5 text-[14px] font-bold text-white shadow-mjuk transition-shadow hover:shadow-lyft"
+          >
+            Publicera pass
+          </Link>
+          <Link
+            href="/publicera/schema"
+            className="rounded-sm border border-kant bg-yta px-5 py-2.5 text-[14px] font-bold text-text transition-colors hover:border-kant-stark"
+          >
+            Publicera schema
+          </Link>
+        </div>
       </div>
 
       {stripeStatus === 'ok' && (
@@ -119,45 +175,40 @@ function ÖversiktInnehåll() {
       )}
 
       {/* Summeringskort */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid items-stretch gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <Summeringskort etikett="Aktiva annonser" värde={härledd.jobb.length} href="/annonser" />
         <Summeringskort
           etikett="Pass att avsluta"
           värde={härledd.attAvsluta}
+          accent={härledd.attAvsluta > 0 ? 'varning' : 'neutral'}
           under={härledd.attAvsluta > 0 ? 'Skapa tidrapport i appen' : 'Allt klart'}
         />
         <Summeringskort
           etikett="Nya ansökningar"
           värde={härledd.nyaAnsökningar}
+          accent={härledd.nyaAnsökningar > 0 ? 'primär' : 'neutral'}
+          aktiv={härledd.nyaAnsökningar > 0}
           href="/annonser"
         />
-        <Summeringskort etikett="Plan" värde={planText} under={prenumeration?.pro ? 'Lägsta påslag' : undefined} />
+        <Summeringskort etikett="Plan" värde={planText} under={prenumeration?.pro ? 'Lägsta påslag' : 'Uppgradera för lägre påslag'} />
       </div>
 
-      {/* Snabblänkar */}
-      <div className="mt-6 flex flex-wrap gap-3">
-        <Link
-          href="/publicera/jobb"
-          className="rounded-sm bg-gradient-primär px-5 py-3 text-[15px] font-bold text-white shadow-mjuk transition-shadow hover:shadow-lyft"
-        >
-          Publicera pass
-        </Link>
-        <Link
-          href="/publicera/schema"
-          className="rounded-sm border border-kant bg-yta px-5 py-3 text-[15px] font-bold text-text transition-colors hover:border-kant-stark"
-        >
-          Publicera schema
-        </Link>
-      </div>
-
-      <div className="mt-10 grid gap-8 lg:grid-cols-2">
+      <div className="mt-12 grid gap-10 lg:grid-cols-2">
         {/* Kommande pass */}
         <section>
-          <h2 className="mb-3 text-[17px] font-bold text-text">Kommande pass</h2>
+          <SektionsRubrik
+            antal={härledd.kommande.length + härledd.scheman.length || null}
+            länk={härledd.jobb.length ? '/annonser' : undefined}
+          >
+            Kommande pass
+          </SektionsRubrik>
           {härledd.kommande.length === 0 && härledd.scheman.length === 0 ? (
-            <p className="rounded-lg border border-dashed border-kant p-6 text-center text-[14px] text-text-dämpad">
-              Inga kommande pass. Publicera ett pass för att komma igång.
-            </p>
+            <div className="rounded-lg border border-dashed border-kant p-8 text-center">
+              <p className="text-[14px] text-text-dämpad">Inga kommande pass.</p>
+              <Link href="/publicera/jobb" className="mt-1 inline-block text-[14px] font-semibold text-primär hover:underline">
+                Publicera ett pass →
+              </Link>
+            </div>
           ) : (
             <ul className="space-y-2">
               {härledd.kommande.map((j) => (
@@ -200,9 +251,11 @@ function ÖversiktInnehåll() {
 
         {/* Senaste ansökningar */}
         <section>
-          <h2 className="mb-3 text-[17px] font-bold text-text">Senaste ansökningar</h2>
+          <SektionsRubrik antal={härledd.senaste.length || null} länk="/meddelanden" länkText="Meddelanden">
+            Senaste ansökningar
+          </SektionsRubrik>
           {härledd.senaste.length === 0 ? (
-            <p className="rounded-lg border border-dashed border-kant p-6 text-center text-[14px] text-text-dämpad">
+            <p className="rounded-lg border border-dashed border-kant p-8 text-center text-[14px] text-text-dämpad">
               Inga ansökningar än.
             </p>
           ) : (

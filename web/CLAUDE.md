@@ -125,21 +125,43 @@ möts av ett "använd appen"-besked). Skalet är en sidomeny (`components/app/Ap
   multival + veckodagsgenvägar → per-pass-editor med massredigering → löneavdrag.
   Passlogiken i `utils/schemaPass.js`, urvalsläget (markering XOR öppet pass) matchar appen.
 - **`/annonser/jobb/[id]/ansokningar`** och **`/annonser/schema/[id]`** – hantera
-  ansökningar (`AnsökningsKort`: godkänn/återta/favorit). Schemadetaljen visar även pass,
-  roller och löneavdrag.
+  ansökningar (`AnsökningsKort`: godkänn/återta/favorit + "Öppna chatt"). Schemadetaljen
+  visar även pass, roller och löneavdrag.
+- **`/kalender`** – schemaöversikt (bemanningskalender). `GET /scheman/kalender?from=&till=`
+  (schemapass + godkända enstaka pass, inkl. obemannade). `MånadsKalender` har ett LÄSLÄGE
+  med rollprickar (tre tillstånd via `rollerFörDag`: ring = saknar person, nedtonad =
+  genomfört, fylld = bemannad) vid sidan av flervalsläget. Förklaringsrad + månadssummering
+  + dagslista (`grupperaPerKategori`). Hämtar tre månader kring vald månad; refetchar på ping.
+- **`/profil`** – skapa/redigera företagsprofil (beskrivning, bransch, stad, hemsida –
+  speglar appens `RedigeraProfilScreen`; `PUT /users/profil` accepterar INTE telefonnummer).
+  Profilbild via `<input type=file>` → base64 → `POST /users/profil-bild` (backend-proxy till
+  Storage, max 3 MB). `AuthContext.uppdateraAnvändare` uppdaterar bilden direkt i sidomenyn.
+- **`/meddelanden`** + **`/meddelanden/[ansokanId]`** – inkorg (`företagsKonversationer`) och
+  chatt-tråd (`GET/POST /meddelanden/:ansokanId`). Realtid via Supabase Broadcast – se nedan.
+
+### Realtid (Supabase Broadcast)
+`lib/supabase.js` speglar appens `supabase.js` (samma projekt-URL + publik anon-nyckel;
+`NEXT_PUBLIC_SUPABASE_*`-override med hårdkodad fallback). `context/RealtidsContext.jsx`
+(monterad i `(app)/layout.jsx`) prenumererar på `anvandare:<användarens id>`, event `'ny'`;
+`useRealtidsPing(cb)` kör cb vid varje signal. Payloaden bär bara en typ-etikett – datan
+hämtas via REST. Ingen per-användar-JWT behövs på socketen (bara anon-nyckeln), precis som
+i appen. Chatt och kalender refetchar på ping.
 
 Delade utils speglas från appen (ändra på båda ställena, som `tema.js`): `konstanter.js`,
-`schemaPass.js`, `behorighet.js`, `svenskaOrter.js`, `datumHelper.js`, `jobbValidering.js`,
-`schemaValidering.js` (de två sista importerar `ärGiltigStad` från `utils/stad.js`).
+`schemaPass.js` (inkl. `rollerFörDag`/`grupperaPerKategori`), `behorighet.js`,
+`svenskaOrter.js`, `datumHelper.js`, `jobbValidering.js`, `schemaValidering.js` (de två
+sista importerar `ärGiltigStad` från `utils/stad.js`).
 
 ## Återstår
 - **Privatpersonens webbvyer** – jobblista/sök, ansökningar, mina pass, profil. Finns bara
   i appen; webben visar "använd appen" för privatkonton.
-- **Chatt, tidrapporter/avsluta pass, betyg, redigera jobb/schema** – företagsdelen länkar
-  till ansökningar men själva chatten, tidrapportsmodalen (avsluta pass), betyg och
-  redigering efter publicering byggs i senare iteration; görs i appen tills vidare.
+- **Tidrapporter/avsluta pass, betyg, redigera jobb/schema** – chatt-tråden visar bara
+  meddelanden (ren text), inte den fulla tidslinjen med tidrapporter/jobbförfrågningar som
+  appens `ChattScreen`. Tidrapportsmodalen (avsluta pass), betyg och redigering efter
+  publicering görs fortfarande i appen.
 - **Återställ lösenord på webben** – görs i dag av backends egen sida; ingen Next-route.
-- **Realtid** – appen använder Supabase Broadcast; webben refetchar vid sidladdning/fokus.
+- **Olästmarkeringar i chatten** – inboxen visar senaste meddelandet men ingen oläst-badge
+  (ingen read-state-endpoint används ännu).
 - **Juridik/övrigt** – villkor, integritetspolicy, cookie-info saknas.
 
 ## Konventioner

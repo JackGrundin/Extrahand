@@ -151,3 +151,46 @@ export function tillPayload(pass) {
     kategori: p.kategori?.trim() || null,
   }));
 }
+
+// ── Kalenderöversikt (schemaöversikt) ────────────────────────────────────────
+// Portat från mobilappens MånadsKalender.js + SchemaKalenderScreen.js. Sorteringen i
+// rollerFörDag och grupperaPerKategori MÅSTE vara identisk (namnlösa sist) – annars radar
+// kalenderns prickar och dagslistan upp rollerna olika för samma dag.
+
+import { rollFärg } from '@/utils/konstanter';
+
+// Distinkta roller en given dag, med färg, om alla pass i rollen är genomförda (status
+// 'rapporterad') och om någon av dem saknar person. Styr kalenderns tre prick-tillstånd.
+export function rollerFörDag(pass) {
+  const grupper = {};
+  for (const p of pass) {
+    const namn = p.kategori || null;
+    (grupper[namn ?? ''] ??= { namn, färg: rollFärg(namn), pass: [] }).pass.push(p);
+  }
+  return Object.values(grupper)
+    .sort((a, b) => {
+      if (!a.namn) return 1;
+      if (!b.namn) return -1;
+      return a.namn.localeCompare(b.namn, 'sv');
+    })
+    .map((g) => ({
+      ...g,
+      alltGenomfört: g.pass.every((p) => p.status === 'rapporterad'),
+      saknarPerson: g.pass.some((p) => p.personId == null),
+    }));
+}
+
+// En dags pass grupperade per roll för dagslistan under kalendern. Samma sortering som
+// rollerFörDag.
+export function grupperaPerKategori(pass) {
+  const grupper = {};
+  for (const p of pass) {
+    const kategori = p.kategori || null;
+    (grupper[kategori ?? ''] ??= { kategori, pass: [] }).pass.push(p);
+  }
+  return Object.values(grupper).sort((a, b) => {
+    if (!a.kategori) return 1;
+    if (!b.kategori) return -1;
+    return a.kategori.localeCompare(b.kategori, 'sv');
+  });
+}
