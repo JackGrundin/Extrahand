@@ -120,6 +120,11 @@ export const api = {
 
   // Profil (för sessionsåterställning)
   hämtaProfil: () => anrop('GET', '/users/profil'),
+  uppdateraProfil: (kropp) => anrop('PUT', '/users/profil', kropp),
+  uppdateraStad: (stad) => anrop('PUT', '/users/stad', { stad }),
+  // Profilbild POSTas som base64 (data:image/...) – backend proxar till Supabase Storage
+  // och svarar { url }.
+  laddaUppProfilBild: (bild) => anrop('POST', '/users/profil-bild', { bild }),
 
   // ── Företagsvyer ──────────────────────────────────────────────────────────
   // Paths speglar frontend/src/api/klient.js. OBS: POST/PUT /jobb tar emot GEMENA
@@ -141,6 +146,9 @@ export const api = {
   hämtaSchema: (id) => anrop('GET', `/scheman/${id}`),
   markeraSchemaAnsökningarSedda: (schemaId) =>
     anrop('POST', `/scheman/${schemaId}/markera-ansokningar-sedda`, {}),
+  // Kalendervy: union av schemapass och godkända enstaka pass (inkl. obemannade).
+  schemaKalender: (från, till) =>
+    anrop('GET', `/scheman/kalender?from=${encodeURIComponent(från)}&till=${encodeURIComponent(till)}`),
 
   // Ansökningar
   ansökningarFörJobb: (jobbId) => anrop('GET', `/ansokningar/jobb/${jobbId}`),
@@ -152,6 +160,10 @@ export const api = {
 
   // Tidrapporter (historik-fliken)
   tidrapporterFörFöretag: () => anrop('GET', '/tidrapporter/foretag'),
+
+  // Meddelanden (chatt). Realtidssignalen kommer via Supabase Broadcast; datan hämtas här.
+  hämtaMeddelanden: (ansökanId) => anrop('GET', `/meddelanden/${ansökanId}`),
+  skicka: (ansökanId, kropp) => anrop('POST', `/meddelanden/${ansökanId}`, kropp),
 
   // Prenumeration (Stripe). Checkout/portal returnerar { url } att redirecta till.
   prenumerationStatus: () => anrop('GET', '/prenumeration/status'),

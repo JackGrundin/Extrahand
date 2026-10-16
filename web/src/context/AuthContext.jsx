@@ -73,6 +73,12 @@ export function AuthProvider({ children }) {
     return svar;
   }
 
+  // Slår ihop fält i den inloggade användaren (t.ex. efter profiländring eller ny
+  // profilbild) så att sidomeny/profil visar det nya direkt utan omladdning.
+  const uppdateraAnvändare = useCallback((delar) => {
+    setAnvändare((nuvarande) => (nuvarande ? { ...nuvarande, ...delar } : nuvarande));
+  }, []);
+
   const värde = useMemo(
     () => ({
       användare,
@@ -82,9 +88,10 @@ export function AuthProvider({ children }) {
       registrera,
       verifieraKod,
       loggaUt,
+      uppdateraAnvändare,
     }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [användare, laddar, loggaUt]
+    [användare, laddar, loggaUt, uppdateraAnvändare]
   );
 
   return <AuthContext.Provider value={värde}>{children}</AuthContext.Provider>;

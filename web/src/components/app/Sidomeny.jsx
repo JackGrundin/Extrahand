@@ -11,6 +11,8 @@ import { useAuth } from '@/context/AuthContext';
 const LÄNKAR = [
   { namn: 'Översikt', väg: '/oversikt' },
   { namn: 'Mina annonser', väg: '/annonser', badgeNyckel: 'annonser' },
+  { namn: 'Schemaöversikt', väg: '/kalender' },
+  { namn: 'Meddelanden', väg: '/meddelanden' },
   { namn: 'Publicera pass', väg: '/publicera/jobb' },
   { namn: 'Publicera schema', väg: '/publicera/schema' },
 ];
@@ -58,11 +60,30 @@ export default function Sidomeny({ badges = {}, onNavigera }) {
       </nav>
 
       <div className="border-t border-kant p-3">
-        <p className="truncate px-3 pb-2 text-[13px] text-text-svag">{användare?.namn}</p>
+        {/* Företagsnamnet länkar till profilen (skapa/redigera). */}
+        <Link
+          href="/profil"
+          onClick={onNavigera}
+          className={`flex items-center gap-2.5 rounded-sm px-3 py-2.5 transition-colors ${
+            ärAktiv('/profil') ? 'bg-primär-mjuk' : 'hover:bg-yta-dämpad'
+          }`}
+        >
+          {användare?.profilBild ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={användare.profilBild} alt="" className="h-8 w-8 shrink-0 rounded-full object-cover" />
+          ) : (
+            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gradient-primär text-[13px] font-bold text-white">
+              {(användare?.namn || '?').charAt(0).toUpperCase()}
+            </span>
+          )}
+          <span className={`truncate text-[14px] font-semibold ${ärAktiv('/profil') ? 'text-primär' : 'text-text'}`}>
+            {användare?.namn}
+          </span>
+        </Link>
         <button
           type="button"
           onClick={loggaUt}
-          className="w-full rounded-sm px-3 py-2.5 text-left text-[15px] font-semibold text-text-dämpad transition-colors hover:bg-yta-dämpad hover:text-fel"
+          className="mt-1 w-full rounded-sm px-3 py-2.5 text-left text-[15px] font-semibold text-text-dämpad transition-colors hover:bg-yta-dämpad hover:text-fel"
         >
           Logga ut
         </button>

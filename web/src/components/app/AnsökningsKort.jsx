@@ -5,6 +5,7 @@
 // passet startat. saknadeKrav visas som en härledd "Kräver ny bekräftelse"-bricka – den
 // försvinner av sig själv när personen bekräftat (inget lagrat statusvärde).
 import { useState } from 'react';
+import Link from 'next/link';
 import Knapp from '@/components/ui/Knapp';
 import { ansökanStatusVisning } from '@/utils/konstanter';
 
@@ -81,6 +82,11 @@ export default function AnsökningsKort({ ansökan, jobbStartat, onStatus, onFav
             {statusVisning.etikett}
           </span>
         )}
+
+        {/* Chatt finns så fort någon sökt – företaget kan prata innan beslut. */}
+        <Link href={`/meddelanden/${ansökan.id}`} className="ml-auto text-[14px] font-semibold text-primär hover:underline">
+          Öppna chatt →
+        </Link>
       </div>
     </div>
   );
