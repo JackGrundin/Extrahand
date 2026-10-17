@@ -74,19 +74,9 @@ export default function Toppnav() {
               </Knapp>
             </>
           ) : (
-            <>
-              <Knapp
-                variant="kontur"
-                storlek="liten"
-                href="/logga-in"
-                className="hidden md:inline-flex"
-              >
-                Logga in
-              </Knapp>
-              <Knapp variant="primär" storlek="liten" href="/registrera">
-                Skapa konto
-              </Knapp>
-            </>
+            <Knapp variant="primär" storlek="liten" href="/logga-in">
+              Logga in
+            </Knapp>
           )}
 
           {/* Menytoggle – bara på mobil (tre streck ritade i CSS, inget ikonbibliotek) */}

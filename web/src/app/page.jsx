@@ -123,15 +123,12 @@ export default function Marknadsforing() {
                   betyg efteråt. Inga bemanningsavtal och ingen uppstartsavgift.
                 </p>
                 <div className="anim-fade-up d-3 mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row lg:justify-start">
-                  <Knapp variant="primär" href="/registrera">
-                    Skapa konto gratis
-                  </Knapp>
-                  <Knapp variant="kontur" href="/logga-in">
+                  <Knapp variant="primär" href="/logga-in">
                     Logga in
                   </Knapp>
                 </div>
                 <p className="anim-fade-up d-4 mt-6 text-[14px] text-text-svag">
-                  Gratis att börja · Ingen bindningstid · Igång på några minuter
+                  Inga bemanningsavtal · Ingen bindningstid
                 </p>
               </div>
 
@@ -209,8 +206,8 @@ export default function Marknadsforing() {
                   <PunktRad>Lägg upp hur många annonser du vill</PunktRad>
                   <PunktRad>Chatt, tidrapporter och betyg ingår</PunktRad>
                 </ul>
-                <Knapp variant="kontur" href="/registrera" full className="mt-8">
-                  Skapa konto
+                <Knapp variant="kontur" href="/logga-in" full className="mt-8">
+                  Logga in
                 </Knapp>
               </div>
 
@@ -234,8 +231,8 @@ export default function Marknadsforing() {
                   <PunktRad>Chatt, tidrapporter och betyg ingår</PunktRad>
                   <PunktRad>Säg upp när du vill</PunktRad>
                 </ul>
-                <Knapp variant="primär" href="/registrera" full className="mt-8">
-                  Kom igång med Pro
+                <Knapp variant="primär" href="/logga-in" full className="mt-8">
+                  Logga in
                 </Knapp>
               </div>
             </div>
@@ -246,14 +243,14 @@ export default function Marknadsforing() {
         <section className="border-t border-kant bg-bakgrund">
           <div className="mx-auto max-w-innehåll px-5 py-24">
             <div className="mx-auto max-w-2xl rounded-2xl border border-kant bg-yta px-6 py-14 text-center shadow-mjuk">
-              <h2 className="rubrik-l text-text">Kom igång på ett par minuter</h2>
+              <h2 className="rubrik-l text-text">Redan med i FastGig?</h2>
               <p className="mx-auto mt-4 max-w-lg text-[17px] leading-relaxed text-text-dämpad">
-                Skapa ett konto gratis. Samma inloggning funkar både i appen och
+                Logga in med ditt konto – samma inloggning funkar både i appen och
                 här på webben.
               </p>
               <div className="mt-8 flex justify-center">
-                <Knapp variant="primär" href="/registrera">
-                  Skapa konto gratis
+                <Knapp variant="primär" href="/logga-in">
+                  Logga in
                 </Knapp>
               </div>
             </div>

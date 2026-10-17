@@ -115,16 +115,6 @@ export default function LoggaIn() {
           Logga in
         </Knapp>
       </form>
-
-      <p className="mt-6 text-center text-[14px] text-text-dämpad">
-        Har du inget konto?{' '}
-        <Link
-          href={nästa ? `/registrera?next=${encodeURIComponent(nästa)}` : '/registrera'}
-          className="font-semibold text-primär hover:underline"
-        >
-          Skapa konto
-        </Link>
-      </p>
     </AuthSkal>
   );
 }

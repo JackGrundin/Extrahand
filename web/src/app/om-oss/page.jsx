@@ -45,14 +45,14 @@ export default function OmOss() {
         </section>
 
         <section className="rounded-xl border border-kant bg-bakgrund p-7">
-          <h2 className="rubrik-m text-text">Vill du komma igång?</h2>
+          <h2 className="rubrik-m text-text">Redan med?</h2>
           <p className="mt-2 text-[15px] leading-relaxed text-text-dämpad">
-            Det är gratis att börja – samma konto funkar i både appen och på
+            Logga in med ditt konto – samma inloggning funkar i både appen och på
             webben.
           </p>
           <div className="mt-5">
-            <Knapp variant="primär" href="/registrera">
-              Skapa konto gratis
+            <Knapp variant="primär" href="/logga-in">
+              Logga in
             </Knapp>
           </div>
         </section>

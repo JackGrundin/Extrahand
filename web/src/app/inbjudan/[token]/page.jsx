@@ -3,10 +3,9 @@
 // Landningssida för en schema-inbjudningslänk (från mejlet). Ligger UTANFÖR (app)-gruppen
 // så att privatpersoner (inte bara företag) når den. Löser in token via backend:
 //   - Inloggad → vidare till schemavyn (/schema/<id>) där man kan ansöka.
-//   - Utloggad → en kort förhandsvisning + "Skapa konto"/"Logga in" (båda bär med ?next=
-//     tillbaka hit, så personen landar på schemat efter registrering/inloggning).
+//   - Utloggad → en kort förhandsvisning + "Logga in" (bär med ?next= tillbaka hit, så
+//     personen landar på schemat efter inloggning). Registrering är stängd före lansering.
 import { useEffect, useState } from 'react';
-import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import Knapp from '@/components/ui/Knapp';
@@ -71,13 +70,10 @@ export default function Inbjudan() {
               till schemat <strong>{inbjudan.titel}</strong>.
             </p>
             <p className="mt-2 text-[14px] text-text-dämpad">
-              Skapa ett konto (eller logga in) för att se schemat och ansöka.
+              Logga in för att se schemat och ansöka.
             </p>
             <div className="mt-6 flex flex-col gap-3">
-              <Knapp variant="primär" full href={`/registrera?next=${encodeURIComponent(nästa)}`}>
-                Skapa konto
-              </Knapp>
-              <Knapp variant="kontur" full href={`/logga-in?next=${encodeURIComponent(nästa)}`}>
+              <Knapp variant="primär" full href={`/logga-in?next=${encodeURIComponent(nästa)}`}>
                 Logga in
               </Knapp>
             </div>

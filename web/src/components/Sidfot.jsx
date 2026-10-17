@@ -19,9 +19,6 @@ export default function Sidfot() {
           <Link href="/logga-in" className="hover:text-text">
             Logga in
           </Link>
-          <Link href="/registrera" className="hover:text-text">
-            Skapa konto
-          </Link>
         </nav>
       </div>
     </footer>
