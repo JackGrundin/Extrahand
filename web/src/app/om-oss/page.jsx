@@ -37,6 +37,11 @@ export default function OmOss() {
             grundare. Bygger FastGig för att göra extrajobb och bemanning så
             enkelt som det borde vara.
           </p>
+          <p className="mt-4 text-[16px] leading-relaxed text-text-dämpad">
+            <span className="font-semibold text-text">Fabian Stenquist</span> –
+            grundare. Bygger FastGig för att göra extrajobb och bemanning så
+            enkelt som det borde vara.
+          </p>
         </section>
 
         <section className="rounded-xl border border-kant bg-bakgrund p-7">
