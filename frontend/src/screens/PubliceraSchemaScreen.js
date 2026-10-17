@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useRef, useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, ScrollView, ActivityIndicator, KeyboardAvoidingView, Platform, Linking } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, ScrollView, ActivityIndicator, KeyboardAvoidingView, Platform, Linking, Switch } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import PrenumerationModal from '../components/PrenumerationModal';
@@ -48,6 +48,9 @@ export default function PubliceraSchemaScreen({ navigation }) {
   // är rent informativt för den som söker.
   const [sistaAnsokningsdag, setSistaAnsokningsdag] = useState('');
   const [senastBesked, setSenastBesked] = useState('');
+  // Privat schema syns inte i den öppna listan – bara för inbjudna (bjuds in via e-post
+  // från schemadetaljen efter publicering).
+  const [privat, setPrivat] = useState(false);
 
   // Steg 2 – perioden är ren UI-ställning. Servern härleder schemats period ur passens
   // datum (se härledPeriod i backend/routes/scheman.js), så den skickas aldrig med.
@@ -403,6 +406,7 @@ export default function PubliceraSchemaScreen({ navigation }) {
       behorighets_krav: behorighetsKrav,
       sista_ansokningsdag: sistaAnsokningsdag || null,
       senast_besked: senastBesked || null,
+      privat,
       ...(accepteraHögrePåslag ? { acceptera_hogre_paslag: true } : {}),
     });
 
@@ -573,6 +577,21 @@ export default function PubliceraSchemaScreen({ navigation }) {
                 placeholder="Frivilligt – välj datum"
                 minimumDate={new Date()}
               />
+
+              {/* Privat schema: syns inte i den öppna listan, bara för inbjudna. */}
+              <View style={styles.privatRad}>
+                <View style={{ flex: 1, paddingRight: 12 }}>
+                  <Text style={styles.privatTitel}>Privat schema</Text>
+                  <Text style={styles.privatText}>
+                    Syns inte i den öppna listan. Du bjuder in personer via e-post efter publicering.
+                  </Text>
+                </View>
+                <Switch
+                  value={privat}
+                  onValueChange={setPrivat}
+                  trackColor={{ true: '#2563eb', false: '#ccc' }}
+                />
+              </View>
             </>
           )}
 
@@ -966,6 +985,9 @@ export default function PubliceraSchemaScreen({ navigation }) {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#fff', paddingHorizontal: 20 },
   label: { fontSize: 14, fontWeight: '600', color: '#444', marginBottom: 6, marginTop: 16 },
+  privatRad: { flexDirection: 'row', alignItems: 'center', marginTop: 24, padding: 14, backgroundColor: '#f8fafc', borderRadius: 12, borderWidth: 1, borderColor: '#e2e8f0' },
+  privatTitel: { fontSize: 15, fontWeight: '700', color: '#0f172a' },
+  privatText: { fontSize: 13, color: '#64748b', marginTop: 2, lineHeight: 18 },
   input: { borderWidth: 1, borderColor: '#ddd', borderRadius: 10, padding: 14, fontSize: 15, backgroundColor: '#fafafa' },
   textArea: { height: 120 },
   inputFel: { borderColor: '#dc2626', borderWidth: 1.5, backgroundColor: '#fef2f2' },

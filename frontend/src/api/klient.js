@@ -271,6 +271,9 @@ export const api = {
   hämtaSchemaAvdrag: (id) => anrop('GET', `/scheman/${id}/avdrag`),
   skapaSchemaAvdrag: (id, kropp) => anrop('POST', `/scheman/${id}/avdrag`, kropp),
   taBortSchemaAvdrag: (id, avdragId) => anrop('DELETE', `/scheman/${id}/avdrag/${avdragId}`),
+  // Privata scheman: bjud in person via e-post + lista inbjudna.
+  bjudInTillSchema: (id, email) => anrop('POST', `/scheman/${id}/bjud-in`, { email }),
+  schemaInbjudningar: (id) => anrop('GET', `/scheman/${id}/inbjudningar`),
 
   // Korrigerar en automatiskt skapad tidrapport som ännu väntar på svar (övertid/rast).
   // Efter ett bestridande skickas i stället en ny rapport via skapaRapport.

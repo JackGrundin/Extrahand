@@ -69,6 +69,9 @@ export default function PubliceraSchema() {
   const [timlon, setTimlon] = useState('');
   const [sistaAnsokningsdag, setSistaAnsokningsdag] = useState('');
   const [senastBesked, setSenastBesked] = useState('');
+  // Privat schema syns inte i den öppna listan – bara för inbjudna (bjuds in via e-post
+  // från schemadetaljen efter publicering).
+  const [privat, setPrivat] = useState(false);
 
   // Steg 2
   const [startdatum, setStartdatum] = useState('');
@@ -256,6 +259,7 @@ export default function PubliceraSchema() {
         behorighets_krav: behorighetsKrav,
         sista_ansokningsdag: sistaAnsokningsdag || null,
         senast_besked: senastBesked || null,
+        privat,
         ...(accepteraHögrePåslag ? { acceptera_hogre_paslag: true } : {}),
       });
       router.push('/annonser');
@@ -341,6 +345,22 @@ export default function PubliceraSchema() {
             <DatumVäljare etikett="Sista ansökningsdag (valfritt)" värde={sistaAnsokningsdag} min={idag} onÄndra={setSistaAnsokningsdag} />
             <DatumVäljare etikett="Senast besked (valfritt)" värde={senastBesked} min={idag} onÄndra={setSenastBesked} />
           </div>
+
+          {/* Privat schema: syns inte i öppna listan, bara för inbjudna. */}
+          <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-kant bg-yta-dämpad p-4">
+            <input
+              type="checkbox"
+              checked={privat}
+              onChange={(e) => setPrivat(e.target.checked)}
+              className="mt-0.5 h-5 w-5 accent-[#1d4ed8]"
+            />
+            <span>
+              <span className="block text-[15px] font-semibold text-text">Privat schema</span>
+              <span className="mt-0.5 block text-[13px] text-text-dämpad">
+                Syns inte i den öppna listan. Du bjuder in personer via e-post efter publicering.
+              </span>
+            </span>
+          </label>
         </div>
       )}
 

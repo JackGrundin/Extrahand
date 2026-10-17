@@ -32,7 +32,14 @@ export default function SchemaKort({ schema }) {
         </div>
       )}
 
-      <h3 className="text-[16px] font-bold text-text">{schema.titel}</h3>
+      <div className="flex items-center gap-2">
+        <h3 className="text-[16px] font-bold text-text">{schema.titel}</h3>
+        {schema.privat && (
+          <span className="rounded-pill border border-varning-kant bg-varning-mjuk px-2 py-0.5 text-[11px] font-bold text-varning-text">
+            Privat
+          </span>
+        )}
+      </div>
       {period && <p className="mt-0.5 text-[14px] text-text-dämpad">{period}</p>}
 
       <div className="mt-3">

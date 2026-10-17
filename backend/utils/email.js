@@ -92,4 +92,36 @@ function säkerNamn(namn) {
   return String(namn ?? '').replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
 }
 
-module.exports = { skickaVerifieringsMail, skickaÅterställningsMail, skickaAvtalÅterkalladMail };
+// Inbjudan till ett privat schema. Länken pekar på webbappen (WEBB_BAS_URL) som förhandsvisar
+// schemat och – för den som saknar konto – tar vidare till registrering och sedan tillbaka
+// till schemat. Företagsnamn och schematitel kommer från vår egen data men escapas ändå,
+// samma princip som avtalsmejlet.
+async function skickaSchemaInbjudanMail(email, { företagNamn, schemaTitel, länk }) {
+  if (!process.env.RESEND_API_KEY) {
+    throw new Error('RESEND_API_KEY saknas i miljövariablerna.');
+  }
+  const företag = säkerNamn(företagNamn) || 'Ett företag';
+  const titel = säkerNamn(schemaTitel) || 'ett schema';
+  const resend = skapaResend();
+  const { error } = await resend.emails.send({
+    from: process.env.EMAIL_FROM || 'FastGig <noreply@fastgig.se>',
+    to: email,
+    subject: `${företag} har bjudit in dig till ett schema – FastGig`,
+    html: `
+      <div style="font-family:-apple-system,sans-serif;max-width:480px;margin:0 auto;padding:32px 24px;background:#fff;">
+        <h1 style="color:#2563eb;font-size:24px;margin:0 0 8px;">FastGig</h1>
+        <p style="color:#444;font-size:16px;margin:0 0 24px;"><strong>${företag}</strong> har bjudit in dig till schemat <strong>${titel}</strong>. Klicka nedan för att se schemat och ansöka.</p>
+        <div style="text-align:center;margin-bottom:24px;">
+          <a href="${länk}" style="display:inline-block;background:#2563eb;color:#fff;font-size:16px;font-weight:600;text-decoration:none;border-radius:10px;padding:14px 28px;">Se schemat</a>
+        </div>
+        <p style="color:#888;font-size:13px;margin:0 0 16px;">Fungerar inte knappen? Kopiera den här adressen till din webbläsare:<br />
+          <span style="color:#2563eb;word-break:break-all;">${länk}</span>
+        </p>
+        <p style="color:#888;font-size:13px;margin:0;">Har du inget konto tar länken dig till registreringen och sedan vidare till schemat.</p>
+      </div>
+    `,
+  });
+  if (error) throw new Error(error.message);
+}
+
+module.exports = { skickaVerifieringsMail, skickaÅterställningsMail, skickaAvtalÅterkalladMail, skickaSchemaInbjudanMail };

@@ -24,7 +24,10 @@ const { tilldelaSchema, frigörFramtidaPass, återställSchema } = require('../d
 const { skapaJobb, räknaJobbDennaMånad, sättJobbPåslag, hämtaJobbFörFöretag, markeraAnsökningarSedda } = require('../db/jobb');
 const { hämtaAnsökningarFörJobb, uppdateraStatus, markeraAvhopp, hämtaGodkändaFörFleraJobb, hämtaNamnFörAnvändare } = require('../db/ansokningar');
 const { hämtaPrenumeration, ärPro, harGjortPlanval, sättPlanvalGjort, minskaPassDennaManad } = require('../db/prenumeration');
-const { hämtaPrivatpersonerIStad, hämtaPushToken } = require('../db/användare');
+const { hämtaPrivatpersonerIStad, hämtaPushToken, hämtaAnvändareViaEmail } = require('../db/användare');
+const { hashaToken, skapaInbjudan, hämtaInbjudningarFörSchema } = require('../db/schemaInbjudan');
+const { skickaSchemaInbjudanMail } = require('../utils/email');
+const crypto = require('crypto');
 const { GRATIS_PASS_PER_MANAD, valideraObTillagg } = require('../utils/pris');
 const { normaliseraKrav, valideraBehorighetsKrav } = require('../utils/behorighet');
 const { notifieraOmNyaKrav } = require('../utils/kravNotis');
@@ -181,7 +184,7 @@ router.post('/', kräverInloggning, kräverTyp('företag'), async (req, res) => 
   const {
     titel, beskrivning, plats, adress, kategori, typ,
     timlon, pass, avdrag, behorighets_krav, acceptera_hogre_paslag,
-    sista_ansokningsdag, senast_besked,
+    sista_ansokningsdag, senast_besked, privat,
   } = req.body;
 
   const valideringsfel = valideraSchemaInput({
@@ -233,6 +236,8 @@ router.post('/', kräverInloggning, kräverTyp('företag'), async (req, res) => 
       // Frivilliga datum. Spärren för sista_ansokningsdag sitter i POST /api/ansokningar.
       sista_ansokningsdag: sista_ansokningsdag || null,
       senast_besked: senast_besked || null,
+      // Privat = syns bara för inbjudna (filtreras bort i hämtaÖppnaScheman).
+      privat: privat === true,
     });
 
     // Annons-jobbet. Det bär schemats ansökningar och därmed chatten, och det är här
@@ -299,9 +304,12 @@ router.post('/', kräverInloggning, kräverTyp('företag'), async (req, res) => 
 
     sändJobblistaPing('schema-ny');
 
-    notifieraPrivatpersonerIStad(schema).catch(notisfel =>
-      console.error('Notisfel vid nytt schema:', notisfel)
-    );
+    // Privata scheman notifierar ALDRIG hela staden – de syns bara för inbjudna.
+    if (!schema.privat) {
+      notifieraPrivatpersonerIStad(schema).catch(notisfel =>
+        console.error('Notisfel vid nytt schema:', notisfel)
+      );
+    }
   } catch (fel) {
     console.error('Fel vid skapande av schema:', fel);
     res.status(500).json({ fel: 'Serverfel vid skapande av schema' });
@@ -324,7 +332,8 @@ async function notifieraPrivatpersonerIStad(schema) {
 // GET /api/scheman — öppna scheman att söka
 router.get('/', kräverInloggning, async (req, res) => {
   try {
-    const scheman = await hämtaÖppnaScheman();
+    // Skicka med e-posten så privata scheman personen bjudits in till unionas in.
+    const scheman = await hämtaÖppnaScheman(req.användare.email);
     res.json(scheman);
   } catch (fel) {
     console.error('Fel vid hämtning av scheman:', fel);
@@ -627,6 +636,89 @@ router.post('/:id/markera-ansokningar-sedda', kräverInloggning, kräverTyp('fö
   }
 });
 
+// Webbappens bas-URL för inbjudningslänkar. Länken landar på webben (till skillnad från
+// lösenordsåterställningens APP_BAS_URL, som pekar på backendens egna sida) eftersom
+// registreringsfunneln och privatpersons-schemavyn ligger i webbappen.
+const WEBB_BAS_URL = process.env.WEBB_BAS_URL || 'https://fastgig.se';
+const EPOST_MÖNSTER = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+// POST /api/scheman/:id/bjud-in — företaget bjuder in en person till ett PRIVAT schema via
+// e-post. Skapar en inbjudan med unik token (bara hashen lagras), skickar alltid mejl och –
+// om e-posten matchar ett konto – även en push som vid tryck öppnar schemat i appen.
+router.post('/:id/bjud-in', kräverInloggning, kräverTyp('företag'), async (req, res) => {
+  const email = String(req.body?.email ?? '').trim().toLowerCase();
+  if (!EPOST_MÖNSTER.test(email)) return res.status(400).json({ fel: 'Ange en giltig e-postadress' });
+
+  try {
+    const schema = await hämtaSchemaViaId(req.params.id);
+    if (!schema) return res.status(404).json({ fel: 'Schemat hittades inte' });
+    if (String(schema.foretag_id) !== String(req.användare.id)) {
+      return res.status(403).json({ fel: 'Åtkomst nekad' });
+    }
+    if (!schema.privat) return res.status(400).json({ fel: 'Bara privata scheman kan bjudas in till' });
+
+    // Matchar e-posten ett konto kopplas inbjudan dit direkt och en push skickas.
+    const befintlig = await hämtaAnvändareViaEmail(email);
+
+    const token = crypto.randomBytes(32).toString('hex');
+    await skapaInbjudan({
+      schema_id: schema.id,
+      email,
+      tokenHash: hashaToken(token),
+      anvandare_id: befintlig?.id ?? null,
+    });
+
+    const företagNamn = (await hämtaNamnFörAnvändare([req.användare.id]))[req.användare.id] || 'Ett företag';
+    const länk = `${WEBB_BAS_URL}/inbjudan/${token}`;
+
+    // Svara direkt; mejl/push blockerar inte svaret.
+    res.json({ ok: true, hadeKonto: Boolean(befintlig) });
+
+    skickaSchemaInbjudanMail(email, { företagNamn, schemaTitel: schema.titel, länk }).catch(fel =>
+      console.error('Inbjudningsmejl misslyckades:', fel)
+    );
+
+    if (befintlig) {
+      hämtaPushToken(befintlig.id)
+        .then(pushToken =>
+          skickaNotifikation(
+            pushToken,
+            `${företagNamn} har bjudit in dig`,
+            `${företagNamn} har bjudit in dig till schemat ${schema.titel} – tryck här för att se det`,
+            { typ: 'schema_inbjudan', schemaId: schema.id }
+          )
+        )
+        .catch(fel => console.error('Inbjudnings-push misslyckades:', fel));
+    }
+  } catch (fel) {
+    console.error('Fel vid inbjudan till schema:', fel);
+    res.status(500).json({ fel: 'Serverfel vid inbjudan' });
+  }
+});
+
+// GET /api/scheman/:id/inbjudningar — företagets lista över inbjudna till schemat.
+router.get('/:id/inbjudningar', kräverInloggning, kräverTyp('företag'), async (req, res) => {
+  try {
+    const schema = await hämtaSchemaViaId(req.params.id);
+    if (!schema) return res.status(404).json({ fel: 'Schemat hittades inte' });
+    if (String(schema.foretag_id) !== String(req.användare.id)) {
+      return res.status(403).json({ fel: 'Åtkomst nekad' });
+    }
+    const inbjudningar = await hämtaInbjudningarFörSchema(schema.id);
+    res.json(
+      inbjudningar.map(i => ({
+        email: i.email,
+        hadeKonto: i.anvandare_id != null,
+        accepterad_at: i.accepterad_at,
+        skapad_datum: i.skapad_datum,
+      }))
+    );
+  } catch (fel) {
+    console.error('Fel vid hämtning av inbjudningar:', fel);
+    res.status(500).json({ fel: 'Serverfel' });
+  }
+});
+
 // POST /api/scheman/:id/avdrag — företag lägger till ett löneavdrag
 router.post('/:id/avdrag', kräverInloggning, kräverTyp('företag'), async (req, res) => {
   const { namn, belopp, typ } = req.body;
@@ -826,7 +918,7 @@ router.post('/:id/avbryt', kräverInloggning, kräverTyp('företag'), async (req
 
 // PUT /api/scheman/:id — företag redigerar ett ännu inte tillsatt schema
 router.put('/:id', kräverInloggning, kräverTyp('företag'), async (req, res) => {
-  const { titel, beskrivning, plats, adress, kategori, typ, timlon, behorighets_krav, sista_ansokningsdag, senast_besked } = req.body;
+  const { titel, beskrivning, plats, adress, kategori, typ, timlon, behorighets_krav, sista_ansokningsdag, senast_besked, privat } = req.body;
   if (!titel || !String(titel).trim()) return res.status(400).json({ fel: 'Titel krävs' });
   if (timlon != null && !(Number(timlon) > 0)) return res.status(400).json({ fel: 'Giltig timlön krävs' });
   // Samma GILTIGA_TYPER som POST använder – ingen andra sanning om vilka typer som finns.
@@ -866,6 +958,7 @@ router.put('/:id', kräverInloggning, kräverTyp('företag'), async (req, res) =
       // Tom sträng nollar datumet (company tar bort det), annars sätts det valda datumet.
       ...(sista_ansokningsdag !== undefined ? { sista_ansokningsdag: sista_ansokningsdag || null } : {}),
       ...(senast_besked !== undefined ? { senast_besked: senast_besked || null } : {}),
+      ...(privat !== undefined ? { privat: privat === true } : {}),
     });
 
     // Inget matchade: schemat finns inte, ägs av någon annan, eller är redan tillsatt.

@@ -9,6 +9,7 @@ import { useParams } from 'next/navigation';
 import Besked from '@/components/ui/Besked';
 import RollBrickor from '@/components/app/RollBrickor';
 import AnsökningsKort from '@/components/app/AnsökningsKort';
+import InbjudanSektion from '@/components/app/InbjudanSektion';
 import { api, felText } from '@/lib/api';
 import { formatPeriod, veckodagsNamn, formatDagDatum } from '@/utils/datumHelper';
 import { schematypEtikett, formateraPris } from '@/utils/konstanter';
@@ -81,7 +82,14 @@ export default function SchemaDetalj() {
     <div className="mx-auto max-w-2xl">
       <Link href="/annonser" className="text-[14px] font-semibold text-text-dämpad hover:text-text">← Mina annonser</Link>
 
-      <h1 className="mt-3 rubrik-l text-text">{schema.titel}</h1>
+      <div className="mt-3 flex flex-wrap items-center gap-2">
+        <h1 className="rubrik-l text-text">{schema.titel}</h1>
+        {schema.privat && (
+          <span className="rounded-pill border border-varning-kant bg-varning-mjuk px-2.5 py-1 text-[12px] font-bold text-varning-text">
+            Privat
+          </span>
+        )}
+      </div>
       <div className="mt-2 flex flex-wrap items-center gap-3 text-[15px] text-text-dämpad">
         <span>{schematypEtikett(schema.typ)}</span>
         <span>·</span>
@@ -98,6 +106,8 @@ export default function SchemaDetalj() {
       </div>
 
       {fel && <Besked typ="fel">{fel}</Besked>}
+
+      {schema.privat && <InbjudanSektion schemaId={id} />}
 
       {schema.beskrivning && (
         <p className="mt-5 whitespace-pre-wrap text-[15px] leading-relaxed text-text-dämpad">{schema.beskrivning}</p>

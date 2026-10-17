@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
-import { NavigationContainer } from '@react-navigation/native';
+import { NavigationContainer, useNavigationContainerRef } from '@react-navigation/native';
+import * as Notifications from 'expo-notifications';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { AppState, Image, Modal, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
@@ -427,11 +428,40 @@ const laddningsStyles = StyleSheet.create({
 export default function Navigation() {
   const { användare, laddar } = useAuth();
   const [visaSplash, setVisaSplash] = useState(true);
+  // Ref mot navigationscontainern. Behövs för att navigera från notis-lyssnaren, som ligger
+  // utanför navigatorträdet (HuvudNavigator renderas direkt i NavigationContainer, så
+  // useNavigation finns inte där).
+  const navigationRef = useNavigationContainerRef();
 
   useEffect(() => {
     const timer = setTimeout(() => setVisaSplash(false), 1500);
     return () => clearTimeout(timer);
   }, []);
+
+  // Tryck på en schema-inbjudningsnotis öppnar schemat i appen. Privatpersonens SchemaDetalj
+  // ligger i JobbTab → JobbNavigator. getLastNotificationResponseAsync täcker kallstart
+  // (appen var helt stängd när notisen trycktes); lyssnaren täcker appen igång/i bakgrunden.
+  // Gatead på privatperson eftersom företagets SchemaDetalj ligger i en annan flik.
+  useEffect(() => {
+    if (användare?.typ !== 'privatperson') return undefined;
+
+    function öppnaSchema(schemaId, försök = 0) {
+      if (navigationRef.isReady()) {
+        navigationRef.navigate('JobbTab', { screen: 'SchemaDetalj', params: { schemaId } });
+      } else if (försök < 10) {
+        // Kallstart: containern kan vara omonterad en kort stund efter att svaret lästs.
+        setTimeout(() => öppnaSchema(schemaId, försök + 1), 300);
+      }
+    }
+    function hanteraSvar(svar) {
+      const data = svar?.notification?.request?.content?.data;
+      if (data?.typ === 'schema_inbjudan' && data.schemaId) öppnaSchema(data.schemaId);
+    }
+
+    const sub = Notifications.addNotificationResponseReceivedListener(hanteraSvar);
+    Notifications.getLastNotificationResponseAsync().then(svar => { if (svar) hanteraSvar(svar); });
+    return () => sub.remove();
+  }, [användare?.typ, navigationRef]);
 
   if (laddar || visaSplash) {
     return (
@@ -452,7 +482,7 @@ export default function Navigation() {
     // Bannern ligger utanför NavigationContainer och överlever därför skärmbyten.
     // Den renderas efter navigationen så att den hamnar överst i staplingsordningen.
     <View style={{ flex: 1 }}>
-      <NavigationContainer>
+      <NavigationContainer ref={navigationRef}>
         {användare ? <HuvudNavigator /> : <AuthNavigator />}
       </NavigationContainer>
       {/* Onboarding-guiden ritas ovanför navigatorn (Modal) och visas en gång för nya

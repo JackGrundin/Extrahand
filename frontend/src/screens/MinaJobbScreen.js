@@ -267,7 +267,14 @@ export default function MinaJobbScreen({ navigation, route }) {
                   </Text>
                 </View>
               )}
-              <Text style={styles.titel} numberOfLines={1}>{item.titel}</Text>
+              <View style={styles.titelRad}>
+                <Text style={[styles.titel, { flexShrink: 1 }]} numberOfLines={1}>{item.titel}</Text>
+                {item.privat && (
+                  <View style={styles.privatBricka}>
+                    <Text style={styles.privatBrickaText}>Privat</Text>
+                  </View>
+                )}
+              </View>
               <View style={styles.infoRad}>
                 <Text style={styles.info}>
                   {formatDagDatum(item.startdatum)} – {formatDagDatum(item.slutdatum)}
@@ -420,6 +427,9 @@ const styles = StyleSheet.create({
   sökandeRadText: { color: '#2563eb', fontSize: 12, fontWeight: '700' },
   sökandeRadTextNy: { color: '#fff' },
   titel: { fontSize: 16, fontWeight: '700', color: '#1a1a1a', marginBottom: 6 },
+  titelRad: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  privatBricka: { backgroundColor: '#fff7ed', borderWidth: 1, borderColor: '#fed7aa', borderRadius: 999, paddingHorizontal: 8, paddingVertical: 2, marginBottom: 6 },
+  privatBrickaText: { fontSize: 11, fontWeight: '700', color: '#b45309' },
   infoRad: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 8 },
   info: { fontSize: 14, color: '#666' },
   lön: { fontSize: 14, color: '#2563eb', fontWeight: '600' },
