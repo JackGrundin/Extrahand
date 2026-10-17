@@ -127,12 +127,29 @@ möts av ett "använd appen"-besked). Skalet är en sidomeny (`components/app/Ap
   `JobbKort`, `SchemaKort` och tidrapportslista.
 - **`/publicera/jobb`** – enstaka pass. `valideraJobb`, prispreview, dag-för-dag,
   `PlanvalModal` vid 409 `KRAVER_PLANVAL` (fortsätt gratis / Stripe-checkout).
-- **`/publicera/schema`** – fyrstegsflöde (full paritet): grunduppgifter → kalender-
-  multival + veckodagsgenvägar → per-pass-editor med massredigering → löneavdrag.
-  Passlogiken i `utils/schemaPass.js`, urvalsläget (markering XOR öppet pass) matchar appen.
+- **`/publicera/schema`** – fyrstegsflöde (full paritet): grunduppgifter (inkl. **Privat**-
+  kryssruta) → kalender-multival + veckodagsgenvägar → per-pass-editor med massredigering →
+  löneavdrag. Passlogiken i `utils/schemaPass.js`, urvalsläget (markering XOR öppet pass)
+  matchar appen. `privat` följer med i `skapaSchema`-payloaden.
 - **`/annonser/jobb/[id]/ansokningar`** och **`/annonser/schema/[id]`** – hantera
   ansökningar (`AnsökningsKort`: godkänn/återta/favorit + "Öppna chatt"). Schemadetaljen
-  visar även pass, roller och löneavdrag.
+  visar även pass, roller och löneavdrag, en **"Privat"-etikett** och – för privata scheman –
+  `InbjudanSektion` (bjud in via e-post + lista inbjudna). `SchemaKort` i `/annonser` har en
+  "Privat"-bricka.
+
+### Privata scheman – inbjudna privatpersoner (utanför `(app)`-gruppen)
+Invite-vägen låter en inbjuden privatperson se och ansöka på webben. Rutterna ligger
+UTANFÖR `(app)` (som gatear till företag) och har egen auth-gate:
+- **`/inbjudan/[token]`** – landningssida från mejllänken. `api.hämtaInbjudan(token)` (publik
+  `GET /inbjudan/:token`). Inloggad → `/schema/<id>`; utloggad → förhandsvisning + "Skapa
+  konto"/"Logga in" som bär `?next=/inbjudan/<token>`.
+- **`/schema/[id]`** – privatpersons-schemavy: titel, företag, period, pass, löneavdrag,
+  behörighetskrav + **Ansök** (intyga krav via `saknadeKrav` + meddelande →
+  `POST /ansokningar/:annonsJobbId`, `api.sökSchema`). Kräver godkänt avtal (sätts i appen) –
+  annars 403 `AVTAL_EJ_GODKANT`; nyregistrerade på webben kan behöva godkänna avtalet i appen.
+- `?next=`-stöd i `logga-in`, `registrera` och `verifiera` (läst client-side från
+  `window.location.search`, ingen Suspense) tar en inbjuden kontolös person
+  registrering → verifiering → `/schema/<id>`.
 - **`/kalender`** – schemaöversikt (bemanningskalender). `GET /scheman/kalender?from=&till=`
   (schemapass + godkända enstaka pass, inkl. obemannade). `MånadsKalender` har ett LÄSLÄGE
   med rollprickar (tre tillstånd via `rollerFörDag`: ring = saknar person, nedtonad =

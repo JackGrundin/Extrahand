@@ -34,7 +34,7 @@ function passMedArv(schema, pass) {
 
 // ---------------------------------------------------------------- Scheman
 
-async function skapaSchema({ foretag_id, titel, beskrivning, plats, adress, kategori, typ, startdatum, slutdatum, timlon, ob_tillagg, behorighets_krav, sista_ansokningsdag, senast_besked }) {
+async function skapaSchema({ foretag_id, titel, beskrivning, plats, adress, kategori, typ, startdatum, slutdatum, timlon, ob_tillagg, behorighets_krav, sista_ansokningsdag, senast_besked, privat }) {
   const { data, error } = await supabase
     .from('scheman')
     .insert([{
@@ -46,6 +46,8 @@ async function skapaSchema({ foretag_id, titel, beskrivning, plats, adress, kate
       // Frivilliga datum – null när företaget inte angett dem.
       sista_ansokningsdag: sista_ansokningsdag || null,
       senast_besked: senast_besked || null,
+      // Privat schema syns inte i den öppna listan – bara för inbjudna.
+      privat: privat === true,
     }])
     .select()
     .single();
@@ -93,22 +95,57 @@ async function hämtaSchemaViaAnnonsJobb(jobb_id) {
 // Motvikten ligger i routes/ansokningar.js: ett schema vars pass alla hunnit ta slut går
 // inte att godkänna någon till, så ett kvarliggande utgånget schema kan inte förbruka
 // företagets gratisgräns.
-async function hämtaÖppnaScheman() {
-  const { data: scheman, error } = await supabase
+async function hämtaÖppnaScheman(email) {
+  // Publika scheman: publicerade, utan tilldelad person och INTE privata.
+  const { data: publika, error } = await supabase
     .from('scheman')
     .select(SCHEMAFÄLT)
     .eq('status', 'publicerat')
     .is('anvandare_id', null)
+    .eq('privat', false)
     .order('startdatum', { ascending: true });
 
   if (error) throw error;
-  if (!scheman || !scheman.length) return [];
+
+  const scheman = [...(publika || [])];
+  const inbjudnaIds = new Set();
+
+  // Privata scheman som den inloggade personen blivit inbjuden till (matchning på e-post)
+  // unionas in – så de syns i personens schemalista utan att vara publika.
+  if (email) {
+    const { data: inbjudningar } = await supabase
+      .from('schema_inbjudningar')
+      .select('schema_id')
+      .eq('email', email.trim().toLowerCase());
+
+    const schemaIds = [...new Set((inbjudningar || []).map(i => i.schema_id))];
+    if (schemaIds.length) {
+      const { data: privata } = await supabase
+        .from('scheman')
+        .select(SCHEMAFÄLT)
+        .in('id', schemaIds)
+        .eq('status', 'publicerat')
+        .is('anvandare_id', null);
+
+      const redanMed = new Set(scheman.map(s => s.id));
+      for (const s of (privata || [])) {
+        if (!redanMed.has(s.id)) {
+          scheman.push(s);
+          inbjudnaIds.add(s.id);
+        }
+      }
+    }
+  }
+
+  if (!scheman.length) return [];
 
   const berikade = await berikaMedPassOchFöretag(scheman);
   // Samma regel som för enstaka pass i hämtaAllaJobb: scheman från raderade konton
   // ska inte gå att söka. foretagAktiv === false, inte !foretagAktiv – NULL betyder
   // konto från före kolumnen fanns.
-  return berikade.filter(s => s.foretagAktiv !== false);
+  return berikade
+    .filter(s => s.foretagAktiv !== false)
+    .map(s => (inbjudnaIds.has(s.id) ? { ...s, inbjuden: true } : s));
 }
 
 async function hämtaSchemanFörFöretag(foretag_id) {

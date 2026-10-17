@@ -33,6 +33,10 @@ export default function SchemaDetaljScreen({ route, navigation }) {
   const [sökt, setSökt] = useState(false);
   const [ikryssade, setIkryssade] = useState(() => new Set());
   const [avtalsModalSynlig, setAvtalsModalSynlig] = useState(false);
+  // Inbjudningar (bara relevant för företaget på ett privat schema).
+  const [inbjudEmail, setInbjudEmail] = useState('');
+  const [bjuderIn, setBjuderIn] = useState(false);
+  const [inbjudningar, setInbjudningar] = useState([]);
   const { uppdateraAttAvsluta } = useAttAvsluta();
   // Höjden på navigationsrubriken – KeyboardAvoidingView behöver den som offset,
   // annars räknar iOS fel och lämnar en lucka eller låter tangentbordet ligga kvar över fältet.
@@ -58,6 +62,39 @@ export default function SchemaDetaljScreen({ route, navigation }) {
   const refresh = useLoggaRefresh(hämta);
 
   useFocusEffect(useCallback(() => { hämta(); }, [hämta]));
+
+  // Ladda inbjudningslistan när företaget tittar på ett privat schema.
+  const laddaInbjudningar = useCallback(async () => {
+    if (!ärFöretag || !schema?.privat) return;
+    try {
+      setInbjudningar(await api.schemaInbjudningar(schemaId));
+    } catch {
+      /* listan är sekundär – svälj fel */
+    }
+  }, [ärFöretag, schema?.privat, schemaId]);
+
+  useFocusEffect(useCallback(() => { laddaInbjudningar(); }, [laddaInbjudningar]));
+
+  async function skickaInbjudan() {
+    const email = inbjudEmail.trim();
+    if (!email) return;
+    setBjuderIn(true);
+    try {
+      const svar = await api.bjudInTillSchema(schemaId, email);
+      setInbjudEmail('');
+      Alert.alert(
+        'Inbjudan skickad',
+        svar?.hadeKonto
+          ? 'Personen har fått ett mejl och en notis i appen.'
+          : 'Personen har fått ett mejl med en länk till schemat.'
+      );
+      laddaInbjudningar();
+    } catch (fel) {
+      Alert.alert('Fel', felText(fel));
+    } finally {
+      setBjuderIn(false);
+    }
+  }
   useRealtidsPing(() => { hämta(); });
 
   // Att företaget öppnar schemat räknas som att ansökningarna setts – de visas här nere på
@@ -287,6 +324,12 @@ export default function SchemaDetaljScreen({ route, navigation }) {
       >
         {schema.foretagNamn && <Text style={styles.foretagNamn}>{schema.foretagNamn}</Text>}
         <Text style={styles.titel}>{schema.titel}</Text>
+        {schema.privat && (
+          <View style={styles.privatBricka}>
+            <Ionicons name="lock-closed" size={12} color="#b45309" accessible={false} importantForAccessibility="no" />
+            <Text style={styles.privatBrickaText}>Privat</Text>
+          </View>
+        )}
         {/* Huvudkategorin är valfri sedan rollen flyttades till passnivå – utan villkoret
             blir det en hängande " · " på nya scheman. */}
         <Text style={styles.info}>
@@ -369,6 +412,46 @@ export default function SchemaDetaljScreen({ route, navigation }) {
 
         {/* Företagets sökande ligger HÖGST UPP – det är det man öppnar schemat för. Låg de
             kvar sist hamnade de efter en passlista som kan vara 60+ rader lång. */}
+        {ärFöretag && schema.privat && (
+          <View style={styles.inbjudKort}>
+            <Text style={styles.sektionsRubrik}>Bjud in till schemat</Text>
+            <Text style={styles.inbjudText}>
+              Privata scheman syns bara för inbjudna. Skriv en e-postadress så får personen en
+              länk till schemat (och en notis i appen om de redan har konto).
+            </Text>
+            <View style={styles.inbjudRad}>
+              <TextInput
+                style={styles.inbjudInput}
+                value={inbjudEmail}
+                onChangeText={setInbjudEmail}
+                placeholder="namn@exempel.se"
+                autoCapitalize="none"
+                keyboardType="email-address"
+                autoCorrect={false}
+              />
+              <TouchableOpacity
+                style={[styles.inbjudKnapp, bjuderIn && { opacity: 0.6 }]}
+                onPress={skickaInbjudan}
+                disabled={bjuderIn}
+              >
+                <Text style={styles.inbjudKnappText}>{bjuderIn ? 'Skickar…' : 'Bjud in'}</Text>
+              </TouchableOpacity>
+            </View>
+            {inbjudningar.length > 0 && (
+              <View style={{ marginTop: 12 }}>
+                {inbjudningar.map((i, idx) => (
+                  <View key={`${i.email}-${idx}`} style={styles.inbjudListRad}>
+                    <Text style={styles.inbjudListEmail}>{i.email}</Text>
+                    <Text style={styles.inbjudListStatus}>
+                      {i.accepterad_at ? 'Öppnat' : i.hadeKonto ? 'Notis skickad' : 'Mejl skickat'}
+                    </Text>
+                  </View>
+                ))}
+              </View>
+            )}
+          </View>
+        )}
+
         {ärFöretag && (
           <>
             {godkändAnsökan && (
@@ -672,6 +755,17 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#fff', padding: 20 },
   foretagNamn: { fontSize: 15, color: '#2563eb', fontWeight: '600', marginBottom: 4 },
   titel: { fontSize: 24, fontWeight: 'bold', color: '#1a1a1a', marginBottom: 6 },
+  privatBricka: { flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-start', gap: 4, backgroundColor: '#fff7ed', borderWidth: 1, borderColor: '#fed7aa', borderRadius: 999, paddingHorizontal: 10, paddingVertical: 3, marginBottom: 8 },
+  privatBrickaText: { fontSize: 12, fontWeight: '700', color: '#b45309' },
+  inbjudKort: { backgroundColor: '#f8fafc', borderWidth: 1, borderColor: '#e2e8f0', borderRadius: 14, padding: 16, marginTop: 8, marginBottom: 8 },
+  inbjudText: { fontSize: 13, color: '#64748b', lineHeight: 18, marginBottom: 12 },
+  inbjudRad: { flexDirection: 'row', gap: 8 },
+  inbjudInput: { flex: 1, borderWidth: 1, borderColor: '#e2e8f0', borderRadius: 10, paddingHorizontal: 12, paddingVertical: 12, fontSize: 15, backgroundColor: '#fff', color: '#0f172a' },
+  inbjudKnapp: { backgroundColor: '#2563eb', borderRadius: 10, paddingHorizontal: 18, justifyContent: 'center' },
+  inbjudKnappText: { color: '#fff', fontWeight: '700', fontSize: 15 },
+  inbjudListRad: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 8, borderTopWidth: 1, borderTopColor: '#e2e8f0' },
+  inbjudListEmail: { fontSize: 14, color: '#0f172a', flex: 1 },
+  inbjudListStatus: { fontSize: 12, fontWeight: '600', color: '#64748b', marginLeft: 8 },
   info: { fontSize: 15, color: '#666', marginBottom: 4 },
   lön: { fontSize: 16, color: '#2563eb', fontWeight: '600', marginBottom: 12 },
 

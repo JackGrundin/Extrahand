@@ -149,6 +149,12 @@ export const api = {
   // Kalendervy: union av schemapass och godkända enstaka pass (inkl. obemannade).
   schemaKalender: (från, till) =>
     anrop('GET', `/scheman/kalender?from=${encodeURIComponent(från)}&till=${encodeURIComponent(till)}`),
+  // Privata scheman: bjud in via e-post + lista inbjudna (företag), lösa in inbjudningstoken.
+  bjudInTillSchema: (id, email) => anrop('POST', `/scheman/${id}/bjud-in`, { email }),
+  schemaInbjudningar: (id) => anrop('GET', `/scheman/${id}/inbjudningar`),
+  hämtaInbjudan: (token) => anrop('GET', `/inbjudan/${encodeURIComponent(token)}`),
+  // Privatpersons-ansökan till ett schema (mot dess annons-jobb). Backend fryser kravlistan.
+  sökSchema: (annonsJobbId, kropp) => anrop('POST', `/ansokningar/${annonsJobbId}`, kropp),
 
   // Ansökningar
   ansökningarFörJobb: (jobbId) => anrop('GET', `/ansokningar/jobb/${jobbId}`),

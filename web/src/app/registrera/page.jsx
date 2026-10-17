@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import AuthSkal from '@/components/AuthSkal';
@@ -18,6 +18,12 @@ const ORGNR_FORMAT = /^\d{6}-\d{4}$/;
 export default function Registrera() {
   const router = useRouter();
   const { registrera } = useAuth();
+
+  // ?next= bärs vidare genom verifieringen så en inbjuden person landar på schemat.
+  const [nästa, setNästa] = useState('');
+  useEffect(() => {
+    setNästa(new URLSearchParams(window.location.search).get('next') || '');
+  }, []);
 
   const [typ, setTyp] = useState('privatperson');
   const [form, setForm] = useState({
@@ -89,11 +95,12 @@ export default function Registrera() {
         data.referensperson = form.referensperson.trim();
       }
       const svar = await registrera(data);
+      const nextDel = nästa ? `&next=${encodeURIComponent(nästa)}` : '';
       if (svar?.väntarVerifiering) {
-        router.push(`/verifiera?email=${encodeURIComponent(data.email)}`);
+        router.push(`/verifiera?email=${encodeURIComponent(data.email)}${nextDel}`);
       } else {
         // Oväntat (backend svarar normalt alltid väntarVerifiering), men var robust.
-        router.push('/');
+        router.push(nästa || '/');
       }
     } catch (fe) {
       setFel(felText(fe));
@@ -221,7 +228,10 @@ export default function Registrera() {
 
       <p className="mt-6 text-center text-[14px] text-text-dämpad">
         Har du redan ett konto?{' '}
-        <Link href="/logga-in" className="font-semibold text-primär hover:underline">
+        <Link
+          href={nästa ? `/logga-in?next=${encodeURIComponent(nästa)}` : '/logga-in'}
+          className="font-semibold text-primär hover:underline"
+        >
           Logga in
         </Link>
       </p>

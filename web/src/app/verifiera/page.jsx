@@ -15,6 +15,8 @@ function VerifieraInnehåll() {
   const { verifieraKod } = useAuth();
 
   const emailFrånLänk = sök.get('email') || '';
+  // ?next= bärs hit från registreringen – efter verifiering landar en inbjuden på schemat.
+  const nästa = sök.get('next') || '';
   const [email, setEmail] = useState(emailFrånLänk);
   const [kod, setKod] = useState('');
   const [fel, setFel] = useState('');
@@ -29,7 +31,7 @@ function VerifieraInnehåll() {
     setLaddar(true);
     try {
       await verifieraKod(email.trim(), kod.trim());
-      router.push('/');
+      router.push(nästa || '/');
     } catch (f) {
       setFel(felText(f));
     } finally {
