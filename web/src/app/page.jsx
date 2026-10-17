@@ -205,10 +205,9 @@ export default function Marknadsforing() {
                   <span className="text-[15px] text-text-dämpad"> /mån</span>
                 </div>
                 <ul className="flex flex-1 flex-col gap-3">
-                  <PunktRad>2 pass i månaden med lågt påslag</PunktRad>
+                  <PunktRad>2 pass i månaden</PunktRad>
                   <PunktRad>Lägg upp hur många annonser du vill</PunktRad>
                   <PunktRad>Chatt, tidrapporter och betyg ingår</PunktRad>
-                  <PunktRad>Något högre påslag från tredje passet</PunktRad>
                 </ul>
                 <Knapp variant="kontur" href="/registrera" full className="mt-8">
                   Skapa konto
@@ -231,7 +230,6 @@ export default function Marknadsforing() {
                   <span className="text-[15px] text-text-dämpad"> /mån</span>
                 </div>
                 <ul className="flex flex-1 flex-col gap-3">
-                  <PunktRad>Lågt påslag på alla pass</PunktRad>
                   <PunktRad>Obegränsat med pass och annonser</PunktRad>
                   <PunktRad>Chatt, tidrapporter och betyg ingår</PunktRad>
                   <PunktRad>Säg upp när du vill</PunktRad>

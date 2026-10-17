@@ -5,7 +5,7 @@
 // befintliga pass, nyttPassId ger stabila id, tillPayload strippar id:t). Steg 3 har
 // EXAKT ETT urvalsläge åt gången: markerade-Set och öppetPassId får aldrig vara satta
 // samtidigt. Markeringen rensas vid varje stegbyte.
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Input from '@/components/ui/Input';
 import Textfält from '@/components/ui/Textfält';
@@ -28,11 +28,9 @@ import { valideraSchema } from '@/utils/schemaValidering';
 import { ärGiltigStad } from '@/utils/stad';
 import {
   SCHEMATYPER,
-  beräknaFakturapris,
   beräknaAvdragFörPass,
   beräknaAvdragTotalt,
   formateraPris,
-  PÅSLAG_GRATIS,
 } from '@/utils/konstanter';
 import {
   nyttPassId,
@@ -89,15 +87,9 @@ export default function PubliceraSchema() {
   const [fel, setFel] = useState({});
   const [serverfel, setServerfel] = useState('');
   const [laddar, setLaddar] = useState(false);
-  const [prenumeration, setPrenumeration] = useState(null);
   const [visaPlanval, setVisaPlanval] = useState(false);
   const [laddarUppgradera, setLaddarUppgradera] = useState(false);
 
-  useEffect(() => {
-    api.prenumerationStatus().then(setPrenumeration).catch(() => {});
-  }, []);
-
-  const gällandePåslag = prenumeration?.paslag ?? PÅSLAG_GRATIS;
   const krockar = useMemo(() => hittaKrockar(pass), [pass]);
 
   // ── Stegbyte: rensar ALLTID urvalet (både markering och öppet pass) ──────────
@@ -294,7 +286,6 @@ export default function PubliceraSchema() {
 
   const avdragTotalt = beräknaAvdragTotalt(avdrag, pass.length);
   const avdragPerPass = beräknaAvdragFörPass(avdrag, pass.length);
-  const fakturaPreview = parseFloat(timlon) > 0 ? beräknaFakturapris(parseFloat(timlon), gällandePåslag) : null;
 
   return (
     <div className="mx-auto max-w-2xl">
@@ -332,14 +323,7 @@ export default function PubliceraSchema() {
             <FältFel>{fel.typ}</FältFel>
           </div>
 
-          <div>
-            <Input etikett="Timlön (kr/tim)" type="number" inputMode="decimal" value={timlon} onChange={(e) => setTimlon(e.target.value)} placeholder="t.ex. 165" fel={fel.timlon} />
-            {fakturaPreview != null && (
-              <p className="mt-1.5 text-[13px] text-text-dämpad">
-                Ni faktureras <span className="font-semibold text-text">{formateraPris(fakturaPreview)} kr/tim</span> ({Math.round(gällandePåslag * 100)}% påslag).
-              </p>
-            )}
-          </div>
+          <Input etikett="Timlön (kr/tim)" type="number" inputMode="decimal" value={timlon} onChange={(e) => setTimlon(e.target.value)} placeholder="t.ex. 165" fel={fel.timlon} />
 
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <DatumVäljare etikett="Sista ansökningsdag (valfritt)" värde={sistaAnsokningsdag} min={idag} onÄndra={setSistaAnsokningsdag} />

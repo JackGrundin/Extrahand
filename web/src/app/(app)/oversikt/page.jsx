@@ -191,7 +191,7 @@ function ÖversiktInnehåll() {
           aktiv={härledd.nyaAnsökningar > 0}
           href="/annonser"
         />
-        <Summeringskort etikett="Plan" värde={planText} under={prenumeration?.pro ? 'Lägsta påslag' : 'Uppgradera för lägre påslag'} />
+        <Summeringskort etikett="Plan" värde={planText} />
       </div>
 
       <div className="mt-12 grid gap-10 lg:grid-cols-2">

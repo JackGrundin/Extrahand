@@ -1,8 +1,8 @@
 'use client';
 
 // Planvals-popup som visas när backend svarar 409 KRAVER_PLANVAL (gratiskonto som
-// publicerar sitt tredje pass denna månad). Två vägar: fortsätt utan abonnemang (högre
-// påslag, skickar om med acceptera_hogre_paslag) eller uppgradera till Pro via Stripe.
+// publicerar sitt tredje pass denna månad). Två vägar: fortsätt utan abonnemang (skickar om
+// med acceptera_hogre_paslag) eller uppgradera till Pro via Stripe.
 import Knapp from '@/components/ui/Knapp';
 import { PRO_PRIS_KR } from '@/utils/konstanter';
 
@@ -13,8 +13,8 @@ export default function PlanvalModal({ onFortsätt, onUppgradera, onStäng, ladd
       <div className="relative w-full max-w-md rounded-lg border border-kant bg-yta p-6 shadow-lyft">
         <h2 className="rubrik-m text-text">Ni har använt månadens gratispass</h2>
         <p className="mt-3 text-[15px] leading-relaxed text-text-dämpad">
-          De två första passen varje månad har lägre påslag. Från det tredje passet höjs
-          påslaget – om ni inte uppgraderar till Pro, som alltid har lägsta påslaget.
+          Vill ni publicera fler pass den här månaden? Uppgradera till Pro, eller fortsätt
+          utan abonnemang.
         </p>
 
         <div className="mt-6 flex flex-col gap-3">

@@ -4,7 +4,7 @@
 // validering (valideraJobb), samma payload. Backend är sista försvaret och svarar
 // KRAVER_PLANVAL (409) om gratiskontot förbrukat månadens två pass – då visas planvalet
 // och publiceringen görs om med acceptera_hogre_paslag.
-import { useEffect, useMemo, useState } from 'react';
+import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Input from '@/components/ui/Input';
 import Textfält from '@/components/ui/Textfält';
@@ -21,7 +21,6 @@ import BehörighetsKravRedigerare from '@/components/app/BehörighetsKravRediger
 import PlanvalModal from '@/components/app/PlanvalModal';
 import { api, felText } from '@/lib/api';
 import { valideraJobb } from '@/utils/jobbValidering';
-import { beräknaFakturapris, formateraPris, PÅSLAG_GRATIS } from '@/utils/konstanter';
 import { datumTillIso } from '@/utils/datumHelper';
 import { saniteraObTillagg } from '@/utils/ob';
 
@@ -43,24 +42,11 @@ export default function PubliceraJobb() {
   const [fel, setFel] = useState({});
   const [serverfel, setServerfel] = useState('');
   const [laddar, setLaddar] = useState(false);
-  const [prenumeration, setPrenumeration] = useState(null);
   const [visaPlanval, setVisaPlanval] = useState(false);
   const [laddarUppgradera, setLaddarUppgradera] = useState(false);
 
   // Dagens datum som undre gräns för datumväljarna (man publicerar inte pass i det förflutna).
   const idag = datumTillIso(new Date());
-
-  useEffect(() => {
-    api.prenumerationStatus().then(setPrenumeration).catch(() => {});
-  }, []);
-
-  const gällandePåslag = prenumeration?.paslag ?? PÅSLAG_GRATIS;
-
-  const fakturaPreview = useMemo(() => {
-    const l = parseFloat(lon);
-    if (!(l > 0)) return null;
-    return beräknaFakturapris(l, gällandePåslag);
-  }, [lon, gällandePåslag]);
 
   function rensaFel(nyckel) {
     setFel((prev) => (prev[nyckel] ? { ...prev, [nyckel]: undefined } : prev));
@@ -212,13 +198,6 @@ export default function PubliceraJobb() {
             placeholder="t.ex. 185"
             fel={fel.lon}
           />
-          {fakturaPreview != null && (
-            <p className="mt-1.5 text-[13px] text-text-dämpad">
-              Ni faktureras{' '}
-              <span className="font-semibold text-text">{formateraPris(fakturaPreview)} kr/tim</span>{' '}
-              ({Math.round(gällandePåslag * 100)}% påslag).
-            </p>
-          )}
         </div>
 
         {/* Antal dagar + dag-för-dag */}

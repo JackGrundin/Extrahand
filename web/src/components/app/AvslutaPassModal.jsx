@@ -2,16 +2,15 @@
 
 // Modal för att avsluta ett pass: företaget fyller i jobbade timmar (och ev. OB) och en
 // tidrapport skapas. Speglar appens AvslutaPassModal. Klienten skickar BARA
-// { ansokan_id, timmar, ob_tillagg } – backend fryser/beräknar alla belopp (timlön,
-// påslag, OB-belopp, avdrag, datum), så kostnadsraden nedan är en uppskattning, inte facit.
+// { ansokan_id, timmar, ob_tillagg } – backend beräknar alla belopp (timlön, OB-belopp,
+// avdrag, datum).
 import { useState } from 'react';
 import Knapp from '@/components/ui/Knapp';
 import Besked from '@/components/ui/Besked';
 import FältFel from '@/components/ui/FältFel';
 import OBTilläggRedigerare from '@/components/app/OBTilläggRedigerare';
 import { api, felText } from '@/lib/api';
-import { parsaObTillagg, planeradeTimmar, beräknaObBelopp } from '@/utils/datumHelper';
-import { beräknaFakturapris, påslagEller40, formateraPris } from '@/utils/konstanter';
+import { parsaObTillagg, planeradeTimmar } from '@/utils/datumHelper';
 import { saniteraObTillagg } from '@/utils/ob';
 
 export default function AvslutaPassModal({ jobb, ansokanId, onStäng, onKlar }) {
@@ -22,18 +21,10 @@ export default function AvslutaPassModal({ jobb, ansokanId, onStäng, onKlar }) 
   const [sparar, setSparar] = useState(false);
 
   const timlön = Number(jobb?.Lon) || 0;
-  const påslag = påslagEller40(jobb?.paslag);
   const planerade = planeradeTimmar(jobb?.arbetstider);
 
   // Komma → punkt, precis som appen.
   const timmarTal = parseFloat(String(timmar).replace(',', '.'));
-
-  // Uppskattad fakturakostnad (timlön + OB, var för sig genom fakturaformeln). Backend är facit.
-  const obBelopp = beräknaObBelopp(saniteraObTillagg(ob), timlön);
-  const uppskattning =
-    timmarTal > 0
-      ? beräknaFakturapris(timmarTal * timlön, påslag) + beräknaFakturapris(obBelopp, påslag)
-      : null;
 
   async function skicka() {
     if (!(timmarTal > 0)) {
@@ -127,15 +118,6 @@ export default function AvslutaPassModal({ jobb, ansokanId, onStäng, onKlar }) 
         <div className="mt-4">
           <OBTilläggRedigerare värde={ob} onÄndra={setOb} />
         </div>
-
-        {/* Uppskattad kostnad */}
-        {uppskattning != null && (
-          <p className="mt-4 text-[13px] text-text-dämpad">
-            Uppskattad kostnad:{' '}
-            <span className="font-semibold text-text">{formateraPris(uppskattning)} kr</span>{' '}
-            (exkl. ev. avdrag – slutgiltigt belopp beräknas av systemet)
-          </p>
-        )}
 
         <div className="mt-6 flex gap-3">
           <Knapp variant="kontur" full onClick={onStäng}>
