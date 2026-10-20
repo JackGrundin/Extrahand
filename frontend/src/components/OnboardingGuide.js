@@ -1,13 +1,15 @@
 import { useRef, useState } from 'react';
 import { View, Text, StyleSheet, Modal, ScrollView, TouchableOpacity, useWindowDimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { HittaJobbBild, AnsökBild, ChattaBild, BetygBild } from './onboarding/illustrationer';
+import { HittaJobbBild, AnsökBild, ChattaBild, BetygBild, PubliceraJobbBild, HittaPersonalBild, GodkännBild, FaktureraBild } from './onboarding/illustrationer';
 import { haptik } from '../utils/haptik';
 
 // Korten som visas i onboarding-guiden. Illustrationen är en komponent (SVG) så den skalar
-// skarpt. Texten är job-seeker-inriktad – guiden visas bara för privatpersoner (se
-// OnboardingGate), eftersom flödet hitta → ansök → chatta → betyg beskriver deras resa.
-const KORT = [
+// skarpt. OnboardingGate väljer vilken uppsättning som visas beroende på användartyp och
+// skickar in den via kort-propen.
+
+// Privatpersonens resa: hitta → ansök → chatta → betyg.
+export const PRIVATPERSON_KORT = [
   {
     Bild: HittaJobbBild,
     rubrik: 'Hitta jobb nära dig',
@@ -30,16 +32,40 @@ const KORT = [
   },
 ];
 
+// Företagets resa: publicera → få ansökningar → godkänn → avsluta & fakturera.
+export const FÖRETAG_KORT = [
+  {
+    Bild: PubliceraJobbBild,
+    rubrik: 'Publicera jobb på minuter',
+    text: 'Skapa en annons med datum, tider, lön och OB. Lägg upp enstaka pass eller längre scheman.',
+  },
+  {
+    Bild: HittaPersonalBild,
+    rubrik: 'Hitta rätt personal',
+    text: 'Få ansökningar från folk nära dig. Se profiler, betyg och tidigare erfarenhet innan du väljer.',
+  },
+  {
+    Bild: GodkännBild,
+    rubrik: 'Godkänn och chatta',
+    text: 'Godkänn ansökningar med ett tryck och kom överens om detaljerna direkt i chatten.',
+  },
+  {
+    Bild: FaktureraBild,
+    rubrik: 'Vi sköter allt',
+    text: 'FastGig hanterar löner, avtal och administration – du fokuserar på jobbet.',
+  },
+];
+
 // Helskärmsguide som ScrollView med sidväxling. onKlar anropas när användaren trycker
 // "Kom igång" på sista kortet eller "Hoppa över" – OnboardingGate sparar då flaggan i
-// AsyncStorage och avmonterar guiden.
-export default function OnboardingGuide({ onKlar }) {
+// AsyncStorage och avmonterar guiden. kort styr vilka sidor som visas (default: privatperson).
+export default function OnboardingGuide({ onKlar, kort = PRIVATPERSON_KORT }) {
   const { width } = useWindowDimensions();
   const insets = useSafeAreaInsets();
   const scrollRef = useRef(null);
   const [index, setIndex] = useState(0);
 
-  const sista = index === KORT.length - 1;
+  const sista = index === kort.length - 1;
 
   // Synkar index när användaren SVEPER manuellt. Notera: på webben (och ibland nativt)
   // fyras detta INTE för en programmatisk scrollTo, så knappen nedan får aldrig lita på
@@ -83,7 +109,7 @@ export default function OnboardingGuide({ onKlar }) {
           onMomentumScrollEnd={vidScroll}
           scrollEventThrottle={16}
         >
-          {KORT.map(({ Bild, rubrik, text }) => (
+          {kort.map(({ Bild, rubrik, text }) => (
             <View key={rubrik} style={[styles.sida, { width }]}>
               <View style={styles.bild}>
                 <Bild storlek={Math.min(width * 0.6, 240)} />
@@ -96,7 +122,7 @@ export default function OnboardingGuide({ onKlar }) {
 
         <View style={styles.botten}>
           <View style={styles.prickar}>
-            {KORT.map((_, i) => (
+            {kort.map((_, i) => (
               <View key={i} style={[styles.prick, i === index && styles.prickAktiv]} />
             ))}
           </View>
