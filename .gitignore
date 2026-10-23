@@ -13,3 +13,6 @@ node_modules
 
 # macOS
 .DS_Store
+
+# Lokala skärmdumpar (dev/scratch) – ska aldrig versioneras.
+skott/
