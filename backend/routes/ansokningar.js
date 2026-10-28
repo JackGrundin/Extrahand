@@ -199,7 +199,7 @@ router.get('/jobb/:jobbId', kräverInloggning, kräverTyp('företag'), async (re
 // PATCH /api/ansokningar/:id/status — företag godkänner eller återkallar godkännande
 router.patch('/:id/status', kräverInloggning, kräverTyp('företag'), async (req, res) => {
   const { status } = req.body;
-  if (!['godkänd', 'väntande'].includes(status)) {
+  if (!['godkänd', 'väntande', 'avvisad'].includes(status)) {
     return res.status(400).json({ fel: 'Ogiltigt status' });
   }
   try {
@@ -225,6 +225,41 @@ router.patch('/:id/status', kräverInloggning, kräverTyp('företag'), async (re
     // ändra status på en annan firmas ansökningar (IDOR) – samma kontroll som /favorit gör.
     if ((jobb.Foretag_id ?? jobb.foretag_id) !== req.användare.id) {
       return res.status(403).json({ fel: 'Åtkomst nekad' });
+    }
+
+    // Avvisa en enskild sökande. Ligger FÖRE godkänn/väntande-logiken och returnerar direkt,
+    // så ingen påslags-, räknar- eller schematilldelningskod körs. En VÄNTANDE ansökan bär
+    // ingen sådan sidoeffekt (de sätts först vid godkännande), så avvisning är en ren
+    // statusändring. Bara väntande får avvisas – en redan godkänd måste först tas tillbaka
+    // (status 'väntande'), vilket nollar påslag/räknare korrekt. Sätt INTE avhoppad_at: den
+    // är enbart för privatpersonens självavhopp; ett företagsnekande ska visas som "Nekad".
+    if (status === 'avvisad') {
+      if (ansökan.status !== 'väntande') {
+        return res.status(409).json({
+          fel: 'Bara väntande ansökningar kan avvisas. Ta tillbaka godkännandet först.',
+          kod: 'EJ_VÄNTANDE',
+        });
+      }
+      await uppdateraStatus(req.params.id, 'avvisad');
+      res.json({ ok: true });
+
+      // Realtid: sökandens listor + företagets egen vy uppdateras direkt. Jobbet blir varken
+      // ledigt eller tillsatt av detta, så ingen sändJobblistaPing.
+      sändRealtidsPing(ansökan.sokande_id, 'pass-status');
+      sändRealtidsPing(req.användare.id, 'ansokan');
+
+      // Push till sökanden (bakgrund, får inte fälla svaret – samma mönster som godkänn).
+      try {
+        const pushToken = await hämtaPushToken(ansökan.sokande_id);
+        await skickaNotifikation(
+          pushToken,
+          'Besked om din ansökan',
+          `Din ansökan till "${jobb?.Titel ?? 'jobbet'}" gick tyvärr inte vidare den här gången.`
+        );
+      } catch (notisfel) {
+        console.error('Push-notifikation fel:', notisfel);
+      }
+      return;
     }
 
     // Var passet redan tillsatt innan den här ändringen? Avgör om räknaren ska röras.
