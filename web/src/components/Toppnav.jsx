@@ -10,8 +10,12 @@ import { usePathname } from 'next/navigation';
 import Knapp from '@/components/ui/Knapp';
 import { useAuth } from '@/context/AuthContext';
 
+// Rent landningsnav. Inloggade privatpersoners app-meny bor i PrivatSkal/PrivatSidomeny,
+// inte här – Toppnav visas bara på marknadsföringssidorna (/, /om-oss, /kontakt) och de
+// publika jobbsidorna för utloggade.
 const FLIKAR = [
   { namn: 'Hem', väg: '/' },
+  { namn: 'Hitta jobb', väg: '/jobb' },
   { namn: 'Om oss', väg: '/om-oss' },
   { namn: 'Kontakt', väg: '/kontakt' },
 ];
@@ -63,10 +67,14 @@ export default function Toppnav() {
         <div className="flex items-center gap-2 sm:gap-3">
           {inloggad ? (
             <>
-              {/* Företag har en webbapp att gå till; privatpersoner använder mobilappen. */}
-              {användare?.typ === 'företag' && (
+              {/* Båda användartyperna har en webbapp – knappen tar in i respektive del. */}
+              {användare?.typ === 'företag' ? (
                 <Knapp variant="kontur" storlek="liten" href="/oversikt">
                   Översikt
+                </Knapp>
+              ) : (
+                <Knapp variant="kontur" storlek="liten" href="/jobb">
+                  Till FastGig
                 </Knapp>
               )}
               <Knapp variant="primär" storlek="liten" onClick={loggaUt}>
@@ -74,9 +82,14 @@ export default function Toppnav() {
               </Knapp>
             </>
           ) : (
-            <Knapp variant="primär" storlek="liten" href="/logga-in">
-              Logga in
-            </Knapp>
+            <>
+              <Knapp variant="kontur" storlek="liten" href="/logga-in">
+                Logga in
+              </Knapp>
+              <Knapp variant="primär" storlek="liten" href="/registrera">
+                Skapa konto
+              </Knapp>
+            </>
           )}
 
           {/* Menytoggle – bara på mobil (tre streck ritade i CSS, inget ikonbibliotek) */}
@@ -122,14 +135,32 @@ export default function Toppnav() {
                 {f.namn}
               </Link>
             ))}
-            {!inloggad && (
+            {inloggad && användare?.typ !== 'företag' && (
               <Link
-                href="/logga-in"
+                href="/jobb"
                 onClick={() => setMenyÖppen(false)}
-                className="border-t border-kant py-2.5 text-[15px] font-semibold text-text"
+                className="border-t border-kant py-2.5 text-[15px] font-semibold text-primär"
               >
-                Logga in
+                Till FastGig
               </Link>
+            )}
+            {!inloggad && (
+              <>
+                <Link
+                  href="/logga-in"
+                  onClick={() => setMenyÖppen(false)}
+                  className="border-t border-kant py-2.5 text-[15px] font-semibold text-text"
+                >
+                  Logga in
+                </Link>
+                <Link
+                  href="/registrera"
+                  onClick={() => setMenyÖppen(false)}
+                  className="py-2.5 text-[15px] font-semibold text-primär"
+                >
+                  Skapa konto
+                </Link>
+              </>
             )}
           </nav>
         </div>

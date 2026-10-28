@@ -125,12 +125,21 @@ export const api = {
   // Profilbild POSTas som base64 (data:image/...) – backend proxar till Supabase Storage
   // och svarar { url }.
   laddaUppProfilBild: (bild) => anrop('POST', '/users/profil-bild', { bild }),
+  // Profildokument (CV, intyg, körkort). kropp: { namn, fil (base64/data-URL), mimeType }.
+  // Backend strippar ev. data-URL-prefix. Endast privatpersoner får ladda upp.
+  laddaUppDokument: (kropp) => anrop('POST', '/users/dokument', kropp),
+  raderaDokument: (id) => anrop('DELETE', `/users/dokument/${id}`),
+  // Mottagna betyg för en användare → { snitt, antal, betyg: [...] }.
+  hämtaBetyg: (anvandareId) => anrop('GET', `/betyg/anvandare/${anvandareId}`),
 
   // ── Företagsvyer ──────────────────────────────────────────────────────────
   // Paths speglar frontend/src/api/klient.js. OBS: POST/PUT /jobb tar emot GEMENA
   // fält (titel, lon, plats …) men svaren kommer i PascalCase (Titel, Lon, Plats).
 
   // Jobb
+  // Publik lista av öppna enstaka pass (privatpersoners jobbläsning). Backend filtrerar
+  // bort schema-jobb, tillsatta, passerade och raderade företag.
+  hämtaAllaJobb: () => anrop('GET', '/jobb'),
   minaJobb: () => anrop('GET', '/jobb/mina'),
   minaTidigareJobb: () => anrop('GET', '/jobb/mina/tidigare'),
   hämtaJobb: (id) => anrop('GET', `/jobb/${id}`),
@@ -155,6 +164,14 @@ export const api = {
   hämtaInbjudan: (token) => anrop('GET', `/inbjudan/${encodeURIComponent(token)}`),
   // Privatpersons-ansökan till ett schema (mot dess annons-jobb). Backend fryser kravlistan.
   sökSchema: (annonsJobbId, kropp) => anrop('POST', `/ansokningar/${annonsJobbId}`, kropp),
+  // Privatpersons-ansökan till ett enstaka pass. kropp: { meddelande, intygade_krav }.
+  // Samma endpoint som sökSchema; egen namngiven metod för tydlighet.
+  sökaJobb: (jobbId, kropp) => anrop('POST', `/ansokningar/${jobbId}`, kropp),
+  // Privatpersonens egna ansökningar (används av Mina ansökningar + Mina pass, som
+  // filtrerar olika klient-sidigt). Backend kräver typ privatperson.
+  minaAnsökningar: () => anrop('GET', '/ansokningar/mina'),
+  // Ångra en egen ansökan – funkar bara när status är 'väntande'.
+  ångraAnsökan: (id) => anrop('DELETE', `/ansokningar/${id}`),
 
   // Ansökningar
   ansökningarFörJobb: (jobbId) => anrop('GET', `/ansokningar/jobb/${jobbId}`),

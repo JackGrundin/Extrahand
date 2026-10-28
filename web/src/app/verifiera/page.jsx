@@ -30,8 +30,10 @@ function VerifieraInnehåll() {
     setBesked('');
     setLaddar(true);
     try {
-      await verifieraKod(email.trim(), kod.trim());
-      router.push(nästa || '/');
+      const svar = await verifieraKod(email.trim(), kod.trim());
+      // Inbjudningslänk (next) först; annars företag → översikt, privatperson → jobblistan.
+      if (nästa) router.push(nästa);
+      else router.push(svar?.användare?.typ === 'företag' ? '/oversikt' : '/jobb');
     } catch (f) {
       setFel(felText(f));
     } finally {

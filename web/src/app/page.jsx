@@ -123,7 +123,10 @@ export default function Marknadsforing() {
                   betyg efteråt. Inga bemanningsavtal och ingen uppstartsavgift.
                 </p>
                 <div className="anim-fade-up d-3 mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row lg:justify-start">
-                  <Knapp variant="primär" href="/logga-in">
+                  <Knapp variant="primär" href="/registrera">
+                    Skapa konto
+                  </Knapp>
+                  <Knapp variant="kontur" href="/logga-in">
                     Logga in
                   </Knapp>
                 </div>
@@ -175,6 +178,11 @@ export default function Marknadsforing() {
               {PRIVAT_STEG.map((s, i) => (
                 <Funktion key={s.titel} nr={`0${i + 1}`} {...s} />
               ))}
+            </div>
+            <div className="mt-12 flex justify-center">
+              <Knapp variant="primär" href="/registrera">
+                Skapa konto
+              </Knapp>
             </div>
           </div>
         </section>

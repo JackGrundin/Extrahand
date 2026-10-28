@@ -36,9 +36,9 @@ export default function LoggaIn() {
     setLaddar(true);
     try {
       const svar = await loggaIn(email.trim(), lösenord);
-      // Inbjudningslänk (next) går först; annars företag → översikt, övriga → startsidan.
+      // Inbjudningslänk (next) går först; annars företag → översikt, privatperson → jobblistan.
       if (nästa) router.push(nästa);
-      else router.push(svar?.användare?.typ === 'företag' ? '/oversikt' : '/');
+      else router.push(svar?.användare?.typ === 'företag' ? '/oversikt' : '/jobb');
     } catch (f) {
       if (f.kod === 'EMAIL_EJ_VERIFIERAD') {
         setEjVerifierad(true);
@@ -115,6 +115,16 @@ export default function LoggaIn() {
           Logga in
         </Knapp>
       </form>
+
+      <p className="mt-6 text-center text-[14px] text-text-dämpad">
+        Har du inget konto?{' '}
+        <Link
+          href={nästa ? `/registrera?next=${encodeURIComponent(nästa)}` : '/registrera'}
+          className="font-semibold text-primär hover:underline"
+        >
+          Skapa konto
+        </Link>
+      </p>
     </AuthSkal>
   );
 }
