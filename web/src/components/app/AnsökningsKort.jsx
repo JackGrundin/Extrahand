@@ -23,6 +23,11 @@ export default function AnsökningsKort({ ansökan, jobbStartat, onStatus, onFav
     }
   }
 
+  function avvisa() {
+    if (!window.confirm('Vill du avvisa den här ansökan?')) return;
+    sätt('avvisad');
+  }
+
   const initial = (ansökan.sökandeNamn || '?').charAt(0).toUpperCase();
 
   return (
@@ -63,9 +68,14 @@ export default function AnsökningsKort({ ansökan, jobbStartat, onStatus, onFav
 
       <div className="mt-4 flex flex-wrap items-center gap-2">
         {status === 'väntande' && (
-          <Knapp variant="primär" storlek="liten" laddar={arbetar} onClick={() => sätt('godkänd')}>
-            Godkänn
-          </Knapp>
+          <>
+            <Knapp variant="primär" storlek="liten" laddar={arbetar} onClick={() => sätt('godkänd')}>
+              Godkänn
+            </Knapp>
+            <Knapp variant="fara" storlek="liten" laddar={arbetar} onClick={avvisa}>
+              Avvisa
+            </Knapp>
+          </>
         )}
         {status === 'godkänd' && (
           <>
