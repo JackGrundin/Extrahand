@@ -14,7 +14,7 @@ import { useRealtidsPing } from '../context/RealtidsContext';
 import { useAttAvsluta } from '../context/AttAvslutaContext';
 import { useLoggaRefresh } from '../components/LoggaRefresh';
 
-function StatusKnappar({ item, onUppdaterad, onAvsluta, navigation, tidigare, startat }) {
+function StatusKnappar({ item, onUppdaterad, onAvsluta, onAvvisad, navigation, tidigare, startat }) {
   const [sparar, setSparar] = useState(false);
 
   async function godkänn() {
@@ -29,6 +29,35 @@ function StatusKnappar({ item, onUppdaterad, onAvsluta, navigation, tidigare, st
     } finally {
       setSparar(false);
     }
+  }
+
+  // Avvisa en väntande ansökan. Backend tillåter 'avvisad' bara för väntande och notifierar
+  // sökanden. Vi tar bort raden lokalt efteråt (onAvvisad) så listan uppdateras direkt.
+  function avvisa() {
+    Alert.alert(
+      'Avvisa ansökan',
+      'Vill du avvisa den här ansökan? Sökanden meddelas.',
+      [
+        { text: 'Avbryt', style: 'cancel' },
+        {
+          text: 'Avvisa',
+          style: 'destructive',
+          onPress: async () => {
+            setSparar(true);
+            try {
+              await api.uppdateraStatus(item.id, 'avvisad');
+              haptik.lyckat();
+              onAvvisad(item.id);
+            } catch (fel) {
+              haptik.fel();
+              Alert.alert('Fel', felText(fel));
+            } finally {
+              setSparar(false);
+            }
+          },
+        },
+      ]
+    );
   }
 
   async function återkalla() {
@@ -79,13 +108,22 @@ function StatusKnappar({ item, onUppdaterad, onAvsluta, navigation, tidigare, st
   }
 
   return (
-    <TouchableOpacity
-      style={[styles.godkännKnapp, sparar && { opacity: 0.5 }]}
-      onPress={godkänn}
-      disabled={sparar}
-    >
-      <Text style={styles.godkännKnappText}>Godkänn</Text>
-    </TouchableOpacity>
+    <View style={styles.knappRad}>
+      <TouchableOpacity
+        style={[styles.godkännKnapp, styles.knappFlex, sparar && { opacity: 0.5 }]}
+        onPress={godkänn}
+        disabled={sparar}
+      >
+        <Text style={styles.godkännKnappText}>Godkänn</Text>
+      </TouchableOpacity>
+      <TouchableOpacity
+        style={[styles.avvisaKnapp, styles.knappFlex, sparar && { opacity: 0.5 }]}
+        onPress={avvisa}
+        disabled={sparar}
+      >
+        <Text style={styles.avvisaKnappText}>Avvisa</Text>
+      </TouchableOpacity>
+    </View>
   );
 }
 
@@ -255,7 +293,7 @@ export default function JobbAnsokningarScreen({ route, navigation }) {
             <TouchableOpacity onPress={() => navigation.navigate('SökanadeProfil', { sokandeId: item.sokande_id, ansokningId: item.id })} style={styles.profilLänkRad}>
               <Text style={styles.chattLänk}>Visa profil →</Text>
             </TouchableOpacity>
-            <StatusKnappar item={item} onUppdaterad={hämta} onAvsluta={öppnaAvsluta} navigation={navigation} tidigare={tidigare} startat={harStartat(jobb?.arbetstider)} />
+            <StatusKnappar item={item} onUppdaterad={hämta} onAvsluta={öppnaAvsluta} onAvvisad={(id) => setAnsökningar(prev => prev.filter(a => a.id !== id))} navigation={navigation} tidigare={tidigare} startat={harStartat(jobb?.arbetstider)} />
           </TouchableOpacity>
         )}
       />
@@ -290,6 +328,10 @@ const styles = StyleSheet.create({
   chattLänk: { fontSize: 13, color: '#2563eb', fontWeight: '500' },
   godkännKnapp: { backgroundColor: '#16a34a', borderRadius: 8, paddingVertical: 10, alignItems: 'center', marginBottom: 12 },
   godkännKnappText: { color: '#fff', fontWeight: '600', fontSize: 14 },
+  knappRad: { flexDirection: 'row', gap: 10, marginBottom: 12 },
+  knappFlex: { flex: 1, marginBottom: 0 },
+  avvisaKnapp: { borderWidth: 1, borderColor: '#ef4444', borderRadius: 8, paddingVertical: 10, alignItems: 'center' },
+  avvisaKnappText: { color: '#ef4444', fontWeight: '600', fontSize: 14 },
   godkändContainer: { marginBottom: 12 },
   godkändRad: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 },
   godkändBadge: { backgroundColor: '#dcfce7', borderRadius: 10, paddingHorizontal: 12, paddingVertical: 5 },
