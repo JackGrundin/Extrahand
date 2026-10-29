@@ -7,6 +7,7 @@
 // har redan rensat bort schema-jobb, tillsatta och passerade pass.
 import { useEffect, useMemo, useState } from 'react';
 import PrivatSkal from '@/components/privat/PrivatSkal';
+import AvtalBanner from '@/components/privat/AvtalBanner';
 import Input from '@/components/ui/Input';
 import Knapp from '@/components/ui/Knapp';
 import Besked from '@/components/ui/Besked';
@@ -114,6 +115,7 @@ export default function JobbLista() {
   return (
     <PrivatSkal>
       <div className="mx-auto max-w-3xl">
+        <AvtalBanner />
         <h1 className="rubrik-l text-text">Hitta jobb</h1>
           <p className="mt-1 text-[15px] text-text-dämpad">
             Bläddra bland lediga pass och sök direkt på webben.

@@ -9,6 +9,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import PrivatSkal from '@/components/privat/PrivatSkal';
+import AvtalBanner from '@/components/privat/AvtalBanner';
 import Knapp from '@/components/ui/Knapp';
 import Besked from '@/components/ui/Besked';
 import Textfält from '@/components/ui/Textfält';
@@ -118,6 +119,7 @@ export default function JobbDetalj() {
   return (
     <PrivatSkal>
       <div className="mx-auto max-w-2xl">
+        <AvtalBanner />
         <h1 className="text-[28px] font-bold leading-tight text-text">{jobb.Titel}</h1>
         <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[15px] text-text-dämpad">
           {jobb.foretagNamn && (
