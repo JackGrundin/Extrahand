@@ -187,6 +187,9 @@ export const api = {
   // beräknar alla belopp (timlön, påslag, OB, avdrag, datum).
   skapaRapport: (kropp) => anrop('POST', '/tidrapporter', kropp),
   hämtaTidrapport: (ansökanId) => anrop('GET', `/tidrapporter/ansokan/${ansökanId}`),
+  // Privatperson: godkänn eller bestrida en väntande tidrapport
+  godkännRapport: (rapportId) => anrop('PATCH', `/tidrapporter/${rapportId}/status`, { status: 'godkänd' }),
+  bestridaRapport: (rapportId, orsak) => anrop('PATCH', `/tidrapporter/${rapportId}/status`, { status: 'bestridd', orsak }),
 
   // Meddelanden (chatt). Realtidssignalen kommer via Supabase Broadcast; datan hämtas här.
   hämtaMeddelanden: (ansökanId) => anrop('GET', `/meddelanden/${ansökanId}`),

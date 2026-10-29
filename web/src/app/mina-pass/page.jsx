@@ -9,6 +9,7 @@ import { useRouter } from 'next/navigation';
 import PrivatSkal from '@/components/privat/PrivatSkal';
 import Besked from '@/components/ui/Besked';
 import RollBrickor from '@/components/app/RollBrickor';
+import TidrapportSektion from '@/components/privat/TidrapportSektion';
 import { useAuth } from '@/context/AuthContext';
 import { api, felText } from '@/lib/api';
 import {
@@ -45,7 +46,7 @@ function detaljLänk(a) {
   return a.schemaId ? `/schema/${a.schemaId}` : `/jobb/${a.jobb_id}`;
 }
 
-function PassKort({ pass }) {
+function PassKort({ pass, genomfört }) {
   const schema = parsaArbetstider(pass.arbetstider);
   const allaDatum = (schema ?? []).map((d) => d?.datum).filter(Boolean);
   const ärSchemaKort = pass.schemaId != null && pass.schemaPassId == null;
@@ -114,6 +115,9 @@ function PassKort({ pass }) {
           </Link>
         </div>
       )}
+
+      {/* Tidrapport – godkänn eller bestrida. Visas bara för genomförda pass. */}
+      {genomfört && <TidrapportSektion ansökanId={pass.id} />}
     </div>
   );
 }
@@ -227,7 +231,7 @@ export default function MinaPass() {
                 </h2>
                 <div className="flex flex-col gap-3">
                   {sektion.data.map((p) => (
-                    <PassKort key={p.id} pass={p} />
+                    <PassKort key={p.id} pass={p} genomfört={aktivFlik === 'genomförda'} />
                   ))}
                 </div>
               </section>
