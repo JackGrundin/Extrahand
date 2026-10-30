@@ -3,13 +3,15 @@
 // Privatpersonens chatt-tråd (per ansökan). Speglar webbens företags-tråd
 // (app)/meddelanden/[ansokanId]: GET /meddelanden/:ansokanId + POST, realtid via
 // useRealtidsPing (RealtidsProvider kommer från chatt/layout.jsx), optimistiskt append.
-// Ligger utanför (app) med egen auth-gate och Toppnav. Ren text – ingen tidslinje med
-// tidrapporter/förfrågningar (det stannar i appen).
+// Ligger utanför (app) med egen auth-gate. Textmeddelanden + ett tidrapportskort sist i
+// tidslinjen när en rapport finns (TidrapportSektion self-fetchar och self-gatar).
+// Jobbförfrågningar visas ännu bara i appen (saknar webbstöd).
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import PrivatSkal from '@/components/privat/PrivatSkal';
 import Besked from '@/components/ui/Besked';
+import TidrapportSektion from '@/components/privat/TidrapportSektion';
 import { useAuth } from '@/context/AuthContext';
 import { useRealtidsPing } from '@/context/RealtidsContext';
 import { api, felText } from '@/lib/api';
@@ -159,6 +161,8 @@ export default function ChattTråd() {
                 );
               })
             )}
+            {/* Tidrapportskort sist i tidslinjen – self-fetchar och renderar null utan rapport. */}
+            <TidrapportSektion ansökanId={ansokanId} />
             <div ref={bottenRef} />
           </div>
 
