@@ -32,9 +32,11 @@ export function synkaPassMotDatum(valdaDatum, befintligaPass) {
   const kvar = befintligaPass.filter(p => valda.has(p.datum));
   const datumMedPass = new Set(kvar.map(p => p.datum));
 
+  // Nya pass föds med förvalda tider 08:00–17:00 så företaget slipper öppna varje pass och
+  // fylla i manuellt. Befintliga pass (kvar) rörs inte, så redan ifyllda tider bevaras.
   const nya = [...valda]
     .filter(d => !datumMedPass.has(d))
-    .map(datum => ({ id: nyttPassId(), datum, starttid: '', sluttid: '', kategori: null, ob_tillagg: [], rast_minuter: 0 }));
+    .map(datum => ({ id: nyttPassId(), datum, starttid: '08:00', sluttid: '17:00', kategori: null, ob_tillagg: [], rast_minuter: 0 }));
 
   return sorteraPass([...kvar, ...nya]);
 }
