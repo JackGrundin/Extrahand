@@ -16,7 +16,7 @@ const LÄNKAR = [
   { namn: 'Min profil', väg: '/min-profil' },
 ];
 
-export default function PrivatSidomeny({ onNavigera }) {
+export default function PrivatSidomeny({ onNavigera, olästa = 0 }) {
   const { användare, loggaUt } = useAuth();
   const sökväg = usePathname();
 
@@ -33,16 +33,23 @@ export default function PrivatSidomeny({ onNavigera }) {
       <nav className="flex-1 space-y-1 px-3 py-2">
         {LÄNKAR.map((l) => {
           const aktiv = ärAktiv(l.väg);
+          // Oläst-badge bara på Meddelanden (→ /chatt), antal från föräldern.
+          const badge = l.väg === '/chatt' ? olästa : 0;
           return (
             <Link
               key={l.väg}
               href={l.väg}
               onClick={onNavigera}
-              className={`flex items-center rounded-sm px-3 py-2.5 text-[15px] font-semibold transition-colors ${
+              className={`flex items-center justify-between rounded-sm px-3 py-2.5 text-[15px] font-semibold transition-colors ${
                 aktiv ? 'bg-primär-mjuk text-primär' : 'text-text-dämpad hover:bg-yta-dämpad hover:text-text'
               }`}
             >
-              {l.namn}
+              <span>{l.namn}</span>
+              {badge > 0 && (
+                <span className="ml-2 inline-flex h-5 min-w-[20px] items-center justify-center rounded-pill bg-fel px-1.5 text-[12px] font-bold text-white">
+                  {badge > 9 ? '9+' : badge}
+                </span>
+              )}
             </Link>
           );
         })}

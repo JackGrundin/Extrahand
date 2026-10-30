@@ -9,10 +9,33 @@ import { usePathname } from 'next/navigation';
 import Toppnav from '@/components/Toppnav';
 import PrivatSidomeny from '@/components/privat/PrivatSidomeny';
 import { useAuth } from '@/context/AuthContext';
+import { api } from '@/lib/api';
+
+// Backend saknar läs-status för chatt, så "oläst" härleds klient-sidigt: en konversation är
+// oläst om dess senaste meddelande kom från motparten efter att inboxen senast öppnades.
+// Tidpunkten lagras i localStorage; seedas till nu vid första besöket (ingen retroaktiv flagga).
+const SEDD_NYCKEL = 'fastgig.chatt.sedd';
+
+function läsSedd() {
+  if (typeof window === 'undefined') return Date.now();
+  const rått = window.localStorage.getItem(SEDD_NYCKEL);
+  if (rått == null) {
+    const nu = Date.now();
+    try { window.localStorage.setItem(SEDD_NYCKEL, String(nu)); } catch {}
+    return nu;
+  }
+  return Number(rått) || 0;
+}
+
+function sättSedd(ts) {
+  if (typeof window === 'undefined') return;
+  try { window.localStorage.setItem(SEDD_NYCKEL, String(ts)); } catch {}
+}
 
 export default function PrivatSkal({ children }) {
   const { inloggad, användare } = useAuth();
   const [menyÖppen, setMenyÖppen] = useState(false);
+  const [olästa, setOlästa] = useState(0);
   const sökväg = usePathname();
 
   // Stäng mobildrawern vid sidbyte.
@@ -21,6 +44,33 @@ export default function PrivatSkal({ children }) {
   }, [sökväg]);
 
   const ärPrivat = inloggad && användare?.typ === 'privatperson';
+  const minId = String(användare?.id ?? '');
+
+  // Räkna olästa konversationer för badgen. Nollställs när inboxen (/chatt) öppnas.
+  // Körs vid sidbyte (som företagets AppSkal gör med sina badges). Fel sväljs.
+  useEffect(() => {
+    if (!ärPrivat) return;
+    if (sökväg?.startsWith('/chatt')) sättSedd(Date.now());
+    let avbruten = false;
+    (async () => {
+      try {
+        const data = await api.minaAnsökningar();
+        if (avbruten) return;
+        const sedd = läsSedd();
+        const antal = (Array.isArray(data) ? data : []).filter((a) => {
+          if (a.schemaPassId != null) return false; // samma filter som /chatt-inboxen
+          const sm = a.senasteMeddelande;
+          if (!sm?.created_at) return false;
+          if (String(sm.avsandare_id) === minId) return false; // mitt eget sista meddelande
+          return new Date(sm.created_at).getTime() > sedd;
+        }).length;
+        setOlästa(antal);
+      } catch {
+        /* en trasig badge får aldrig sänka vyn */
+      }
+    })();
+    return () => { avbruten = true; };
+  }, [ärPrivat, sökväg, minId]);
 
   // Publikt läge (utloggad eller företag på /jobb): behåll landningsnaven.
   if (!ärPrivat) {
@@ -38,7 +88,7 @@ export default function PrivatSkal({ children }) {
     <div className="min-h-screen bg-bakgrund">
       {/* Fast sidomeny – desktop */}
       <aside className="fixed inset-y-0 left-0 z-40 hidden w-64 border-r border-kant bg-yta md:block">
-        <PrivatSidomeny />
+        <PrivatSidomeny olästa={olästa} />
       </aside>
 
       {/* Mobil topprad */}
@@ -65,7 +115,7 @@ export default function PrivatSkal({ children }) {
             aria-hidden="true"
           />
           <div className="absolute inset-y-0 left-0 w-72 bg-yta shadow-lyft">
-            <PrivatSidomeny onNavigera={() => setMenyÖppen(false)} />
+            <PrivatSidomeny onNavigera={() => setMenyÖppen(false)} olästa={olästa} />
           </div>
         </div>
       )}
