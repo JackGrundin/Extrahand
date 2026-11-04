@@ -162,7 +162,14 @@ export default function MinaJobbScreen({ navigation, route }) {
             </Text>
           </View>
         )}
-        <Text style={styles.titel} numberOfLines={1}>{item.Titel}</Text>
+        <View style={styles.titelRad}>
+          <Text style={[styles.titel, { flexShrink: 1 }]} numberOfLines={1}>{item.Titel}</Text>
+          {item.privat && (
+            <View style={styles.privatBricka}>
+              <Text style={styles.privatBrickaText}>Privat</Text>
+            </View>
+          )}
+        </View>
 
         <View style={styles.infoRad}>
           {item.Plats && <Text style={styles.info}>{item.Plats}</Text>}

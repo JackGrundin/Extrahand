@@ -162,6 +162,12 @@ export const api = {
   bjudInTillSchema: (id, email) => anrop('POST', `/scheman/${id}/bjud-in`, { email }),
   schemaInbjudningar: (id) => anrop('GET', `/scheman/${id}/inbjudningar`),
   hämtaInbjudan: (token) => anrop('GET', `/inbjudan/${encodeURIComponent(token)}`),
+  // Inbjudningslänkar (jobb/schema): generera delbar länk (gör annonsen privat), koppla
+  // kontot efter registrering (sätter ev. rabatt), och göra ett jobb publikt igen.
+  genereraJobbInbjudan: (jobbId) => anrop('POST', `/inbjudan/jobb/${jobbId}`, {}),
+  genereraSchemaInbjudan: (schemaId) => anrop('POST', `/inbjudan/schema/${schemaId}`, {}),
+  kopplaInbjudan: (token) => anrop('POST', `/inbjudan/${encodeURIComponent(token)}/koppla`, {}),
+  görJobbPublikt: (jobbId) => anrop('PATCH', `/inbjudan/jobb/${jobbId}/publicera`, {}),
   // Privatpersons-ansökan till ett schema (mot dess annons-jobb). Backend fryser kravlistan.
   sökSchema: (annonsJobbId, kropp) => anrop('POST', `/ansokningar/${annonsJobbId}`, kropp),
   // Privatpersons-ansökan till ett enstaka pass. kropp: { meddelande, intygade_krav }.

@@ -12,6 +12,13 @@ const PÅSLAG_PRO = 0.20;
 const PÅSLAG_GRATIS = 0.40;
 const GRATIS_PASS_PER_MANAD = 2;
 
+// Rabatterat påslag för en person som är ny på plattformen och registrerar sig via
+// en inbjudningslänk. Gäller bara det passet/schemat länken avser. Lägre än både
+// Pro- och gratispåslaget. Speglas i frontend/src/utils/konstanter.js och web –
+// ändra alltid på alla ställena.
+const PÅSLAG_INBJUDAN_PASS = 0.15;
+const PÅSLAG_INBJUDAN_SCHEMA = 0.07;
+
 // Beräknar vad företaget faktureras för ett givet bruttobelopp (timlön eller
 // OB-belopp). Med påslag 0.20 blir faktorn 1.65984, med 0.40 blir den 1.93968.
 function beräknaFakturapris(belopp, paslag = PÅSLAG_GRATIS) {
@@ -117,6 +124,8 @@ function valideraObTillagg(obTillagg) {
 module.exports = {
   PÅSLAG_PRO,
   PÅSLAG_GRATIS,
+  PÅSLAG_INBJUDAN_PASS,
+  PÅSLAG_INBJUDAN_SCHEMA,
   GRATIS_PASS_PER_MANAD,
   beräknaFakturapris,
   påslagEller40,

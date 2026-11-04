@@ -56,11 +56,19 @@ export default function AnsökningsKort({ ansökan, jobbStartat, onStatus, onFav
         </div>
       </div>
 
-      {Array.isArray(ansökan.saknadeKrav) && ansökan.saknadeKrav.length > 0 && (
-        <p className="mt-3 inline-block rounded-pill bg-varning-mjuk px-2.5 py-1 text-[12px] font-bold text-varning-text">
-          Kräver ny bekräftelse
-        </p>
-      )}
+      <div className="mt-3 flex flex-wrap gap-2">
+        {Array.isArray(ansökan.saknadeKrav) && ansökan.saknadeKrav.length > 0 && (
+          <span className="inline-block rounded-pill bg-varning-mjuk px-2.5 py-1 text-[12px] font-bold text-varning-text">
+            Kräver ny bekräftelse
+          </span>
+        )}
+        {/* Privatpersonen måste godkänna avtalet (sätts i appen) innan hen kan godkännas. */}
+        {ansökan.avtalGodkant === false && (
+          <span className="inline-block rounded-pill border border-varning-kant bg-varning-mjuk px-2.5 py-1 text-[12px] font-bold text-varning-text">
+            Väntar på avtal
+          </span>
+        )}
+      </div>
 
       <p className="mt-3 whitespace-pre-wrap text-[14px] leading-relaxed text-text-dämpad">
         {ansökan.meddelande?.trim() || 'Ingen ansökningstext'}

@@ -82,6 +82,11 @@ export const PÅSLAG_PRO = 0.20;
 export const PÅSLAG_GRATIS = 0.40;
 export const PRO_PRIS_KR = 299;
 
+// Rabatterat påslag för en person som är ny på plattformen och registrerar sig via
+// en inbjudningslänk. Speglar backend/utils/pris.js – ändra alltid på alla ställena.
+export const PÅSLAG_INBJUDAN_PASS = 0.15;
+export const PÅSLAG_INBJUDAN_SCHEMA = 0.07;
+
 // Beräknar vad företaget faktureras för ett bruttobelopp (timlön eller OB-belopp).
 export function beräknaFakturapris(belopp, paslag = PÅSLAG_GRATIS) {
   return belopp * 1.38 + belopp * 1.32 * 1.06 * paslag;

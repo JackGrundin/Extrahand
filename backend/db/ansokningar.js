@@ -172,7 +172,9 @@ async function hämtaAnsökningarFörJobb(jobb_id) {
   if (!ansökningar.length) return [];
 
   const sokandeIds = [...new Set(ansökningar.map(a => a.sokande_id).filter(Boolean))];
-  const { data: sökande } = await supabase.from('användare').select('id, Namn').in('id', sokandeIds);
+  // avtal_godkant driver företagets gula "Väntar på avtal"-bricka: en privatperson
+  // kan inte godkännas förrän avtalet är påskrivet, så företaget ska se det direkt.
+  const { data: sökande } = await supabase.from('användare').select('id, Namn, avtal_godkant').in('id', sokandeIds);
   const sökandeMap = Object.fromEntries((sökande || []).map(s => [s.id, s]));
 
   // saknadeKrav driver företagets "Kräver ny bekräftelse". Härlett, inte lagrat: brickan
@@ -184,6 +186,7 @@ async function hämtaAnsökningarFörJobb(jobb_id) {
   return ansökningar.map(a => ({
     ...a,
     sökandeNamn: sökandeMap[a.sokande_id]?.Namn ?? null,
+    avtalGodkant: sökandeMap[a.sokande_id]?.avtal_godkant ?? null,
     saknadeKrav: saknadeKrav(jobb?.behorighets_krav, a.intygade_krav),
   }));
 }

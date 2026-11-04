@@ -12,6 +12,7 @@ import { parsaArbetstider, formatDagDatum, harStartat, behöverAvslutas } from '
 export default function JobbKort({ jobb, onÄndrad }) {
   const [meny, setMeny] = useState(false);
   const [tarBort, setTarBort] = useState(false);
+  const [görPublik, setGörPublik] = useState(false);
 
   const datum = (parsaArbetstider(jobb.arbetstider) ?? [])
     .map((d) => d?.datum)
@@ -37,11 +38,30 @@ export default function JobbKort({ jobb, onÄndrad }) {
     }
   }
 
+  async function görPublikt() {
+    setGörPublik(true);
+    try {
+      await api.görJobbPublikt(jobb.id);
+      onÄndrad?.();
+    } catch (f) {
+      window.alert(f?.message || 'Kunde inte göra passet publikt');
+    } finally {
+      setGörPublik(false);
+    }
+  }
+
   return (
     <div className="relative rounded-lg border border-kant bg-yta p-5 shadow-mjuk">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <h3 className="truncate text-[16px] font-bold text-text">{jobb.Titel}</h3>
+          <div className="flex flex-wrap items-center gap-2">
+            <h3 className="truncate text-[16px] font-bold text-text">{jobb.Titel}</h3>
+            {jobb.privat && (
+              <span className="rounded-pill border border-varning-kant bg-varning-mjuk px-2 py-0.5 text-[11px] font-bold text-varning-text">
+                Privat
+              </span>
+            )}
+          </div>
           <p className="text-[14px] text-text-dämpad">{jobb.Plats}</p>
         </div>
         {!startat && (
@@ -90,6 +110,17 @@ export default function JobbKort({ jobb, onÄndrad }) {
           <span className="rounded-pill bg-varning-mjuk px-2.5 py-1 text-[12px] font-bold text-varning-text">
             Behöver avslutas
           </span>
+        )}
+        {/* Tackade den inbjudne nej? Gör passet publikt igen – men bara innan någon godkänts. */}
+        {jobb.privat && !jobb.harGodkänd && (
+          <button
+            type="button"
+            disabled={görPublik}
+            onClick={görPublikt}
+            className="rounded-pill border border-kant px-2.5 py-1 text-[12px] font-semibold text-text-dämpad hover:border-kant-stark hover:text-text disabled:opacity-60"
+          >
+            {görPublik ? 'Gör publikt…' : 'Gör publikt'}
+          </button>
         )}
       </div>
 

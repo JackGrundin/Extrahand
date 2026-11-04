@@ -2,6 +2,7 @@ import { useCallback, useState } from 'react';
 import { View, Text, FlatList, TouchableOpacity, StyleSheet, ActivityIndicator, Alert } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
+import * as Clipboard from 'expo-clipboard';
 import { api, felText } from '../api/klient';
 import { harStartat, planeradeTimmar, parsaArbetstider } from '../utils/datumHelper';
 import { ansökanStatusVisning } from '../utils/konstanter';
@@ -137,6 +138,26 @@ export default function JobbAnsokningarScreen({ route, navigation }) {
   const [modalSynlig, setModalSynlig] = useState(false);
   const [valtAnsokningId, setValtAnsokningId] = useState(null);
   const [sparar, setSparar] = useState(false);
+  const [genererar, setGenererar] = useState(false);
+
+  // Genererar en inbjudningslänk till passet. Länken gör jobbet privat (döljs ur den öppna
+  // listan) och kopieras direkt till urklipp. En person som registrerar sig via länken ger
+  // ett rabatterat påslag. Backend sätter privat = true, så vi hämtar om jobbet efteråt.
+  async function genereraLänk() {
+    setGenererar(true);
+    try {
+      const { url } = await api.genereraJobbInbjudan(jobbId);
+      await Clipboard.setStringAsync(url);
+      haptik.lyckat();
+      await hämta();
+      Alert.alert('Länk kopierad', 'Inbjudningslänken är kopierad. Passet är nu privat – dela länken med personen du vill bjuda in.');
+    } catch (fel) {
+      haptik.fel();
+      Alert.alert('Fel', felText(fel));
+    } finally {
+      setGenererar(false);
+    }
+  }
 
   async function hämta() {
     try {
@@ -253,6 +274,32 @@ export default function JobbAnsokningarScreen({ route, navigation }) {
             text="När någon söker det här passet dyker de upp här."
           />
         }
+        ListFooterComponent={
+          tidigare ? null : (
+            <View style={styles.inbjudanRuta}>
+              <View style={styles.inbjudanRad}>
+                <Text style={styles.inbjudanRubrik}>Inbjudningslänk</Text>
+                {jobb?.privat && (
+                  <View style={styles.privatBricka}><Text style={styles.privatBrickaText}>Privat</Text></View>
+                )}
+              </View>
+              <Text style={styles.inbjudanText}>
+                Dela en länk direkt med en person. Passet blir privat och syns inte i den öppna listan.
+                Är personen ny på FastGig och registrerar sig via länken får du ett rabatterat påslag.
+              </Text>
+              <TouchableOpacity
+                style={[styles.inbjudanKnapp, genererar && { opacity: 0.5 }]}
+                onPress={genereraLänk}
+                disabled={genererar}
+              >
+                <Ionicons name="link-outline" size={18} color="#2563eb" />
+                <Text style={styles.inbjudanKnappText}>
+                  {genererar ? 'Genererar…' : 'Generera inbjudningslänk'}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          )
+        }
         renderItem={({ item }) => (
           <TouchableOpacity
             style={styles.kort}
@@ -342,4 +389,12 @@ const styles = StyleSheet.create({
   avvisadBadge: { backgroundColor: '#fee2e2', borderRadius: 10, paddingHorizontal: 12, paddingVertical: 5, alignSelf: 'flex-start', marginBottom: 12 },
   avvisadText: { color: '#dc2626', fontWeight: '600', fontSize: 13 },
   tom: { textAlign: 'center', color: '#999', marginTop: 40, fontSize: 16 },
+  inbjudanRuta: { backgroundColor: '#fff', borderRadius: 12, padding: 16, marginTop: 4, marginBottom: 24, borderWidth: 1, borderColor: '#e5e7eb' },
+  inbjudanRad: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 },
+  inbjudanRubrik: { fontSize: 16, fontWeight: '700', color: '#1a1a1a' },
+  privatBricka: { backgroundColor: '#fef3c7', borderRadius: 999, paddingHorizontal: 10, paddingVertical: 3 },
+  privatBrickaText: { color: '#92400e', fontWeight: '700', fontSize: 12 },
+  inbjudanText: { fontSize: 13, color: '#666', lineHeight: 19, marginBottom: 12 },
+  inbjudanKnapp: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, borderWidth: 1, borderColor: '#2563eb', borderRadius: 8, paddingVertical: 11 },
+  inbjudanKnappText: { color: '#2563eb', fontWeight: '600', fontSize: 14 },
 });

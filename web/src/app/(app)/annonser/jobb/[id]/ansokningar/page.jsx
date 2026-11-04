@@ -8,6 +8,7 @@ import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import Besked from '@/components/ui/Besked';
 import AnsökningsKort from '@/components/app/AnsökningsKort';
+import GenereraInbjudanLank from '@/components/app/GenereraInbjudanLank';
 import { api, felText } from '@/lib/api';
 import { harStartat } from '@/utils/datumHelper';
 
@@ -88,6 +89,8 @@ export default function JobbAnsökningar() {
           ))}
         </div>
       )}
+
+      {jobb && <GenereraInbjudanLank typ="jobb" id={id} onPrivat={hämta} />}
     </div>
   );
 }

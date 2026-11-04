@@ -146,10 +146,14 @@ async function hämtaAllaJobb() {
   // är en korrekthetsfråga och inte kosmetika: i glappet när en person hoppat av och en
   // ny ännu inte godkänts saknar de framtida passjobben godkänd ansökan, och skulle
   // annars slinka igenom filtreraAktivaJobb som sökbara annonser.
+  // Privata jobb (inbjudningslänk) döljs ur den öppna listan, precis som privata
+  // scheman i hämtaÖppnaScheman. De nås bara direkt via id/länk (hämtaJobbViaId har
+  // inget privat-filter), så ansökan och godkännande fungerar oförändrat.
   const { data: jobb, error } = await supabase
     .from('Jobb')
     .select('*')
     .is('schema_id', null)
+    .eq('privat', false)
     .order('created_at', { ascending: false });
 
   if (error) throw error;
@@ -277,6 +281,22 @@ async function sättJobbPåslag(id, paslag) {
   if (error) throw error;
 }
 
+// Markerar ett jobb som privat (döljs ur hämtaAllaJobb) eller publikt igen. Sätts till
+// true när företaget genererar en inbjudningslänk, false via "Gör publikt". Ägarkontroll
+// görs i routen. Begränsat till enstaka pass (schema_id null) – schemajobb ägs av schemat.
+async function sättJobbPrivat(id, foretag_id, privat) {
+  const { data, error } = await supabase
+    .from('Jobb')
+    .update({ privat })
+    .eq('id', id)
+    .eq('Foretag_id', foretag_id)
+    .is('schema_id', null)
+    .select()
+    .single();
+  if (error) throw error;
+  return data;
+}
+
 // Antal jobb företaget publicerat denna månad. Styr popupen vid publicering. Räknas
 // direkt ur tabellen i stället för via en kolumn, så att ett borttaget jobb automatiskt
 // försvinner ur räkningen.
@@ -318,4 +338,4 @@ async function taBortJobb(id, foretag_id) {
   if (error) throw error;
 }
 
-module.exports = { skapaJobb, skapaJobbBatch, hämtaAllaJobb, hämtaJobbViaId, hämtaJobbFörFöretag, hämtaTidigareJobbFörFöretag, uppdateraJobb, taBortJobb, sättJobbPåslag, räknaJobbDennaMånad, markeraAnsökningarSedda };
+module.exports = { skapaJobb, skapaJobbBatch, hämtaAllaJobb, hämtaJobbViaId, hämtaJobbFörFöretag, hämtaTidigareJobbFörFöretag, uppdateraJobb, taBortJobb, sättJobbPåslag, sättJobbPrivat, räknaJobbDennaMånad, markeraAnsökningarSedda };

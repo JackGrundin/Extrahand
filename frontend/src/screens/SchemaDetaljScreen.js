@@ -3,6 +3,7 @@ import { View, Text, TouchableOpacity, StyleSheet, Alert, ScrollView, ActivityIn
 import { useFocusEffect } from '@react-navigation/native';
 import { useHeaderHeight } from '@react-navigation/elements';
 import { Ionicons } from '@expo/vector-icons';
+import * as Clipboard from 'expo-clipboard';
 import { useAuth } from '../context/AuthContext';
 import { useRealtidsPing } from '../context/RealtidsContext';
 import { useAttAvsluta } from '../context/AttAvslutaContext';
@@ -37,6 +38,7 @@ export default function SchemaDetaljScreen({ route, navigation }) {
   const [inbjudEmail, setInbjudEmail] = useState('');
   const [bjuderIn, setBjuderIn] = useState(false);
   const [inbjudningar, setInbjudningar] = useState([]);
+  const [genererar, setGenererar] = useState(false);
   const { uppdateraAttAvsluta } = useAttAvsluta();
   // Höjden på navigationsrubriken – KeyboardAvoidingView behöver den som offset,
   // annars räknar iOS fel och lämnar en lucka eller låter tangentbordet ligga kvar över fältet.
@@ -95,6 +97,25 @@ export default function SchemaDetaljScreen({ route, navigation }) {
       setBjuderIn(false);
     }
   }
+  // Genererar en delbar inbjudningslänk till schemat och kopierar den till urklipp. Länken
+  // gör schemat privat (döljs ur den öppna listan); en person som registrerar sig via länken
+  // ger ett rabatterat påslag. Backend sätter privat = true, så vi hämtar om schemat efteråt.
+  async function genereraSchemaLänk() {
+    setGenererar(true);
+    try {
+      const { url } = await api.genereraSchemaInbjudan(schemaId);
+      await Clipboard.setStringAsync(url);
+      haptik.lyckat();
+      await hämta();
+      Alert.alert('Länk kopierad', 'Inbjudningslänken är kopierad. Schemat är nu privat – dela länken med personen du vill bjuda in.');
+    } catch (fel) {
+      haptik.fel();
+      Alert.alert('Fel', felText(fel));
+    } finally {
+      setGenererar(false);
+    }
+  }
+
   useRealtidsPing(() => { hämta(); });
 
   // Att företaget öppnar schemat räknas som att ansökningarna setts – de visas här nere på
@@ -410,6 +431,27 @@ export default function SchemaDetaljScreen({ route, navigation }) {
           </TouchableOpacity>
         )}
 
+        {/* Generera delbar inbjudningslänk – gör schemat privat. Finns även för publika
+            scheman: att generera länken är det som gör det privat. */}
+        {ärFöretag && schema.status !== 'avbrutet' && (
+          <View style={styles.inbjudKort}>
+            <Text style={styles.sektionsRubrik}>Inbjudningslänk</Text>
+            <Text style={styles.inbjudText}>
+              Dela en länk direkt med en person. Schemat blir privat och syns inte i den öppna
+              listan. Är personen ny på FastGig och registrerar sig via länken får du ett
+              rabatterat påslag.
+            </Text>
+            <TouchableOpacity
+              style={[styles.länkKnapp, genererar && { opacity: 0.6 }]}
+              onPress={genereraSchemaLänk}
+              disabled={genererar}
+            >
+              <Ionicons name="link-outline" size={18} color="#2563eb" accessible={false} importantForAccessibility="no" />
+              <Text style={styles.länkKnappText}>{genererar ? 'Genererar…' : 'Generera inbjudningslänk'}</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+
         {/* Företagets sökande ligger HÖGST UPP – det är det man öppnar schemat för. Låg de
             kvar sist hamnade de efter en passlista som kan vara 60+ rader lång. */}
         {ärFöretag && schema.privat && (
@@ -440,10 +482,10 @@ export default function SchemaDetaljScreen({ route, navigation }) {
             {inbjudningar.length > 0 && (
               <View style={{ marginTop: 12 }}>
                 {inbjudningar.map((i, idx) => (
-                  <View key={`${i.email}-${idx}`} style={styles.inbjudListRad}>
-                    <Text style={styles.inbjudListEmail}>{i.email}</Text>
+                  <View key={`${i.email ?? 'länk'}-${idx}`} style={styles.inbjudListRad}>
+                    <Text style={styles.inbjudListEmail}>{i.email || 'Delad länk'}</Text>
                     <Text style={styles.inbjudListStatus}>
-                      {i.accepterad_at ? 'Öppnat' : i.hadeKonto ? 'Notis skickad' : 'Mejl skickat'}
+                      {i.accepterad_at ? 'Öppnat' : !i.email ? 'Väntar' : i.hadeKonto ? 'Notis skickad' : 'Mejl skickat'}
                     </Text>
                   </View>
                 ))}
@@ -763,6 +805,8 @@ const styles = StyleSheet.create({
   inbjudInput: { flex: 1, borderWidth: 1, borderColor: '#e2e8f0', borderRadius: 10, paddingHorizontal: 12, paddingVertical: 12, fontSize: 15, backgroundColor: '#fff', color: '#0f172a' },
   inbjudKnapp: { backgroundColor: '#2563eb', borderRadius: 10, paddingHorizontal: 18, justifyContent: 'center' },
   inbjudKnappText: { color: '#fff', fontWeight: '700', fontSize: 15 },
+  länkKnapp: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, borderWidth: 1, borderColor: '#2563eb', borderRadius: 10, paddingVertical: 11 },
+  länkKnappText: { color: '#2563eb', fontWeight: '600', fontSize: 14 },
   inbjudListRad: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 8, borderTopWidth: 1, borderTopColor: '#e2e8f0' },
   inbjudListEmail: { fontSize: 14, color: '#0f172a', flex: 1 },
   inbjudListStatus: { fontSize: 12, fontWeight: '600', color: '#64748b', marginLeft: 8 },

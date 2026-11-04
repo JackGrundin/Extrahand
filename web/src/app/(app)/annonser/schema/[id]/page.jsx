@@ -10,6 +10,7 @@ import Besked from '@/components/ui/Besked';
 import RollBrickor from '@/components/app/RollBrickor';
 import AnsökningsKort from '@/components/app/AnsökningsKort';
 import InbjudanSektion from '@/components/app/InbjudanSektion';
+import GenereraInbjudanLank from '@/components/app/GenereraInbjudanLank';
 import { api, felText } from '@/lib/api';
 import { formatPeriod, veckodagsNamn, formatDagDatum } from '@/utils/datumHelper';
 import { schematypEtikett, formateraPris } from '@/utils/konstanter';
@@ -106,6 +107,8 @@ export default function SchemaDetalj() {
       </div>
 
       {fel && <Besked typ="fel">{fel}</Besked>}
+
+      <GenereraInbjudanLank typ="schema" id={id} onPrivat={hämta} />
 
       {schema.privat && <InbjudanSektion schemaId={id} />}
 

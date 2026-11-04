@@ -274,6 +274,9 @@ export const api = {
   // Privata scheman: bjud in person via e-post + lista inbjudna.
   bjudInTillSchema: (id, email) => anrop('POST', `/scheman/${id}/bjud-in`, { email }),
   schemaInbjudningar: (id) => anrop('GET', `/scheman/${id}/inbjudningar`),
+  // Inbjudningslänk till ett jobb/schema. Gör annonsen privat och returnerar { url }.
+  genereraJobbInbjudan: (jobbId) => anrop('POST', `/inbjudan/jobb/${jobbId}`, {}),
+  genereraSchemaInbjudan: (schemaId) => anrop('POST', `/inbjudan/schema/${schemaId}`, {}),
 
   // Korrigerar en automatiskt skapad tidrapport som ännu väntar på svar (övertid/rast).
   // Efter ett bestridande skickas i stället en ny rapport via skapaRapport.

@@ -6,6 +6,8 @@ const { hämtaJobbViaId, sättJobbPåslag } = require('../db/jobb');
 const { hämtaPrenumeration, gällandePåslag, ökaPassDennaManad, minskaPassDennaManad } = require('../db/prenumeration');
 const { tilldelaSchema, räknaTilldelbaraPass, frigörFramtidaPass, återställSchema } = require('../db/schemaTilldelning');
 const { hämtaSchemaViaAnnonsJobb } = require('../db/scheman');
+const { hämtaRabattInbjudan } = require('../db/schemaInbjudan');
+const { PÅSLAG_INBJUDAN_PASS, PÅSLAG_INBJUDAN_SCHEMA } = require('../utils/pris');
 const { normaliseraKrav, saknadeKrav } = require('../utils/behorighet');
 const { idagStockholm } = require('../utils/tid');
 const { skickaNotifikation } = require('../utils/pushNotifikation');
@@ -302,6 +304,20 @@ router.patch('/:id/status', kräverInloggning, kräverTyp('företag'), async (re
         // jobbet och följer sedan med till tidrapporten och fakturan.
         const företag = await hämtaPrenumeration(req.användare.id);
         påslag = gällandePåslag(företag);
+
+        // Är den godkände inbjuden via en länk och ny på plattformen (rabatt_godkand
+        // stämplades vid inlösen)? Då gäller rabatterat påslag för just det här
+        // passet/schemat i stället: 15% för enstaka pass, 7% för scheman. Ett schema
+        // godkänns via sitt annons-jobb som bär schema_id.
+        const rabatt = await hämtaRabattInbjudan({
+          jobb_id: ansökan.jobb_id,
+          schema_id: jobb.schema_id ?? null,
+          anvandare_id: ansökan.sokande_id,
+        });
+        if (rabatt) {
+          påslag = jobb.schema_id ? PÅSLAG_INBJUDAN_SCHEMA : PÅSLAG_INBJUDAN_PASS;
+        }
+
         await sättJobbPåslag(ansökan.jobb_id, påslag);
         await ökaPassDennaManad(req.användare.id);
       }

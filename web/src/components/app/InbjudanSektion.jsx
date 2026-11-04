@@ -83,9 +83,9 @@ export default function InbjudanSektion({ schemaId }) {
               key={`${i.email}-${idx}`}
               className="flex items-center justify-between rounded-sm border border-kant bg-yta px-3.5 py-2.5 text-[14px]"
             >
-              <span className="truncate text-text">{i.email}</span>
+              <span className="truncate text-text">{i.email || 'Delad länk'}</span>
               <span className="ml-3 shrink-0 text-[12px] font-semibold text-text-dämpad">
-                {i.accepterad_at ? 'Öppnat' : i.hadeKonto ? 'Notis skickad' : 'Mejl skickat'}
+                {i.accepterad_at ? 'Öppnat' : !i.email ? 'Väntar' : i.hadeKonto ? 'Notis skickad' : 'Mejl skickat'}
               </span>
             </li>
           ))}
