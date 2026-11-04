@@ -186,9 +186,12 @@ export default function Profil() {
           onVälj={(v) => { sätt('stad', v); setStadFel(''); }}
           fel={stadFel}
         />
+        {/* Ingen type="url": webbläsarens inbyggda url-validering kräver ett schema (https://)
+            och blockerar HELA formulärets submit för vanliga värden som "www.foretaget.se",
+            så profilen gick inte att spara. Hemsidan är fri text; backend är validerare. */}
         <Input
           etikett="Hemsida"
-          type="url"
+          inputMode="url"
           value={form.hemsida}
           onChange={(e) => sätt('hemsida', e.target.value)}
           placeholder="t.ex. www.foretaget.se"
