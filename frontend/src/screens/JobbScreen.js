@@ -463,7 +463,7 @@ export default function JobbScreen({ navigation }) {
                 <Text style={styles.info}>{item.Plats} · {item.Typ}</Text>
               </View>
               <View style={styles.extraRad}>
-                {item.Lon && <Text style={styles.lön}>{item.Lon.toLocaleString('sv-SE')} kr/tim</Text>}
+                {item.Lon && <Text style={styles.lön}>{Number(item.Lon).toLocaleString('sv-SE')} kr/tim</Text>}
                 {parsaObTillagg(item.ob_tillagg).length > 0 && (
                   <View style={styles.obBadge}><Text style={styles.obBadgeText}>OB</Text></View>
                 )}

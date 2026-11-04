@@ -134,7 +134,7 @@ export default function JobbDetalj() {
           {jobb.Lon != null && (
             <>
               <span aria-hidden="true">·</span>
-              <span>{jobb.Lon} kr/tim</span>
+              <span>{Math.round(Number(jobb.Lon))} kr/tim</span>
             </>
           )}
           {jobb.antal_dagar ? (

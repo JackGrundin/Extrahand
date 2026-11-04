@@ -67,7 +67,7 @@ export default function JobbAnsökningar() {
       <h1 className="mt-3 rubrik-l text-text">{jobb?.Titel || 'Ansökningar'}</h1>
       {jobb && (
         <p className="mt-1 text-[15px] text-text-dämpad">
-          {jobb.Plats} · {jobb.Lon} kr/tim
+          {jobb.Plats} · {Math.round(Number(jobb.Lon))} kr/tim
         </p>
       )}
 

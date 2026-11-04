@@ -71,7 +71,7 @@ export default function JobbKort({ jobb, onÄndrad }) {
       </div>
 
       <div className="mt-3 flex flex-wrap items-center gap-2">
-        <span className="text-[15px] font-bold text-primär">{jobb.Lon} kr/tim</span>
+        <span className="text-[15px] font-bold text-primär">{Math.round(Number(jobb.Lon))} kr/tim</span>
         {visade.map((d) => (
           <span key={d} className="rounded-pill bg-yta-dämpad px-2.5 py-0.5 text-[12px] font-semibold text-text-dämpad">
             {formatDagDatum(d)}

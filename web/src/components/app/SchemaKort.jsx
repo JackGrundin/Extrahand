@@ -47,7 +47,7 @@ export default function SchemaKort({ schema }) {
       </div>
 
       <div className="mt-4 flex flex-wrap items-center gap-3">
-        <span className="text-[15px] font-bold text-primär">{schema.timlon} kr/tim</span>
+        <span className="text-[15px] font-bold text-primär">{Math.round(Number(schema.timlon))} kr/tim</span>
         <span className="text-[13px] text-text-dämpad">{schema.antalPass} pass</span>
         <span
           className={`ml-auto rounded-pill px-2.5 py-1 text-[12px] font-bold ${

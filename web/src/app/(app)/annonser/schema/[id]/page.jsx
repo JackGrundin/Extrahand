@@ -93,7 +93,7 @@ export default function SchemaDetalj() {
       <div className="mt-2 flex flex-wrap items-center gap-3 text-[15px] text-text-dämpad">
         <span>{schematypEtikett(schema.typ)}</span>
         <span>·</span>
-        <span>{schema.timlon} kr/tim</span>
+        <span>{Math.round(Number(schema.timlon))} kr/tim</span>
         {period && (
           <>
             <span>·</span>

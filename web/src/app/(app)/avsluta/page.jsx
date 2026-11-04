@@ -102,7 +102,7 @@ export default function AvslutaPass() {
               <div className="min-w-0">
                 <p className="truncate text-[15px] font-bold text-text">{jobb.Titel}</p>
                 <p className="text-[13px] text-text-dämpad">
-                  {[datumText(jobb), jobb.Lon ? `${jobb.Lon} kr/tim` : null].filter(Boolean).join(' · ')}
+                  {[datumText(jobb), jobb.Lon ? `${Math.round(Number(jobb.Lon))} kr/tim` : null].filter(Boolean).join(' · ')}
                 </p>
               </div>
               <button

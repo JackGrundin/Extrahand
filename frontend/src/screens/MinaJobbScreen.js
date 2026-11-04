@@ -167,7 +167,7 @@ export default function MinaJobbScreen({ navigation, route }) {
         <View style={styles.infoRad}>
           {item.Plats && <Text style={styles.info}>{item.Plats}</Text>}
           {item.Lon != null && (
-            <Text style={styles.lön}>{item.Lon.toLocaleString('sv-SE')} kr/tim</Text>
+            <Text style={styles.lön}>{Number(item.Lon).toLocaleString('sv-SE')} kr/tim</Text>
           )}
         </View>
 

@@ -33,7 +33,7 @@ export default function JobbListKort({ jobb }) {
         </div>
         {jobb.Lon != null && (
           <span className="shrink-0 whitespace-nowrap text-[15px] font-bold text-text">
-            {jobb.Lon} kr/tim
+            {Math.round(Number(jobb.Lon))} kr/tim
           </span>
         )}
       </div>

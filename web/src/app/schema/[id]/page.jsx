@@ -113,7 +113,7 @@ export default function PrivatSchemaVy() {
         {schema.företagNamn && <span className="font-semibold text-primär">{schema.företagNamn}</span>}
         <span>{schematypEtikett(schema.typ)}</span>
         <span>·</span>
-        <span>{schema.timlon} kr/tim</span>
+        <span>{Math.round(Number(schema.timlon))} kr/tim</span>
         {period && (
           <>
             <span>·</span>
