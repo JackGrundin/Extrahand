@@ -167,6 +167,9 @@ export const api = {
   genereraJobbInbjudan: (jobbId) => anrop('POST', `/inbjudan/jobb/${jobbId}`, {}),
   genereraSchemaInbjudan: (schemaId) => anrop('POST', `/inbjudan/schema/${schemaId}`, {}),
   kopplaInbjudan: (token) => anrop('POST', `/inbjudan/${encodeURIComponent(token)}/koppla`, {}),
+  // Acceptera en inbjudan med ett klick: skapar ansökan + godkänner direkt. Svarar
+  // { ansokanId, avtalGodkant }.
+  accepteraInbjudan: (token) => anrop('POST', `/inbjudan/${encodeURIComponent(token)}/acceptera`, {}),
   görJobbPublikt: (jobbId) => anrop('PATCH', `/inbjudan/jobb/${jobbId}/publicera`, {}),
   // Privatpersons-ansökan till ett schema (mot dess annons-jobb). Backend fryser kravlistan.
   sökSchema: (annonsJobbId, kropp) => anrop('POST', `/ansokningar/${annonsJobbId}`, kropp),

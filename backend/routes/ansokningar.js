@@ -1,13 +1,12 @@
 const express = require('express');
 const { kräverInloggning, kräverTyp } = require('../middleware/auth');
-const { skapaAnsökan, uppdateraIntygande, hämtaAnsökningarFörSökande, hämtaAnsökningarFörJobb, finnsDubblettAnsökan, uppdateraStatus, sättFavorit, hämtaAnsökanViaId, avvisaAllaUtomEn, återställAllaFörJobb, hämtaAllaKonversationerFörFöretag, ångraAnsökan, hämtaAnsökanMedJobbInfo, hämtaKonversationMellan, hämtaGrupperadeKonversationer, hämtaGodkändaFörJobb } = require('../db/ansokningar');
+const { skapaAnsökan, uppdateraIntygande, hämtaAnsökningarFörSökande, hämtaAnsökningarFörJobb, finnsDubblettAnsökan, uppdateraStatus, sättFavorit, hämtaAnsökanViaId, återställAllaFörJobb, hämtaAllaKonversationerFörFöretag, ångraAnsökan, hämtaAnsökanMedJobbInfo, hämtaKonversationMellan, hämtaGrupperadeKonversationer, hämtaGodkändaFörJobb } = require('../db/ansokningar');
 const { hämtaPushToken, hämtaAnvändareViaId, hämtaAvtalGodkant } = require('../db/användare');
 const { hämtaJobbViaId, sättJobbPåslag } = require('../db/jobb');
-const { hämtaPrenumeration, gällandePåslag, ökaPassDennaManad, minskaPassDennaManad } = require('../db/prenumeration');
-const { tilldelaSchema, räknaTilldelbaraPass, frigörFramtidaPass, återställSchema } = require('../db/schemaTilldelning');
+const { minskaPassDennaManad } = require('../db/prenumeration');
+const { återställSchema } = require('../db/schemaTilldelning');
 const { hämtaSchemaViaAnnonsJobb } = require('../db/scheman');
-const { hämtaRabattInbjudan } = require('../db/schemaInbjudan');
-const { PÅSLAG_INBJUDAN_PASS, PÅSLAG_INBJUDAN_SCHEMA } = require('../utils/pris');
+const { godkännAnsökan } = require('../db/godkannande');
 const { normaliseraKrav, saknadeKrav } = require('../utils/behorighet');
 const { idagStockholm } = require('../utils/tid');
 const { skickaNotifikation } = require('../utils/pushNotifikation');
@@ -274,59 +273,23 @@ router.patch('/:id/status', kräverInloggning, kräverTyp('företag'), async (re
     // Berörda sökande (utöver den vars status ändras direkt) att signalera om
     let övrigaBerörda = [];
     if (status === 'godkänd') {
-      // Ett schema ligger kvar som sökbart tills det tillsätts eller avbryts – aldrig för
-      // att ett datum passerat. Har varje pass hunnit ta slut går schemat inte att bemanna:
-      // tilldelaSchema skulle ställa in samtliga pass, personen få en tom bekräftelse och
-      // företaget ändå förbruka ett pass av gratisgränsen. Avbryt före varje sidoeffekt.
-      //
-      // Bara vid FÖRSTA godkännandet. Byter företaget person på ett redan tillsatt schema
-      // ligger passen kvar på den förra personen (ansokan_id satt), så räkningen vore noll
-      // och ett fullt legitimt byte skulle blockeras. Ett byte ökar inte heller räknaren.
-      if (ärSchemaAnnons && godkändaFöre.length === 0) {
-        if ((await räknaTilldelbaraPass(jobb.schema_id)) === 0) {
-          return res.status(409).json({
-            fel: 'Schemat har inga pass kvar som kan bemannas. Lägg till nya pass eller avbryt schemat.',
-            kod: 'SCHEMA_UTAN_PASS',
-          });
+      // Själva godkännandet (statusbyte, påslagsfrysning med ev. inbjudningsrabatt,
+      // schematilldelning) bor i db/godkannande.js och delas med den inbjudnes
+      // POST /api/inbjudan/:token/acceptera – penninglogiken får bara finnas på ETT ställe.
+      // Här är det företaget självt som godkänner, så företagId = req.användare.id.
+      try {
+        ({ övrigaBerörda } = await godkännAnsökan({
+          ansökan,
+          jobb,
+          företagId: req.användare.id,
+          godkändaFöre,
+          ärSchemaAnnons,
+        }));
+      } catch (e) {
+        if (e.kod === 'SCHEMA_UTAN_PASS') {
+          return res.status(409).json({ fel: e.message, kod: 'SCHEMA_UTAN_PASS' });
         }
-      }
-
-      await uppdateraStatus(req.params.id, 'godkänd');
-      övrigaBerörda = await avvisaAllaUtomEn(ansökan.jobb_id, req.params.id);
-
-      // Påslaget som ska gälla: nyfryst vid första godkännandet, annars det som redan
-      // ligger på jobbet (byte av person ska inte kunna ändra ett avtalat pris).
-      let påslag = jobb?.paslag ?? null;
-
-      if (godkändaFöre.length === 0) {
-        // Passet är nu genomfört-att-bli och räknas mot månadens gräns. Påslaget avgörs
-        // FÖRE inkrementet: pass 1 och 2 får 20 %, pass 3 och framåt 40 %. Det fryses på
-        // jobbet och följer sedan med till tidrapporten och fakturan.
-        const företag = await hämtaPrenumeration(req.användare.id);
-        påslag = gällandePåslag(företag);
-
-        // Är den godkände inbjuden via en länk och ny på plattformen (rabatt_godkand
-        // stämplades vid inlösen)? Då gäller rabatterat påslag för just det här
-        // passet/schemat i stället: 15% för enstaka pass, 7% för scheman. Ett schema
-        // godkänns via sitt annons-jobb som bär schema_id.
-        const rabatt = await hämtaRabattInbjudan({
-          jobb_id: ansökan.jobb_id,
-          schema_id: jobb.schema_id ?? null,
-          anvandare_id: ansökan.sokande_id,
-        });
-        if (rabatt) {
-          påslag = jobb.schema_id ? PÅSLAG_INBJUDAN_SCHEMA : PÅSLAG_INBJUDAN_PASS;
-        }
-
-        await sättJobbPåslag(ansökan.jobb_id, påslag);
-        await ökaPassDennaManad(req.användare.id);
-      }
-
-      if (ärSchemaAnnons) {
-        // Byter företaget person på ett redan tillsatt schema måste den förra personens
-        // framtida pass frigöras först. Genomförda pass rörs inte.
-        if (godkändaFöre.length > 0) await frigörFramtidaPass(jobb.schema_id);
-        await tilldelaSchema(jobb.schema_id, ansökan.sokande_id, påslag);
+        throw e;
       }
     } else {
       övrigaBerörda = await återställAllaFörJobb(ansökan.jobb_id);

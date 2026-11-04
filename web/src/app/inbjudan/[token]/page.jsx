@@ -1,13 +1,14 @@
 'use client';
 
 // Landningssida för en inbjudningslänk (jobb ELLER schema). Ligger UTANFÖR (app)-gruppen
-// så att privatpersoner (inte bara företag) når den. Löser in token via backend:
-//   - Inloggad → koppla kontot till inbjudan (sätter ev. rabatterat påslag) och vidare till
-//     jobb-/schemavyn där man kan ansöka.
-//   - Utloggad → en kort förhandsvisning + "Skapa konto och ansök"/"Logga in" (bär med
-//     ?next= tillbaka hit, så personen landar på annonsen efter inloggning/registrering).
+// så att privatpersoner (inte bara företag) når den.
+//   - Inloggad → visa förhandsvisning + "Acceptera förfrågan". Ett klick skapar ansökan
+//     OCH godkänner den direkt (POST /inbjudan/:token/acceptera). Har personen signerat
+//     avtal → vidare till chatten. Annars → "Jobbet är ditt, vi väntar på avtalet".
+//   - Utloggad → förhandsvisning + "Skapa konto och ansök"/"Logga in" (bär med ?next=
+//     tillbaka hit, så personen landar här igen efter inloggning/registrering).
 // Token sparas i sessionStorage så att den överlever registrerings-/verifieringsstegen.
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import Knapp from '@/components/ui/Knapp';
@@ -23,7 +24,9 @@ export default function Inbjudan() {
 
   const [inbjudan, setInbjudan] = useState(null);
   const [fel, setFel] = useState('');
-  const kopplar = useRef(false);
+  const [accepterar, setAccepterar] = useState(false);
+  const [accFel, setAccFel] = useState('');
+  const [klar, setKlar] = useState(false); // accepterad men avtal saknas → visa väntmeddelande
 
   useEffect(() => {
     let avbruten = false;
@@ -46,28 +49,29 @@ export default function Inbjudan() {
     };
   }, [token]);
 
-  // Inloggad + inbjudan uppslagen → koppla kontot och gå vidare till annonsen.
-  useEffect(() => {
-    if (laddar || !inloggad || !inbjudan || kopplar.current) return;
-    const mål = inbjudan.jobbId ? `/jobb/${inbjudan.jobbId}` : inbjudan.schemaId ? `/schema/${inbjudan.schemaId}` : null;
-    if (!mål) return;
-    kopplar.current = true;
-    (async () => {
-      // Koppla kontot (idempotent, sätter rabatt om kontot registrerades via länken).
-      // Fel här ska inte stoppa vidarenavigeringen – annonsen går ändå att ansöka på.
-      try {
-        await api.kopplaInbjudan(token);
-      } catch {
-        /* svälj – koppling är bäst-ansträngning */
-      }
+  async function acceptera() {
+    setAccFel('');
+    setAccepterar(true);
+    try {
+      const svar = await api.accepteraInbjudan(token);
       try {
         window.sessionStorage.removeItem(TOKEN_NYCKEL);
       } catch {
         /* ignorera */
       }
-      router.replace(mål);
-    })();
-  }, [laddar, inloggad, inbjudan, token, router]);
+      if (svar?.avtalGodkant) {
+        // Direkt godkänd och avtal signerat → vidare till chatten med företaget.
+        router.replace(`/chatt/${svar.ansokanId}`);
+      } else {
+        // Jobbet är tilldelat men avtalet väntar på FastGigs godkännande.
+        setKlar(true);
+      }
+    } catch (f) {
+      setAccFel(felText(f));
+    } finally {
+      setAccepterar(false);
+    }
+  }
 
   const nästa = `/inbjudan/${token}`;
   const ärSchema = Boolean(inbjudan?.schemaId);
@@ -82,23 +86,54 @@ export default function Inbjudan() {
             <Besked typ="fel">{fel}</Besked>
             <p className="mt-2 text-[14px] text-text-dämpad">Länken kan vara felaktig eller ha tagits bort.</p>
           </div>
-        ) : !inbjudan ? (
+        ) : !inbjudan || laddar ? (
+          // Väntar på inbjudningsdata eller på att auth-sessionen laddats (undviker att
+          // utloggat-läget blinkar förbi innan vi vet om användaren är inloggad).
           <div className="mt-8 flex justify-center">
             <div className="h-7 w-7 animate-spin rounded-full border-2 border-kant border-t-primär" />
+          </div>
+        ) : klar ? (
+          // Accepterad men avtalet är inte godkänt än.
+          <div className="mt-4">
+            <div className="mb-3 text-[40px]" aria-hidden>🎉</div>
+            <p className="text-[17px] font-bold text-text">Jobbet är ditt!</p>
+            <p className="mt-2 text-[15px] leading-relaxed text-text-dämpad">
+              Vi väntar bara på att ditt avtal godkänns av FastGig. Så fort det är klart kan du
+              börja chatta med företaget om detaljerna.
+            </p>
+            <div className="mt-6">
+              <Knapp variant="kontur" full href="/mina-ansokningar">
+                Till mina ansökningar
+              </Knapp>
+            </div>
           </div>
         ) : inloggad ? (
-          // Omdirigeras av effekten ovan.
-          <div className="mt-8 flex justify-center">
-            <div className="h-7 w-7 animate-spin rounded-full border-2 border-kant border-t-primär" />
-          </div>
+          // Inloggad inbjuden → acceptera förfrågan med ett klick.
+          <>
+            <p className="mt-4 text-[16px] leading-relaxed text-text">
+              {inbjudan.företagNamn ? <strong>{inbjudan.företagNamn}</strong> : 'Ett företag'} har bjudit in dig
+              till {ärSchema ? 'schemat' : 'jobbet'} <strong>{inbjudan.titel}</strong>.
+            </p>
+            {accFel && (
+              <div className="mt-4">
+                <Besked typ="fel">{accFel}</Besked>
+              </div>
+            )}
+            <div className="mt-6">
+              <Knapp variant="primär" full laddar={accepterar} onClick={acceptera}>
+                Acceptera förfrågan
+              </Knapp>
+            </div>
+          </>
         ) : (
+          // Utloggad → registrera/logga in och kom tillbaka hit.
           <>
             <p className="mt-4 text-[16px] leading-relaxed text-text">
               {inbjudan.företagNamn ? <strong>{inbjudan.företagNamn}</strong> : 'Ett företag'} har bjudit in dig
               till {ärSchema ? 'schemat' : 'jobbet'} <strong>{inbjudan.titel}</strong>.
             </p>
             <p className="mt-2 text-[14px] text-text-dämpad">
-              Skapa ett konto eller logga in för att se {ärSchema ? 'schemat' : 'jobbet'} och ansöka.
+              Skapa ett konto eller logga in för att acceptera förfrågan.
             </p>
             <div className="mt-6 flex flex-col gap-3">
               <Knapp variant="primär" full href={`/registrera?next=${encodeURIComponent(nästa)}`}>

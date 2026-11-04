@@ -203,6 +203,21 @@ async function finnsDubblettAnsökan(jobb_id, sokande_id) {
   return !!data;
 }
 
+// Hela ansökningsraden för ett visst jobb + sökande, eller null. Används av
+// inbjudnas acceptera-flöde för att kunna godkänna en redan befintlig ansökan i stället
+// för att skapa en dubblett.
+async function hämtaAnsökanFörJobbOchSökande(jobb_id, sokande_id) {
+  const { data, error } = await supabase
+    .from('ansokningar')
+    .select('*')
+    .eq('jobb_id', jobb_id)
+    .eq('sokande_id', sokande_id)
+    .maybeSingle();
+
+  if (error) throw error;
+  return data;
+}
+
 const GILTIGA_STATUSAR = ['väntande', 'godkänd', 'avvisad'];
 
 async function uppdateraStatus(id, status) {
@@ -595,4 +610,4 @@ async function hämtaPågåendePassFörPåminnelse() {
     .filter(p => p.foretagId != null && p.arbetstider != null);
 }
 
-module.exports = { skapaAnsökan, uppdateraIntygande, hämtaAnsökningarFörSökande, hämtaAnsökningarFörJobb, finnsDubblettAnsökan, hämtaTotalTimmar, uppdateraStatus, sättFavorit, markeraAvhopp, avvisaVäntandeAnsökningar, hämtaAnsökanViaId, avvisaAllaUtomEn, återställAllaFörJobb, hämtaAllaKonversationerFörFöretag, hämtaGodkändaFörJobb, hämtaGodkändaFörFleraJobb, hämtaNamnFörAnvändare, ångraAnsökan, hämtaAnsökanMedJobbInfo, hämtaKonversationMellan, hämtaGrupperadeKonversationer, hämtaPågåendePassFörPåminnelse };
+module.exports = { skapaAnsökan, uppdateraIntygande, hämtaAnsökningarFörSökande, hämtaAnsökningarFörJobb, finnsDubblettAnsökan, hämtaAnsökanFörJobbOchSökande, hämtaTotalTimmar, uppdateraStatus, sättFavorit, markeraAvhopp, avvisaVäntandeAnsökningar, hämtaAnsökanViaId, avvisaAllaUtomEn, återställAllaFörJobb, hämtaAllaKonversationerFörFöretag, hämtaGodkändaFörJobb, hämtaGodkändaFörFleraJobb, hämtaNamnFörAnvändare, ångraAnsökan, hämtaAnsökanMedJobbInfo, hämtaKonversationMellan, hämtaGrupperadeKonversationer, hämtaPågåendePassFörPåminnelse };

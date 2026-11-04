@@ -17,8 +17,12 @@ const {
 } = require('../db/schemaInbjudan');
 const { hämtaSchemaViaId, uppdateraSchema } = require('../db/scheman');
 const { hämtaJobbViaId, sättJobbPrivat } = require('../db/jobb');
-const { hämtaNamnFörAnvändare } = require('../db/ansokningar');
-const { hämtaAnvändareViaId } = require('../db/användare');
+const { hämtaNamnFörAnvändare, skapaAnsökan, hämtaAnsökanFörJobbOchSökande, hämtaGodkändaFörJobb } = require('../db/ansokningar');
+const { hämtaAnvändareViaId, hämtaAvtalGodkant, hämtaPushToken } = require('../db/användare');
+const { godkännAnsökan } = require('../db/godkannande');
+const { normaliseraKrav } = require('../utils/behorighet');
+const { skickaNotifikation } = require('../utils/pushNotifikation');
+const { sändRealtidsPing, sändJobblistaPing } = require('../realtid');
 const { kräverInloggning, kräverTyp } = require('../middleware/auth');
 
 const router = express.Router();
@@ -139,6 +143,105 @@ router.post('/:token/koppla', kräverInloggning, async (req, res) => {
   } catch (fel) {
     console.error('Fel vid koppling av inbjudan:', fel);
     res.status(500).json({ fel: 'Serverfel' });
+  }
+});
+
+// POST /api/inbjudan/:token/acceptera — den inbjudne accepterar förfrågan med ETT klick:
+// ansökan skapas OCH godkänns direkt (samma kärna som när företaget godkänner), med
+// inbjudningsrabatten på påslaget. Till skillnad från vanlig ansökan finns INGEN
+// avtalsspärr här – ett ogodkänt avtal stoppar inte tilldelningen, det styr bara
+// meddelandet som visas. Svarar { ansokanId, avtalGodkant }.
+router.post('/:token/acceptera', kräverInloggning, kräverTyp('privatperson'), async (req, res) => {
+  const tokenHash = hashaToken(rensaToken(req.params.token));
+  try {
+    const inbjudan = await hämtaInbjudanViaTokenHash(tokenHash);
+    if (!inbjudan) return res.status(404).json({ fel: 'Inbjudan hittades inte' });
+
+    // Token får bara lösas in av rätt person: okopplad (anvandare_id null) ELLER den som
+    // redan är kopplad. Annars kan vem som helst med länken ta passet.
+    if (inbjudan.anvandare_id != null && String(inbjudan.anvandare_id) !== String(req.användare.id)) {
+      return res.status(403).json({ fel: 'Den här inbjudan tillhör någon annan.' });
+    }
+
+    // Koppla kontot + stämpla ev. rabatt (idempotent) INNAN godkännandet, så att
+    // hämtaRabattInbjudan i godkännandekärnan hittar rätt.
+    await stämplaInlöst(inbjudan, req.användare.id);
+
+    // Målannonsen: schema-inbjudan går mot schemats annons-jobb, jobb-inbjudan mot jobbet.
+    let jobb;
+    if (inbjudan.schema_id) {
+      const schema = await hämtaSchemaViaId(inbjudan.schema_id);
+      if (!schema?.annons_jobb_id) return res.status(404).json({ fel: 'Schemat hittades inte' });
+      jobb = await hämtaJobbViaId(schema.annons_jobb_id);
+    } else {
+      jobb = await hämtaJobbViaId(inbjudan.jobb_id);
+    }
+    if (!jobb) return res.status(404).json({ fel: 'Jobbet hittades inte' });
+    const företagId = jobb.Foretag_id ?? jobb.foretag_id;
+
+    // Redan tillsatt? Är det den inloggade själv som redan är godkänd → returnera den
+    // (idempotent, t.ex. dubbelklick). Är det någon annan → passet är taget.
+    const godkända = await hämtaGodkändaFörJobb(jobb.id);
+    const egen = godkända.find(g => String(g.sokande_id) === String(req.användare.id));
+    if (egen) {
+      const avtalGodkant = Boolean(await hämtaAvtalGodkant(req.användare.id));
+      return res.json({ ansokanId: egen.id, avtalGodkant });
+    }
+    if (godkända.length > 0) {
+      return res.status(409).json({ fel: 'Passet är redan tillsatt.' });
+    }
+
+    // Skapa ansökan (eller återanvänd en befintlig väntande). Behörighetskraven intygas
+    // automatiskt med jobbets egen lista – företaget bjöd uttryckligen in personen.
+    let ansökan = await hämtaAnsökanFörJobbOchSökande(jobb.id, req.användare.id);
+    if (!ansökan) {
+      ansökan = await skapaAnsökan({
+        jobb_id: jobb.id,
+        sokande_id: req.användare.id,
+        meddelande: null,
+        intygade_krav: normaliseraKrav(jobb.behorighets_krav),
+      });
+    }
+
+    // Godkänn direkt – SAMMA kärna som företagets godkännande. företagId = jobbets ägare,
+    // så påslag och månadsräknare landar hos företaget, aldrig hos den inbjudne.
+    try {
+      await godkännAnsökan({
+        ansökan,
+        jobb,
+        företagId,
+        godkändaFöre: [],
+        ärSchemaAnnons: !!(jobb.schema_id && !jobb.schema_pass_id),
+      });
+    } catch (e) {
+      if (e.kod === 'SCHEMA_UTAN_PASS') {
+        return res.status(409).json({ fel: e.message, kod: 'SCHEMA_UTAN_PASS' });
+      }
+      throw e;
+    }
+
+    const avtalGodkant = Boolean(await hämtaAvtalGodkant(req.användare.id));
+    res.json({ ansokanId: ansökan.id, avtalGodkant });
+
+    // Signalera företaget (ny tillsättning) + den delade jobblistan (jobbet döljs).
+    sändRealtidsPing(företagId, 'ansokan');
+    sändJobblistaPing('jobb-tillsatt');
+    try {
+      const [sökande, pushToken] = await Promise.all([
+        hämtaAnvändareViaId(req.användare.id),
+        hämtaPushToken(företagId),
+      ]);
+      await skickaNotifikation(
+        pushToken,
+        'Förfrågan accepterad',
+        `${sökande?.Namn ?? 'Personen'} har accepterat passet "${jobb?.Titel ?? ''}".`
+      );
+    } catch (notisfel) {
+      console.error('Push-notifikation fel (acceptera):', notisfel);
+    }
+  } catch (fel) {
+    console.error('Fel vid acceptering av inbjudan:', fel);
+    res.status(500).json({ fel: 'Serverfel vid acceptering av inbjudan' });
   }
 });
 
