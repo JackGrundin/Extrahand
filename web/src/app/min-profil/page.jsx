@@ -12,10 +12,12 @@ import Input from '@/components/ui/Input';
 import Textfält from '@/components/ui/Textfält';
 import Knapp from '@/components/ui/Knapp';
 import Besked from '@/components/ui/Besked';
+import StadInput from '@/components/app/StadInput';
 import DokumentLista from '@/components/DokumentLista';
 import BetygsSektion from '@/components/BetygsSektion';
 import { useAuth } from '@/context/AuthContext';
 import { api, felText } from '@/lib/api';
+import { ärGiltigStad } from '@/utils/stad';
 
 const MAX_BILD_BYTES = 3 * 1024 * 1024;
 
@@ -45,6 +47,7 @@ export default function MinProfil() {
   const [sparar, setSparar] = useState(false);
   const [laddarBild, setLaddarBild] = useState(false);
   const [fel, setFel] = useState('');
+  const [stadFel, setStadFel] = useState('');
   const [sparat, setSparat] = useState(false);
 
   // Auth-gate: utloggad → inloggning med next tillbaka hit; företag → sin egen profil.
@@ -102,6 +105,13 @@ export default function MinProfil() {
   async function spara(e) {
     e.preventDefault();
     setFel('');
+    setStadFel('');
+    // Stad är frivillig, men en ifylld stad måste väljas ur SVENSKA_ORTER – fri text splittrar
+    // stadsmatchningen så att jobbnotiser missar folk.
+    if (form.stad.trim() && !ärGiltigStad(form.stad)) {
+      setStadFel('Välj en stad från listan');
+      return;
+    }
     setSparat(false);
     setSparar(true);
     try {
@@ -254,12 +264,10 @@ export default function MinProfil() {
               placeholder="t.ex. Friluftsliv, Musik, Djur"
             />
             <div>
-              <Input
-                id="stad"
-                etikett="Stad"
-                value={form.stad}
-                onChange={(e) => sätt('stad', e.target.value)}
-                placeholder="t.ex. Stockholm"
+              <StadInput
+                värde={form.stad}
+                onVälj={(v) => { sätt('stad', v); setStadFel(''); }}
+                fel={stadFel}
               />
               <p className="mt-1.5 text-[12px] text-text-svag">
                 Ange din stad för att få notiser om nya jobb nära dig.

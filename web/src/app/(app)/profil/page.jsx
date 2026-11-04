@@ -10,8 +10,10 @@ import Input from '@/components/ui/Input';
 import Textfält from '@/components/ui/Textfält';
 import Knapp from '@/components/ui/Knapp';
 import Besked from '@/components/ui/Besked';
+import StadInput from '@/components/app/StadInput';
 import { useAuth } from '@/context/AuthContext';
 import { api, felText } from '@/lib/api';
+import { ärGiltigStad } from '@/utils/stad';
 
 const MAX_BILD_BYTES = 3 * 1024 * 1024;
 
@@ -28,6 +30,7 @@ export default function Profil() {
   const [sparar, setSparar] = useState(false);
   const [laddarBild, setLaddarBild] = useState(false);
   const [fel, setFel] = useState('');
+  const [stadFel, setStadFel] = useState('');
   const [sparat, setSparat] = useState(false);
 
   useEffect(() => {
@@ -59,6 +62,13 @@ export default function Profil() {
   async function spara(e) {
     e.preventDefault();
     setFel('');
+    setStadFel('');
+    // Frivillig stad, men en ifylld stad måste väljas ur SVENSKA_ORTER – fri text splittrar
+    // stadsmatchningen i backend.
+    if (form.stad.trim() && !ärGiltigStad(form.stad)) {
+      setStadFel('Välj en stad från listan');
+      return;
+    }
     setSparat(false);
     setSparar(true);
     try {
@@ -171,11 +181,10 @@ export default function Profil() {
           onChange={(e) => sätt('bransch', e.target.value)}
           placeholder="t.ex. Restaurang, Bygg, Städ"
         />
-        <Input
-          etikett="Stad"
-          value={form.stad}
-          onChange={(e) => sätt('stad', e.target.value)}
-          placeholder="t.ex. Stockholm"
+        <StadInput
+          värde={form.stad}
+          onVälj={(v) => { sätt('stad', v); setStadFel(''); }}
+          fel={stadFel}
         />
         <Input
           etikett="Hemsida"
