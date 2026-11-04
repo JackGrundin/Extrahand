@@ -201,6 +201,12 @@ export const api = {
   hämtaMeddelanden: (ansökanId) => anrop('GET', `/meddelanden/${ansökanId}`),
   skicka: (ansökanId, kropp) => anrop('POST', `/meddelanden/${ansökanId}`, kropp),
 
+  // Jobbförfrågningar (passerbjudanden via chatten). Hämtas separat från meddelandena,
+  // nycklat på motpartens user-id (inte ansökan). Bara privatpersonen kan svara.
+  hämtaJobbförfrågningar: (medAnvandareId) => anrop('GET', `/jobbforfragan/konversation/${medAnvandareId}`),
+  accepteraJobbförfrågan: (id) => anrop('PATCH', `/jobbforfragan/${id}/acceptera`, {}),
+  avböjJobbförfrågan: (id) => anrop('PATCH', `/jobbforfragan/${id}/avboj`, {}),
+
   // Prenumeration (Stripe). Checkout/portal returnerar { url } att redirecta till.
   prenumerationStatus: () => anrop('GET', '/prenumeration/status'),
   skapaCheckout: () => anrop('POST', '/prenumeration/checkout', {}),

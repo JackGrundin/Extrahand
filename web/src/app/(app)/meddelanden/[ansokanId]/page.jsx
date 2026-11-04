@@ -9,6 +9,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import Besked from '@/components/ui/Besked';
+import JobbförfråganKort from '@/components/chatt/JobbförfråganKort';
 import { useAuth } from '@/context/AuthContext';
 import { useRealtidsPing } from '@/context/RealtidsContext';
 import { api, felText } from '@/lib/api';
@@ -18,6 +19,8 @@ export default function ChattTråd() {
   const { användare } = useAuth();
 
   const [meddelanden, setMeddelanden] = useState([]);
+  const [förfrågningar, setFörfrågningar] = useState([]);
+  const [motpartId, setMotpartId] = useState(null); // sökandens user-id (för jobbförfrågningar)
   const [meta, setMeta] = useState(null); // { sökandeNamn, jobbTitel }
   const [text, setText] = useState('');
   const [fel, setFel] = useState('');
@@ -37,24 +40,42 @@ export default function ChattTråd() {
     }
   }, [ansokanId]);
 
+  // Jobbförfrågningar hämtas separat, nycklat på sökandens user-id. Fel är sekundärt.
+  const hämtaFörfrågningar = useCallback(async (sokandeId) => {
+    if (sokandeId == null) return;
+    try {
+      const lista = await api.hämtaJobbförfrågningar(sokandeId);
+      setFörfrågningar(Array.isArray(lista) ? lista : []);
+    } catch {
+      /* ignorera */
+    }
+  }, []);
+
   useEffect(() => {
     hämta();
-    // Rubrikdata (motpartens namn + jobbtitel) slås upp ur konversationslistan.
+    // Rubrikdata (motpartens namn + jobbtitel) och sökandens id slås upp ur konversationslistan.
     api
       .företagsKonversationer()
       .then((konv) => {
         const k = (Array.isArray(konv) ? konv : []).find((x) => String(x.id) === String(ansokanId));
-        if (k) setMeta({ sökandeNamn: k.sökandeNamn, jobbTitel: k.jobbTitel });
+        if (k) {
+          setMeta({ sökandeNamn: k.sökandeNamn, jobbTitel: k.jobbTitel });
+          setMotpartId(k.sokande_id ?? null);
+          hämtaFörfrågningar(k.sokande_id);
+        }
       })
       .catch(() => {});
-  }, [hämta, ansokanId]);
+  }, [hämta, hämtaFörfrågningar, ansokanId]);
 
-  useRealtidsPing(() => hämta());
+  useRealtidsPing(() => {
+    hämta();
+    if (motpartId != null) hämtaFörfrågningar(motpartId);
+  });
 
   // Autoskroll till botten när meddelandelistan ändras.
   useEffect(() => {
     bottenRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [meddelanden]);
+  }, [meddelanden, förfrågningar]);
 
   async function skicka(e) {
     e.preventDefault();
@@ -78,6 +99,20 @@ export default function ChattTråd() {
 
   const rubrik = useMemo(() => meta?.sökandeNamn || 'Konversation', [meta]);
 
+  // Slår ihop textmeddelanden (created_at) och jobbförfrågningar (skapad_datum) kronologiskt.
+  const tidslinje = useMemo(() => {
+    const tid = (v) => {
+      const t = new Date(v).getTime();
+      return Number.isNaN(t) ? 0 : t;
+    };
+    const poster = [
+      ...meddelanden.map((m) => ({ typ: 'meddelande', tid: tid(m.created_at), data: m, key: `m-${m.id}` })),
+      ...förfrågningar.map((f) => ({ typ: 'förfrågan', tid: tid(f.skapad_datum), data: f, key: `f-${f.id}` })),
+    ];
+    poster.sort((a, b) => a.tid - b.tid);
+    return poster;
+  }, [meddelanden, förfrågningar]);
+
   return (
     <div className="mx-auto flex h-[calc(100vh-7rem)] max-w-2xl flex-col">
       <div className="shrink-0">
@@ -100,15 +135,26 @@ export default function ChattTråd() {
           <div className="flex justify-center py-10">
             <div className="h-6 w-6 animate-spin rounded-full border-2 border-kant border-t-primär" />
           </div>
-        ) : meddelanden.length === 0 ? (
+        ) : tidslinje.length === 0 ? (
           <p className="py-10 text-center text-[14px] text-text-dämpad">
             Inga meddelanden än. Skriv något för att börja prata.
           </p>
         ) : (
-          meddelanden.map((m) => {
+          tidslinje.map((post) => {
+            if (post.typ === 'förfrågan') {
+              return (
+                <JobbförfråganKort
+                  key={post.key}
+                  förfrågan={post.data}
+                  ärPrivatperson={false}
+                  onHanterad={() => hämtaFörfrågningar(motpartId)}
+                />
+              );
+            }
+            const m = post.data;
             const ärJag = String(m.avsandare_id) === minId;
             return (
-              <div key={m.id} className={`flex ${ärJag ? 'justify-end' : 'justify-start'}`}>
+              <div key={post.key} className={`flex ${ärJag ? 'justify-end' : 'justify-start'}`}>
                 <div
                   className={`max-w-[78%] rounded-2xl px-3.5 py-2 text-[14px] shadow-mjuk ${
                     ärJag

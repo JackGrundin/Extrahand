@@ -12,6 +12,7 @@ import { useParams, useRouter } from 'next/navigation';
 import PrivatSkal from '@/components/privat/PrivatSkal';
 import Besked from '@/components/ui/Besked';
 import TidrapportSektion from '@/components/privat/TidrapportSektion';
+import JobbförfråganKort from '@/components/chatt/JobbförfråganKort';
 import { useAuth } from '@/context/AuthContext';
 import { useRealtidsPing } from '@/context/RealtidsContext';
 import { api, felText } from '@/lib/api';
@@ -22,6 +23,8 @@ export default function ChattTråd() {
   const { laddar: authLaddar, inloggad, användare } = useAuth();
 
   const [meddelanden, setMeddelanden] = useState([]);
+  const [förfrågningar, setFörfrågningar] = useState([]);
+  const [motpartId, setMotpartId] = useState(null); // företagets user-id (för jobbförfrågningar)
   const [meta, setMeta] = useState(null); // { foretagNamn, jobbTitel }
   const [text, setText] = useState('');
   const [fel, setFel] = useState('');
@@ -50,27 +53,46 @@ export default function ChattTråd() {
     }
   }, [ansokanId]);
 
+  // Jobbförfrågningar hämtas separat, nycklat på företagets user-id. Fel här är sekundärt
+  // (chatten fungerar ändå) – svälj det så att textmeddelandena inte göms bakom ett fel.
+  const hämtaFörfrågningar = useCallback(async (foretagId) => {
+    if (foretagId == null) return;
+    try {
+      const lista = await api.hämtaJobbförfrågningar(foretagId);
+      setFörfrågningar(Array.isArray(lista) ? lista : []);
+    } catch {
+      /* ignorera */
+    }
+  }, []);
+
   useEffect(() => {
     if (authLaddar || !inloggad || användare?.typ === 'företag') return;
     hämta();
-    // Rubrikdata (företagsnamn + jobbtitel) slås upp ur egna ansökningar så den överlever
-    // direktnavigering/omladdning (samma mönster som företagstråden).
+    // Rubrikdata (företagsnamn + jobbtitel) och motpartens id slås upp ur egna ansökningar
+    // så de överlever direktnavigering/omladdning (samma mönster som företagstråden).
     api
       .minaAnsökningar()
       .then((lista) => {
         const a = (Array.isArray(lista) ? lista : []).find(
           (x) => String(x.id) === String(ansokanId)
         );
-        if (a) setMeta({ foretagNamn: a.foretagNamn, jobbTitel: a.jobbTitel });
+        if (a) {
+          setMeta({ foretagNamn: a.foretagNamn, jobbTitel: a.jobbTitel });
+          setMotpartId(a.foretagId ?? null);
+          hämtaFörfrågningar(a.foretagId);
+        }
       })
       .catch(() => {});
-  }, [authLaddar, inloggad, användare, hämta, ansokanId]);
+  }, [authLaddar, inloggad, användare, hämta, hämtaFörfrågningar, ansokanId]);
 
-  useRealtidsPing(() => hämta());
+  useRealtidsPing(() => {
+    hämta();
+    if (motpartId != null) hämtaFörfrågningar(motpartId);
+  });
 
   useEffect(() => {
     bottenRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [meddelanden]);
+  }, [meddelanden, förfrågningar]);
 
   async function skicka(e) {
     e.preventDefault();
@@ -92,6 +114,21 @@ export default function ChattTråd() {
 
   const minId = String(användare?.id);
   const rubrik = useMemo(() => meta?.foretagNamn || 'Konversation', [meta]);
+
+  // Slår ihop textmeddelanden (created_at) och jobbförfrågningar (skapad_datum) till en
+  // tidslinje sorterad stigande, så förfrågan hamnar på rätt kronologisk plats.
+  const tidslinje = useMemo(() => {
+    const tid = (v) => {
+      const t = new Date(v).getTime();
+      return Number.isNaN(t) ? 0 : t;
+    };
+    const poster = [
+      ...meddelanden.map((m) => ({ typ: 'meddelande', tid: tid(m.created_at), data: m, key: `m-${m.id}` })),
+      ...förfrågningar.map((f) => ({ typ: 'förfrågan', tid: tid(f.skapad_datum), data: f, key: `f-${f.id}` })),
+    ];
+    poster.sort((a, b) => a.tid - b.tid);
+    return poster;
+  }, [meddelanden, förfrågningar]);
 
   if (authLaddar || !inloggad || användare?.typ === 'företag') {
     return (
@@ -129,15 +166,27 @@ export default function ChattTråd() {
               <div className="flex justify-center py-10">
                 <div className="h-6 w-6 animate-spin rounded-full border-2 border-kant border-t-primär" />
               </div>
-            ) : meddelanden.length === 0 ? (
+            ) : tidslinje.length === 0 ? (
               <p className="py-10 text-center text-[14px] text-text-dämpad">
                 Inga meddelanden än. Skriv något för att börja prata.
               </p>
             ) : (
-              meddelanden.map((m) => {
+              tidslinje.map((post) => {
+                if (post.typ === 'förfrågan') {
+                  return (
+                    <JobbförfråganKort
+                      key={post.key}
+                      förfrågan={post.data}
+                      företagNamn={meta?.foretagNamn}
+                      ärPrivatperson
+                      onHanterad={() => hämtaFörfrågningar(motpartId)}
+                    />
+                  );
+                }
+                const m = post.data;
                 const ärJag = String(m.avsandare_id) === minId;
                 return (
-                  <div key={m.id} className={`flex ${ärJag ? 'justify-end' : 'justify-start'}`}>
+                  <div key={post.key} className={`flex ${ärJag ? 'justify-end' : 'justify-start'}`}>
                     <div
                       className={`max-w-[78%] rounded-2xl px-3.5 py-2 text-[14px] shadow-mjuk ${
                         ärJag
