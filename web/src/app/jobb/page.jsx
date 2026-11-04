@@ -241,9 +241,16 @@ export default function JobbLista() {
                 ))}
               </div>
               {filtrerade.length === 0 && (
-                <p className="py-10 text-center text-[15px] text-text-dämpad">
-                  Inga jobb matchar dina filter just nu.
-                </p>
+                <div className="py-10 text-center">
+                  <p className="text-[15px] text-text-dämpad">
+                    Inga jobb matchar dina filter just nu.
+                  </p>
+                  {antalFilter > 0 && (
+                    <Knapp variant="kontur" onClick={återställ} className="mt-4">
+                      Återställ filter
+                    </Knapp>
+                  )}
+                </div>
               )}
             </>
           )}

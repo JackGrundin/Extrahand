@@ -1,4 +1,4 @@
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { FÄRG } from '../utils/tema';
 
@@ -9,7 +9,7 @@ import { FÄRG } from '../utils/tema';
 //
 // Ikonen är dekorativ: rubriken/undertexten läses av skärmläsaren, ikonen döljs (samma
 // a11y-mönster som resten av appen).
-export default function TomtTillstånd({ ikon, rubrik, text, style }) {
+export default function TomtTillstånd({ ikon, rubrik, text, style, knappText, onKnapp }) {
   return (
     <View style={[styles.behållare, style]}>
       {ikon && (
@@ -24,6 +24,11 @@ export default function TomtTillstånd({ ikon, rubrik, text, style }) {
       )}
       <Text style={styles.rubrik}>{rubrik}</Text>
       {text ? <Text style={styles.text}>{text}</Text> : null}
+      {knappText && onKnapp ? (
+        <TouchableOpacity style={styles.knapp} onPress={onKnapp} accessibilityRole="button">
+          <Text style={styles.knappText}>{knappText}</Text>
+        </TouchableOpacity>
+      ) : null}
     </View>
   );
 }
@@ -33,4 +38,6 @@ const styles = StyleSheet.create({
   ikon: { marginBottom: 14 },
   rubrik: { fontSize: 16, fontWeight: '700', color: FÄRG.textDämpad, textAlign: 'center' },
   text: { fontSize: 14, color: FÄRG.textSvag, textAlign: 'center', marginTop: 6, lineHeight: 20 },
+  knapp: { marginTop: 16, backgroundColor: FÄRG.primär, borderRadius: 10, paddingVertical: 11, paddingHorizontal: 20 },
+  knappText: { color: '#fff', fontWeight: '600', fontSize: 15 },
 });

@@ -17,11 +17,16 @@ const FLIKAR = [
   { nyckel: 'historik', etikett: 'Historik' },
 ];
 
-function TomRad({ text }) {
+function TomRad({ text, länkText, href }) {
   return (
-    <p className="rounded-lg border border-dashed border-kant p-8 text-center text-[14px] text-text-dämpad">
-      {text}
-    </p>
+    <div className="rounded-lg border border-dashed border-kant p-8 text-center">
+      <p className="text-[14px] text-text-dämpad">{text}</p>
+      {länkText && href && (
+        <Link href={href} className="mt-3 inline-block text-[14px] font-semibold text-primär hover:underline">
+          {länkText}
+        </Link>
+      )}
+    </div>
   );
 }
 
@@ -117,7 +122,7 @@ export default function MinaAnnonser() {
         <>
           {flik === 'pass' &&
             (passlista.length === 0 ? (
-              <TomRad text="Inga aktiva pass. Publicera ett pass för att komma igång." />
+              <TomRad text="Du har inga aktiva jobb." länkText="Publicera ett pass →" href="/publicera/jobb" />
             ) : (
               <div className="grid gap-4 sm:grid-cols-2">
                 {passlista.map((j) => (

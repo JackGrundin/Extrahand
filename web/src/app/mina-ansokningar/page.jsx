@@ -93,12 +93,12 @@ export default function MinaAnsokningar() {
               <p className="text-[15px] font-semibold text-text">
                 Du har inte sökt några jobb ännu
               </p>
-              <p className="mt-1 text-[14px] text-text-dämpad">
-                Hitta ett pass och skicka din första ansökan.
-              </p>
-              <Knapp variant="primär" href="/jobb" className="mt-4">
-                Hitta jobb
-              </Knapp>
+              <Link
+                href="/jobb"
+                className="mt-3 inline-block text-[15px] font-semibold text-primär hover:underline"
+              >
+                Bläddra bland lediga pass →
+              </Link>
             </div>
           ) : (
             <div className="mt-6 flex flex-col gap-3">

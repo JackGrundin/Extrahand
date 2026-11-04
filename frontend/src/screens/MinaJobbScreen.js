@@ -322,7 +322,9 @@ export default function MinaJobbScreen({ navigation, route }) {
               <TomtTillstånd
                 ikon="briefcase-outline"
                 rubrik="Inga publicerade jobb ännu"
-                text="Tryck på plus för att publicera ditt första pass."
+                text="Publicera ditt första pass för att komma igång."
+                knappText="Publicera ett pass"
+                onKnapp={() => navigation.navigate('PubliceraJobb')}
               />
             ) : null
           }

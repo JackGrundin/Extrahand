@@ -218,11 +218,21 @@ export default function MinaPass() {
           </div>
 
           {sektioner.length === 0 ? (
-            <p className="py-12 text-center text-[15px] text-text-dämpad">
-              {aktivFlik === 'kommande'
-                ? 'Du har inga kommande pass ännu. Sök och ansök till jobb – godkända pass hamnar här.'
-                : 'Inga genomförda pass ännu. Här samlas pass du har jobbat klart.'}
-            </p>
+            <div className="py-12 text-center">
+              <p className="text-[15px] text-text-dämpad">
+                {aktivFlik === 'kommande'
+                  ? 'Inga kommande pass.'
+                  : 'Inga genomförda pass ännu. Här samlas pass du har jobbat klart.'}
+              </p>
+              {aktivFlik === 'kommande' && (
+                <Link
+                  href="/jobb"
+                  className="mt-3 inline-block text-[15px] font-semibold text-primär hover:underline"
+                >
+                  Hitta ditt nästa jobb →
+                </Link>
+              )}
+            </div>
           ) : (
             sektioner.map((sektion) => (
               <section key={sektion.titel} className="mt-6">

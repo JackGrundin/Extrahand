@@ -289,6 +289,8 @@ export default function JobbScreen({ navigation }) {
                 ikon="calendar-outline"
                 rubrik="Inga scheman matchar filtret"
                 text="Prova en annan stad eller rensa filtret."
+                knappText="Rensa filter"
+                onKnapp={återställFilter}
               />
             ) : (
               <TomtTillstånd
@@ -418,6 +420,8 @@ export default function JobbScreen({ navigation }) {
               ikon="briefcase-outline"
               rubrik={stadFilter.trim() ? `Inga jobb i ${stadFilter.trim()}` : 'Inga jobb matchar filtret'}
               text="Prova en annan stad eller rensa filtret."
+              knappText="Rensa filter"
+              onKnapp={återställFilter}
             />
           ) : (
             <TomtTillstånd
