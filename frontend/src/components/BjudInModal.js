@@ -22,8 +22,6 @@ export default function BjudInModal({ visible, onStäng, typ, id, onÄndrad }) {
 
   const [fel, setFel] = useState('');
 
-  const vad = typ === 'schema' ? 'Schemat' : 'Jobbet';
-
   function generera(epost) {
     return typ === 'schema'
       ? api.genereraSchemaInbjudan(id, epost)
@@ -128,7 +126,7 @@ export default function BjudInModal({ visible, onStäng, typ, id, onÄndrad }) {
                 <View>
                   <Text style={styles.text}>
                     Generera en länk och skicka den hur du vill. Personen skapar ett konto via
-                    länken. {vad} blir privat och syns inte i den öppna listan.
+                    länken och du får ett rabatterat pris på detta pass.
                   </Text>
                   {url ? (
                     <>

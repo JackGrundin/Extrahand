@@ -44,8 +44,6 @@ export default function BjudInModal({ typ, id, öppen, onStäng, onÄndrad }) {
 
   if (!öppen) return null;
 
-  const vad = typ === 'schema' ? 'Schemat' : 'Jobbet';
-
   function generera(email) {
     return typ === 'schema'
       ? api.genereraSchemaInbjudan(id, email)
@@ -139,8 +137,8 @@ export default function BjudInModal({ typ, id, öppen, onStäng, onÄndrad }) {
         {flik === 'ny' ? (
           <div>
             <p className="text-[14px] text-text-dämpad">
-              Generera en länk och skicka den hur du vill. Personen skapar ett konto via länken.
-              {' '}{vad} blir privat och syns inte i den öppna listan.
+              Generera en länk och skicka den hur du vill. Personen skapar ett konto via länken
+              och du får ett rabatterat pris på detta pass.
             </p>
             {url ? (
               <div className="mt-4 flex items-end gap-2">
