@@ -1,13 +1,15 @@
 import { useCallback, useState } from 'react';
-import { View, Text, SectionList, TouchableOpacity, StyleSheet, TextInput } from 'react-native';
+import { View, Text, SectionList, FlatList, TouchableOpacity, StyleSheet, TextInput, Alert } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../context/AuthContext';
 import { useNotifikationer } from '../context/NotifikationsContext';
-import { api } from '../api/klient';
+import { api, felText } from '../api/klient';
 import { useLoggaRefresh } from '../components/LoggaRefresh';
 import SkeletonLista from '../components/SkeletonKort';
 import TomtTillstånd from '../components/TomtTillstånd';
+import JobbforfraganKort from '../components/JobbforfraganKort';
+import { haptik } from '../utils/haptik';
 
 // Sorterar så att olästa chattar hamnar högst upp, därefter de med senaste meddelande
 function sorteraOlästaFörst(poster, olästaIds) {
@@ -50,24 +52,86 @@ function statusEtikett(p, ärFöretag) {
   return 'Aktiv konversation';
 }
 
+// Kort för en inkommen inbjudan (länk/mejl) i Förfrågningar-fliken. Acceptera skapar +
+// godkänner ansökan direkt via inbjudans id (klartext-token finns inte i appen).
+function InbjudanKort({ inbjudan, onAccepterad }) {
+  const [sparar, setSparar] = useState(false);
+  const datum = inbjudan.datum
+    ? new Date(inbjudan.datum + 'T12:00:00').toLocaleDateString('sv-SE', { weekday: 'long', day: 'numeric', month: 'long' })
+    : null;
+
+  async function acceptera() {
+    setSparar(true);
+    try {
+      const svar = await api.accepteraInbjudanViaId(inbjudan.id);
+      haptik.lyckat();
+      onAccepterad(svar);
+    } catch (fel) {
+      haptik.fel();
+      Alert.alert('Fel', felText(fel));
+    } finally {
+      setSparar(false);
+    }
+  }
+
+  return (
+    <View style={styles.förfråganKort}>
+      <View style={styles.förfråganHuvud}>
+        <Ionicons name="mail-outline" size={18} color="#2563eb" accessible={false} importantForAccessibility="no" />
+        <Text style={styles.förfråganRubrik}>Inbjudan</Text>
+        <View style={styles.förfråganBricka}>
+          <Text style={styles.förfråganBrickaText}>{inbjudan.typ === 'schema' ? 'Schema' : 'Pass'}</Text>
+        </View>
+      </View>
+      {inbjudan.titel ? <View style={styles.förfråganRad}><Text style={styles.förfråganEtikett}>{inbjudan.typ === 'schema' ? 'Schema' : 'Pass'}</Text><Text style={styles.förfråganVärde}>{inbjudan.titel}</Text></View> : null}
+      {inbjudan.företagNamn ? <View style={styles.förfråganRad}><Text style={styles.förfråganEtikett}>Företag</Text><Text style={styles.förfråganVärde}>{inbjudan.företagNamn}</Text></View> : null}
+      {datum ? <View style={styles.förfråganRad}><Text style={styles.förfråganEtikett}>{inbjudan.typ === 'schema' ? 'Start' : 'Datum'}</Text><Text style={styles.förfråganVärde}>{datum}</Text></View> : null}
+      {inbjudan.timlon != null ? <View style={styles.förfråganRad}><Text style={styles.förfråganEtikett}>Timlön</Text><Text style={styles.förfråganVärde}>{Number(inbjudan.timlon).toLocaleString('sv-SE')} kr/tim</Text></View> : null}
+      <TouchableOpacity style={[styles.acceptKnapp, sparar && { opacity: 0.5 }]} onPress={acceptera} disabled={sparar}>
+        <Text style={styles.acceptKnappText}>Acceptera förfrågan</Text>
+      </TouchableOpacity>
+    </View>
+  );
+}
+
 export default function ChattListaScreen({ navigation }) {
   const { användare } = useAuth();
   const { uppdateraOlästa, olästaIds } = useNotifikationer();
   const ärFöretag = användare?.typ === 'företag';
 
   const [poster, setPoster] = useState([]);
+  const [inbjudningar, setInbjudningar] = useState([]);
+  const [jobbförfrågningar, setJobbförfrågningar] = useState([]);
+  const [flik, setFlik] = useState('konversationer');
   const [laddar, setLaddar] = useState(true);
   const [söktext, setSöktext] = useState('');
 
   async function hämta() {
     try {
-      const data = await api.hämtaKonversationer();
+      // Förfrågningar (inbjudningar + jobbförfrågningar) är bara relevanta för privatpersoner.
+      const [data, inbj, jobbf] = await Promise.all([
+        api.hämtaKonversationer(),
+        ärFöretag ? Promise.resolve([]) : api.hämtaMinaInbjudningar().catch(() => []),
+        ärFöretag ? Promise.resolve([]) : api.väntandeJobbforfragningar().catch(() => []),
+      ]);
       setPoster(data);
+      setInbjudningar(Array.isArray(inbj) ? inbj : []);
+      setJobbförfrågningar(Array.isArray(jobbf) ? jobbf : []);
       uppdateraOlästa(data, användare?.id);
     } catch (fel) {
       console.error(fel);
     } finally {
       setLaddar(false);
+    }
+  }
+
+  // Efter accept av en inbjudan: avtal godkänt → till chatten; annars väntmeddelande.
+  function efterAcceptInbjudan(svar) {
+    hämta();
+    if (svar?.avtalGodkant && svar.ansokanId) {
+      navigation.navigate('Chatt', { ansokningId: svar.ansokanId });
+    } else {
+      Alert.alert('Jobbet är ditt!', 'Vi väntar bara på att ditt avtal godkänns av FastGig. Så fort det är klart kan du börja chatta med företaget.');
     }
   }
 
@@ -86,9 +150,62 @@ export default function ChattListaScreen({ navigation }) {
 
   const sektioner = byggSektioner(filtrerade, ärFöretag, olästaIds);
 
+  // Förfrågningar-fliken: inbjudningar + jobbförfrågningar, nyast först.
+  const förfrågningar = [
+    ...inbjudningar.map((i) => ({ typ: 'inbjudan', data: i, key: `i-${i.id}`, sort: i.skapad_datum || i.datum || '' })),
+    ...jobbförfrågningar.map((j) => ({ typ: 'jobbforfragan', data: j, key: `j-${j.id}`, sort: j.skapad_datum || j.datum || '' })),
+  ].sort((a, b) => String(b.sort).localeCompare(String(a.sort)));
+  const antalFörfrågningar = förfrågningar.length;
+  const visaFörfrågningar = !ärFöretag && flik === 'forfragningar';
+
   return (
     <View style={styles.container}>
       {refresh.LoggaOverlay}
+
+      {!ärFöretag && (
+        <View style={styles.flikRad}>
+          <TouchableOpacity style={[styles.flik, flik === 'konversationer' && styles.flikAktiv]} onPress={() => setFlik('konversationer')}>
+            <Text style={[styles.flikText, flik === 'konversationer' && styles.flikTextAktiv]}>Konversationer</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={[styles.flik, flik === 'forfragningar' && styles.flikAktiv]} onPress={() => setFlik('forfragningar')}>
+            <Text style={[styles.flikText, flik === 'forfragningar' && styles.flikTextAktiv]}>
+              Förfrågningar{antalFörfrågningar > 0 ? ` (${antalFörfrågningar})` : ''}
+            </Text>
+          </TouchableOpacity>
+        </View>
+      )}
+
+      {visaFörfrågningar ? (
+        laddar ? (
+          <SkeletonLista style={styles.listaInnehåll} />
+        ) : (
+          <FlatList
+            style={styles.lista}
+            data={förfrågningar}
+            keyExtractor={(item) => item.key}
+            contentContainerStyle={styles.listaInnehåll}
+            refreshControl={refresh.refreshControl}
+            onScroll={refresh.onScroll}
+            scrollEventThrottle={refresh.scrollEventThrottle}
+            onLayout={refresh.onListLayout}
+            ListEmptyComponent={
+              <TomtTillstånd
+                ikon="mail-outline"
+                rubrik="Inga förfrågningar"
+                text="Inbjudningar och passerbjudanden från företag dyker upp här."
+              />
+            }
+            renderItem={({ item }) =>
+              item.typ === 'inbjudan' ? (
+                <InbjudanKort inbjudan={item.data} onAccepterad={efterAcceptInbjudan} />
+              ) : (
+                <JobbforfraganKort förfrågan={item.data} ärPrivatperson onUppdaterad={hämta} />
+              )
+            }
+          />
+        )
+      ) : (
+      <>
       <View style={styles.sökRad}>
         <Ionicons name="search" size={18} color="#9ca3af" accessible={false} importantForAccessibility="no" />
         <TextInput
@@ -182,6 +299,8 @@ export default function ChattListaScreen({ navigation }) {
         }}
       />
       )}
+      </>
+      )}
     </View>
   );
 }
@@ -215,4 +334,21 @@ const styles = StyleSheet.create({
   förhandsgranskning: { fontSize: 14, color: '#888', marginTop: 2 },
   förhandsOläst: { color: '#374151', fontWeight: '500' },
   tom: { textAlign: 'center', color: '#999', marginTop: 60, fontSize: 16 },
+
+  flikRad: { flexDirection: 'row', gap: 8, paddingHorizontal: 16, paddingTop: 12 },
+  flik: { flex: 1, paddingVertical: 10, borderRadius: 10, backgroundColor: '#fff', borderWidth: 1, borderColor: '#e5e7eb', alignItems: 'center' },
+  flikAktiv: { backgroundColor: '#eff6ff', borderColor: '#2563eb' },
+  flikText: { fontSize: 14, fontWeight: '600', color: '#6b7280' },
+  flikTextAktiv: { color: '#2563eb' },
+
+  förfråganKort: { backgroundColor: '#fff', borderRadius: 12, padding: 16, marginBottom: 12, borderWidth: 1, borderColor: '#e5e7eb' },
+  förfråganHuvud: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 },
+  förfråganRubrik: { flex: 1, fontSize: 15, fontWeight: '700', color: '#1a1a1a' },
+  förfråganBricka: { backgroundColor: '#eff6ff', borderRadius: 999, paddingHorizontal: 10, paddingVertical: 3 },
+  förfråganBrickaText: { fontSize: 12, fontWeight: '700', color: '#2563eb' },
+  förfråganRad: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 },
+  förfråganEtikett: { fontSize: 14, color: '#6b7280' },
+  förfråganVärde: { fontSize: 14, fontWeight: '600', color: '#1a1a1a', flexShrink: 1, textAlign: 'right', marginLeft: 12 },
+  acceptKnapp: { backgroundColor: '#16a34a', borderRadius: 8, paddingVertical: 11, alignItems: 'center', marginTop: 4 },
+  acceptKnappText: { color: '#fff', fontWeight: '700', fontSize: 14 },
 });

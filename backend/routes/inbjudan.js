@@ -13,6 +13,8 @@ const {
   hashaToken,
   skapaInbjudan,
   hämtaInbjudanViaTokenHash,
+  hämtaInbjudanViaId,
+  hämtaMinaInbjudningar,
   markeraAccepterad,
 } = require('../db/schemaInbjudan');
 const { hämtaSchemaViaId, uppdateraSchema } = require('../db/scheman');
@@ -146,89 +148,79 @@ router.post('/:token/koppla', kräverInloggning, async (req, res) => {
   }
 });
 
-// POST /api/inbjudan/:token/acceptera — den inbjudne accepterar förfrågan med ETT klick:
-// ansökan skapas OCH godkänns direkt (samma kärna som när företaget godkänner), med
-// inbjudningsrabatten på påslaget. Till skillnad från vanlig ansökan finns INGEN
-// avtalsspärr här – ett ogodkänt avtal stoppar inte tilldelningen, det styr bara
-// meddelandet som visas. Svarar { ansokanId, avtalGodkant }.
-router.post('/:token/acceptera', kräverInloggning, kräverTyp('privatperson'), async (req, res) => {
-  const tokenHash = hashaToken(rensaToken(req.params.token));
-  try {
-    const inbjudan = await hämtaInbjudanViaTokenHash(tokenHash);
-    if (!inbjudan) return res.status(404).json({ fel: 'Inbjudan hittades inte' });
+// Kärnan i att acceptera en inbjudan – delas av token-vägen (/:token/acceptera) och
+// id-vägen (/mina/:id/acceptera, från Förfrågningar-fliken där klartext-token saknas).
+// Skapar ansökan OCH godkänner direkt (samma kärna som företagets godkännande), med
+// inbjudningsrabatten. INGEN avtalsspärr – avtalsstatus styr bara meddelandet. Kastar
+// typade fel (med .status) som svaraAcceptfel översätter. Returnerar { ansokanId, avtalGodkant }.
+async function genomförAcceptans(inbjudan, användareId) {
+  // Inbjudan får bara accepteras av rätt person: okopplad (anvandare_id null) ELLER den
+  // som redan är kopplad. Annars kan vem som helst med länken/id:t ta passet.
+  if (inbjudan.anvandare_id != null && String(inbjudan.anvandare_id) !== String(användareId)) {
+    const fel = new Error('Den här inbjudan tillhör någon annan.');
+    fel.status = 403;
+    throw fel;
+  }
 
-    // Token får bara lösas in av rätt person: okopplad (anvandare_id null) ELLER den som
-    // redan är kopplad. Annars kan vem som helst med länken ta passet.
-    if (inbjudan.anvandare_id != null && String(inbjudan.anvandare_id) !== String(req.användare.id)) {
-      return res.status(403).json({ fel: 'Den här inbjudan tillhör någon annan.' });
-    }
+  // Koppla kontot + stämpla ev. rabatt (idempotent) INNAN godkännandet, så att
+  // hämtaRabattInbjudan i godkännandekärnan hittar rätt.
+  await stämplaInlöst(inbjudan, användareId);
 
-    // Koppla kontot + stämpla ev. rabatt (idempotent) INNAN godkännandet, så att
-    // hämtaRabattInbjudan i godkännandekärnan hittar rätt.
-    await stämplaInlöst(inbjudan, req.användare.id);
+  // Målannonsen: schema-inbjudan går mot schemats annons-jobb, jobb-inbjudan mot jobbet.
+  let jobb;
+  if (inbjudan.schema_id) {
+    const schema = await hämtaSchemaViaId(inbjudan.schema_id);
+    if (!schema?.annons_jobb_id) { const f = new Error('Schemat hittades inte'); f.status = 404; throw f; }
+    jobb = await hämtaJobbViaId(schema.annons_jobb_id);
+  } else {
+    jobb = await hämtaJobbViaId(inbjudan.jobb_id);
+  }
+  if (!jobb) { const f = new Error('Jobbet hittades inte'); f.status = 404; throw f; }
+  const företagId = jobb.Foretag_id ?? jobb.foretag_id;
 
-    // Målannonsen: schema-inbjudan går mot schemats annons-jobb, jobb-inbjudan mot jobbet.
-    let jobb;
-    if (inbjudan.schema_id) {
-      const schema = await hämtaSchemaViaId(inbjudan.schema_id);
-      if (!schema?.annons_jobb_id) return res.status(404).json({ fel: 'Schemat hittades inte' });
-      jobb = await hämtaJobbViaId(schema.annons_jobb_id);
-    } else {
-      jobb = await hämtaJobbViaId(inbjudan.jobb_id);
-    }
-    if (!jobb) return res.status(404).json({ fel: 'Jobbet hittades inte' });
-    const företagId = jobb.Foretag_id ?? jobb.foretag_id;
+  // Redan tillsatt? Är det den inloggade själv som redan är godkänd → returnera den
+  // (idempotent, t.ex. dubbelklick). Är det någon annan → passet är taget.
+  const godkända = await hämtaGodkändaFörJobb(jobb.id);
+  const egen = godkända.find(g => String(g.sokande_id) === String(användareId));
+  if (egen) {
+    return { ansokanId: egen.id, avtalGodkant: Boolean(await hämtaAvtalGodkant(användareId)) };
+  }
+  if (godkända.length > 0) {
+    const f = new Error('Passet är redan tillsatt.'); f.status = 409; f.kod = 'REDAN_TILLSATT'; throw f;
+  }
 
-    // Redan tillsatt? Är det den inloggade själv som redan är godkänd → returnera den
-    // (idempotent, t.ex. dubbelklick). Är det någon annan → passet är taget.
-    const godkända = await hämtaGodkändaFörJobb(jobb.id);
-    const egen = godkända.find(g => String(g.sokande_id) === String(req.användare.id));
-    if (egen) {
-      const avtalGodkant = Boolean(await hämtaAvtalGodkant(req.användare.id));
-      return res.json({ ansokanId: egen.id, avtalGodkant });
-    }
-    if (godkända.length > 0) {
-      return res.status(409).json({ fel: 'Passet är redan tillsatt.' });
-    }
+  // Skapa ansökan (eller återanvänd en befintlig väntande). Behörighetskraven intygas
+  // automatiskt med jobbets egen lista – företaget bjöd uttryckligen in personen.
+  let ansökan = await hämtaAnsökanFörJobbOchSökande(jobb.id, användareId);
+  if (!ansökan) {
+    ansökan = await skapaAnsökan({
+      jobb_id: jobb.id,
+      sokande_id: användareId,
+      meddelande: null,
+      intygade_krav: normaliseraKrav(jobb.behorighets_krav),
+    });
+  }
 
-    // Skapa ansökan (eller återanvänd en befintlig väntande). Behörighetskraven intygas
-    // automatiskt med jobbets egen lista – företaget bjöd uttryckligen in personen.
-    let ansökan = await hämtaAnsökanFörJobbOchSökande(jobb.id, req.användare.id);
-    if (!ansökan) {
-      ansökan = await skapaAnsökan({
-        jobb_id: jobb.id,
-        sokande_id: req.användare.id,
-        meddelande: null,
-        intygade_krav: normaliseraKrav(jobb.behorighets_krav),
-      });
-    }
+  // Godkänn direkt – SAMMA kärna som företagets godkännande. företagId = jobbets ägare,
+  // så påslag och månadsräknare landar hos företaget, aldrig hos den inbjudne.
+  await godkännAnsökan({
+    ansökan,
+    jobb,
+    företagId,
+    godkändaFöre: [],
+    ärSchemaAnnons: !!(jobb.schema_id && !jobb.schema_pass_id),
+  });
 
-    // Godkänn direkt – SAMMA kärna som företagets godkännande. företagId = jobbets ägare,
-    // så påslag och månadsräknare landar hos företaget, aldrig hos den inbjudne.
-    try {
-      await godkännAnsökan({
-        ansökan,
-        jobb,
-        företagId,
-        godkändaFöre: [],
-        ärSchemaAnnons: !!(jobb.schema_id && !jobb.schema_pass_id),
-      });
-    } catch (e) {
-      if (e.kod === 'SCHEMA_UTAN_PASS') {
-        return res.status(409).json({ fel: e.message, kod: 'SCHEMA_UTAN_PASS' });
-      }
-      throw e;
-    }
+  const avtalGodkant = Boolean(await hämtaAvtalGodkant(användareId));
 
-    const avtalGodkant = Boolean(await hämtaAvtalGodkant(req.användare.id));
-    res.json({ ansokanId: ansökan.id, avtalGodkant });
-
-    // Signalera företaget (ny tillsättning) + den delade jobblistan (jobbet döljs).
-    sändRealtidsPing(företagId, 'ansokan');
-    sändJobblistaPing('jobb-tillsatt');
+  // Signalera företaget (ny tillsättning) + den delade jobblistan (jobbet döljs).
+  // Bäst-ansträngning, får inte fälla svaret.
+  sändRealtidsPing(företagId, 'ansokan');
+  sändJobblistaPing('jobb-tillsatt');
+  (async () => {
     try {
       const [sökande, pushToken] = await Promise.all([
-        hämtaAnvändareViaId(req.användare.id),
+        hämtaAnvändareViaId(användareId),
         hämtaPushToken(företagId),
       ]);
       await skickaNotifikation(
@@ -239,9 +231,58 @@ router.post('/:token/acceptera', kräverInloggning, kräverTyp('privatperson'), 
     } catch (notisfel) {
       console.error('Push-notifikation fel (acceptera):', notisfel);
     }
+  })();
+
+  return { ansokanId: ansökan.id, avtalGodkant };
+}
+
+// Översätter genomförAcceptans fel till HTTP-svar. .status styr koden; SCHEMA_UTAN_PASS
+// (från godkännAnsökan) saknar .status och mappas till 409.
+function svaraAcceptfel(res, fel) {
+  if (fel?.status) {
+    return res.status(fel.status).json({ fel: fel.message, ...(fel.kod ? { kod: fel.kod } : {}) });
+  }
+  if (fel?.kod === 'SCHEMA_UTAN_PASS') {
+    return res.status(409).json({ fel: fel.message, kod: 'SCHEMA_UTAN_PASS' });
+  }
+  console.error('Fel vid acceptering av inbjudan:', fel);
+  return res.status(500).json({ fel: 'Serverfel vid acceptering av inbjudan' });
+}
+
+// GET /api/inbjudan/mina — personens inkomna inbjudningar som ännu inte accepterats.
+// (Måste ligga FÖRE GET /:token så att "mina" inte tolkas som en token.)
+router.get('/mina', kräverInloggning, kräverTyp('privatperson'), async (req, res) => {
+  try {
+    const lista = await hämtaMinaInbjudningar(req.användare.id);
+    res.json(lista);
   } catch (fel) {
-    console.error('Fel vid acceptering av inbjudan:', fel);
-    res.status(500).json({ fel: 'Serverfel vid acceptering av inbjudan' });
+    console.error('Fel vid hämtning av mina inbjudningar:', fel);
+    res.status(500).json({ fel: 'Serverfel vid hämtning av inbjudningar' });
+  }
+});
+
+// POST /api/inbjudan/mina/:id/acceptera — acceptera en inbjudan via dess id (från
+// Förfrågningar-fliken). 3-segments sökväg → krockar inte med /:token/acceptera.
+router.post('/mina/:id/acceptera', kräverInloggning, kräverTyp('privatperson'), async (req, res) => {
+  try {
+    const inbjudan = await hämtaInbjudanViaId(req.params.id);
+    if (!inbjudan) return res.status(404).json({ fel: 'Inbjudan hittades inte' });
+    const resultat = await genomförAcceptans(inbjudan, req.användare.id);
+    res.json(resultat);
+  } catch (fel) {
+    svaraAcceptfel(res, fel);
+  }
+});
+
+// POST /api/inbjudan/:token/acceptera — acceptera via klartext-token (inbjudningssidan).
+router.post('/:token/acceptera', kräverInloggning, kräverTyp('privatperson'), async (req, res) => {
+  try {
+    const inbjudan = await hämtaInbjudanViaTokenHash(hashaToken(rensaToken(req.params.token)));
+    if (!inbjudan) return res.status(404).json({ fel: 'Inbjudan hittades inte' });
+    const resultat = await genomförAcceptans(inbjudan, req.användare.id);
+    res.json(resultat);
+  } catch (fel) {
+    svaraAcceptfel(res, fel);
   }
 });
 

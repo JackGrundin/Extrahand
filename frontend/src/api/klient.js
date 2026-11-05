@@ -277,6 +277,9 @@ export const api = {
   // Inbjudningslänk till ett jobb/schema. Gör annonsen privat och returnerar { url }.
   genereraJobbInbjudan: (jobbId) => anrop('POST', `/inbjudan/jobb/${jobbId}`, {}),
   genereraSchemaInbjudan: (schemaId) => anrop('POST', `/inbjudan/schema/${schemaId}`, {}),
+  // Förfrågningar-fliken: inkomna inbjudningar + acceptera via inbjudans id.
+  hämtaMinaInbjudningar: () => anrop('GET', '/inbjudan/mina'),
+  accepteraInbjudanViaId: (id) => anrop('POST', `/inbjudan/mina/${id}/acceptera`, {}),
 
   // Korrigerar en automatiskt skapad tidrapport som ännu väntar på svar (övertid/rast).
   // Efter ett bestridande skickas i stället en ny rapport via skapaRapport.

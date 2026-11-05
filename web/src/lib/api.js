@@ -62,7 +62,10 @@ function nätverksfel() {
   return err;
 }
 
-async function anrop(metod, sökväg, kropp) {
+// tystAuthFel: hoppa över den globala utloggningen vid 401. Används för publika/optional-
+// auth-anrop (t.ex. hämtaInbjudan på inbjudningssidan som ligger utanför den inloggade
+// delen) så att ett 401 där aldrig kan rensa en i övrigt giltig session.
+async function anrop(metod, sökväg, kropp, { tystAuthFel = false } = {}) {
   const token = hämtaToken();
 
   // AbortController ger timeout utan att lämna anropet hängande i bakgrunden.
@@ -96,8 +99,9 @@ async function anrop(metod, sökväg, kropp) {
   }
 
   if (!svar.ok) {
-    // Sessionen är död → meddela lyssnare (AuthContext loggar ut).
-    if (svar.status === 401 && token) {
+    // Sessionen är död → meddela lyssnare (AuthContext loggar ut). Hoppas över för
+    // publika anrop (tystAuthFel) så att de aldrig råkar logga ut en giltig session.
+    if (svar.status === 401 && token && !tystAuthFel) {
       for (const lyssnare of authFelLyssnare) lyssnare();
     }
     const err = new Error(data?.fel || 'Något gick fel. Försök igen.');
@@ -161,7 +165,7 @@ export const api = {
   // Privata scheman: bjud in via e-post + lista inbjudna (företag), lösa in inbjudningstoken.
   bjudInTillSchema: (id, email) => anrop('POST', `/scheman/${id}/bjud-in`, { email }),
   schemaInbjudningar: (id) => anrop('GET', `/scheman/${id}/inbjudningar`),
-  hämtaInbjudan: (token) => anrop('GET', `/inbjudan/${encodeURIComponent(token)}`),
+  hämtaInbjudan: (token) => anrop('GET', `/inbjudan/${encodeURIComponent(token)}`, undefined, { tystAuthFel: true }),
   // Inbjudningslänkar (jobb/schema): generera delbar länk (gör annonsen privat), koppla
   // kontot efter registrering (sätter ev. rabatt), och göra ett jobb publikt igen.
   genereraJobbInbjudan: (jobbId) => anrop('POST', `/inbjudan/jobb/${jobbId}`, {}),
@@ -170,6 +174,10 @@ export const api = {
   // Acceptera en inbjudan med ett klick: skapar ansökan + godkänner direkt. Svarar
   // { ansokanId, avtalGodkant }.
   accepteraInbjudan: (token) => anrop('POST', `/inbjudan/${encodeURIComponent(token)}/acceptera`, {}),
+  // Förfrågningar-fliken: inkomna inbjudningar + acceptera via inbjudans id.
+  hämtaMinaInbjudningar: () => anrop('GET', '/inbjudan/mina'),
+  accepteraInbjudanViaId: (id) => anrop('POST', `/inbjudan/mina/${id}/acceptera`, {}),
+  minaJobbförfrågningar: () => anrop('GET', '/jobbforfragan/mina-vantande'),
   görJobbPublikt: (jobbId) => anrop('PATCH', `/inbjudan/jobb/${jobbId}/publicera`, {}),
   // Privatpersons-ansökan till ett schema (mot dess annons-jobb). Backend fryser kravlistan.
   sökSchema: (annonsJobbId, kropp) => anrop('POST', `/ansokningar/${annonsJobbId}`, kropp),

@@ -1,14 +1,15 @@
 'use client';
 
-// Privatpersonens chatt-inkorg: en konversation per ansökan (samma modell som webbens
-// företags-chatt). Bygger på api.minaAnsökningar() – auto-skapade pass-ansökningar
-// (schemaPassId) filtreras bort. Ligger UTANFÖR (app)-gruppen med egen auth-gate; realtid
-// kommer från RealtidsProvider i chatt/layout.jsx.
+// Privatpersonens Meddelanden: två flikar – Konversationer (en konversation per ansökan,
+// via api.minaAnsökningar) och Förfrågningar (inkomna inbjudningar via länk/mejl +
+// jobbförfrågningar). Ligger UTANFÖR (app)-gruppen med egen auth-gate; realtid kommer från
+// RealtidsProvider i chatt/layout.jsx.
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import PrivatSkal from '@/components/privat/PrivatSkal';
 import Besked from '@/components/ui/Besked';
+import JobbförfråganKort from '@/components/chatt/JobbförfråganKort';
 import { useAuth } from '@/context/AuthContext';
 import { useRealtidsPing } from '@/context/RealtidsContext';
 import { api, felText } from '@/lib/api';
@@ -25,13 +26,94 @@ function tidKort(iso) {
     : d.toLocaleDateString('sv-SE', { day: 'numeric', month: 'short' });
 }
 
+function formatDatum(datum) {
+  if (!datum) return null;
+  return new Date(`${datum}T12:00:00`).toLocaleDateString('sv-SE', {
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+  });
+}
+
+// Kort för en inkommen inbjudan (länk/mejl). Acceptera skapar + godkänner ansökan direkt.
+function InbjudanKort({ inbjudan, onAccepterad }) {
+  const [sparar, setSparar] = useState(false);
+  const [fel, setFel] = useState('');
+
+  async function acceptera() {
+    setFel('');
+    setSparar(true);
+    try {
+      const svar = await api.accepteraInbjudanViaId(inbjudan.id);
+      onAccepterad(svar);
+    } catch (f) {
+      setFel(felText(f));
+    } finally {
+      setSparar(false);
+    }
+  }
+
+  return (
+    <div className="rounded-lg border border-kant bg-yta p-4 shadow-mjuk">
+      <div className="flex items-center gap-2">
+        <span className="text-[16px]" aria-hidden>✉️</span>
+        <h3 className="flex-1 text-[15px] font-bold text-text">Inbjudan</h3>
+        <span className="rounded-pill bg-primär-mjuk px-2.5 py-1 text-[12px] font-bold text-primär">
+          {inbjudan.typ === 'schema' ? 'Schema' : 'Pass'}
+        </span>
+      </div>
+      <dl className="mt-3 space-y-1.5 text-[14px]">
+        {inbjudan.titel && (
+          <div className="flex justify-between gap-3">
+            <dt className="text-text-dämpad">{inbjudan.typ === 'schema' ? 'Schema' : 'Pass'}</dt>
+            <dd className="font-semibold text-text">{inbjudan.titel}</dd>
+          </div>
+        )}
+        {inbjudan.företagNamn && (
+          <div className="flex justify-between gap-3">
+            <dt className="text-text-dämpad">Företag</dt>
+            <dd className="font-semibold text-text">{inbjudan.företagNamn}</dd>
+          </div>
+        )}
+        {inbjudan.datum && (
+          <div className="flex justify-between gap-3">
+            <dt className="text-text-dämpad">{inbjudan.typ === 'schema' ? 'Start' : 'Datum'}</dt>
+            <dd className="font-semibold text-text">{formatDatum(inbjudan.datum)}</dd>
+          </div>
+        )}
+        {inbjudan.timlon != null && (
+          <div className="flex justify-between gap-3">
+            <dt className="text-text-dämpad">Timlön</dt>
+            <dd className="font-semibold text-text">{Math.round(Number(inbjudan.timlon))} kr/tim</dd>
+          </div>
+        )}
+      </dl>
+      {fel && <p className="mt-2 text-[13px] text-fel">{fel}</p>}
+      <div className="mt-4">
+        <button
+          type="button"
+          disabled={sparar}
+          onClick={acceptera}
+          className="w-full rounded-sm bg-framgång py-2.5 text-[14px] font-bold text-white hover:brightness-105 disabled:opacity-50"
+        >
+          Acceptera förfrågan
+        </button>
+      </div>
+    </div>
+  );
+}
+
 export default function ChattInkorg() {
   const router = useRouter();
   const { laddar: authLaddar, inloggad, användare } = useAuth();
 
+  const [flik, setFlik] = useState('konversationer');
   const [ansökningar, setAnsökningar] = useState([]);
+  const [inbjudningar, setInbjudningar] = useState([]);
+  const [jobbförfrågningar, setJobbförfrågningar] = useState([]);
   const [laddar, setLaddar] = useState(true);
   const [fel, setFel] = useState('');
+  const [avtalVäntar, setAvtalVäntar] = useState(false); // accepterad men avtal ej godkänt
 
   useEffect(() => {
     if (authLaddar) return;
@@ -44,8 +126,14 @@ export default function ChattInkorg() {
 
   const hämta = useCallback(async () => {
     try {
-      const data = await api.minaAnsökningar();
-      setAnsökningar(Array.isArray(data) ? data : []);
+      const [ans, inbj, jobbf] = await Promise.all([
+        api.minaAnsökningar().catch(() => []),
+        api.hämtaMinaInbjudningar().catch(() => []),
+        api.minaJobbförfrågningar().catch(() => []),
+      ]);
+      setAnsökningar(Array.isArray(ans) ? ans : []);
+      setInbjudningar(Array.isArray(inbj) ? inbj : []);
+      setJobbförfrågningar(Array.isArray(jobbf) ? jobbf : []);
     } catch (f) {
       setFel(felText(f));
     } finally {
@@ -71,6 +159,26 @@ export default function ChattInkorg() {
     [ansökningar]
   );
 
+  // Förfrågningar: inbjudningar + jobbförfrågningar, sorterade nyast först.
+  const förfrågningar = useMemo(() => {
+    const poster = [
+      ...inbjudningar.map((i) => ({ sort: i.skapad_datum || i.datum || '', typ: 'inbjudan', data: i, key: `i-${i.id}` })),
+      ...jobbförfrågningar.map((j) => ({ sort: j.skapad_datum || j.datum || '', typ: 'jobbforfragan', data: j, key: `j-${j.id}` })),
+    ];
+    poster.sort((a, b) => String(b.sort).localeCompare(String(a.sort)));
+    return poster;
+  }, [inbjudningar, jobbförfrågningar]);
+
+  // Efter accept: avtal godkänt → till chatten; annars visa väntmeddelande + uppdatera listor.
+  function efterAccept(svar) {
+    if (svar?.avtalGodkant && svar.ansokanId) {
+      router.push(`/chatt/${svar.ansokanId}`);
+    } else {
+      setAvtalVäntar(true);
+      hämta();
+    }
+  }
+
   if (authLaddar || !inloggad || användare?.typ === 'företag' || laddar) {
     return (
       <PrivatSkal>
@@ -81,35 +189,59 @@ export default function ChattInkorg() {
     );
   }
 
+  const antalFörfrågningar = förfrågningar.length;
+
   return (
     <PrivatSkal>
       <div className="mx-auto max-w-2xl">
-          <h1 className="rubrik-l text-text">Meddelanden</h1>
-          <p className="mt-1 text-[15px] text-text-dämpad">Dina konversationer med företag.</p>
+        <h1 className="rubrik-l text-text">Meddelanden</h1>
 
-          {fel && <Besked typ="fel">{fel}</Besked>}
+        {/* Flikar */}
+        <div className="mt-4 mb-2 flex gap-1 border-b border-kant">
+          <button
+            type="button"
+            onClick={() => setFlik('konversationer')}
+            className={`-mb-px border-b-2 px-4 py-2.5 text-[15px] font-semibold transition-colors ${
+              flik === 'konversationer'
+                ? 'border-primär text-primär'
+                : 'border-transparent text-text-dämpad hover:text-text'
+            }`}
+          >
+            Konversationer
+          </button>
+          <button
+            type="button"
+            onClick={() => setFlik('forfragningar')}
+            className={`-mb-px flex items-center gap-2 border-b-2 px-4 py-2.5 text-[15px] font-semibold transition-colors ${
+              flik === 'forfragningar'
+                ? 'border-primär text-primär'
+                : 'border-transparent text-text-dämpad hover:text-text'
+            }`}
+          >
+            Förfrågningar
+            {antalFörfrågningar > 0 && (
+              <span className="rounded-pill bg-primär px-2 py-0.5 text-[11px] font-bold text-white">
+                {antalFörfrågningar}
+              </span>
+            )}
+          </button>
+        </div>
 
-          {lista.length === 0 ? (
+        {fel && <Besked typ="fel">{fel}</Besked>}
+
+        {flik === 'konversationer' ? (
+          lista.length === 0 ? (
             <div className="mt-10 rounded-lg border border-kant bg-yta p-8 text-center shadow-mjuk">
               <p className="text-[15px] font-semibold text-text">Inga konversationer än</p>
-              <p className="mt-1 text-[14px] text-text-dämpad">
-                Sök ett pass så kan ni chatta här.
-              </p>
-              <Link
-                href="/jobb"
-                className="mt-4 inline-block text-[14px] font-semibold text-primär hover:underline"
-              >
+              <p className="mt-1 text-[14px] text-text-dämpad">Sök ett pass så kan ni chatta här.</p>
+              <Link href="/jobb" className="mt-4 inline-block text-[14px] font-semibold text-primär hover:underline">
                 Hitta jobb
               </Link>
             </div>
           ) : (
             <ul className="mt-6 space-y-2">
               {lista.map((k) => {
-                const status = ansökanStatusVisning(k) ?? {
-                  etikett: k.status,
-                  bg: '#f3f4f6',
-                  text: '#6b7280',
-                };
+                const status = ansökanStatusVisning(k) ?? { etikett: k.status, bg: '#f3f4f6', text: '#6b7280' };
                 const initial = (k.foretagNamn || '?').charAt(0).toUpperCase();
                 return (
                   <li key={k.id}>
@@ -122,9 +254,7 @@ export default function ChattInkorg() {
                       </span>
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center justify-between gap-2">
-                          <p className="truncate text-[15px] font-bold text-text">
-                            {k.foretagNamn || 'Företag'}
-                          </p>
+                          <p className="truncate text-[15px] font-bold text-text">{k.foretagNamn || 'Företag'}</p>
                           <span className="shrink-0 text-[12px] text-text-svag">
                             {tidKort(k.senasteMeddelande?.created_at)}
                           </span>
@@ -145,7 +275,47 @@ export default function ChattInkorg() {
                 );
               })}
             </ul>
-          )}
+          )
+        ) : avtalVäntar ? (
+          <div className="mt-10 rounded-lg border border-kant bg-yta p-8 text-center shadow-mjuk">
+            <div className="mb-2 text-[36px]" aria-hidden>🎉</div>
+            <p className="text-[16px] font-bold text-text">Jobbet är ditt!</p>
+            <p className="mt-2 text-[14px] leading-relaxed text-text-dämpad">
+              Vi väntar bara på att ditt avtal godkänns av FastGig. Så fort det är klart kan du börja
+              chatta med företaget.
+            </p>
+            <button
+              type="button"
+              onClick={() => setAvtalVäntar(false)}
+              className="mt-4 text-[14px] font-semibold text-primär hover:underline"
+            >
+              Tillbaka till förfrågningar
+            </button>
+          </div>
+        ) : antalFörfrågningar === 0 ? (
+          <div className="mt-10 rounded-lg border border-kant bg-yta p-8 text-center shadow-mjuk">
+            <p className="text-[15px] font-semibold text-text">Inga förfrågningar</p>
+            <p className="mt-1 text-[14px] text-text-dämpad">
+              Inbjudningar och passerbjudanden från företag dyker upp här.
+            </p>
+          </div>
+        ) : (
+          <div className="mt-6 space-y-3">
+            {förfrågningar.map((post) =>
+              post.typ === 'inbjudan' ? (
+                <InbjudanKort key={post.key} inbjudan={post.data} onAccepterad={efterAccept} />
+              ) : (
+                <JobbförfråganKort
+                  key={post.key}
+                  förfrågan={post.data}
+                  företagNamn={post.data.företagNamn}
+                  ärPrivatperson
+                  onHanterad={hämta}
+                />
+              )
+            )}
+          </div>
+        )}
       </div>
     </PrivatSkal>
   );
