@@ -6,6 +6,8 @@ const {
   hämtaTidrapporterFörAdmin,
   hämtaFöretagMedStatistik,
   hämtaPrivatpersonerMedStatistik,
+  hämtaFaktureringsstatistik,
+  hämtaFaktureringPerFöretag,
 } = require('../db/admin');
 const { hämtaAllaPrivatpersoner, hämtaRaderadeKonton, sättBlockerad } = require('../db/användare');
 const { hämtaFaktureringsunderlag } = require('../db/fakturering');
@@ -93,6 +95,26 @@ router.get('/fakturering', kräverInloggning, kräverAdmin, async (req, res) => 
     res.json(await hämtaFaktureringsunderlag());
   } catch (fel) {
     console.error('Admin-fakturering fel:', fel);
+    res.status(500).json({ fel: 'Serverfel' });
+  }
+});
+
+// GET /api/admin/faktureringsstatistik — månadens fakturering grupperad per påslag
+router.get('/faktureringsstatistik', kräverInloggning, kräverAdmin, async (req, res) => {
+  try {
+    res.json(await hämtaFaktureringsstatistik());
+  } catch (fel) {
+    console.error('Admin-faktureringsstatistik fel:', fel);
+    res.status(500).json({ fel: 'Serverfel' });
+  }
+});
+
+// GET /api/admin/fakturering-per-foretag — månadens fakturering summerad per företag
+router.get('/fakturering-per-foretag', kräverInloggning, kräverAdmin, async (req, res) => {
+  try {
+    res.json(await hämtaFaktureringPerFöretag());
+  } catch (fel) {
+    console.error('Admin-fakturering-per-företag fel:', fel);
     res.status(500).json({ fel: 'Serverfel' });
   }
 });

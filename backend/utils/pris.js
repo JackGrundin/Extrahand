@@ -1,16 +1,25 @@
-// Enda källan till sanning för faktureringspriset. Formeln beror på företagets plan:
+// Enda källan till sanning för faktureringspriset. Utbetalningen går via Invoicery
+// Business (egenanställning), så fakturabeloppet härleds ur deras utbetalningskedja:
 //
-//   timlön + timlön*0.32 + timlön*0.06 + ((timlön*1.32) + (timlön*1.32*0.06)) * påslag
+//   Fakturabelopp (exkl. moms)   = vad företaget betalar
+//   − Invoicery-avgift 6%        → fakturabelopp * 0.94
+//   − sociala avgifter 31,42%    → / 1.3142  = bruttolön inkl. semester
+//   − skatt 30%                  → * 0.70    = nettolön
 //
-// dvs. bruttolön + sociala avgifter (32%) + semesterersättning (6%), och därefter
-// vårt påslag ovanpå (timlön * 1.32 * 1.06).
+// Vänt på det: fakturabelopp = bruttolön * 1.3142 / 0.94 (≈ 1.398085). Ovanpå det
+// läggs vårt påslag: fakturabelopp * (1 + påslag).
 //
 // Påslaget är 20% för Pro-kunder och för gratiskontonas två första pass varje månad,
-// därefter 40%. Påslaget fryses när jobbet publiceras (se db/migrations/prenumeration.sql).
+// därefter 40%. Scheman faktureras med ett fast schemapåslag (15%). Påslaget fryses när
+// jobbet publiceras/godkänns (se db/migrations/prenumeration.sql och db/godkannande.js).
 
 const PÅSLAG_PRO = 0.20;
 const PÅSLAG_GRATIS = 0.40;
 const GRATIS_PASS_PER_MANAD = 2;
+
+// Fast påslag för scheman (pass-jobben), oberoende av gratis-/pro-räknarens 20/40.
+// Ett inbjudet schema går dock på PÅSLAG_INBJUDAN_SCHEMA – se db/godkannande.js.
+const PÅSLAG_SCHEMA = 0.15;
 
 // Rabatterat påslag för en person som är ny på plattformen och registrerar sig via
 // en inbjudningslänk. Gäller bara det passet/schemat länken avser. Lägre än både
@@ -19,10 +28,16 @@ const GRATIS_PASS_PER_MANAD = 2;
 const PÅSLAG_INBJUDAN_PASS = 0.15;
 const PÅSLAG_INBJUDAN_SCHEMA = 0.07;
 
+// Koefficienten som gör om bruttolön (timlön eller OB-belopp) till fakturabelopp före
+// påslag: sociala avgifter läggs på och Invoicerys avgift räknas upp. ≈ 1.398085.
+const INVOICERY_AVGIFT = 0.06; // Invoicerys plattformsavgift
+const SOCIALA_AVGIFTER = 0.3142; // sociala avgifter inkl. semesterersättning
+const BRUTTO_KOEFFICIENT = (1 + SOCIALA_AVGIFTER) / (1 - INVOICERY_AVGIFT);
+
 // Beräknar vad företaget faktureras för ett givet bruttobelopp (timlön eller
-// OB-belopp). Med påslag 0.20 blir faktorn 1.65984, med 0.40 blir den 1.93968.
+// OB-belopp). Med påslag 0.20 blir faktorn ≈ 1.67770, med 0.40 ≈ 1.95732.
 function beräknaFakturapris(belopp, paslag = PÅSLAG_GRATIS) {
-  return belopp * 1.38 + belopp * 1.32 * 1.06 * paslag;
+  return belopp * BRUTTO_KOEFFICIENT * (1 + paslag);
 }
 
 // Jobb och tidrapporter som skapades före prenumerationssystemet saknar påslag.
@@ -124,9 +139,11 @@ function valideraObTillagg(obTillagg) {
 module.exports = {
   PÅSLAG_PRO,
   PÅSLAG_GRATIS,
+  PÅSLAG_SCHEMA,
   PÅSLAG_INBJUDAN_PASS,
   PÅSLAG_INBJUDAN_SCHEMA,
   GRATIS_PASS_PER_MANAD,
+  BRUTTO_KOEFFICIENT,
   beräknaFakturapris,
   påslagEller40,
   beräknaObBelopp,

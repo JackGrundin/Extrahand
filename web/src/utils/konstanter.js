@@ -75,11 +75,14 @@ export function normalisera(s) {
 // Faktureringspriset beror på företagets plan. Speglar backend/utils/pris.js –
 // ändras formeln på ett ställe måste den ändras på båda.
 //
-//   timlön + timlön*0.32 + timlön*0.06 + ((timlön*1.32) + (timlön*1.32*0.06)) * påslag
+// Utbetalningen går via Invoicery: fakturabelopp = bruttolön * 1.3142 / 0.94 (sociala
+// avgifter + Invoicery-avgift), och därefter vårt påslag: * (1 + påslag).
 //
 // 20% gäller för Pro-kunder och gratiskontonas två första pass varje månad, därefter 40%.
+// Scheman faktureras med ett fast schemapåslag (15%).
 export const PÅSLAG_PRO = 0.20;
 export const PÅSLAG_GRATIS = 0.40;
+export const PÅSLAG_SCHEMA = 0.15;
 export const PRO_PRIS_KR = 299;
 
 // Rabatterat påslag för en person som är ny på plattformen och registrerar sig via
@@ -87,9 +90,14 @@ export const PRO_PRIS_KR = 299;
 export const PÅSLAG_INBJUDAN_PASS = 0.15;
 export const PÅSLAG_INBJUDAN_SCHEMA = 0.07;
 
+// Koefficienten som gör om bruttolön till fakturabelopp före påslag (≈ 1.398085).
+export const INVOICERY_AVGIFT = 0.06;
+export const SOCIALA_AVGIFTER = 0.3142;
+export const BRUTTO_KOEFFICIENT = (1 + SOCIALA_AVGIFTER) / (1 - INVOICERY_AVGIFT);
+
 // Beräknar vad företaget faktureras för ett bruttobelopp (timlön eller OB-belopp).
 export function beräknaFakturapris(belopp, paslag = PÅSLAG_GRATIS) {
-  return belopp * 1.38 + belopp * 1.32 * 1.06 * paslag;
+  return belopp * BRUTTO_KOEFFICIENT * (1 + paslag);
 }
 
 // Jobb som publicerades före prenumerationssystemet saknar påslag och faktureras med 40%.

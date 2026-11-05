@@ -15,7 +15,7 @@ const { hämtaPrenumeration, gällandePåslag, ökaPassDennaManad } = require('.
 const { sättJobbPåslag } = require('./jobb');
 const { hämtaRabattInbjudan } = require('./schemaInbjudan');
 const { tilldelaSchema, räknaTilldelbaraPass, frigörFramtidaPass } = require('./schemaTilldelning');
-const { PÅSLAG_INBJUDAN_PASS, PÅSLAG_INBJUDAN_SCHEMA } = require('../utils/pris');
+const { PÅSLAG_SCHEMA, PÅSLAG_INBJUDAN_PASS, PÅSLAG_INBJUDAN_SCHEMA } = require('../utils/pris');
 
 // Godkänner `ansökan` på `jobb`. godkändaFöre + ärSchemaAnnons skickas in av anroparen
 // (de behövs även i återkalla-grenen hos företaget, så de beräknas en gång där).
@@ -59,6 +59,12 @@ async function godkännAnsökan({ ansökan, jobb, företagId, godkändaFöre, ä
     });
     if (rabatt) {
       påslag = jobb.schema_id ? PÅSLAG_INBJUDAN_SCHEMA : PÅSLAG_INBJUDAN_PASS;
+    } else if (ärSchemaAnnons) {
+      // Scheman faktureras med ett fast schemapåslag (15 %), inte gratis-/pro-räknarens
+      // 20/40. Påslaget fryses här på annons-jobbet och följer sedan med till varje
+      // materialiserat pass-jobb (tilldelaSchema) – även vid person-byte, som läser
+      // tillbaka påslaget härifrån. En rabatterad inbjudan går före och behåller 7 %.
+      påslag = PÅSLAG_SCHEMA;
     }
 
     await sättJobbPåslag(ansökan.jobb_id, påslag);

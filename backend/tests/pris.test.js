@@ -8,6 +8,7 @@ const assert = require('node:assert/strict');
 const {
   PÅSLAG_PRO,
   PÅSLAG_GRATIS,
+  BRUTTO_KOEFFICIENT,
   beräknaFakturapris,
   påslagEller40,
   beräknaObBelopp,
@@ -26,12 +27,19 @@ function nära(faktiskt, förväntat, eps = 1e-9) {
   );
 }
 
-test('beräknaFakturapris: dokumenterade faktorer 1.65984 (Pro) och 1.93968 (gratis)', () => {
-  // belopp * 1.38 + belopp * 1.32 * 1.06 * paslag
-  nära(beräknaFakturapris(1, PÅSLAG_PRO), 1.65984);
-  nära(beräknaFakturapris(1, PÅSLAG_GRATIS), 1.93968);
-  nära(beräknaFakturapris(100, PÅSLAG_PRO), 165.984);
-  nära(beräknaFakturapris(250, PÅSLAG_GRATIS), 484.92);
+test('BRUTTO_KOEFFICIENT: Invoicery-kedjan ger ≈1.398085 (1.3142 / 0.94)', () => {
+  // sociala avgifter 31,42% läggs på och Invoicerys 6% räknas upp.
+  nära(BRUTTO_KOEFFICIENT, 1.3142 / 0.94);
+  nära(BRUTTO_KOEFFICIENT, 1.3980851063829786);
+});
+
+test('beräknaFakturapris: brutto * BRUTTO_KOEFFICIENT * (1 + påslag)', () => {
+  // Faktorer: 20% → ≈1.67770, 40% → ≈1.95732.
+  nära(beräknaFakturapris(1, PÅSLAG_PRO), BRUTTO_KOEFFICIENT * 1.2);
+  nära(beräknaFakturapris(1, PÅSLAG_GRATIS), BRUTTO_KOEFFICIENT * 1.4);
+  // 150 kr/tim i 8 h (brutto 1200): 20% → 2013,24 kr, 40% → 2348,78 kr.
+  nära(beräknaFakturapris(1200, PÅSLAG_PRO), 2013.2425531914894);
+  nära(beräknaFakturapris(1200, PÅSLAG_GRATIS), 2348.782978723404);
 });
 
 test('beräknaFakturapris: saknat påslag faller tillbaka på 40 %', () => {

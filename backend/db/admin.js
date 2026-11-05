@@ -1,7 +1,8 @@
 const { createClient } = require('@supabase/supabase-js');
 const ws = require('ws');
-const { beräknaFakturapris, påslagEller40 } = require('../utils/pris');
+const { beräknaFakturapris, påslagEller40, BRUTTO_KOEFFICIENT } = require('../utils/pris');
 const { hämtaAllaFöretag, hämtaAllaPrivatpersoner } = require('./användare');
+const { nuvarandeMånad } = require('../utils/manad');
 
 const supabase = createClient(
   process.env.SUPABASE_URL,
@@ -27,7 +28,8 @@ async function hämtaIBitar(ids, hämta) {
 
 // Dashboard-statistik i ETT anrop. Siffrorna speglar faktiska pengar: fakturerat räknas
 // via beräknaFakturapris (samma formel som faktureringsvyn), bruttolön är arbetskostnaden
-// och påslagsintäkten är skillnaden efter sociala avgifter + semester (brutto * 1.38).
+// och påslagsintäkten är skillnaden mot vad arbetet kostar via Invoicery
+// (brutto * BRUTTO_KOEFFICIENT, dvs. fakturapriset utan vårt påslag).
 async function hämtaStatistik() {
   const sedan30 = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
 
@@ -68,9 +70,10 @@ async function hämtaStatistik() {
     totaltTimmar,
     bruttolön,
     fakturerat,
-    // Vår intäkt: det som blir kvar av fakturan när arbetskostnaden (brutto + 32% sociala
-    // avgifter + 6% semester = brutto * 1.38) räknats bort.
-    påslagsintäkt: fakturerat - bruttolön * 1.38,
+    // Vår intäkt: det som blir kvar av fakturan när arbetskostnaden via Invoicery
+    // (brutto uppräknat med sociala avgifter + Invoicery-avgift = brutto * BRUTTO_KOEFFICIENT)
+    // räknats bort.
+    påslagsintäkt: fakturerat - bruttolön * BRUTTO_KOEFFICIENT,
     proPrenumeranter: proPrenumeranter ?? 0,
     nyaAnvändare30d: nyaAnvändare30d ?? 0,
   };
@@ -187,9 +190,88 @@ async function hämtaPrivatpersonerMedStatistik() {
   });
 }
 
+// Godkända tidrapporter för innevarande månad (svensk tidszon via månadensStart).
+// Delas av faktureringsöversikten och fakturering-per-företag så att båda vyerna
+// utgår från exakt samma rader. Returnerar bruttot (totalt_belopp) + det frysta
+// påslaget; fakturabeloppet räknas av anroparen via beräknaFakturapris.
+async function hämtaMånadensGodkändaRapporter() {
+  // datum är en date-kolumn, så en ren 'YYYY-MM-01'-gräns i svensk månad räcker och
+  // undviker tidszonströskel vid månadens första midnatt.
+  const { data: rapporter, error } = await supabase
+    .from('tidrapporter')
+    .select('foretag_id, totalt_belopp, paslag')
+    .eq('status', 'godkänd')
+    .gte('datum', `${nuvarandeMånad()}-01`);
+  if (error) throw error;
+  return rapporter || [];
+}
+
+// Etikett per fryst påslagsvärde. Samma påslag kan ha flera orsaker (20% = Pro ELLER
+// gratis 1–2, 15% = inbjudan-pass ELLER schema) och det frysta värdet bär inte orsaken,
+// så etiketterna är medvetet sammanslagna.
+const PÅSLAG_ETIKETT = {
+  0.07: 'Inbjudan schema',
+  0.15: 'Inbjudan pass / Schema',
+  0.20: 'Gratis (1–2) / Pro',
+  0.40: 'Gratis (3+)',
+};
+
+// Faktureringsöversikt för innevarande månad, grupperad på det frysta påslaget.
+// Returnerar [{ paslag, etikett, antal, totalFaktura }], sorterad på påslag stigande.
+async function hämtaFaktureringsstatistik() {
+  const rapporter = await hämtaMånadensGodkändaRapporter();
+
+  const perPåslag = new Map();
+  for (const r of rapporter) {
+    const paslag = påslagEller40(r.paslag);
+    const fakturabelopp = beräknaFakturapris(Number(r.totalt_belopp) || 0, paslag);
+    const grupp = perPåslag.get(paslag) || { paslag, antal: 0, totalFaktura: 0 };
+    grupp.antal += 1;
+    grupp.totalFaktura += fakturabelopp;
+    perPåslag.set(paslag, grupp);
+  }
+
+  return [...perPåslag.values()]
+    .sort((a, b) => a.paslag - b.paslag)
+    .map(g => ({
+      ...g,
+      etikett: PÅSLAG_ETIKETT[g.paslag] || `Påslag ${Math.round(g.paslag * 100)}%`,
+    }));
+}
+
+// Vad vi ska fakturera varje företag denna månad. Returnerar
+// [{ foretag_id, foretagsnamn, antal, totalFaktura }], sorterad på belopp fallande.
+async function hämtaFaktureringPerFöretag() {
+  const rapporter = await hämtaMånadensGodkändaRapporter();
+  if (!rapporter.length) return [];
+
+  const perFöretag = new Map();
+  for (const r of rapporter) {
+    const paslag = påslagEller40(r.paslag);
+    const fakturabelopp = beräknaFakturapris(Number(r.totalt_belopp) || 0, paslag);
+    const nyckel = String(r.foretag_id);
+    const grupp = perFöretag.get(nyckel) || { foretag_id: r.foretag_id, antal: 0, totalFaktura: 0 };
+    grupp.antal += 1;
+    grupp.totalFaktura += fakturabelopp;
+    perFöretag.set(nyckel, grupp);
+  }
+
+  const företag = await hämtaIBitar(
+    [...perFöretag.values()].map(g => g.foretag_id),
+    bit => supabase.from('användare').select('id, Namn').in('id', bit)
+  );
+  const namnMap = Object.fromEntries(företag.map(f => [String(f.id), f.Namn]));
+
+  return [...perFöretag.values()]
+    .map(g => ({ ...g, foretagsnamn: namnMap[String(g.foretag_id)] ?? null }))
+    .sort((a, b) => b.totalFaktura - a.totalFaktura);
+}
+
 module.exports = {
   hämtaStatistik,
   hämtaTidrapporterFörAdmin,
   hämtaFöretagMedStatistik,
   hämtaPrivatpersonerMedStatistik,
+  hämtaFaktureringsstatistik,
+  hämtaFaktureringPerFöretag,
 };
