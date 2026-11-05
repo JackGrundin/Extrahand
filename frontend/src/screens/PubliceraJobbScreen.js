@@ -41,6 +41,8 @@ export default function PubliceraJobbScreen({ navigation }) {
   const [prenumeration, setPrenumeration] = useState(null);
   const [planModalVisas, setPlanModalVisas] = useState(false);
   const [betalningLaddar, setBetalningLaddar] = useState(false);
+  // Publicerings-popup: sätts till det skapade jobbet efter lyckad publicering.
+  const [publiceratJobb, setPubliceratJobb] = useState(null);
 
   // Hämtar företagets plan så att prisrutan kan visa rätt påslag redan innan
   // publicering. Hämtas om vid varje fokus – t.ex. när användaren kommer tillbaka
@@ -134,7 +136,7 @@ export default function PubliceraJobbScreen({ navigation }) {
   async function publicera({ accepteraHögrePåslag = false } = {}) {
     const arbetstider = dagScheman.length > 0 ? JSON.stringify(dagScheman) : undefined;
 
-    await api.publicera({
+    const skapat = await api.publicera({
       titel: titel.trim(),
       beskrivning: beskrivning.trim(),
       plats: plats.trim() || undefined,
@@ -150,9 +152,22 @@ export default function PubliceraJobbScreen({ navigation }) {
     });
 
     haptik.lyckat();
-    Alert.alert('Klart!', 'Jobbet har publicerats.', [
-      { text: 'OK', onPress: () => navigation.goBack() },
-    ]);
+    // Visa publicerings-popupen med vägar vidare i stället för en torr Alert.
+    setPubliceratJobb(skapat);
+  }
+
+  // "Gå till passet" i popupen – företagets jobbdetalj är ansökningsvyn (se MinaJobbScreen).
+  function tillPasset() {
+    if (!publiceratJobb) return;
+    navigation.navigate('MinaJobbTab', {
+      screen: 'JobbAnsokningar',
+      params: { jobbId: publiceratJobb.id, titel: publiceratJobb.Titel },
+    });
+  }
+
+  // "Stäng" – till annons-listan (Mina annonser).
+  function tillMinaAnnonser() {
+    navigation.navigate('MinaJobbTab', { screen: 'MinaJobb' });
   }
 
   async function hanteraPublicering() {
@@ -474,6 +489,21 @@ export default function PubliceraJobbScreen({ navigation }) {
           </View>
         </KeyboardAvoidingView>
       </Modal>
+
+      {/* Publicerings-popup med vägar vidare. */}
+      <Modal visible={!!publiceratJobb} transparent animationType="fade" onRequestClose={tillMinaAnnonser}>
+        <View style={styles.popupÖverlägg}>
+          <View style={styles.popupKort}>
+            <Text style={styles.popupTitel}>Pass publicerat! 🎉</Text>
+            <TouchableOpacity style={styles.popupPrimär} onPress={tillPasset} activeOpacity={0.8}>
+              <Text style={styles.popupPrimärText}>Gå till passet</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.popupStäng} onPress={tillMinaAnnonser} activeOpacity={0.8}>
+              <Text style={styles.popupStängText}>Stäng</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </>
   );
 }
@@ -541,4 +571,12 @@ const styles = StyleSheet.create({
   obLäggTillText: { fontSize: 14, color: '#fff', fontWeight: '600' },
   obAddKnapp: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 10, paddingHorizontal: 4, marginBottom: 4 },
   obAddText: { fontSize: 14, color: '#ea580c', fontWeight: '600' },
+
+  popupÖverlägg: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', paddingHorizontal: 28 },
+  popupKort: { backgroundColor: '#fff', borderRadius: 18, padding: 24 },
+  popupTitel: { fontSize: 20, fontWeight: '700', color: '#111', textAlign: 'center', marginBottom: 20 },
+  popupPrimär: { backgroundColor: '#2563eb', borderRadius: 12, paddingVertical: 14, alignItems: 'center', marginBottom: 10 },
+  popupPrimärText: { fontSize: 16, color: '#fff', fontWeight: '600' },
+  popupStäng: { paddingVertical: 12, alignItems: 'center' },
+  popupStängText: { fontSize: 15, color: '#6b7280', fontWeight: '600' },
 });

@@ -45,6 +45,8 @@ export default function PubliceraJobb() {
   const [laddar, setLaddar] = useState(false);
   const [visaPlanval, setVisaPlanval] = useState(false);
   const [laddarUppgradera, setLaddarUppgradera] = useState(false);
+  // Publicerings-popup: sätts till det skapade jobbet efter lyckad publicering.
+  const [publiceratJobb, setPubliceratJobb] = useState(null);
 
   // Dagens datum som undre gräns för datumväljarna (man publicerar inte pass i det förflutna).
   const idag = datumTillIso(new Date());
@@ -92,7 +94,7 @@ export default function PubliceraJobb() {
     setServerfel('');
     setLaddar(true);
     try {
-      await api.publicera({
+      const skapat = await api.publicera({
         titel: titel.trim(),
         beskrivning: beskrivning.trim(),
         plats: plats.trim() || undefined,
@@ -106,7 +108,8 @@ export default function PubliceraJobb() {
         behorighets_krav: behorighetsKrav,
         ...(accepteraHögrePåslag ? { acceptera_hogre_paslag: true } : {}),
       });
-      router.push('/annonser');
+      // Visa publicerings-popupen med vägar vidare i stället för tyst redirect.
+      setPubliceratJobb(skapat);
     } catch (f) {
       if (f?.kod === 'KRAVER_PLANVAL') {
         setVisaPlanval(true);
@@ -286,6 +289,28 @@ export default function PubliceraJobb() {
           }}
           onUppgradera={uppgradera}
         />
+      )}
+
+      {/* Publicerings-popup med vägar vidare. */}
+      {publiceratJobb && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
+          <div className="absolute inset-0 bg-black/40" aria-hidden="true" />
+          <div className="relative w-full max-w-md rounded-lg border border-kant bg-yta p-6 shadow-lyft">
+            <h2 className="rubrik-m text-center text-text">Pass publicerat! 🎉</h2>
+            <div className="mt-6 flex flex-col gap-3">
+              <Knapp variant="primär" full onClick={() => router.push(`/annonser/jobb/${publiceratJobb.id}/ansokningar`)}>
+                Gå till passet
+              </Knapp>
+              <button
+                type="button"
+                onClick={() => router.push('/annonser')}
+                className="py-1 text-[14px] font-semibold text-text-svag hover:text-text"
+              >
+                Stäng
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

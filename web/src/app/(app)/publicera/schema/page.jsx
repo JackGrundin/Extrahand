@@ -23,6 +23,7 @@ import MånadsKalender from '@/components/app/MånadsKalender';
 import MassPassPanel from '@/components/app/MassPassPanel';
 import StegIndikator from '@/components/app/StegIndikator';
 import PlanvalModal from '@/components/app/PlanvalModal';
+import BjudInModal from '@/components/app/BjudInModal';
 import { api, felText } from '@/lib/api';
 import { valideraSchema } from '@/utils/schemaValidering';
 import { ärGiltigStad } from '@/utils/stad';
@@ -89,6 +90,9 @@ export default function PubliceraSchema() {
   const [laddar, setLaddar] = useState(false);
   const [visaPlanval, setVisaPlanval] = useState(false);
   const [laddarUppgradera, setLaddarUppgradera] = useState(false);
+  // Publicerings-popup: sätts till det skapade schemat efter lyckad publicering.
+  const [publiceratSchema, setPubliceratSchema] = useState(null);
+  const [bjudInÖppen, setBjudInÖppen] = useState(false);
 
   const krockar = useMemo(() => hittaKrockar(pass), [pass]);
 
@@ -239,7 +243,7 @@ export default function PubliceraSchema() {
     setServerfel('');
     setLaddar(true);
     try {
-      await api.skapaSchema({
+      const skapat = await api.skapaSchema({
         titel: titel.trim(),
         beskrivning: beskrivning.trim(),
         plats: plats.trim(),
@@ -254,7 +258,8 @@ export default function PubliceraSchema() {
         privat,
         ...(accepteraHögrePåslag ? { acceptera_hogre_paslag: true } : {}),
       });
-      router.push('/annonser');
+      // Visa publicerings-popupen med vägar vidare i stället för tyst redirect.
+      setPubliceratSchema(skapat);
     } catch (f) {
       if (f?.kod === 'KRAVER_PLANVAL') setVisaPlanval(true);
       else setServerfel(felText(f));
@@ -329,22 +334,6 @@ export default function PubliceraSchema() {
             <DatumVäljare etikett="Sista ansökningsdag (valfritt)" värde={sistaAnsokningsdag} min={idag} onÄndra={setSistaAnsokningsdag} />
             <DatumVäljare etikett="Senast besked (valfritt)" värde={senastBesked} min={idag} onÄndra={setSenastBesked} />
           </div>
-
-          {/* Privat schema: syns inte i öppna listan, bara för inbjudna. */}
-          <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-kant bg-yta-dämpad p-4">
-            <input
-              type="checkbox"
-              checked={privat}
-              onChange={(e) => setPrivat(e.target.checked)}
-              className="mt-0.5 h-5 w-5 accent-[#1d4ed8]"
-            />
-            <span>
-              <span className="block text-[15px] font-semibold text-text">Privat schema</span>
-              <span className="mt-0.5 block text-[13px] text-text-dämpad">
-                Syns inte i den öppna listan. Du bjuder in personer via e-post efter publicering.
-              </span>
-            </span>
-          </label>
         </div>
       )}
 
@@ -500,6 +489,23 @@ export default function PubliceraSchema() {
               {pass.length} pass · {typ && SCHEMATYPER.find((t) => t.värde === typ)?.etikett} · {timlon} kr/tim
             </p>
           </div>
+
+          {/* Privat schema: syns inte i jobblistan, bara för inbjudna. Ligger sist – man
+              bjuder in folk först efter publicering, så valet hör hemma här. */}
+          <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-kant bg-yta-dämpad p-4">
+            <input
+              type="checkbox"
+              checked={privat}
+              onChange={(e) => setPrivat(e.target.checked)}
+              className="mt-0.5 h-5 w-5 accent-[#1d4ed8]"
+            />
+            <span>
+              <span className="block text-[15px] font-semibold text-text">Privat schema</span>
+              <span className="mt-0.5 block text-[13px] text-text-dämpad">
+                Syns inte i jobblistan – bara de du bjuder in kan söka
+              </span>
+            </span>
+          </label>
         </div>
       )}
 
@@ -535,6 +541,42 @@ export default function PubliceraSchema() {
           onUppgradera={uppgradera}
         />
       )}
+
+      {/* Publicerings-popup med vägar vidare. "Bjud in person" bara för privata scheman. */}
+      {publiceratSchema && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
+          <div className="absolute inset-0 bg-black/40" aria-hidden="true" />
+          <div className="relative w-full max-w-md rounded-lg border border-kant bg-yta p-6 shadow-lyft">
+            <h2 className="rubrik-m text-center text-text">Schema publicerat! 🎉</h2>
+            <div className="mt-6 flex flex-col gap-3">
+              {privat && (
+                <Knapp variant="primär" full onClick={() => setBjudInÖppen(true)}>
+                  Bjud in person
+                </Knapp>
+              )}
+              <Knapp variant={privat ? 'kontur' : 'primär'} full onClick={() => router.push(`/annonser/schema/${publiceratSchema.id}`)}>
+                Gå till schemat
+              </Knapp>
+              <button
+                type="button"
+                onClick={() => router.push('/annonser')}
+                className="py-1 text-[14px] font-semibold text-text-svag hover:text-text"
+              >
+                Stäng
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Renderas efter popupen så invite-modalen lägger sig överst. */}
+      <BjudInModal
+        öppen={bjudInÖppen}
+        onStäng={() => setBjudInÖppen(false)}
+        typ="schema"
+        id={publiceratSchema?.id}
+        onÄndrad={() => {}}
+      />
     </div>
   );
 }

@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useRef, useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, ScrollView, ActivityIndicator, KeyboardAvoidingView, Platform, Linking, Switch } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, ScrollView, ActivityIndicator, KeyboardAvoidingView, Platform, Linking, Switch, Modal } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import PrenumerationModal from '../components/PrenumerationModal';
@@ -13,6 +13,7 @@ import TidVäljare from '../components/TidVäljare';
 import MassPassPanel from '../components/MassPassPanel';
 import BehörighetsKravRedigerare from '../components/BehörighetsKravRedigerare';
 import MånadsKalender from '../components/MånadsKalender';
+import BjudInModal from '../components/BjudInModal';
 import DatumVäljare from '../components/DatumVäljare';
 import StegIndikator from '../components/StegIndikator';
 import { useAppStateAktiv } from '../utils/useAppStateAktiv';
@@ -87,6 +88,9 @@ export default function PubliceraSchemaScreen({ navigation }) {
   const [prenumeration, setPrenumeration] = useState(null);
   const [planModalVisas, setPlanModalVisas] = useState(false);
   const [betalningLaddar, setBetalningLaddar] = useState(false);
+  // Publicerings-popup: sätts till det skapade schemat efter lyckad publicering.
+  const [publiceratSchema, setPubliceratSchema] = useState(null);
+  const [bjudInSynlig, setBjudInSynlig] = useState(false);
 
   const hämtaStartdata = useCallback(async () => {
     try {
@@ -394,7 +398,7 @@ export default function PubliceraSchemaScreen({ navigation }) {
   // ------------------------------------------------------- Publicera
 
   async function publicera({ accepteraHögrePåslag = false } = {}) {
-    await api.skapaSchema({
+    const skapat = await api.skapaSchema({
       titel: titel.trim(),
       beskrivning: beskrivning.trim(),
       plats: plats.trim(),
@@ -411,9 +415,8 @@ export default function PubliceraSchemaScreen({ navigation }) {
     });
 
     haptik.lyckat();
-    Alert.alert('Klart!', `Schemat har publicerats med ${pass.length} pass.`, [
-      { text: 'OK', onPress: tillMinaScheman },
-    ]);
+    // Visa publicerings-popupen med vägar vidare i stället för en torr Alert.
+    setPubliceratSchema(skapat);
   }
 
   // Efter publicering hör schemat hemma under Mina annonser, inte i guiden man just lämnat.
@@ -423,6 +426,14 @@ export default function PubliceraSchemaScreen({ navigation }) {
     navigation.navigate('MinaJobbTab', { screen: 'MinaJobb', params: { flik: 'scheman' } });
     // Töm guidens stack, annars ligger det publicerade schemat kvar ifyllt på steg 4 nästa
     // gång Publicera-fliken öppnas – skärmen avmonteras inte av ett flikbyte.
+    navigation.popToTop();
+  }
+
+  // "Gå till schemat" i publicerings-popupen – SchemaDetalj ligger i MinaJobb-navigatorn.
+  function tillSchemat() {
+    if (!publiceratSchema) return;
+    harPublicerat.current = true;
+    navigation.navigate('MinaJobbTab', { screen: 'SchemaDetalj', params: { schemaId: publiceratSchema.id } });
     navigation.popToTop();
   }
 
@@ -577,21 +588,6 @@ export default function PubliceraSchemaScreen({ navigation }) {
                 placeholder="Frivilligt – välj datum"
                 minimumDate={new Date()}
               />
-
-              {/* Privat schema: syns inte i den öppna listan, bara för inbjudna. */}
-              <View style={styles.privatRad}>
-                <View style={{ flex: 1, paddingRight: 12 }}>
-                  <Text style={styles.privatTitel}>Privat schema</Text>
-                  <Text style={styles.privatText}>
-                    Syns inte i den öppna listan. Du bjuder in personer via e-post efter publicering.
-                  </Text>
-                </View>
-                <Switch
-                  value={privat}
-                  onValueChange={setPrivat}
-                  trackColor={{ true: '#2563eb', false: '#ccc' }}
-                />
-              </View>
             </>
           )}
 
@@ -912,6 +908,22 @@ export default function PubliceraSchemaScreen({ navigation }) {
                   Något saknas i ett tidigare steg: {[fel.titel, fel.beskrivning, fel.plats, fel.adress, fel.timlon, fel.pass].filter(Boolean).join('. ')}
                 </Text>
               )}
+
+              {/* Privat schema: syns inte i jobblistan, bara för inbjudna. Ligger sist – man
+                  bjuder in folk först efter publicering, så valet hör hemma här. */}
+              <View style={styles.privatRad}>
+                <View style={{ flex: 1, paddingRight: 12 }}>
+                  <Text style={styles.privatTitel}>Privat schema</Text>
+                  <Text style={styles.privatText}>
+                    Syns inte i jobblistan – bara de du bjuder in kan söka
+                  </Text>
+                </View>
+                <Switch
+                  value={privat}
+                  onValueChange={setPrivat}
+                  trackColor={{ true: '#2563eb', false: '#ccc' }}
+                />
+              </View>
             </>
           )}
 
@@ -977,6 +989,36 @@ export default function PubliceraSchemaScreen({ navigation }) {
         laddar={betalningLaddar}
         onUppgradera={uppgraderaTillPro}
         onFortsattUtan={fortsattUtanAbonnemang}
+      />
+
+      {/* Publicerings-popup med vägar vidare. "Bjud in person" bara för privata scheman. */}
+      <Modal visible={!!publiceratSchema} transparent animationType="fade" onRequestClose={tillMinaScheman}>
+        <View style={styles.popupÖverlägg}>
+          <View style={styles.popupKort}>
+            <Text style={styles.popupTitel}>Schema publicerat! 🎉</Text>
+            {privat && (
+              <TouchableOpacity style={styles.popupPrimär} onPress={() => setBjudInSynlig(true)} activeOpacity={0.8}>
+                <Text style={styles.popupPrimärText}>Bjud in person</Text>
+              </TouchableOpacity>
+            )}
+            <TouchableOpacity style={privat ? styles.popupSekundär : styles.popupPrimär} onPress={tillSchemat} activeOpacity={0.8}>
+              <Text style={privat ? styles.popupSekundärText : styles.popupPrimärText}>Gå till schemat</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.popupStäng} onPress={tillMinaScheman} activeOpacity={0.8}>
+              <Text style={styles.popupStängText}>Stäng</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Renderas efter success-popupen så invite-modalen lägger sig överst – popupen ligger
+          kvar under och användaren kan välja väg vidare när inbjudan stängts. */}
+      <BjudInModal
+        visible={bjudInSynlig}
+        onStäng={() => setBjudInSynlig(false)}
+        typ="schema"
+        id={publiceratSchema?.id}
+        onÄndrad={() => {}}
       />
     </>
   );
@@ -1102,4 +1144,14 @@ const styles = StyleSheet.create({
   nästaKnapp: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4, backgroundColor: '#2563eb', borderRadius: 12, paddingVertical: 14 },
   nästaText: { fontSize: 16, color: '#fff', fontWeight: '600' },
   knappInaktiv: { backgroundColor: '#93c5fd' },
+
+  popupÖverlägg: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', paddingHorizontal: 28 },
+  popupKort: { backgroundColor: '#fff', borderRadius: 18, padding: 24 },
+  popupTitel: { fontSize: 20, fontWeight: '700', color: '#111', textAlign: 'center', marginBottom: 20 },
+  popupPrimär: { backgroundColor: '#2563eb', borderRadius: 12, paddingVertical: 14, alignItems: 'center', marginBottom: 10 },
+  popupPrimärText: { fontSize: 16, color: '#fff', fontWeight: '600' },
+  popupSekundär: { borderWidth: 1.5, borderColor: '#2563eb', borderRadius: 12, paddingVertical: 14, alignItems: 'center', marginBottom: 10 },
+  popupSekundärText: { fontSize: 16, color: '#2563eb', fontWeight: '600' },
+  popupStäng: { paddingVertical: 12, alignItems: 'center' },
+  popupStängText: { fontSize: 15, color: '#6b7280', fontWeight: '600' },
 });
