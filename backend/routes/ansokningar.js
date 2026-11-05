@@ -7,6 +7,7 @@ const { minskaPassDennaManad } = require('../db/prenumeration');
 const { återställSchema } = require('../db/schemaTilldelning');
 const { hämtaSchemaViaAnnonsJobb } = require('../db/scheman');
 const { godkännAnsökan } = require('../db/godkannande');
+const { hittaKrockFörSökande } = require('../db/dubbelbokning');
 const { normaliseraKrav, saknadeKrav } = require('../utils/behorighet');
 const { idagStockholm } = require('../utils/tid');
 const { skickaNotifikation } = require('../utils/pushNotifikation');
@@ -72,7 +73,27 @@ router.post('/:jobbId', kräverInloggning, kräverTyp('privatperson'), async (re
       intygade_krav: krav,
     });
 
-    res.status(201).json(ansökan);
+    // Dubbelbokningsvarning (BLOCKERAR INTE): har personen redan en väntande eller godkänd
+    // ansökan på ett annat jobb som krockar i tid? Då får hen det jobb hen godkänns på först.
+    // Krock-kollen får aldrig fälla själva ansökan – misslyckas den svarar vi ändå utan flagga.
+    let krock = null;
+    try {
+      krock = await hittaKrockFörSökande({
+        sokande_id: req.användare.id,
+        jobb: jobbet,
+        statusar: ['väntande', 'godkänd'],
+        exkluderaJobbId: jobbId,
+      });
+    } catch (krockfel) {
+      console.error('Fel vid dubbelbokningskoll:', krockfel);
+    }
+
+    res.status(201).json({
+      ...ansökan,
+      krock: !!krock,
+      krockTitel: krock?.titel ?? null,
+      krockDatum: krock?.datum ?? null,
+    });
 
     try {
       const [jobb, sökande] = await Promise.all([
@@ -273,6 +294,21 @@ router.patch('/:id/status', kräverInloggning, kräverTyp('företag'), async (re
     // Berörda sökande (utöver den vars status ändras direkt) att signalera om
     let övrigaBerörda = [];
     if (status === 'godkänd') {
+      // Dubbelbokningsskydd: personen får inte godkännas på ett pass som krockar i tid med
+      // ett annat redan GODKÄNT pass. Ett schema jämförs pass-för-pass (se kandidatPassFörJobb).
+      const krock = await hittaKrockFörSökande({
+        sokande_id: ansökan.sokande_id,
+        jobb,
+        statusar: ['godkänd'],
+        exkluderaJobbId: ansökan.jobb_id,
+      });
+      if (krock) {
+        return res.status(409).json({
+          fel: 'Personen har redan ett godkänt pass som överlappar i tid.',
+          kod: 'DUBBELBOKAD',
+        });
+      }
+
       // Själva godkännandet (statusbyte, påslagsfrysning med ev. inbjudningsrabatt,
       // schematilldelning) bor i db/godkannande.js och delas med den inbjudnes
       // POST /api/inbjudan/:token/acceptera – penninglogiken får bara finnas på ETT ställe.

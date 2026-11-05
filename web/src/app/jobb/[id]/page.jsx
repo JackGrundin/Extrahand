@@ -16,6 +16,7 @@ import Textfält from '@/components/ui/Textfält';
 import { useAuth } from '@/context/AuthContext';
 import { api, felText } from '@/lib/api';
 import { normaliseraKrav, saknadeKrav } from '@/utils/behorighet';
+import { KROCK_ANSOKAN_TEXT } from '@/utils/konstanter';
 import {
   parsaArbetstider,
   formatDagDatum,
@@ -38,6 +39,7 @@ export default function JobbDetalj() {
   const [ansöker, setAnsöker] = useState(false);
   const [sökt, setSökt] = useState(false);
   const [avtalFel, setAvtalFel] = useState(false);
+  const [krock, setKrock] = useState(false);
 
   const hämta = useCallback(async () => {
     try {
@@ -75,11 +77,13 @@ export default function JobbDetalj() {
     setAvtalFel(false);
     setAnsöker(true);
     try {
-      await api.sökaJobb(id, {
+      const svar = await api.sökaJobb(id, {
         meddelande: meddelande.trim() || null,
         intygade_krav: [...ikryssade],
       });
       setSökt(true);
+      // Krockar passet i tid med något personen redan sökt/fått? Varna (blockerar inte).
+      if (svar?.krock) setKrock(true);
     } catch (f) {
       // 409 = redan sökt/tillsatt räknas också som "klar".
       if (f?.status === 409) setSökt(true);
@@ -228,7 +232,10 @@ export default function JobbDetalj() {
         {/* Ansökan */}
         <section className="mt-8 rounded-lg border border-kant bg-yta-dämpad p-5">
           {sökt ? (
-            <Besked typ="framgång">Din ansökan har skickats. Företaget hör av sig.</Besked>
+            <>
+              <Besked typ="framgång">Din ansökan har skickats. Företaget hör av sig.</Besked>
+              {krock && <Besked typ="info">{KROCK_ANSOKAN_TEXT}</Besked>}
+            </>
           ) : avtalFel ? (
             <Besked typ="fel">
               Du behöver godkänna ditt avtal i FastGig-appen innan du kan söka jobb.

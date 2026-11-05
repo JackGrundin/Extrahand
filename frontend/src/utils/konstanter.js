@@ -225,3 +225,8 @@ export const STATUSFÄRGER_TIDRAPPORT = {
   godkänd:  { bg: '#dcfce7', text: '#16a34a', etikett: 'Godkänd' },
   bestridd: { bg: '#fee2e2', text: '#dc2626', etikett: 'Bestridd' },
 };
+
+// Visas som varning (ej spärr) när en ansökan krockar i tid med ett pass personen redan
+// sökt eller fått. Backend svarar med { krock: true } på ansökan. Speglas i web/src/lib/api.js.
+export const KROCK_ANSOKAN_TEXT =
+  'Du har redan ansökt ett pass som krockar i tid – du får det jobb du blir godkänd på först.';

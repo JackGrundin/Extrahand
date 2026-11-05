@@ -14,7 +14,7 @@ import Textfält from '@/components/ui/Textfält';
 import RollBrickor from '@/components/app/RollBrickor';
 import { api, felText } from '@/lib/api';
 import { formatPeriod, veckodagsNamn, formatDagDatum } from '@/utils/datumHelper';
-import { schematypEtikett, formateraPris } from '@/utils/konstanter';
+import { schematypEtikett, formateraPris, KROCK_ANSOKAN_TEXT } from '@/utils/konstanter';
 import { normaliseraKrav, saknadeKrav } from '@/utils/behorighet';
 
 export default function PrivatSchemaVy() {
@@ -30,6 +30,7 @@ export default function PrivatSchemaVy() {
   const [ikryssade, setIkryssade] = useState(() => new Set());
   const [ansöker, setAnsöker] = useState(false);
   const [sökt, setSökt] = useState(false);
+  const [krock, setKrock] = useState(false);
 
   // Auth-gate: utloggad → inloggning med next tillbaka hit.
   useEffect(() => {
@@ -73,11 +74,13 @@ export default function PrivatSchemaVy() {
     setFel('');
     setAnsöker(true);
     try {
-      await api.sökSchema(schema.annons_jobb_id, {
+      const svar = await api.sökSchema(schema.annons_jobb_id, {
         meddelande: meddelande.trim() || null,
         intygade_krav: [...ikryssade],
       });
       setSökt(true);
+      // Krockar något av schemats pass i tid med något personen redan sökt/fått? Varna (blockerar inte).
+      if (svar?.krock) setKrock(true);
     } catch (f) {
       // 409 = redan sökt/tillsatt räknas också som "klar".
       if (f?.status === 409) setSökt(true);
@@ -169,7 +172,10 @@ export default function PrivatSchemaVy() {
       {/* Ansökan */}
       <section className="mt-8 rounded-lg border border-kant bg-yta-dämpad p-5">
         {sökt ? (
-          <Besked typ="framgång">Du har ansökt till schemat. Företaget hör av sig.</Besked>
+          <>
+            <Besked typ="framgång">Du har ansökt till schemat. Företaget hör av sig.</Besked>
+            {krock && <Besked typ="info">{KROCK_ANSOKAN_TEXT}</Besked>}
+          </>
         ) : !ärPrivatperson ? (
           <p className="text-[14px] text-text-dämpad">Logga in som privatperson för att ansöka.</p>
         ) : (

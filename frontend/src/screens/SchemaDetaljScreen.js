@@ -9,7 +9,7 @@ import { useRealtidsPing } from '../context/RealtidsContext';
 import { useAttAvsluta } from '../context/AttAvslutaContext';
 import { api, felText } from '../api/klient';
 import { parsaObTillagg, beräknaObBelopp, formatDagDatum, veckodagsNamn, sökStängd } from '../utils/datumHelper';
-import { beräknaFakturapris, ansökanStatusVisning } from '../utils/konstanter';
+import { beräknaFakturapris, ansökanStatusVisning, KROCK_ANSOKAN_TEXT } from '../utils/konstanter';
 import { normaliseraKrav, saknadeKrav } from '../utils/behorighet';
 import BehörighetsKrav from '../components/BehörighetsKrav';
 import IntygandeRad from '../components/IntygandeRad';
@@ -147,13 +147,18 @@ export default function SchemaDetaljScreen({ route, navigation }) {
     }
     setSparar(true);
     try {
-      await api.sökaJobb(schema.annons_jobb_id, {
+      const svar = await api.sökaJobb(schema.annons_jobb_id, {
         meddelande: meddelande.trim() || null,
         intygade_krav: [...ikryssade],
       });
       haptik.lyckat();
       setSökt(true);
-      Alert.alert('Klart!', 'Din ansökan om hela schemat har skickats.');
+      // Krockar något av schemats pass i tid med något personen redan sökt/fått? Varna (blockerar inte).
+      if (svar?.krock) {
+        Alert.alert('Din ansökan har skickats', KROCK_ANSOKAN_TEXT);
+      } else {
+        Alert.alert('Klart!', 'Din ansökan om hela schemat har skickats.');
+      }
     } catch (fel) {
       haptik.fel();
       Alert.alert('Fel', felText(fel));

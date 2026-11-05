@@ -22,6 +22,7 @@ const { hämtaJobbViaId, sättJobbPrivat } = require('../db/jobb');
 const { hämtaNamnFörAnvändare, skapaAnsökan, hämtaAnsökanFörJobbOchSökande, hämtaGodkändaFörJobb } = require('../db/ansokningar');
 const { hämtaAnvändareViaId, hämtaAvtalGodkant, hämtaPushToken } = require('../db/användare');
 const { godkännAnsökan } = require('../db/godkannande');
+const { hittaKrockFörSökande } = require('../db/dubbelbokning');
 const { normaliseraKrav } = require('../utils/behorighet');
 const { skickaNotifikation } = require('../utils/pushNotifikation');
 const { sändRealtidsPing, sändJobblistaPing } = require('../realtid');
@@ -199,6 +200,21 @@ async function genomförAcceptans(inbjudan, användareId) {
       meddelande: null,
       intygade_krav: normaliseraKrav(jobb.behorighets_krav),
     });
+  }
+
+  // Dubbelbokningsskydd: den inbjudne får inte godkännas på ett pass som krockar i tid med
+  // ett redan GODKÄNT pass. Samma spärr som företagets godkännande; .status → 409 via svaraAcceptfel.
+  const krock = await hittaKrockFörSökande({
+    sokande_id: användareId,
+    jobb,
+    statusar: ['godkänd'],
+    exkluderaJobbId: jobb.id,
+  });
+  if (krock) {
+    const f = new Error('Du har redan ett godkänt pass som överlappar i tid.');
+    f.status = 409;
+    f.kod = 'DUBBELBOKAD';
+    throw f;
   }
 
   // Godkänn direkt – SAMMA kärna som företagets godkännande. företagId = jobbets ägare,

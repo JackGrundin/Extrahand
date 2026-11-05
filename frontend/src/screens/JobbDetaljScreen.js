@@ -5,7 +5,7 @@ import { useHeaderHeight } from '@react-navigation/elements';
 import { useAuth } from '../context/AuthContext';
 import { api, felText } from '../api/klient';
 import { parsaArbetstider, formatDagDatum, parsaObTillagg, beräknaObBelopp } from '../utils/datumHelper';
-import { beräknaFakturapris } from '../utils/konstanter';
+import { beräknaFakturapris, KROCK_ANSOKAN_TEXT } from '../utils/konstanter';
 import { normaliseraKrav, saknadeKrav } from '../utils/behorighet';
 import BehörighetsKrav from '../components/BehörighetsKrav';
 import { useJobbPåslag } from '../utils/useJobbPåslag';
@@ -45,13 +45,18 @@ export default function JobbDetaljScreen({ route, navigation }) {
     }
     setLaddar(true);
     try {
-      await api.sökaJobb(jobb.id, {
+      const svar = await api.sökaJobb(jobb.id, {
         meddelande: meddelande.trim() || null,
         intygade_krav: [...ikryssade],
       });
       haptik.lyckat();
       setSökt(true);
-      Alert.alert('Klart!', 'Din ansökan har skickats.');
+      // Krockar passet i tid med något personen redan sökt/fått? Varna (blockerar inte).
+      if (svar?.krock) {
+        Alert.alert('Din ansökan har skickats', KROCK_ANSOKAN_TEXT);
+      } else {
+        Alert.alert('Klart!', 'Din ansökan har skickats.');
+      }
     } catch (fel) {
       haptik.fel();
       Alert.alert('Fel', felText(fel));
