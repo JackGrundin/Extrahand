@@ -11,6 +11,7 @@ export default function AdminFöretag() {
   const [företag, setFöretag] = useState(null);
   const [fel, setFel] = useState('');
   const [sök, setSök] = useState('');
+  const [sparar, setSparar] = useState(null);
 
   const hämta = useCallback(async () => {
     setFel('');
@@ -26,6 +27,19 @@ export default function AdminFöretag() {
   useEffect(() => {
     hämta();
   }, [hämta]);
+
+  async function växlaBlockerad(f) {
+    setSparar(f.id);
+    setFel('');
+    try {
+      await api.blockeraFöretag(f.id, f.blockerad !== true);
+      await hämta();
+    } catch (fe) {
+      setFel(felText(fe));
+    } finally {
+      setSparar(null);
+    }
+  }
 
   const filtrerade = useMemo(() => {
     if (!företag) return [];
@@ -66,11 +80,12 @@ export default function AdminFöretag() {
         <ul className="mt-6 space-y-3">
           {filtrerade.map((f) => {
             const pro = f.prenumeration_status === 'pro';
+            const blockerad = f.blockerad === true;
             return (
               <li key={f.id} className="rounded-lg border border-kant bg-yta p-5 shadow-mjuk">
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div className="min-w-0">
-                    <div className="flex items-center gap-2">
+                    <div className="flex flex-wrap items-center gap-2">
                       <p className="text-[16px] font-bold text-text">{f.Namn || 'Namnlöst företag'}</p>
                       <span
                         className={`rounded-pill px-2 py-0.5 text-[11px] font-bold ${
@@ -79,6 +94,11 @@ export default function AdminFöretag() {
                       >
                         {pro ? 'Pro' : 'Gratis'}
                       </span>
+                      {blockerad && (
+                        <span className="rounded-pill bg-fel-mjuk px-2 py-0.5 text-[11px] font-bold text-fel">
+                          Blockerad
+                        </span>
+                      )}
                     </div>
                     <p className="text-[13px] text-text-dämpad">
                       {f.Email}
@@ -93,15 +113,27 @@ export default function AdminFöretag() {
                       </p>
                     )}
                   </div>
-                  <div className="flex gap-2">
-                    <div className="rounded-sm bg-primär-mjuk px-3 py-2 text-center">
-                      <p className="text-[18px] font-bold text-primär">{Number(f.antalJobb) || 0}</p>
-                      <p className="text-[11px] font-semibold uppercase text-primär">Annonser</p>
+                  <div className="flex flex-col items-end gap-2">
+                    <div className="flex gap-2">
+                      <div className="rounded-sm bg-primär-mjuk px-3 py-2 text-center">
+                        <p className="text-[18px] font-bold text-primär">{Number(f.antalJobb) || 0}</p>
+                        <p className="text-[11px] font-semibold uppercase text-primär">Annonser</p>
+                      </div>
+                      <div className="rounded-sm bg-yta-dämpad px-3 py-2 text-center">
+                        <p className="text-[18px] font-bold text-text">{Number(f.godkändaPass) || 0}</p>
+                        <p className="text-[11px] font-semibold uppercase text-text-svag">Godkända pass</p>
+                      </div>
                     </div>
-                    <div className="rounded-sm bg-yta-dämpad px-3 py-2 text-center">
-                      <p className="text-[18px] font-bold text-text">{Number(f.godkändaPass) || 0}</p>
-                      <p className="text-[11px] font-semibold uppercase text-text-svag">Godkända pass</p>
-                    </div>
+                    <button
+                      type="button"
+                      disabled={sparar === f.id}
+                      onClick={() => växlaBlockerad(f)}
+                      className={`rounded-sm px-4 py-2 text-[14px] font-bold text-white shadow-mjuk transition-all active:scale-[0.98] hover:brightness-105 disabled:opacity-60 disabled:pointer-events-none ${
+                        blockerad ? 'bg-framgång' : 'bg-fel'
+                      }`}
+                    >
+                      {sparar === f.id ? 'Vänta…' : blockerad ? 'Avblockera' : 'Blockera'}
+                    </button>
                   </div>
                 </div>
               </li>

@@ -3,7 +3,7 @@ const { kräverInloggning, kräverTyp } = require('../middleware/auth');
 const { skapaJobb, hämtaAllaJobb, hämtaJobbViaId, hämtaJobbFörFöretag, hämtaTidigareJobbFörFöretag, uppdateraJobb, taBortJobb, räknaJobbDennaMånad, markeraAnsökningarSedda } = require('../db/jobb');
 const { hämtaGodkändaFörJobb } = require('../db/ansokningar');
 const { skickaMeddelande } = require('../db/meddelanden');
-const { hämtaPushToken, hämtaPrivatpersonerIStad } = require('../db/användare');
+const { hämtaPushToken, hämtaPrivatpersonerIStad, ärBlockerad } = require('../db/användare');
 const { hämtaPrenumeration, ärPro, harGjortPlanval, sättPlanvalGjort } = require('../db/prenumeration');
 const { GRATIS_PASS_PER_MANAD } = require('../utils/pris');
 const { normaliseraKrav, valideraBehorighetsKrav } = require('../utils/behorighet');
@@ -109,6 +109,12 @@ router.post('/', kräverInloggning, kräverTyp('företag'), async (req, res) => 
   }
 
   try {
+    // Blockerade företag får inte publicera. Flaggan bor i databasen (JWT:n bär den inte),
+    // så den läses här – backend är sista försvaret.
+    if (await ärBlockerad(req.användare.id)) {
+      return res.status(403).json({ fel: 'Ditt konto är blockerat från att publicera.' });
+    }
+
     // Varning innan företaget binder upp sig: har de redan publicerat två pass denna
     // månad höjs priset om fler än två faktiskt genomförs. Räknas direkt ur Jobb, så
     // ett borttaget jobb försvinner automatiskt ur räkningen. Pro-företag har inget tak

@@ -24,7 +24,7 @@ const { tilldelaSchema, frigörFramtidaPass, återställSchema } = require('../d
 const { skapaJobb, räknaJobbDennaMånad, sättJobbPåslag, hämtaJobbFörFöretag, markeraAnsökningarSedda } = require('../db/jobb');
 const { hämtaAnsökningarFörJobb, uppdateraStatus, markeraAvhopp, hämtaGodkändaFörFleraJobb, hämtaNamnFörAnvändare } = require('../db/ansokningar');
 const { hämtaPrenumeration, ärPro, harGjortPlanval, sättPlanvalGjort, minskaPassDennaManad } = require('../db/prenumeration');
-const { hämtaPrivatpersonerIStad, hämtaPushToken, hämtaAnvändareViaEmail } = require('../db/användare');
+const { hämtaPrivatpersonerIStad, hämtaPushToken, hämtaAnvändareViaEmail, ärBlockerad } = require('../db/användare');
 const { hashaToken, skapaInbjudan, hämtaInbjudningarFörSchema } = require('../db/schemaInbjudan');
 const { skickaSchemaInbjudanMail } = require('../utils/email');
 const crypto = require('crypto');
@@ -194,6 +194,12 @@ router.post('/', kräverInloggning, kräverTyp('företag'), async (req, res) => 
   if (valideringsfel) return res.status(400).json({ fel: valideringsfel });
 
   try {
+    // Blockerade företag får inte publicera. Flaggan bor i databasen (JWT:n bär den inte),
+    // så den läses här – backend är sista försvaret.
+    if (await ärBlockerad(req.användare.id)) {
+      return res.status(403).json({ fel: 'Ditt konto är blockerat från att publicera.' });
+    }
+
     // Samma planvals-gate som vid vanlig publicering. Ett schema räknas som EN
     // publicering: annons-jobbet nedan är en Jobb-rad, medan passjobben filtreras bort
     // i räknaJobbDennaMånad (se db/jobb.js).

@@ -97,7 +97,7 @@ async function hämtaPushToken(id) {
 async function hämtaAllaFöretag() {
   const { data, error } = await supabase
     .from('användare')
-    .select('id, Namn, Email, telefonnummer, organisationsnummer, fakturaadress, postnummer, ort, fakturamail, referensperson, prenumeration_status, created_at')
+    .select('id, Namn, Email, telefonnummer, organisationsnummer, fakturaadress, postnummer, ort, fakturamail, referensperson, prenumeration_status, blockerad, created_at')
     .eq('Typ', 'företag')
     .not('aktiv', 'is', false)
     .order('created_at', { ascending: false });
@@ -153,6 +153,32 @@ async function återkallaAvtal(id) {
     .maybeSingle();
   if (error) throw error;
   return data;
+}
+
+// Admin blockerar/avblockerar ett företag. Returnerar { id } så att routen kan ge 404 när
+// id:t inte finns. Samma mönster som godkännAvtal/återkallaAvtal.
+async function sättBlockerad(id, blockerad) {
+  const { data, error } = await supabase
+    .from('användare')
+    .update({ blockerad: blockerad === true })
+    .eq('id', id)
+    .select('id')
+    .maybeSingle();
+  if (error) throw error;
+  return data;
+}
+
+// Läser ett företags blockerad-flagga. Används av publiceringsspärren i POST /api/jobb och
+// POST /api/scheman (backend är sista försvaret). JWT:n bär inte flaggan, så den måste läsas
+// här. NULL/saknad = ej blockerad, precis som hämtaAvtalGodkant behandlar avtal_godkant.
+async function ärBlockerad(id) {
+  const { data, error } = await supabase
+    .from('användare')
+    .select('blockerad')
+    .eq('id', id)
+    .maybeSingle();
+  if (error) throw error;
+  return data?.blockerad === true;
 }
 
 // Läser en privatpersons avtalsstatus. Används av ansökningsspärren (backend är sista
@@ -283,4 +309,4 @@ async function hämtaRaderadeKonton() {
   return data || [];
 }
 
-module.exports = { skapaAnvändare, hämtaAnvändareViaEmail, hämtaAnvändareViaId, uppdateraProfil, uppdateraProfilBild, uppdateraStad, hämtaPrivatpersonerIStad, sparaPushToken, hämtaPushToken, hämtaAllaPrivatpersoner, godkännAvtal, återkallaAvtal, hämtaAvtalGodkant, hämtaAllaFöretag, sparaVerifieringskod, markeraEmailVerifierad, sparaÅterställningsToken, hämtaAnvändareViaÅterställningsToken, uppdateraLösenord, raderaKonto, hämtaRaderadeKonton };
+module.exports = { skapaAnvändare, hämtaAnvändareViaEmail, hämtaAnvändareViaId, uppdateraProfil, uppdateraProfilBild, uppdateraStad, hämtaPrivatpersonerIStad, sparaPushToken, hämtaPushToken, hämtaAllaPrivatpersoner, godkännAvtal, återkallaAvtal, sättBlockerad, ärBlockerad, hämtaAvtalGodkant, hämtaAllaFöretag, sparaVerifieringskod, markeraEmailVerifierad, sparaÅterställningsToken, hämtaAnvändareViaÅterställningsToken, uppdateraLösenord, raderaKonto, hämtaRaderadeKonton };

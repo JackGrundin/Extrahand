@@ -244,6 +244,7 @@ export const api = {
   återkallaAvtalRaderad: (id) => anrop('PATCH', `/users/admin/${id}/avtal-aterkalla-raderad`, {}),
   markeraTidrapportBetald: (id) => anrop('PATCH', `/tidrapporter/${id}/betald`, {}),
   markeraFakturerad: (id) => anrop('PATCH', `/fakturering/${id}/fakturerad`, {}),
+  blockeraFöretag: (id, blockerad) => anrop('PATCH', `/admin/foretag/${id}/blockera`, { blockerad }),
 };
 
 export default api;

@@ -7,7 +7,7 @@ const {
   hämtaFöretagMedStatistik,
   hämtaPrivatpersonerMedStatistik,
 } = require('../db/admin');
-const { hämtaAllaPrivatpersoner, hämtaRaderadeKonton } = require('../db/användare');
+const { hämtaAllaPrivatpersoner, hämtaRaderadeKonton, sättBlockerad } = require('../db/användare');
 const { hämtaFaktureringsunderlag } = require('../db/fakturering');
 
 const ADMIN_EMAIL = process.env.ADMIN_EMAIL || 'info@fastgig.se';
@@ -58,6 +58,21 @@ router.get('/foretag', kräverInloggning, kräverAdmin, async (req, res) => {
     res.json(await hämtaFöretagMedStatistik());
   } catch (fel) {
     console.error('Admin-företag fel:', fel);
+    res.status(500).json({ fel: 'Serverfel' });
+  }
+});
+
+// PATCH /api/admin/foretag/:userId/blockera — blockera/avblockera ett företag
+router.patch('/foretag/:userId/blockera', kräverInloggning, kräverAdmin, async (req, res) => {
+  if (typeof req.body?.blockerad !== 'boolean') {
+    return res.status(400).json({ fel: 'blockerad måste vara true eller false' });
+  }
+  try {
+    const rad = await sättBlockerad(req.params.userId, req.body.blockerad);
+    if (!rad) return res.status(404).json({ fel: 'Företaget hittades inte' });
+    res.json({ ok: true });
+  } catch (fel) {
+    console.error('Admin-blockera fel:', fel);
     res.status(500).json({ fel: 'Serverfel' });
   }
 });
