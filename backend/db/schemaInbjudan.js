@@ -116,14 +116,18 @@ async function hämtaMinaInbjudningar(anvandare_id) {
     jobbMap = Object.fromEntries((jobb || []).map(j => [j.id, j]));
   }
 
-  // Redan ansökta målannonser (uteslut dessa – de är inte längre väntande förfrågningar).
+  // Målannonser personen redan har en AKTIV ansökan på (uteslut dessa – de är inte längre
+  // väntande förfrågningar). Bara 'väntande'/'godkänd' blockerar: en avvisad ansökan (företaget
+  // nekade, eller personen hoppade av – båda ger status 'avvisad') ska INTE dölja en ny
+  // inbjudan, så att ett omtag efter ett avslag syns igen i Förfrågningar.
   let sökta = new Set();
   if (jobbIds.length) {
     const { data: ansokningar } = await supabase
       .from('ansokningar')
       .select('jobb_id')
       .eq('sokande_id', anvandare_id)
-      .in('jobb_id', jobbIds);
+      .in('jobb_id', jobbIds)
+      .in('status', ['väntande', 'godkänd']);
     sökta = new Set((ansokningar || []).map(a => a.jobb_id));
   }
 
