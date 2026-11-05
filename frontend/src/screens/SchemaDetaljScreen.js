@@ -3,7 +3,6 @@ import { View, Text, TouchableOpacity, StyleSheet, Alert, ScrollView, ActivityIn
 import { useFocusEffect } from '@react-navigation/native';
 import { useHeaderHeight } from '@react-navigation/elements';
 import { Ionicons } from '@expo/vector-icons';
-import * as Clipboard from 'expo-clipboard';
 import { useAuth } from '../context/AuthContext';
 import { useRealtidsPing } from '../context/RealtidsContext';
 import { useAttAvsluta } from '../context/AttAvslutaContext';
@@ -16,6 +15,7 @@ import IntygandeRad from '../components/IntygandeRad';
 import { useLoggaRefresh } from '../components/LoggaRefresh';
 import { useJobbPåslag } from '../utils/useJobbPåslag';
 import RollBrickor from '../components/RollBrickor';
+import BjudInModal from '../components/BjudInModal';
 import { haptik } from '../utils/haptik';
 
 const PASSFÄRGER = {
@@ -34,11 +34,8 @@ export default function SchemaDetaljScreen({ route, navigation }) {
   const [sökt, setSökt] = useState(false);
   const [ikryssade, setIkryssade] = useState(() => new Set());
   const [avtalsModalSynlig, setAvtalsModalSynlig] = useState(false);
-  // Inbjudningar (bara relevant för företaget på ett privat schema).
-  const [inbjudEmail, setInbjudEmail] = useState('');
-  const [bjuderIn, setBjuderIn] = useState(false);
-  const [inbjudningar, setInbjudningar] = useState([]);
-  const [genererar, setGenererar] = useState(false);
+  // "Bjud in"-modalen (bara relevant för företaget).
+  const [bjudInSynlig, setBjudInSynlig] = useState(false);
   const { uppdateraAttAvsluta } = useAttAvsluta();
   // Höjden på navigationsrubriken – KeyboardAvoidingView behöver den som offset,
   // annars räknar iOS fel och lämnar en lucka eller låter tangentbordet ligga kvar över fältet.
@@ -65,56 +62,6 @@ export default function SchemaDetaljScreen({ route, navigation }) {
 
   useFocusEffect(useCallback(() => { hämta(); }, [hämta]));
 
-  // Ladda inbjudningslistan när företaget tittar på ett privat schema.
-  const laddaInbjudningar = useCallback(async () => {
-    if (!ärFöretag || !schema?.privat) return;
-    try {
-      setInbjudningar(await api.schemaInbjudningar(schemaId));
-    } catch {
-      /* listan är sekundär – svälj fel */
-    }
-  }, [ärFöretag, schema?.privat, schemaId]);
-
-  useFocusEffect(useCallback(() => { laddaInbjudningar(); }, [laddaInbjudningar]));
-
-  async function skickaInbjudan() {
-    const email = inbjudEmail.trim();
-    if (!email) return;
-    setBjuderIn(true);
-    try {
-      const svar = await api.bjudInTillSchema(schemaId, email);
-      setInbjudEmail('');
-      Alert.alert(
-        'Inbjudan skickad',
-        svar?.hadeKonto
-          ? 'Personen har fått ett mejl och en notis i appen.'
-          : 'Personen har fått ett mejl med en länk till schemat.'
-      );
-      laddaInbjudningar();
-    } catch (fel) {
-      Alert.alert('Fel', felText(fel));
-    } finally {
-      setBjuderIn(false);
-    }
-  }
-  // Genererar en delbar inbjudningslänk till schemat och kopierar den till urklipp. Länken
-  // gör schemat privat (döljs ur den öppna listan); en person som registrerar sig via länken
-  // ger ett rabatterat påslag. Backend sätter privat = true, så vi hämtar om schemat efteråt.
-  async function genereraSchemaLänk() {
-    setGenererar(true);
-    try {
-      const { url } = await api.genereraSchemaInbjudan(schemaId);
-      await Clipboard.setStringAsync(url);
-      haptik.lyckat();
-      await hämta();
-      Alert.alert('Länk kopierad', 'Inbjudningslänken är kopierad. Schemat är nu privat – dela länken med personen du vill bjuda in.');
-    } catch (fel) {
-      haptik.fel();
-      Alert.alert('Fel', felText(fel));
-    } finally {
-      setGenererar(false);
-    }
-  }
 
   useRealtidsPing(() => { hämta(); });
 
@@ -436,67 +383,13 @@ export default function SchemaDetaljScreen({ route, navigation }) {
           </TouchableOpacity>
         )}
 
-        {/* Generera delbar inbjudningslänk – gör schemat privat. Finns även för publika
-            scheman: att generera länken är det som gör det privat. */}
+        {/* En enda "Bjud in"-knapp öppnar modalen med båda flikarna (länk + e-post). Att bjuda
+            in gör schemat privat, så vi hämtar om schemat efteråt via onÄndrad. */}
         {ärFöretag && schema.status !== 'avbrutet' && (
-          <View style={styles.inbjudKort}>
-            <Text style={styles.sektionsRubrik}>Inbjudningslänk</Text>
-            <Text style={styles.inbjudText}>
-              Dela en länk direkt med en person. Schemat blir privat och syns inte i den öppna
-              listan. Är personen ny på FastGig och registrerar sig via länken får du ett
-              rabatterat påslag.
-            </Text>
-            <TouchableOpacity
-              style={[styles.länkKnapp, genererar && { opacity: 0.6 }]}
-              onPress={genereraSchemaLänk}
-              disabled={genererar}
-            >
-              <Ionicons name="link-outline" size={18} color="#2563eb" accessible={false} importantForAccessibility="no" />
-              <Text style={styles.länkKnappText}>{genererar ? 'Genererar…' : 'Generera inbjudningslänk'}</Text>
-            </TouchableOpacity>
-          </View>
-        )}
-
-        {/* Företagets sökande ligger HÖGST UPP – det är det man öppnar schemat för. Låg de
-            kvar sist hamnade de efter en passlista som kan vara 60+ rader lång. */}
-        {ärFöretag && schema.privat && (
-          <View style={styles.inbjudKort}>
-            <Text style={styles.sektionsRubrik}>Bjud in till schemat</Text>
-            <Text style={styles.inbjudText}>
-              Privata scheman syns bara för inbjudna. Skriv en e-postadress så får personen en
-              länk till schemat (och en notis i appen om de redan har konto).
-            </Text>
-            <View style={styles.inbjudRad}>
-              <TextInput
-                style={styles.inbjudInput}
-                value={inbjudEmail}
-                onChangeText={setInbjudEmail}
-                placeholder="namn@exempel.se"
-                autoCapitalize="none"
-                keyboardType="email-address"
-                autoCorrect={false}
-              />
-              <TouchableOpacity
-                style={[styles.inbjudKnapp, bjuderIn && { opacity: 0.6 }]}
-                onPress={skickaInbjudan}
-                disabled={bjuderIn}
-              >
-                <Text style={styles.inbjudKnappText}>{bjuderIn ? 'Skickar…' : 'Bjud in'}</Text>
-              </TouchableOpacity>
-            </View>
-            {inbjudningar.length > 0 && (
-              <View style={{ marginTop: 12 }}>
-                {inbjudningar.map((i, idx) => (
-                  <View key={`${i.email ?? 'länk'}-${idx}`} style={styles.inbjudListRad}>
-                    <Text style={styles.inbjudListEmail}>{i.email || 'Delad länk'}</Text>
-                    <Text style={styles.inbjudListStatus}>
-                      {i.accepterad_at ? 'Öppnat' : !i.email ? 'Väntar' : i.hadeKonto ? 'Notis skickad' : 'Mejl skickat'}
-                    </Text>
-                  </View>
-                ))}
-              </View>
-            )}
-          </View>
+          <TouchableOpacity style={styles.bjudInKnapp} onPress={() => setBjudInSynlig(true)}>
+            <Ionicons name="person-add-outline" size={18} color="#fff" />
+            <Text style={styles.bjudInKnappText}>Bjud in</Text>
+          </TouchableOpacity>
         )}
 
         {ärFöretag && (
@@ -793,6 +686,14 @@ export default function SchemaDetaljScreen({ route, navigation }) {
           </View>
         </View>
       </Modal>
+
+      <BjudInModal
+        visible={bjudInSynlig}
+        onStäng={() => setBjudInSynlig(false)}
+        typ="schema"
+        id={schemaId}
+        onÄndrad={hämta}
+      />
     </>
   );
 }
@@ -811,6 +712,8 @@ const styles = StyleSheet.create({
   inbjudKnapp: { backgroundColor: '#2563eb', borderRadius: 10, paddingHorizontal: 18, justifyContent: 'center' },
   inbjudKnappText: { color: '#fff', fontWeight: '700', fontSize: 15 },
   länkKnapp: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, borderWidth: 1, borderColor: '#2563eb', borderRadius: 10, paddingVertical: 11 },
+  bjudInKnapp: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: '#2563eb', borderRadius: 10, paddingVertical: 13, marginTop: 8, marginBottom: 8 },
+  bjudInKnappText: { color: '#fff', fontWeight: '600', fontSize: 15 },
   länkKnappText: { color: '#2563eb', fontWeight: '600', fontSize: 14 },
   inbjudListRad: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 8, borderTopWidth: 1, borderTopColor: '#e2e8f0' },
   inbjudListEmail: { fontSize: 14, color: '#0f172a', flex: 1 },

@@ -438,24 +438,36 @@ export default function Navigation() {
     return () => clearTimeout(timer);
   }, []);
 
-  // Tryck på en schema-inbjudningsnotis öppnar schemat i appen. Privatpersonens SchemaDetalj
-  // ligger i JobbTab → JobbNavigator. getLastNotificationResponseAsync täcker kallstart
-  // (appen var helt stängd när notisen trycktes); lyssnaren täcker appen igång/i bakgrunden.
-  // Gatead på privatperson eftersom företagets SchemaDetalj ligger i en annan flik.
+  // Tryck på en inbjudningsnotis öppnar jobbet eller schemat i appen. Privatpersonens
+  // SchemaDetalj/JobbDetalj ligger i JobbTab → JobbNavigator. getLastNotificationResponseAsync
+  // täcker kallstart (appen var helt stängd när notisen trycktes); lyssnaren täcker appen
+  // igång/i bakgrunden. Gatead på privatperson eftersom företagets vyer ligger i andra flikar.
   useEffect(() => {
     if (användare?.typ !== 'privatperson') return undefined;
 
-    function öppnaSchema(schemaId, försök = 0) {
+    function öppna(skärm, params, försök = 0) {
       if (navigationRef.isReady()) {
-        navigationRef.navigate('JobbTab', { screen: 'SchemaDetalj', params: { schemaId } });
+        navigationRef.navigate('JobbTab', { screen: skärm, params });
       } else if (försök < 10) {
         // Kallstart: containern kan vara omonterad en kort stund efter att svaret lästs.
-        setTimeout(() => öppnaSchema(schemaId, försök + 1), 300);
+        setTimeout(() => öppna(skärm, params, försök + 1), 300);
       }
     }
-    function hanteraSvar(svar) {
+    async function hanteraSvar(svar) {
       const data = svar?.notification?.request?.content?.data;
-      if (data?.typ === 'schema_inbjudan' && data.schemaId) öppnaSchema(data.schemaId);
+      // 'schema_inbjudan' behålls som alias för äldre notiser; nya använder 'inbjudan'.
+      if (data?.typ !== 'inbjudan' && data?.typ !== 'schema_inbjudan') return;
+      if (data.schemaId) {
+        öppna('SchemaDetalj', { schemaId: data.schemaId });
+      } else if (data.jobbId) {
+        // JobbDetalj tar hela jobb-objektet (ingen hämtning per id där), så vi hämtar det här.
+        try {
+          const jobb = await api.hämtaJobbId(data.jobbId);
+          öppna('JobbDetalj', { jobb });
+        } catch {
+          /* kunde inte hämta jobbet – ignorera tyst, personen kan öppna det via Förfrågningar */
+        }
+      }
     }
 
     const sub = Notifications.addNotificationResponseReceivedListener(hanteraSvar);

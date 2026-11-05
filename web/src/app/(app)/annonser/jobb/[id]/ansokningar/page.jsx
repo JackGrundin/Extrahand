@@ -8,7 +8,7 @@ import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import Besked from '@/components/ui/Besked';
 import AnsökningsKort from '@/components/app/AnsökningsKort';
-import GenereraInbjudanLank from '@/components/app/GenereraInbjudanLank';
+import BjudInModal from '@/components/app/BjudInModal';
 import { api, felText } from '@/lib/api';
 import { harStartat } from '@/utils/datumHelper';
 
@@ -18,6 +18,7 @@ export default function JobbAnsökningar() {
   const [ansökningar, setAnsökningar] = useState([]);
   const [fel, setFel] = useState('');
   const [laddar, setLaddar] = useState(true);
+  const [bjudInÖppen, setBjudInÖppen] = useState(false);
 
   const hämta = useCallback(async () => {
     setFel('');
@@ -90,7 +91,25 @@ export default function JobbAnsökningar() {
         </div>
       )}
 
-      {jobb && <GenereraInbjudanLank typ="jobb" id={id} onPrivat={hämta} />}
+      {jobb && (
+        <div className="mt-6">
+          <button
+            type="button"
+            onClick={() => setBjudInÖppen(true)}
+            className="rounded-sm bg-gradient-primär px-5 py-2.5 text-[14px] font-bold text-white shadow-mjuk transition-shadow hover:shadow-lyft"
+          >
+            Bjud in
+          </button>
+        </div>
+      )}
+
+      <BjudInModal
+        typ="jobb"
+        id={id}
+        öppen={bjudInÖppen}
+        onStäng={() => setBjudInÖppen(false)}
+        onÄndrad={hämta}
+      />
     </div>
   );
 }

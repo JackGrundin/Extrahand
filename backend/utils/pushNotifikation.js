@@ -1,5 +1,5 @@
 // data (valfritt) följer med i Expo-notisen och läses av appen vid tryck för att navigera
-// (t.ex. { typ: 'schema_inbjudan', schemaId }). Utelämnas data skickas ingen data-nyckel,
+// (t.ex. { typ: 'inbjudan', schemaId } eller { typ: 'inbjudan', jobbId }). Utelämnas data skickas ingen data-nyckel,
 // så alla befintliga anrop beter sig precis som förut.
 async function skickaNotifikation(token, title, body, data) {
   if (!token || !token.startsWith('ExponentPushToken')) return;

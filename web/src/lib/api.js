@@ -162,14 +162,13 @@ export const api = {
   // Kalendervy: union av schemapass och godkända enstaka pass (inkl. obemannade).
   schemaKalender: (från, till) =>
     anrop('GET', `/scheman/kalender?from=${encodeURIComponent(från)}&till=${encodeURIComponent(till)}`),
-  // Privata scheman: bjud in via e-post + lista inbjudna (företag), lösa in inbjudningstoken.
-  bjudInTillSchema: (id, email) => anrop('POST', `/scheman/${id}/bjud-in`, { email }),
   schemaInbjudningar: (id) => anrop('GET', `/scheman/${id}/inbjudningar`),
   hämtaInbjudan: (token) => anrop('GET', `/inbjudan/${encodeURIComponent(token)}`, undefined, { tystAuthFel: true }),
-  // Inbjudningslänkar (jobb/schema): generera delbar länk (gör annonsen privat), koppla
-  // kontot efter registrering (sätter ev. rabatt), och göra ett jobb publikt igen.
-  genereraJobbInbjudan: (jobbId) => anrop('POST', `/inbjudan/jobb/${jobbId}`, {}),
-  genereraSchemaInbjudan: (schemaId) => anrop('POST', `/inbjudan/schema/${schemaId}`, {}),
+  // Inbjudningar (jobb/schema): utan email genereras bara en delbar länk (svar { url }) och
+  // annonsen blir privat; med email skickas inbjudan direkt via mejl + ev. push (svar
+  // { ok, hadeKonto, url }). Samma endpoint driver båda flikarna i "Bjud in"-modalen.
+  genereraJobbInbjudan: (jobbId, email) => anrop('POST', `/inbjudan/jobb/${jobbId}`, email ? { email } : {}),
+  genereraSchemaInbjudan: (schemaId, email) => anrop('POST', `/inbjudan/schema/${schemaId}`, email ? { email } : {}),
   kopplaInbjudan: (token) => anrop('POST', `/inbjudan/${encodeURIComponent(token)}/koppla`, {}),
   // Acceptera en inbjudan med ett klick: skapar ansökan + godkänner direkt. Svarar
   // { ansokanId, avtalGodkant }.

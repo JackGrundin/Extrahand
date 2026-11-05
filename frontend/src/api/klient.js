@@ -271,12 +271,12 @@ export const api = {
   hämtaSchemaAvdrag: (id) => anrop('GET', `/scheman/${id}/avdrag`),
   skapaSchemaAvdrag: (id, kropp) => anrop('POST', `/scheman/${id}/avdrag`, kropp),
   taBortSchemaAvdrag: (id, avdragId) => anrop('DELETE', `/scheman/${id}/avdrag/${avdragId}`),
-  // Privata scheman: bjud in person via e-post + lista inbjudna.
-  bjudInTillSchema: (id, email) => anrop('POST', `/scheman/${id}/bjud-in`, { email }),
   schemaInbjudningar: (id) => anrop('GET', `/scheman/${id}/inbjudningar`),
-  // Inbjudningslänk till ett jobb/schema. Gör annonsen privat och returnerar { url }.
-  genereraJobbInbjudan: (jobbId) => anrop('POST', `/inbjudan/jobb/${jobbId}`, {}),
-  genereraSchemaInbjudan: (schemaId) => anrop('POST', `/inbjudan/schema/${schemaId}`, {}),
+  // Inbjudan till ett jobb/schema. Utan email: generera delbar länk (svar { url }), annonsen
+  // blir privat. Med email: skicka inbjudan direkt via mejl + ev. push (svar { ok, hadeKonto,
+  // url }). Samma endpoint driver båda flikarna i "Bjud in"-modalen.
+  genereraJobbInbjudan: (jobbId, email) => anrop('POST', `/inbjudan/jobb/${jobbId}`, email ? { email } : {}),
+  genereraSchemaInbjudan: (schemaId, email) => anrop('POST', `/inbjudan/schema/${schemaId}`, email ? { email } : {}),
   // Förfrågningar-fliken: inkomna inbjudningar + acceptera via inbjudans id.
   hämtaMinaInbjudningar: () => anrop('GET', '/inbjudan/mina'),
   accepteraInbjudanViaId: (id) => anrop('POST', `/inbjudan/mina/${id}/acceptera`, {}),

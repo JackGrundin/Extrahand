@@ -24,10 +24,8 @@ const { tilldelaSchema, frigörFramtidaPass, återställSchema } = require('../d
 const { skapaJobb, räknaJobbDennaMånad, sättJobbPåslag, hämtaJobbFörFöretag, markeraAnsökningarSedda } = require('../db/jobb');
 const { hämtaAnsökningarFörJobb, uppdateraStatus, markeraAvhopp, hämtaGodkändaFörFleraJobb, hämtaNamnFörAnvändare } = require('../db/ansokningar');
 const { hämtaPrenumeration, ärPro, harGjortPlanval, sättPlanvalGjort, minskaPassDennaManad } = require('../db/prenumeration');
-const { hämtaPrivatpersonerIStad, hämtaPushToken, hämtaAnvändareViaEmail, ärBlockerad } = require('../db/användare');
-const { hashaToken, skapaInbjudan, hämtaInbjudningarFörSchema } = require('../db/schemaInbjudan');
-const { skickaSchemaInbjudanMail } = require('../utils/email');
-const crypto = require('crypto');
+const { hämtaPrivatpersonerIStad, hämtaPushToken, ärBlockerad } = require('../db/användare');
+const { hämtaInbjudningarFörSchema } = require('../db/schemaInbjudan');
 const { GRATIS_PASS_PER_MANAD, valideraObTillagg } = require('../utils/pris');
 const { normaliseraKrav, valideraBehorighetsKrav } = require('../utils/behorighet');
 const { notifieraOmNyaKrav } = require('../utils/kravNotis');
@@ -639,66 +637,6 @@ router.post('/:id/markera-ansokningar-sedda', kräverInloggning, kräverTyp('fö
   } catch (fel) {
     console.error('Fel vid markering av sedda schemaansökningar:', fel);
     res.status(500).json({ fel: 'Serverfel' });
-  }
-});
-
-// Webbappens bas-URL för inbjudningslänkar. Länken landar på webben (till skillnad från
-// lösenordsåterställningens APP_BAS_URL, som pekar på backendens egna sida) eftersom
-// registreringsfunneln och privatpersons-schemavyn ligger i webbappen.
-const WEBB_BAS_URL = process.env.WEBB_BAS_URL || 'https://fastgig.se';
-const EPOST_MÖNSTER = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-
-// POST /api/scheman/:id/bjud-in — företaget bjuder in en person till ett PRIVAT schema via
-// e-post. Skapar en inbjudan med unik token (bara hashen lagras), skickar alltid mejl och –
-// om e-posten matchar ett konto – även en push som vid tryck öppnar schemat i appen.
-router.post('/:id/bjud-in', kräverInloggning, kräverTyp('företag'), async (req, res) => {
-  const email = String(req.body?.email ?? '').trim().toLowerCase();
-  if (!EPOST_MÖNSTER.test(email)) return res.status(400).json({ fel: 'Ange en giltig e-postadress' });
-
-  try {
-    const schema = await hämtaSchemaViaId(req.params.id);
-    if (!schema) return res.status(404).json({ fel: 'Schemat hittades inte' });
-    if (String(schema.foretag_id) !== String(req.användare.id)) {
-      return res.status(403).json({ fel: 'Åtkomst nekad' });
-    }
-    if (!schema.privat) return res.status(400).json({ fel: 'Bara privata scheman kan bjudas in till' });
-
-    // Matchar e-posten ett konto kopplas inbjudan dit direkt och en push skickas.
-    const befintlig = await hämtaAnvändareViaEmail(email);
-
-    const token = crypto.randomBytes(32).toString('hex');
-    await skapaInbjudan({
-      schema_id: schema.id,
-      email,
-      tokenHash: hashaToken(token),
-      anvandare_id: befintlig?.id ?? null,
-    });
-
-    const företagNamn = (await hämtaNamnFörAnvändare([req.användare.id]))[req.användare.id] || 'Ett företag';
-    const länk = `${WEBB_BAS_URL}/inbjudan/${token}`;
-
-    // Svara direkt; mejl/push blockerar inte svaret.
-    res.json({ ok: true, hadeKonto: Boolean(befintlig) });
-
-    skickaSchemaInbjudanMail(email, { företagNamn, schemaTitel: schema.titel, länk }).catch(fel =>
-      console.error('Inbjudningsmejl misslyckades:', fel)
-    );
-
-    if (befintlig) {
-      hämtaPushToken(befintlig.id)
-        .then(pushToken =>
-          skickaNotifikation(
-            pushToken,
-            `${företagNamn} har bjudit in dig`,
-            `${företagNamn} har bjudit in dig till schemat ${schema.titel} – tryck här för att se det`,
-            { typ: 'schema_inbjudan', schemaId: schema.id }
-          )
-        )
-        .catch(fel => console.error('Inbjudnings-push misslyckades:', fel));
-    }
-  } catch (fel) {
-    console.error('Fel vid inbjudan till schema:', fel);
-    res.status(500).json({ fel: 'Serverfel vid inbjudan' });
   }
 });
 

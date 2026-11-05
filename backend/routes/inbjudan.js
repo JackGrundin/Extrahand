@@ -20,22 +20,46 @@ const {
 const { hämtaSchemaViaId, uppdateraSchema } = require('../db/scheman');
 const { hämtaJobbViaId, sättJobbPrivat } = require('../db/jobb');
 const { hämtaNamnFörAnvändare, skapaAnsökan, hämtaAnsökanFörJobbOchSökande, hämtaGodkändaFörJobb } = require('../db/ansokningar');
-const { hämtaAnvändareViaId, hämtaAvtalGodkant, hämtaPushToken } = require('../db/användare');
+const { hämtaAnvändareViaId, hämtaAvtalGodkant, hämtaPushToken, hämtaAnvändareViaEmail } = require('../db/användare');
 const { godkännAnsökan } = require('../db/godkannande');
 const { hittaKrockFörSökande } = require('../db/dubbelbokning');
 const { normaliseraKrav } = require('../utils/behorighet');
 const { skickaNotifikation } = require('../utils/pushNotifikation');
+const { skickaInbjudanMail } = require('../utils/email');
 const { sändRealtidsPing, sändJobblistaPing } = require('../realtid');
 const { kräverInloggning, kräverTyp } = require('../middleware/auth');
 
 const router = express.Router();
 
 const WEBB_BAS_URL = process.env.WEBB_BAS_URL || 'https://fastgig.se';
+const EPOST_MÖNSTER = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 // Token saneras till hex innan den används som uppslagsnyckel – samma princip som
 // återställningssidan, så inget oväntat kan nå databasen.
 function rensaToken(token) {
   return String(token ?? '').replace(/[^a-f0-9]/gi, '').slice(0, 128);
+}
+
+// Skickar e-postinbjudan: alltid mejl, och en push om kontot redan finns (push-datan bär
+// { typ:'inbjudan', jobbId|schemaId } så att appen kan öppna rätt vy). Icke-blockerande –
+// anropas efter att svaret skickats, och ett mejl-/push-fel loggas men fälls aldrig. Delad
+// av jobb- och schemainbjudan; `mål` är { jobbId } eller { schemaId }.
+function skickaEpostInbjudan({ email, befintlig, företagNamn, titel, länk, mål }) {
+  skickaInbjudanMail(email, { företagNamn, titel, länk }).catch(fel =>
+    console.error('Inbjudningsmejl misslyckades:', fel)
+  );
+  if (befintlig) {
+    hämtaPushToken(befintlig.id)
+      .then(pushToken =>
+        skickaNotifikation(
+          pushToken,
+          `${företagNamn} har bjudit in dig`,
+          `${företagNamn} har bjudit in dig till ${titel} – tryck här för att se det`,
+          { typ: 'inbjudan', ...mål }
+        )
+      )
+      .catch(fel => console.error('Inbjudnings-push misslyckades:', fel));
+  }
 }
 
 // Inbjudningslänken fungerar både utloggad (ny användare på väg till registrering) och
@@ -84,11 +108,25 @@ router.post('/jobb/:jobbId', kräverInloggning, kräverTyp('företag'), async (r
       return res.status(403).json({ fel: 'Åtkomst nekad' });
     }
 
+    // Valfri e-post: då skickar vi inbjudan direkt (mejl + ev. push) och kopplar den till
+    // adressen så den dyker upp i personens Förfrågningar. Utan e-post genereras bara en
+    // delbar länk (oförändrat beteende).
+    const email = req.body?.email ? String(req.body.email).trim().toLowerCase() : '';
+    if (email && !EPOST_MÖNSTER.test(email)) return res.status(400).json({ fel: 'Ange en giltig e-postadress' });
+    const befintlig = email ? await hämtaAnvändareViaEmail(email) : null;
+
     const token = crypto.randomBytes(32).toString('hex');
-    await skapaInbjudan({ jobb_id: jobb.id, foretag_id: req.användare.id, tokenHash: hashaToken(token) });
+    await skapaInbjudan({ jobb_id: jobb.id, foretag_id: req.användare.id, tokenHash: hashaToken(token), email: email || null, anvandare_id: befintlig?.id ?? null });
     await sättJobbPrivat(jobb.id, req.användare.id, true);
 
-    res.json({ url: `${WEBB_BAS_URL}/inbjudan/${token}` });
+    const länk = `${WEBB_BAS_URL}/inbjudan/${token}`;
+    if (email) {
+      const företagNamn = (await hämtaNamnFörAnvändare([req.användare.id]))[req.användare.id] || 'Ett företag';
+      res.json({ ok: true, hadeKonto: Boolean(befintlig), url: länk });
+      skickaEpostInbjudan({ email, befintlig, företagNamn, titel: jobb.Titel, länk, mål: { jobbId: jobb.id } });
+      return;
+    }
+    res.json({ url: länk });
   } catch (fel) {
     console.error('Fel vid generering av jobbinbjudan:', fel);
     res.status(500).json({ fel: 'Serverfel vid generering av inbjudan' });
@@ -105,11 +143,22 @@ router.post('/schema/:schemaId', kräverInloggning, kräverTyp('företag'), asyn
       return res.status(403).json({ fel: 'Åtkomst nekad' });
     }
 
+    const email = req.body?.email ? String(req.body.email).trim().toLowerCase() : '';
+    if (email && !EPOST_MÖNSTER.test(email)) return res.status(400).json({ fel: 'Ange en giltig e-postadress' });
+    const befintlig = email ? await hämtaAnvändareViaEmail(email) : null;
+
     const token = crypto.randomBytes(32).toString('hex');
-    await skapaInbjudan({ schema_id: schema.id, foretag_id: req.användare.id, tokenHash: hashaToken(token) });
+    await skapaInbjudan({ schema_id: schema.id, foretag_id: req.användare.id, tokenHash: hashaToken(token), email: email || null, anvandare_id: befintlig?.id ?? null });
     if (!schema.privat) await uppdateraSchema(schema.id, req.användare.id, { privat: true });
 
-    res.json({ url: `${WEBB_BAS_URL}/inbjudan/${token}` });
+    const länk = `${WEBB_BAS_URL}/inbjudan/${token}`;
+    if (email) {
+      const företagNamn = (await hämtaNamnFörAnvändare([req.användare.id]))[req.användare.id] || 'Ett företag';
+      res.json({ ok: true, hadeKonto: Boolean(befintlig), url: länk });
+      skickaEpostInbjudan({ email, befintlig, företagNamn, titel: schema.titel, länk, mål: { schemaId: schema.id } });
+      return;
+    }
+    res.json({ url: länk });
   } catch (fel) {
     console.error('Fel vid generering av schemainbjudan:', fel);
     res.status(500).json({ fel: 'Serverfel vid generering av inbjudan' });

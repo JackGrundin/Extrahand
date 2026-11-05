@@ -9,8 +9,7 @@ import { useParams } from 'next/navigation';
 import Besked from '@/components/ui/Besked';
 import RollBrickor from '@/components/app/RollBrickor';
 import AnsökningsKort from '@/components/app/AnsökningsKort';
-import InbjudanSektion from '@/components/app/InbjudanSektion';
-import GenereraInbjudanLank from '@/components/app/GenereraInbjudanLank';
+import BjudInModal from '@/components/app/BjudInModal';
 import { api, felText } from '@/lib/api';
 import { formatPeriod, veckodagsNamn, formatDagDatum } from '@/utils/datumHelper';
 import { schematypEtikett, formateraPris } from '@/utils/konstanter';
@@ -20,6 +19,7 @@ export default function SchemaDetalj() {
   const [schema, setSchema] = useState(null);
   const [fel, setFel] = useState('');
   const [laddar, setLaddar] = useState(true);
+  const [bjudInÖppen, setBjudInÖppen] = useState(false);
 
   const hämta = useCallback(async () => {
     setFel('');
@@ -108,9 +108,23 @@ export default function SchemaDetalj() {
 
       {fel && <Besked typ="fel">{fel}</Besked>}
 
-      <GenereraInbjudanLank typ="schema" id={id} onPrivat={hämta} />
+      <div className="mt-6">
+        <button
+          type="button"
+          onClick={() => setBjudInÖppen(true)}
+          className="rounded-sm bg-gradient-primär px-5 py-2.5 text-[14px] font-bold text-white shadow-mjuk transition-shadow hover:shadow-lyft"
+        >
+          Bjud in
+        </button>
+      </div>
 
-      {schema.privat && <InbjudanSektion schemaId={id} />}
+      <BjudInModal
+        typ="schema"
+        id={id}
+        öppen={bjudInÖppen}
+        onStäng={() => setBjudInÖppen(false)}
+        onÄndrad={hämta}
+      />
 
       {schema.beskrivning && (
         <p className="mt-5 whitespace-pre-wrap text-[15px] leading-relaxed text-text-dämpad">{schema.beskrivning}</p>

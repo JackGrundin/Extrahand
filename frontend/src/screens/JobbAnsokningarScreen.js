@@ -2,11 +2,11 @@ import { useCallback, useState } from 'react';
 import { View, Text, FlatList, TouchableOpacity, StyleSheet, ActivityIndicator, Alert } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
-import * as Clipboard from 'expo-clipboard';
 import { api, felText } from '../api/klient';
 import { harStartat, planeradeTimmar, parsaArbetstider } from '../utils/datumHelper';
 import { ansökanStatusVisning } from '../utils/konstanter';
 import AvslutaPassModal from '../components/AvslutaPassModal';
+import BjudInModal from '../components/BjudInModal';
 import HandlingsKnapp from '../components/HandlingsKnapp';
 import IntygandeRad from '../components/IntygandeRad';
 import TomtTillstånd from '../components/TomtTillstånd';
@@ -138,26 +138,7 @@ export default function JobbAnsokningarScreen({ route, navigation }) {
   const [modalSynlig, setModalSynlig] = useState(false);
   const [valtAnsokningId, setValtAnsokningId] = useState(null);
   const [sparar, setSparar] = useState(false);
-  const [genererar, setGenererar] = useState(false);
-
-  // Genererar en inbjudningslänk till passet. Länken gör jobbet privat (döljs ur den öppna
-  // listan) och kopieras direkt till urklipp. En person som registrerar sig via länken ger
-  // ett rabatterat påslag. Backend sätter privat = true, så vi hämtar om jobbet efteråt.
-  async function genereraLänk() {
-    setGenererar(true);
-    try {
-      const { url } = await api.genereraJobbInbjudan(jobbId);
-      await Clipboard.setStringAsync(url);
-      haptik.lyckat();
-      await hämta();
-      Alert.alert('Länk kopierad', 'Inbjudningslänken är kopierad. Passet är nu privat – dela länken med personen du vill bjuda in.');
-    } catch (fel) {
-      haptik.fel();
-      Alert.alert('Fel', felText(fel));
-    } finally {
-      setGenererar(false);
-    }
-  }
+  const [bjudInSynlig, setBjudInSynlig] = useState(false);
 
   async function hämta() {
     try {
@@ -278,24 +259,18 @@ export default function JobbAnsokningarScreen({ route, navigation }) {
           tidigare ? null : (
             <View style={styles.inbjudanRuta}>
               <View style={styles.inbjudanRad}>
-                <Text style={styles.inbjudanRubrik}>Inbjudningslänk</Text>
+                <Text style={styles.inbjudanRubrik}>Bjud in</Text>
                 {jobb?.privat && (
                   <View style={styles.privatBricka}><Text style={styles.privatBrickaText}>Privat</Text></View>
                 )}
               </View>
               <Text style={styles.inbjudanText}>
-                Dela en länk direkt med en person. Passet blir privat och syns inte i den öppna listan.
-                Är personen ny på FastGig och registrerar sig via länken får du ett rabatterat påslag.
+                Bjud in en person direkt – via en delbar länk eller till deras app med e-post.
+                Passet blir privat och syns inte i den öppna listan.
               </Text>
-              <TouchableOpacity
-                style={[styles.inbjudanKnapp, genererar && { opacity: 0.5 }]}
-                onPress={genereraLänk}
-                disabled={genererar}
-              >
-                <Ionicons name="link-outline" size={18} color="#2563eb" />
-                <Text style={styles.inbjudanKnappText}>
-                  {genererar ? 'Genererar…' : 'Generera inbjudningslänk'}
-                </Text>
+              <TouchableOpacity style={styles.bjudInKnapp} onPress={() => setBjudInSynlig(true)}>
+                <Ionicons name="person-add-outline" size={18} color="#fff" />
+                <Text style={styles.bjudInKnappText}>Bjud in</Text>
               </TouchableOpacity>
             </View>
           )
@@ -355,6 +330,14 @@ export default function JobbAnsokningarScreen({ route, navigation }) {
         sparar={sparar}
         onSkicka={skickaRapport}
       />
+
+      <BjudInModal
+        visible={bjudInSynlig}
+        onStäng={() => setBjudInSynlig(false)}
+        typ="jobb"
+        id={jobbId}
+        onÄndrad={hämta}
+      />
     </>
   );
 }
@@ -395,6 +378,6 @@ const styles = StyleSheet.create({
   privatBricka: { backgroundColor: '#fef3c7', borderRadius: 999, paddingHorizontal: 10, paddingVertical: 3 },
   privatBrickaText: { color: '#92400e', fontWeight: '700', fontSize: 12 },
   inbjudanText: { fontSize: 13, color: '#666', lineHeight: 19, marginBottom: 12 },
-  inbjudanKnapp: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, borderWidth: 1, borderColor: '#2563eb', borderRadius: 8, paddingVertical: 11 },
-  inbjudanKnappText: { color: '#2563eb', fontWeight: '600', fontSize: 14 },
+  bjudInKnapp: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: '#2563eb', borderRadius: 8, paddingVertical: 12 },
+  bjudInKnappText: { color: '#fff', fontWeight: '600', fontSize: 15 },
 });
