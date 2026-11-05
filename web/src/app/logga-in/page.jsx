@@ -36,8 +36,10 @@ export default function LoggaIn() {
     setLaddar(true);
     try {
       const svar = await loggaIn(email.trim(), lösenord);
-      // Inbjudningslänk (next) går först; annars företag → översikt, privatperson → jobblistan.
+      // Inbjudningslänk (next) går först; annars admin → admin-delen, företag → översikt,
+      // privatperson → jobblistan.
       if (nästa) router.push(nästa);
+      else if (svar?.användare?.email === 'info@fastgig.se') router.push('/admin');
       else router.push(svar?.användare?.typ === 'företag' ? '/oversikt' : '/jobb');
     } catch (f) {
       if (f.kod === 'EMAIL_EJ_VERIFIERAD') {

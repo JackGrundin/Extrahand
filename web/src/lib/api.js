@@ -226,6 +226,24 @@ export const api = {
   // Adress – backend-proxy mot Nominatim (ALDRIG direkt från klienten).
   sökAdress: (q, stad) =>
     anrop('GET', `/adress/sok?q=${encodeURIComponent(q)}&stad=${encodeURIComponent(stad ?? '')}`),
+
+  // ── Admin (bara info@fastgig.se) ────────────────────────────────────────────
+  // Listorna hämtas via den samlade /admin-routern; mutationerna återanvänder de
+  // befintliga admin-endpointsen (avtal mejlar redan via Resend, betald/fakturerad
+  // bor kvar i sina respektive routrar).
+  adminStatistik: () => anrop('GET', '/admin/statistik'),
+  adminTidrapporter: (status) =>
+    anrop('GET', `/admin/tidrapporter${status ? `?status=${encodeURIComponent(status)}` : ''}`),
+  adminAvtal: () => anrop('GET', '/admin/avtal'),
+  adminFöretag: () => anrop('GET', '/admin/foretag'),
+  adminPrivatpersoner: () => anrop('GET', '/admin/privatpersoner'),
+  adminFakturering: () => anrop('GET', '/admin/fakturering'),
+  adminRaderade: () => anrop('GET', '/admin/raderade'),
+  godkännAvtal: (id) => anrop('PATCH', `/users/admin/${id}/avtal`, {}),
+  återkallaAvtal: (id, orsak) => anrop('PATCH', `/users/admin/${id}/avtal-aterkalla`, { orsak }),
+  återkallaAvtalRaderad: (id) => anrop('PATCH', `/users/admin/${id}/avtal-aterkalla-raderad`, {}),
+  markeraTidrapportBetald: (id) => anrop('PATCH', `/tidrapporter/${id}/betald`, {}),
+  markeraFakturerad: (id) => anrop('PATCH', `/fakturering/${id}/fakturerad`, {}),
 };
 
 export default api;

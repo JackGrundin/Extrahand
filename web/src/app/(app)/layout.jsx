@@ -16,9 +16,13 @@ export default function FöretagsLayout({ children }) {
   // Inte inloggad → till inloggningen. Privatpersoner har sin egen webbapp och ska aldrig
   // fastna i företagsdelen → skicka dem till jobblistan. Görs i en effekt (inte under render)
   // så att Next inte klagar på navigering mitt i renderingen.
+  // Admin-kontot är ett företagskonto men ska aldrig se företagsvyerna → till admin-delen.
+  // Privatpersoner har sin egen webbapp → jobblistan. Görs i en effekt (inte under render)
+  // så att Next inte klagar på navigering mitt i renderingen.
   useEffect(() => {
     if (laddar) return;
     if (!inloggad) router.replace('/logga-in');
+    else if (användare?.email === 'info@fastgig.se') router.replace('/admin');
     else if (användare?.typ !== 'företag') router.replace('/jobb');
   }, [laddar, inloggad, användare, router]);
 
@@ -30,9 +34,9 @@ export default function FöretagsLayout({ children }) {
     );
   }
 
-  // Inte inloggad, eller privatperson som ska omdirigeras till sin egen del → effekten
-  // ovan skickar vidare; rendera inget under tiden.
-  if (!inloggad || användare?.typ !== 'företag') return null;
+  // Inte inloggad, admin eller privatperson som ska omdirigeras → effekten ovan skickar
+  // vidare; rendera inget företagsinnehåll under tiden (undviker en blink av fel vy).
+  if (!inloggad || användare?.email === 'info@fastgig.se' || användare?.typ !== 'företag') return null;
 
   return (
     <RealtidsProvider>
