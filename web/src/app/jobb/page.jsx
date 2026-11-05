@@ -36,6 +36,7 @@ export default function JobbLista() {
   const [minDagar, setMinDagar] = useState('');
   const [sortering, setSortering] = useState('nyast');
   const [kategoriSök, setKategoriSök] = useState('');
+  const [visaAllaBranscher, setVisaAllaBranscher] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -66,6 +67,7 @@ export default function JobbLista() {
     setMinDagar('');
     setSortering('nyast');
     setKategoriSök('');
+    setVisaAllaBranscher(false);
   }
 
   const synligaKategorier = useMemo(() => {
@@ -73,6 +75,12 @@ export default function JobbLista() {
     if (!q) return KATEGORIER;
     return KATEGORIER.filter((k) => normalisera(k).includes(q));
   }, [kategoriSök]);
+
+  // Visa max 12 chips som default – sökning eller "Fler branscher" visar alla.
+  const sökAktiv = kategoriSök.trim().length > 0;
+  const begränsaBranscher = !sökAktiv && !visaAllaBranscher && synligaKategorier.length > 12;
+  const kategorierAttVisa = begränsaBranscher ? synligaKategorier.slice(0, 12) : synligaKategorier;
+  const doldaBranscher = synligaKategorier.length - kategorierAttVisa.length;
 
   const filtrerade = useMemo(() => {
     const ortLc = ort.trim().toLowerCase();
@@ -194,7 +202,7 @@ export default function JobbLista() {
                 className="mt-1.5 w-full rounded-sm border border-kant bg-yta-dämpad px-3.5 py-2.5 text-[14px] text-text outline-none focus:border-primär focus:border-[1.5px] focus:bg-yta"
               />
               <div className="mt-2 flex max-h-40 flex-wrap gap-1.5 overflow-y-auto">
-                {synligaKategorier.map((kat) => {
+                {kategorierAttVisa.map((kat) => {
                   const vald = valdaKategorier.has(kat);
                   return (
                     <button
@@ -212,6 +220,15 @@ export default function JobbLista() {
                   );
                 })}
               </div>
+              {doldaBranscher > 0 && (
+                <button
+                  type="button"
+                  onClick={() => setVisaAllaBranscher(true)}
+                  className="mt-2 text-[13px] font-semibold text-primär hover:underline"
+                >
+                  Fler branscher ({doldaBranscher})
+                </button>
+              )}
             </div>
 
             {antalFilter > 0 && (

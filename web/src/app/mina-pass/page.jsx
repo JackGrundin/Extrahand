@@ -196,8 +196,8 @@ export default function MinaPass() {
 
           {fel && <div className="mt-4"><Besked typ="fel">{fel}</Besked></div>}
 
-          {/* Flikar Kommande / Genomförda */}
-          <div className="mt-5 flex gap-2">
+          {/* Flikar Kommande / Genomförda – segmented control */}
+          <div className="mt-5 flex rounded-lg border border-kant bg-yta-dämpad p-1">
             {[
               { nyckel: 'kommande', etikett: `Kommande (${kommande.length})` },
               { nyckel: 'genomförda', etikett: `Genomförda (${genomförda.length})` },
@@ -206,10 +206,10 @@ export default function MinaPass() {
                 key={f.nyckel}
                 type="button"
                 onClick={() => setAktivFlik(f.nyckel)}
-                className={`flex-1 rounded-sm py-2.5 text-[14px] font-bold transition-colors ${
+                className={`flex-1 rounded-md px-4 py-2 text-[14px] font-semibold transition-all ${
                   aktivFlik === f.nyckel
-                    ? 'bg-primär text-white'
-                    : 'bg-yta text-text-dämpad hover:text-text'
+                    ? 'bg-yta text-text shadow-mjuk'
+                    : 'text-text-dämpad hover:text-text'
                 }`}
               >
                 {f.etikett}

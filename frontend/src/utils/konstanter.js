@@ -199,9 +199,9 @@ export function summeraAvdrag(avdrag) {
 }
 
 export const STATUSFÄRGER_ANSÖKAN = {
-  godkänd:  { bg: '#dcfce7', text: '#16a34a' },
-  avvisad:  { bg: '#fee2e2', text: '#dc2626' },
-  väntande: { bg: '#f3f4f6', text: '#6b7280' },
+  godkänd:  { bg: '#dcfce7', text: '#166534' },
+  avvisad:  { bg: '#fee2e2', text: '#b91c1c' },
+  väntande: { bg: '#fef9c3', text: '#854d0e' },
 };
 
 // Etikett och färg för en ansökans status.

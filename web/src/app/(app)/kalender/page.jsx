@@ -98,10 +98,10 @@ export default function Kalender() {
       {/* Månadssummering */}
       <div className="mb-4 flex flex-wrap gap-3">
         <span className="rounded-pill bg-framgång-mjuk px-3 py-1 text-[13px] font-bold text-framgång">
-          {summering.bemannade} bemannade dagar
+          {summering.bemannade} {summering.bemannade === 1 ? 'bemannad dag' : 'bemannade dagar'}
         </span>
         <span className="rounded-pill bg-varning-mjuk px-3 py-1 text-[13px] font-bold text-varning-text">
-          {summering.väntande} dagar söker personal
+          {summering.väntande} {summering.väntande === 1 ? 'dag' : 'dagar'} söker personal
         </span>
       </div>
 

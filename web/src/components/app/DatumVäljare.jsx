@@ -9,6 +9,7 @@ export default function DatumVäljare({ etikett, värde, onÄndra, fel, min, cla
       {etikett && <label className="text-[13px] font-semibold text-text-dämpad">{etikett}</label>}
       <input
         type="date"
+        lang="sv-SE"
         value={värde ?? ''}
         min={min}
         onChange={(e) => onÄndra(e.target.value)}

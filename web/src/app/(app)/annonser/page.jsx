@@ -94,17 +94,17 @@ export default function MinaAnnonser() {
         </div>
       </div>
 
-      {/* Flikar */}
-      <div className="mb-6 flex gap-1 border-b border-kant">
+      {/* Flikar – segmented control */}
+      <div className="mb-6 flex rounded-lg border border-kant bg-yta-dämpad p-1">
         {FLIKAR.map((f) => (
           <button
             key={f.nyckel}
             type="button"
             onClick={() => setFlik(f.nyckel)}
-            className={`-mb-px border-b-2 px-4 py-2.5 text-[15px] font-semibold transition-colors ${
+            className={`flex-1 rounded-md px-4 py-2 text-[15px] font-semibold transition-all ${
               flik === f.nyckel
-                ? 'border-primär text-primär'
-                : 'border-transparent text-text-dämpad hover:text-text'
+                ? 'bg-yta text-text shadow-mjuk'
+                : 'text-text-dämpad hover:text-text'
             }`}
           >
             {f.etikett}

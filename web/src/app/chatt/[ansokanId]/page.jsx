@@ -234,7 +234,7 @@ export default function ChattTråd() {
             <button
               type="submit"
               disabled={skickar || !text.trim()}
-              className="h-[46px] shrink-0 rounded-sm bg-gradient-primär px-5 text-[15px] font-bold text-white shadow-mjuk transition-all hover:shadow-lyft disabled:opacity-50"
+              className="h-[46px] shrink-0 rounded-sm bg-gradient-primär px-5 text-[15px] font-bold text-white shadow-mjuk transition-all hover:shadow-lyft disabled:opacity-40"
             >
               Skicka
             </button>

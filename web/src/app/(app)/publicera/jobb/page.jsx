@@ -21,8 +21,9 @@ import BehörighetsKravRedigerare from '@/components/app/BehörighetsKravRediger
 import PlanvalModal from '@/components/app/PlanvalModal';
 import { api, felText } from '@/lib/api';
 import { valideraJobb } from '@/utils/jobbValidering';
-import { datumTillIso } from '@/utils/datumHelper';
+import { datumTillIso, planeradeTimmar } from '@/utils/datumHelper';
 import { saniteraObTillagg } from '@/utils/ob';
+import { beräknaFakturapris, formateraPris, PÅSLAG_PRO } from '@/utils/konstanter';
 
 export default function PubliceraJobb() {
   const router = useRouter();
@@ -128,6 +129,13 @@ export default function PubliceraJobb() {
     }
   }
 
+  // Prisförhandsvisning: brutto = timlön × planerade timmar, fakturabelopp med det lägsta
+  // påslaget (20 %). Exakt påslag avgörs först vid godkännande – därav gråtexten nedan.
+  const lönNum = parseFloat(lon) || 0;
+  const timmar = planeradeTimmar(dagScheman);
+  const brutto = lönNum * (timmar || 0);
+  const visaPris = lönNum > 0 && timmar > 0;
+
   return (
     <div className="mx-auto max-w-2xl">
       <h1 className="rubrik-l text-text">Publicera ett pass</h1>
@@ -185,6 +193,15 @@ export default function PubliceraJobb() {
           fel={fel.adress}
         />
 
+        <KategoriVäljare
+          värde={kategori}
+          onVälj={(v) => {
+            setKategori(v);
+            rensaFel('kategori');
+          }}
+          fel={fel.kategori}
+        />
+
         <div>
           <Input
             etikett="Timlön (kr/tim)"
@@ -235,14 +252,23 @@ export default function PubliceraJobb() {
 
         <OBTilläggRedigerare värde={obTillagg} onÄndra={setObTillagg} />
 
-        <KategoriVäljare
-          värde={kategori}
-          onVälj={(v) => {
-            setKategori(v);
-            rensaFel('kategori');
-          }}
-          fel={fel.kategori}
-        />
+        {visaPris && (
+          <div className="rounded-lg border border-kant bg-primär-mjuk p-4">
+            <p className="text-[14px] font-semibold text-text">Vad passet kostar att fakturera</p>
+            <div className="mt-2 flex justify-between text-[14px] text-text-dämpad">
+              <span>{formateraPris(lönNum)} kr/tim × {timmar} h (brutto)</span>
+              <span className="font-semibold text-text">{formateraPris(brutto)} kr</span>
+            </div>
+            <div className="flex justify-between text-[14px] text-text-dämpad">
+              <span>Fakturabelopp exkl. moms</span>
+              <span className="font-semibold text-text">{formateraPris(beräknaFakturapris(brutto, PÅSLAG_PRO))} kr</span>
+            </div>
+            <p className="mt-2 text-[12px] text-text-svag">
+              Påslag: 20 % (Pro / gratiskontots två första pass per månad) eller 40 % (gratis från
+              3:e passet). Exakt påslag bestäms vid godkännande.
+            </p>
+          </div>
+        )}
 
         <Knapp variant="primär" full laddar={laddar} onClick={() => skicka()}>
           Publicera pass

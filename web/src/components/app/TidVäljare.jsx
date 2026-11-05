@@ -10,6 +10,8 @@ export default function TidVäljare({ etikett, värde, onÄndra, fel, className 
       {etikett && <label className="text-[13px] font-semibold text-text-dämpad">{etikett}</label>}
       <input
         type="time"
+        lang="sv-SE"
+        step="60"
         value={värde ?? ''}
         onChange={(e) => onÄndra(e.target.value)}
         aria-invalid={felläge}

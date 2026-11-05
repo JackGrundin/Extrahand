@@ -103,7 +103,7 @@ export default function MinProfil() {
   }
 
   async function spara(e) {
-    e.preventDefault();
+    e?.preventDefault?.();
     setFel('');
     setStadFel('');
     // Stad är frivillig, men en ifylld stad måste väljas ur SVENSKA_ORTER – fri text splittrar
@@ -185,105 +185,129 @@ export default function MinProfil() {
           {fel && <Besked typ="fel">{fel}</Besked>}
           {sparat && <Besked typ="framgång">Profilen är sparad.</Besked>}
 
-          {/* Profilbild + namn/e-post (skrivskyddat) + timmar */}
-          <div className="mt-6 flex items-center gap-4">
-            {profilBild ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={profilBild}
-                alt="Profilbild"
-                className="h-20 w-20 rounded-full object-cover"
-              />
-            ) : (
-              <span className="flex h-20 w-20 items-center justify-center rounded-full bg-gradient-primär text-[28px] font-bold text-white">
-                {(namn || '?').charAt(0).toUpperCase()}
-              </span>
-            )}
-            <div>
-              <input
-                ref={filInput}
-                type="file"
-                accept="image/*"
-                onChange={väljBild}
-                className="hidden"
-              />
-              <Knapp
-                variant="kontur"
-                storlek="liten"
-                laddar={laddarBild}
-                onClick={() => filInput.current?.click()}
-              >
-                Byt bild
-              </Knapp>
-              <p className="mt-1 text-[12px] text-text-svag">JPG eller PNG, max 3 MB</p>
+          <div className="mt-6 grid grid-cols-1 gap-6 md:grid-cols-2">
+            {/* Vänsterkolumn: Om dig + Kompetenser & intressen */}
+            <div className="flex flex-col gap-6">
+              {/* Om dig */}
+              <div className="rounded-xl border border-kant bg-yta p-6 shadow-mjuk">
+                <h2 className="mb-4 text-[17px] font-bold text-text">Om dig</h2>
+
+                <div className="flex items-center gap-4">
+                  {profilBild ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={profilBild}
+                      alt="Profilbild"
+                      className="h-20 w-20 rounded-full object-cover"
+                    />
+                  ) : (
+                    <span className="flex h-20 w-20 items-center justify-center rounded-full bg-gradient-primär text-[28px] font-bold text-white">
+                      {(namn || '?').charAt(0).toUpperCase()}
+                    </span>
+                  )}
+                  <div>
+                    <input
+                      ref={filInput}
+                      type="file"
+                      accept="image/*"
+                      onChange={väljBild}
+                      className="hidden"
+                    />
+                    <Knapp
+                      variant="kontur"
+                      storlek="liten"
+                      laddar={laddarBild}
+                      onClick={() => filInput.current?.click()}
+                    >
+                      Byt bild
+                    </Knapp>
+                    <p className="mt-1 text-[12px] text-text-svag">JPG eller PNG, max 3 MB</p>
+                  </div>
+                </div>
+
+                <div className="mt-5 grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  <div className="min-w-0">
+                    <p className="text-[13px] font-semibold text-text-dämpad">Namn</p>
+                    <p className="mt-1 text-[15px] text-text">{namn}</p>
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-[13px] font-semibold text-text-dämpad">E-post</p>
+                    <p className="mt-1 truncate text-[15px] text-text">{email}</p>
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-[13px] font-semibold text-text-dämpad">Jobbade timmar</p>
+                    <p className="mt-1 text-[15px] text-text">{totalTimmar} h</p>
+                  </div>
+                </div>
+
+                <div className="mt-5 flex flex-col gap-5">
+                  <Textfält
+                    id="cv"
+                    etikett="CV / Om mig"
+                    value={form.cv}
+                    onChange={(e) => sätt('cv', e.target.value)}
+                    placeholder="Berätta om dig själv…"
+                  />
+                  <Textfält
+                    id="erfarenheter"
+                    etikett="Tidigare erfarenheter"
+                    value={form.erfarenheter}
+                    onChange={(e) => sätt('erfarenheter', e.target.value)}
+                    placeholder="t.ex. Jobbade som städare 2023…"
+                  />
+                  <div>
+                    <StadInput
+                      värde={form.stad}
+                      onVälj={(v) => { sätt('stad', v); setStadFel(''); }}
+                      fel={stadFel}
+                    />
+                    <p className="mt-1.5 text-[12px] text-text-svag">
+                      Ange din stad för att få notiser om nya jobb nära dig.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Kompetenser & intressen */}
+              <div className="rounded-xl border border-kant bg-yta p-6 shadow-mjuk">
+                <h2 className="mb-4 text-[17px] font-bold text-text">Kompetenser &amp; intressen</h2>
+                <div className="flex flex-col gap-5">
+                  <Input
+                    id="kompetenser"
+                    etikett="Kompetenser"
+                    value={form.kompetenser}
+                    onChange={(e) => sätt('kompetenser', e.target.value)}
+                    placeholder="t.ex. Körkort, Snickeri, Matlagning"
+                  />
+                  <Input
+                    id="intressen"
+                    etikett="Intressen"
+                    value={form.intressen}
+                    onChange={(e) => sätt('intressen', e.target.value)}
+                    placeholder="t.ex. Friluftsliv, Musik, Djur"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Högerkolumn: Dokument + Recensioner */}
+            <div className="flex flex-col gap-6">
+              {/* Dokument (DokumentLista renderar egen rubrik) */}
+              <div className="rounded-xl border border-kant bg-yta p-6 shadow-mjuk">
+                <DokumentLista dokument={dokument} onÄndrad={hämta} />
+              </div>
+
+              {/* Recensioner (BetygsSektion renderar egen rubrik) */}
+              <div className="rounded-xl border border-kant bg-yta p-6 shadow-mjuk">
+                <BetygsSektion betyg={betyg} />
+              </div>
             </div>
           </div>
 
-          <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-3">
-            <div>
-              <p className="text-[13px] font-semibold text-text-dämpad">Namn</p>
-              <p className="mt-1 text-[15px] text-text">{namn}</p>
-            </div>
-            <div>
-              <p className="text-[13px] font-semibold text-text-dämpad">E-post</p>
-              <p className="mt-1 text-[15px] text-text">{email}</p>
-            </div>
-            <div>
-              <p className="text-[13px] font-semibold text-text-dämpad">Jobbade timmar</p>
-              <p className="mt-1 text-[15px] text-text">{totalTimmar} h</p>
-            </div>
-          </div>
-
-          <form onSubmit={spara} className="mt-6 flex flex-col gap-5">
-            <Textfält
-              id="cv"
-              etikett="CV / Om mig"
-              value={form.cv}
-              onChange={(e) => sätt('cv', e.target.value)}
-              placeholder="Berätta om dig själv…"
-            />
-            <Textfält
-              id="erfarenheter"
-              etikett="Tidigare erfarenheter"
-              value={form.erfarenheter}
-              onChange={(e) => sätt('erfarenheter', e.target.value)}
-              placeholder="t.ex. Jobbade som städare 2023…"
-            />
-            <Input
-              id="kompetenser"
-              etikett="Kompetenser"
-              value={form.kompetenser}
-              onChange={(e) => sätt('kompetenser', e.target.value)}
-              placeholder="t.ex. Körkort, Snickeri, Matlagning"
-            />
-            <Input
-              id="intressen"
-              etikett="Intressen"
-              value={form.intressen}
-              onChange={(e) => sätt('intressen', e.target.value)}
-              placeholder="t.ex. Friluftsliv, Musik, Djur"
-            />
-            <div>
-              <StadInput
-                värde={form.stad}
-                onVälj={(v) => { sätt('stad', v); setStadFel(''); }}
-                fel={stadFel}
-              />
-              <p className="mt-1.5 text-[12px] text-text-svag">
-                Ange din stad för att få notiser om nya jobb nära dig.
-              </p>
-            </div>
-            <Knapp type="submit" variant="primär" laddar={sparar}>
+          <div className="mt-6 flex justify-center">
+            <Knapp variant="primär" laddar={sparar} onClick={spara}>
               Spara profil
             </Knapp>
-          </form>
-
-          <div className="mt-10">
-            <DokumentLista dokument={dokument} onÄndrad={hämta} />
-          </div>
-
-          <div className="mt-10">
-            <BetygsSektion betyg={betyg} />
           </div>
       </div>
     </PrivatSkal>

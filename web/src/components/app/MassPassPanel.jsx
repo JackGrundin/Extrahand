@@ -77,7 +77,7 @@ export default function MassPassPanel({ antalMarkerade, onTillämpa, onAvmarkera
         <button
           type="button"
           onClick={tillämpa}
-          className="rounded-sm bg-primär px-4 py-2.5 text-[14px] font-bold text-white hover:brightness-105"
+          className="rounded-sm bg-gradient-primär px-4 py-2.5 text-[14px] font-bold text-white hover:brightness-105"
         >
           Tillämpa på markerade
         </button>

@@ -5,7 +5,7 @@
 // /logga-in?next=/jobb/<id>). Ansökningsflödet speglar web/src/app/schema/[id]/page.jsx:
 // intyga behörighetskrav + valfritt meddelande → POST /ansokningar/:jobbId. Backend är sista
 // försvaret (avtal, dubblett, tillsatt, krav).
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Fragment, useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import PrivatSkal from '@/components/privat/PrivatSkal';
@@ -129,26 +129,18 @@ export default function JobbDetalj() {
           {jobb.foretagNamn && (
             <span className="font-semibold text-primär">{jobb.foretagNamn}</span>
           )}
-          {jobb.Plats && (
-            <>
-              <span aria-hidden="true">·</span>
-              <span>{jobb.Plats}</span>
-            </>
-          )}
-          {jobb.Lon != null && (
-            <>
-              <span aria-hidden="true">·</span>
-              <span>{Math.round(Number(jobb.Lon))} kr/tim</span>
-            </>
-          )}
-          {jobb.antal_dagar ? (
-            <>
-              <span aria-hidden="true">·</span>
-              <span>
-                {jobb.antal_dagar} {jobb.antal_dagar === 1 ? 'dag' : 'dagar'}
-              </span>
-            </>
-          ) : null}
+          {[
+            jobb.Plats || null,
+            jobb.Lon != null ? `${Math.round(Number(jobb.Lon))} kr/tim` : null,
+            jobb.antal_dagar ? `${jobb.antal_dagar} ${jobb.antal_dagar === 1 ? 'dag' : 'dagar'}` : null,
+          ]
+            .filter(Boolean)
+            .map((del, i) => (
+              <Fragment key={i}>
+                {(jobb.foretagNamn || i > 0) && <span aria-hidden="true">·</span>}
+                <span>{del}</span>
+              </Fragment>
+            ))}
         </div>
 
         {fel && (

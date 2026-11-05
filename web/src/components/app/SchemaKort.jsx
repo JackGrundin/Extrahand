@@ -26,7 +26,7 @@ export default function SchemaKort({ schema }) {
           </span>
           {schema.nyaAnsökningar > 0 && (
             <span className="rounded-pill bg-primär px-2.5 py-1 text-[12px] font-bold text-white">
-              {schema.nyaAnsökningar} nya
+              {schema.nyaAnsökningar} {schema.nyaAnsökningar === 1 ? 'ny' : 'nya'}
             </span>
           )}
         </div>

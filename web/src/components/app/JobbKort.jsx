@@ -103,7 +103,7 @@ export default function JobbKort({ jobb, onÄndrad }) {
       <div className="mt-4 flex flex-wrap items-center gap-2">
         {jobb.nyaAnsökningar > 0 && (
           <span className="rounded-pill bg-primär-mjuk px-2.5 py-1 text-[12px] font-bold text-primär">
-            {jobb.nyaAnsökningar} nya ansökningar
+            {jobb.nyaAnsökningar} {jobb.nyaAnsökningar === 1 ? 'ny ansökan' : 'nya ansökningar'}
           </span>
         )}
         {måsteAvslutas && (
