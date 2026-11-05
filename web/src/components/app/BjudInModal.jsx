@@ -163,7 +163,7 @@ export default function BjudInModal({ typ, id, öppen, onStäng, onÄndrad }) {
         ) : (
           <div>
             <p className="text-[14px] text-text-dämpad">
-              Skriv in personens e-postadress så skickar vi inbjudan direkt till deras app.
+              Skriv in personens e-postadress så skickar vi inbjudan direkt till dem.
             </p>
             {bekräftelse ? (
               <div className="mt-4"><Besked typ="framgång">{bekräftelse}</Besked></div>

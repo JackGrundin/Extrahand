@@ -152,7 +152,7 @@ export default function BjudInModal({ visible, onStäng, typ, id, onÄndrad }) {
               ) : (
                 <View>
                   <Text style={styles.text}>
-                    Skriv in personens e-postadress så skickar vi inbjudan direkt till deras app.
+                    Skriv in personens e-postadress så skickar vi inbjudan direkt till dem.
                   </Text>
                   {bekräftelse ? (
                     <Text style={styles.bekräftelse}>{bekräftelse}</Text>
