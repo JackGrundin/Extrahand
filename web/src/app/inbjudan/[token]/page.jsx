@@ -14,6 +14,7 @@ import { useAuth } from '@/context/AuthContext';
 import Knapp from '@/components/ui/Knapp';
 import Besked from '@/components/ui/Besked';
 import { api, felText } from '@/lib/api';
+import { formatPeriod } from '@/utils/datumHelper';
 
 const TOKEN_NYCKEL = 'fastgig.inbjudan.token';
 
@@ -27,6 +28,7 @@ export default function Inbjudan() {
   const [accepterar, setAccepterar] = useState(false);
   const [accFel, setAccFel] = useState('');
   const [klar, setKlar] = useState(false); // accepterad men avtal saknas → visa väntmeddelande
+  const [avböjd, setAvböjd] = useState(false); // tackat nej → visa bekräftelse
 
   useEffect(() => {
     let avbruten = false;
@@ -73,8 +75,21 @@ export default function Inbjudan() {
     }
   }
 
+  // Tacka nej: ingen backend-åtgärd behövs – vi rensar bara token och visar en bekräftelse
+  // (samma sessionStorage-rensning som acceptera gör vid lyckat svar).
+  function tackaNej() {
+    try {
+      window.sessionStorage.removeItem(TOKEN_NYCKEL);
+    } catch {
+      /* ignorera */
+    }
+    setAvböjd(true);
+  }
+
   const nästa = `/inbjudan/${token}`;
   const ärSchema = Boolean(inbjudan?.schemaId);
+  // Perioden visas innan personen väljer – bara för scheman (jobb saknar start/slut).
+  const period = ärSchema ? formatPeriod([inbjudan?.startdatum, inbjudan?.slutdatum]) : null;
 
   return (
     <main className="flex min-h-screen items-center justify-center bg-bakgrund px-5">
@@ -107,6 +122,19 @@ export default function Inbjudan() {
               </Knapp>
             </div>
           </div>
+        ) : avböjd ? (
+          // Personen tackade nej.
+          <div className="mt-4">
+            <p className="text-[17px] font-bold text-text">Tack för ditt svar</p>
+            <p className="mt-2 text-[15px] leading-relaxed text-text-dämpad">
+              Du har tackat nej till inbjudan. Du behöver inte göra något mer.
+            </p>
+            <div className="mt-6">
+              <Knapp variant="kontur" full href="/">
+                Till startsidan
+              </Knapp>
+            </div>
+          </div>
         ) : inloggad ? (
           // Inloggad inbjuden → acceptera förfrågan med ett klick.
           <>
@@ -116,14 +144,22 @@ export default function Inbjudan() {
             <p className="mt-2 text-[15px] leading-relaxed text-text-dämpad">
               till {ärSchema ? 'schemat' : 'jobbet'} <strong>{inbjudan.titel}</strong> · via FastGig
             </p>
+            {period && (
+              <p className="mt-3 text-[14px] text-text-dämpad">
+                Period: <strong className="text-text">{period}</strong>
+              </p>
+            )}
             {accFel && (
               <div className="mt-4">
                 <Besked typ="fel">{accFel}</Besked>
               </div>
             )}
-            <div className="mt-6">
+            <div className="mt-6 flex flex-col gap-3">
               <Knapp variant="primär" full laddar={accepterar} onClick={acceptera}>
                 Acceptera förfrågan
+              </Knapp>
+              <Knapp variant="kontur" full disabled={accepterar} onClick={tackaNej}>
+                Tacka nej
               </Knapp>
             </div>
           </>
@@ -136,7 +172,12 @@ export default function Inbjudan() {
             <p className="mt-2 text-[15px] leading-relaxed text-text-dämpad">
               till {ärSchema ? 'schemat' : 'jobbet'} <strong>{inbjudan.titel}</strong> · via FastGig
             </p>
-            <p className="mt-2 text-[14px] text-text-dämpad">
+            {period && (
+              <p className="mt-3 text-[14px] text-text-dämpad">
+                Period: <strong className="text-text">{period}</strong>
+              </p>
+            )}
+            <p className="mt-3 text-[14px] text-text-dämpad">
               Skapa ett konto eller logga in för att acceptera förfrågan.
             </p>
             <div className="mt-6 flex flex-col gap-3">
@@ -145,6 +186,9 @@ export default function Inbjudan() {
               </Knapp>
               <Knapp variant="kontur" full href={`/logga-in?next=${encodeURIComponent(nästa)}`}>
                 Logga in
+              </Knapp>
+              <Knapp variant="kontur" full onClick={tackaNej}>
+                Tacka nej
               </Knapp>
             </div>
           </>

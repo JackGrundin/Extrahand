@@ -364,6 +364,9 @@ router.get('/:token', async (req, res) => {
     let schemaId = null;
     let titel = null;
     let foretagId = null;
+    // Perioden visas på inbjudningssidan INNAN personen väljer – bara för scheman.
+    let startdatum = null;
+    let slutdatum = null;
 
     if (inbjudan.schema_id) {
       const schema = await hämtaSchemaViaId(inbjudan.schema_id);
@@ -371,6 +374,8 @@ router.get('/:token', async (req, res) => {
       schemaId = schema.id;
       titel = schema.titel;
       foretagId = schema.foretag_id;
+      startdatum = schema.startdatum ?? null;
+      slutdatum = schema.slutdatum ?? null;
     } else {
       const jobb = await hämtaJobbViaId(inbjudan.jobb_id);
       if (!jobb) return res.status(404).json({ fel: 'Jobbet hittades inte' });
@@ -390,7 +395,7 @@ router.get('/:token', async (req, res) => {
 
     const företagNamn = (await hämtaNamnFörAnvändare([foretagId]))[foretagId] || null;
     // schemaId behålls i svaret för bakåtkompatibilitet med den tidigare schema-endpointen.
-    res.json({ jobbId, schemaId, titel, företagNamn, redan_inlost });
+    res.json({ jobbId, schemaId, titel, företagNamn, redan_inlost, startdatum, slutdatum });
   } catch (fel) {
     console.error('Fel vid uppslag av inbjudan:', fel);
     res.status(500).json({ fel: 'Serverfel' });
