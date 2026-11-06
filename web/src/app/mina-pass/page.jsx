@@ -42,8 +42,11 @@ function grupperaPerMånad(pass) {
   return Object.values(grupper).sort((a, b) => a.sortering - b.sortering);
 }
 
+// Speglar appens MinaPassScreen: schema → schemadetaljen, enstaka pass → chatt-tråden
+// (där tidrapport/tidslinje bor). Ett enstaka pass får ALDRIG peka på den publika
+// ansökningssidan /jobb/[id] – jobbet är tillsatt och den vyn skickar vidare till "Hitta jobb".
 function detaljLänk(a) {
-  return a.schemaId ? `/schema/${a.schemaId}` : `/jobb/${a.jobb_id}`;
+  return a.schemaId ? `/schema/${a.schemaId}` : `/chatt/${a.id}`;
 }
 
 function PassKort({ pass, genomfört }) {
