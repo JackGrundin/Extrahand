@@ -150,6 +150,32 @@ export default function Marknadsforing() {
           </div>
         </section>
 
+        {/* ── Väntlista (lansering snart) ────────────────────────────── */}
+        <section className="border-t border-kant bg-bakgrund">
+          <div className="mx-auto max-w-innehåll px-5 py-24">
+            <div className="mx-auto max-w-2xl rounded-2xl border border-kant bg-yta px-6 py-14 text-center shadow-mjuk">
+              <p className="text-[13px] font-semibold uppercase tracking-wider text-primär">
+                Lansering
+              </p>
+              <h2 className="rubrik-l mt-3 text-text">FastGig lanserar snart 🚀</h2>
+              <p className="mx-auto mt-4 max-w-lg text-[17px] leading-relaxed text-text-dämpad">
+                Vi bygger den enklaste plattformen för flexibla jobb och kortare uppdrag.
+                Skriv upp dig på vår väntlista så är du först att få veta när vi öppnar.
+              </p>
+              <div className="mt-8 flex justify-center">
+                <Knapp
+                  variant="primär"
+                  href="https://fastgig-vantlista.netlify.app"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  Håll mig uppdaterad
+                </Knapp>
+              </div>
+            </div>
+          </div>
+        </section>
+
         {/* ── För företag ────────────────────────────────────────────── */}
         <section className="border-t border-kant bg-yta">
           <div className="mx-auto max-w-innehåll px-5 py-24">

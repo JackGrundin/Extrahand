@@ -1,5 +1,6 @@
 import './globals.css';
 import { AuthProvider } from '@/context/AuthContext';
+import BetaModal from '@/components/app/BetaModal';
 
 export const metadata = {
   title: 'FastGig – Flexibla jobb, enkelt',
@@ -21,7 +22,10 @@ export default function RootLayout({ children }) {
   return (
     <html lang="sv">
       <body>
-        <AuthProvider>{children}</AuthProvider>
+        <AuthProvider>
+          {children}
+          <BetaModal />
+        </AuthProvider>
       </body>
     </html>
   );
