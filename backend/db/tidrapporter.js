@@ -156,21 +156,27 @@ async function hämtaTidrapporterFörFöretag(foretagId) {
   ]);
 
   const jobbIds = [...new Set((ansokningar || []).map(a => a.jobb_id))];
-  const { data: jobb } = await supabase.from('Jobb').select('id, Titel').in('id', jobbIds);
+  const { data: jobb } = await supabase.from('Jobb').select('id, Titel, schema_id').in('id', jobbIds);
 
   const ansokanMap = Object.fromEntries((ansokningar || []).map(a => [a.id, a]));
   const anvandareMap = Object.fromEntries((anvandare || []).map(a => [a.id, a]));
   const jobbMap = Object.fromEntries((jobb || []).map(j => [j.id, j]));
 
-  return rapporter.map(r => {
-    const ansökan = ansokanMap[r.ansokan_id];
-    return {
-      ...r,
-      jobbId: ansökan?.jobb_id ?? null,
-      jobbTitel: jobbMap[ansökan?.jobb_id]?.Titel ?? null,
-      privatpersonNamn: anvandareMap[r.anvandare_id]?.Namn ?? null,
-    };
-  });
+  // Historiken visar bara enstaka pass – schema-genererade pass-jobb hör till Scheman-
+  // vyn/schemaöversikten, aldrig den platta listan. Samma regel som .is('schema_id', null)
+  // i jobb-frågorna; tidrapporter saknar egen schema_id så filtret sker via jobbet.
+  // (saknat jobb → schema_id undefined == null → behålls som förut)
+  return rapporter
+    .filter(r => jobbMap[ansokanMap[r.ansokan_id]?.jobb_id]?.schema_id == null)
+    .map(r => {
+      const ansökan = ansokanMap[r.ansokan_id];
+      return {
+        ...r,
+        jobbId: ansökan?.jobb_id ?? null,
+        jobbTitel: jobbMap[ansökan?.jobb_id]?.Titel ?? null,
+        privatpersonNamn: anvandareMap[r.anvandare_id]?.Namn ?? null,
+      };
+    });
 }
 
 async function hämtaTidrapportViaId(id) {
