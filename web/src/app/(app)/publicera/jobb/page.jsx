@@ -59,7 +59,7 @@ export default function PubliceraJobb() {
     setAntalDagar(val);
     rensaFel('schema');
     const n = parseInt(val) || 0;
-    setDagScheman((prev) => Array.from({ length: n }, (_, i) => prev[i] || { datum: '', start: '', slut: '' }));
+    setDagScheman((prev) => Array.from({ length: n }, (_, i) => prev[i] || { datum: '', start: '08:00', slut: '17:00' }));
     if (n <= 1) setSammaTider(false);
   }
 
