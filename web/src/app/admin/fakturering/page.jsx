@@ -63,6 +63,12 @@ export default function AdminFakturering() {
     return [...karta.values()];
   }, [rader]);
 
+  // Platt översikt: en rad per underlag, nyast först. Samma data som grupperna ovan.
+  const sorteradeRader = useMemo(() => {
+    if (!rader) return [];
+    return [...rader].sort((a, b) => String(b.datum || '').localeCompare(String(a.datum || '')));
+  }, [rader]);
+
   async function markera(ids) {
     setSparar(true);
     setFel('');
@@ -160,6 +166,58 @@ export default function AdminFakturering() {
             </table>
           </section>
         </div>
+      )}
+
+      {rader && rader.length > 0 && (
+        <section className="mt-8 rounded-lg border border-kant bg-yta p-5 shadow-mjuk">
+          <h2 className="rubrik-m text-text">Obetalda faktureringsunderlag</h2>
+          <p className="mt-0.5 text-[12px] text-text-svag">Godkända, ännu ej fakturerade tidrapporter – en rad per pass, nyast först</p>
+          <div className="mt-4 overflow-x-auto">
+            <table className="w-full text-[13px]">
+              <thead>
+                <tr className="border-b border-kant text-left text-[11px] uppercase text-text-svag">
+                  <th className="pb-2 font-semibold">Företag</th>
+                  <th className="pb-2 font-semibold">Person</th>
+                  <th className="pb-2 font-semibold">Jobb</th>
+                  <th className="pb-2 font-semibold">Datum</th>
+                  <th className="pb-2 text-right font-semibold">Timmar</th>
+                  <th className="pb-2 text-right font-semibold">Timlön</th>
+                  <th className="pb-2 text-right font-semibold">Påslag</th>
+                  <th className="pb-2 text-right font-semibold">Fakturabelopp</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-kant">
+                {sorteradeRader.map((r) => (
+                  <tr key={r.id}>
+                    <td className="py-2 text-text">{r.foretagsnamn || 'Okänt företag'}</td>
+                    <td className="py-2 text-text-dämpad">{r.anvandareNamn || '–'}</td>
+                    <td className="py-2 text-text-dämpad">
+                      {r.jobbTitel || 'Pass'}
+                      {r.ärSchemapass && (
+                        <span className="ml-2 rounded-pill bg-primär-mjuk px-2 py-0.5 text-[11px] font-bold text-primär">
+                          Schemapass
+                        </span>
+                      )}
+                    </td>
+                    <td className="py-2 text-text-dämpad">{r.datum}</td>
+                    <td className="py-2 text-right text-text-dämpad">{Number(r.timmar) || 0} h</td>
+                    <td className="py-2 text-right text-text-dämpad">{kr(r.timlon)}/h</td>
+                    <td className="py-2 text-right text-text-dämpad">{procent(r.paslag)}</td>
+                    <td className="py-2 text-right font-semibold text-text">{kr(r.faktureringsbelopp)}</td>
+                  </tr>
+                ))}
+              </tbody>
+              <tfoot>
+                <tr className="border-t-2 border-kant font-bold text-text">
+                  <td className="pt-2" colSpan={7}>Totalt ({sorteradeRader.length} st)</td>
+                  <td className="pt-2 text-right text-primär">
+                    {kr(sorteradeRader.reduce((s, r) => s + (Number(r.faktureringsbelopp) || 0), 0))}
+                  </td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        </section>
       )}
 
       {!rader ? (
