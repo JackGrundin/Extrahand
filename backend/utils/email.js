@@ -92,6 +92,22 @@ function säkerNamn(namn) {
   return String(namn ?? '').replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
 }
 
+// Saneras för ett mejl-From-huvud (inte HTML): tecken som kan bryta huvudet ersätts med
+// mellanslag. Faller tillbaka på 'Ett företag' så avsändaren aldrig blir tom.
+function säkerFrånNamn(namn) {
+  const rent = String(namn ?? '').replace(/["<>,;:\r\n]/g, ' ').replace(/\s+/g, ' ').trim();
+  return rent || 'Ett företag';
+}
+
+// Plockar själva adressen ur EMAIL_FROM ("FastGig <noreply@fastgig.se>" -> noreply@fastgig.se)
+// så att ett dynamiskt avsändarnamn kan sättas utan att röra den verifierade adressen
+// (SPF/DKIM påverkas inte – bara visningsnamnet ändras).
+function avsändarAdress() {
+  const raw = process.env.EMAIL_FROM || 'FastGig <noreply@fastgig.se>';
+  const m = raw.match(/<([^>]+)>/);
+  return m ? m[1].trim() : raw.trim();
+}
+
 // Inbjudan till ett jobb ELLER schema. Länken pekar på webbappen (WEBB_BAS_URL) som
 // förhandsvisar annonsen och – för den som saknar konto – tar vidare till registrering och
 // sedan tillbaka. Företagsnamn och titel kommer från vår egen data men escapas ändå, samma
@@ -104,20 +120,23 @@ async function skickaInbjudanMail(email, { företagNamn, titel, länk }) {
   const titelSäker = säkerNamn(titel) || 'ett uppdrag';
   const resend = skapaResend();
   const { error } = await resend.emails.send({
-    from: process.env.EMAIL_FROM || 'FastGig <noreply@fastgig.se>',
+    // Avsändarnamnet visar FÖRETAGET (inte bara varumärket) så att inboxen tydligt säger vem
+    // som bjuder in; adressen är oförändrad via avsändarAdress().
+    from: `${säkerFrånNamn(företagNamn)} via FastGig <${avsändarAdress()}>`,
     to: email,
     subject: `${företag} har bjudit in dig – FastGig`,
     html: `
       <div style="font-family:-apple-system,sans-serif;max-width:480px;margin:0 auto;padding:32px 24px;background:#fff;">
-        <h1 style="color:#2563eb;font-size:24px;margin:0 0 8px;">FastGig</h1>
-        <p style="color:#444;font-size:16px;margin:0 0 24px;"><strong>${företag}</strong> har bjudit in dig till <strong>${titelSäker}</strong>. Klicka nedan för att se det och ansöka.</p>
+        <p style="color:#888;font-size:12px;font-weight:600;letter-spacing:1px;text-transform:uppercase;margin:0 0 20px;">FastGig</p>
+        <h1 style="color:#111;font-size:22px;font-weight:700;margin:0 0 8px;">${företag} har bjudit in dig</h1>
+        <p style="color:#444;font-size:16px;margin:0 0 24px;">Du är inbjuden till <strong>${titelSäker}</strong>. Klicka nedan för att se det och ansöka.</p>
         <div style="text-align:center;margin-bottom:24px;">
           <a href="${länk}" style="display:inline-block;background:#2563eb;color:#fff;font-size:16px;font-weight:600;text-decoration:none;border-radius:10px;padding:14px 28px;">Se inbjudan</a>
         </div>
         <p style="color:#888;font-size:13px;margin:0 0 16px;">Fungerar inte knappen? Kopiera den här adressen till din webbläsare:<br />
           <span style="color:#2563eb;word-break:break-all;">${länk}</span>
         </p>
-        <p style="color:#888;font-size:13px;margin:0;">Har du inget konto tar länken dig till registreringen och sedan vidare.</p>
+        <p style="color:#888;font-size:13px;margin:0;">Inbjudan skickades via FastGig. Har du inget konto tar länken dig till registreringen och sedan vidare.</p>
       </div>
     `,
   });

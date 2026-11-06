@@ -79,7 +79,7 @@ export default function Inbjudan() {
   return (
     <main className="flex min-h-screen items-center justify-center bg-bakgrund px-5">
       <div className="w-full max-w-md rounded-lg border border-kant bg-yta p-8 text-center shadow-mjuk">
-        <h1 className="text-[24px] font-bold text-primär">FastGig</h1>
+        <p className="text-[12px] font-semibold uppercase tracking-wide text-text-svag">FastGig</p>
 
         {fel ? (
           <div className="mt-4">
@@ -110,9 +110,11 @@ export default function Inbjudan() {
         ) : inloggad ? (
           // Inloggad inbjuden → acceptera förfrågan med ett klick.
           <>
-            <p className="mt-4 text-[16px] leading-relaxed text-text">
-              {inbjudan.företagNamn ? <strong>{inbjudan.företagNamn}</strong> : 'Ett företag'} har bjudit in dig
-              till {ärSchema ? 'schemat' : 'jobbet'} <strong>{inbjudan.titel}</strong>.
+            <h1 className="mt-3 text-[22px] font-bold text-text">
+              {inbjudan.företagNamn || 'Ett företag'} har bjudit in dig
+            </h1>
+            <p className="mt-2 text-[15px] leading-relaxed text-text-dämpad">
+              till {ärSchema ? 'schemat' : 'jobbet'} <strong>{inbjudan.titel}</strong> · via FastGig
             </p>
             {accFel && (
               <div className="mt-4">
@@ -128,9 +130,11 @@ export default function Inbjudan() {
         ) : (
           // Utloggad → registrera/logga in och kom tillbaka hit.
           <>
-            <p className="mt-4 text-[16px] leading-relaxed text-text">
-              {inbjudan.företagNamn ? <strong>{inbjudan.företagNamn}</strong> : 'Ett företag'} har bjudit in dig
-              till {ärSchema ? 'schemat' : 'jobbet'} <strong>{inbjudan.titel}</strong>.
+            <h1 className="mt-3 text-[22px] font-bold text-text">
+              {inbjudan.företagNamn || 'Ett företag'} har bjudit in dig
+            </h1>
+            <p className="mt-2 text-[15px] leading-relaxed text-text-dämpad">
+              till {ärSchema ? 'schemat' : 'jobbet'} <strong>{inbjudan.titel}</strong> · via FastGig
             </p>
             <p className="mt-2 text-[14px] text-text-dämpad">
               Skapa ett konto eller logga in för att acceptera förfrågan.
