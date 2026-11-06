@@ -257,7 +257,7 @@ export default function PubliceraJobb() {
 
         {visaPris && (
           <div className="rounded-lg border border-kant bg-primär-mjuk p-4">
-            <p className="text-[14px] font-semibold text-text">Vad passet kostar att fakturera</p>
+            <p className="text-[14px] font-semibold text-text">Kostnad</p>
             <div className="mt-2 flex justify-between text-[14px] text-text-dämpad">
               <span>{formateraPris(lönNum)} kr/tim × {timmar} h (brutto)</span>
               <span className="font-semibold text-text">{formateraPris(brutto)} kr</span>
@@ -266,10 +266,6 @@ export default function PubliceraJobb() {
               <span>Fakturabelopp exkl. moms</span>
               <span className="font-semibold text-text">{formateraPris(beräknaFakturapris(brutto, PÅSLAG_PRO))} kr</span>
             </div>
-            <p className="mt-2 text-[12px] text-text-svag">
-              Påslag: 20 % (Pro / gratiskontots två första pass per månad) eller 40 % (gratis från
-              3:e passet). Exakt påslag bestäms vid godkännande.
-            </p>
           </div>
         )}
 
