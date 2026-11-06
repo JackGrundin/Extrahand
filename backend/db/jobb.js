@@ -193,6 +193,25 @@ async function hämtaJobbViaId(id) {
   return data;
 }
 
+// Som hämtaJobbViaId men berikad med foretagNamn – används av den publika detaljsidan
+// (GET /jobb/:id) där namnet ska visas. Den råa hämtaJobbViaId lämnas orörd eftersom den
+// anropas på många ställen (ansökningar, tidrapporter, inbjudan) där berikningen är onödig.
+async function hämtaJobbMedFöretag(id) {
+  const jobb = await hämtaJobbViaId(id);
+  if (!jobb) return jobb;
+
+  const fid = jobb.Foretag_id ?? jobb.foretag_id;
+  if (fid == null) return { ...jobb, foretagNamn: null };
+
+  const { data: foretag } = await supabase
+    .from('användare')
+    .select('Namn')
+    .eq('id', fid)
+    .single();
+
+  return { ...jobb, foretagNamn: foretag?.Namn ?? null };
+}
+
 // Företagets egna annonser. Schemajobb filtreras bort – de visas i Scheman-fliken.
 // Anropas även av routes/användare.js för företagets publika profil, så filtret måste
 // sitta här och inte i routen.
@@ -338,4 +357,4 @@ async function taBortJobb(id, foretag_id) {
   if (error) throw error;
 }
 
-module.exports = { skapaJobb, skapaJobbBatch, hämtaAllaJobb, hämtaJobbViaId, hämtaJobbFörFöretag, hämtaTidigareJobbFörFöretag, uppdateraJobb, taBortJobb, sättJobbPåslag, sättJobbPrivat, räknaJobbDennaMånad, markeraAnsökningarSedda };
+module.exports = { skapaJobb, skapaJobbBatch, hämtaAllaJobb, hämtaJobbViaId, hämtaJobbMedFöretag, hämtaJobbFörFöretag, hämtaTidigareJobbFörFöretag, uppdateraJobb, taBortJobb, sättJobbPåslag, sättJobbPrivat, räknaJobbDennaMånad, markeraAnsökningarSedda };

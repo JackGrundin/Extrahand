@@ -126,9 +126,18 @@ export default function JobbDetalj() {
         <AvtalBanner />
         <h1 className="text-[28px] font-bold leading-tight text-text">{jobb.Titel}</h1>
         <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[15px] text-text-dämpad">
-          {jobb.foretagNamn && (
-            <span className="font-semibold text-primär">{jobb.foretagNamn}</span>
-          )}
+          {jobb.foretagNamn &&
+            (inloggad && (jobb.Foretag_id ?? jobb.foretag_id) ? (
+              // Profilsidan kräver inloggning, så bara inloggade får en klickbar länk.
+              <Link
+                href={`/foretag/${jobb.Foretag_id ?? jobb.foretag_id}`}
+                className="font-semibold text-primär hover:underline"
+              >
+                {jobb.foretagNamn}
+              </Link>
+            ) : (
+              <span className="font-semibold text-primär">{jobb.foretagNamn}</span>
+            ))}
           {[
             jobb.Plats || null,
             jobb.Lon != null ? `${Math.round(Number(jobb.Lon))} kr/tim` : null,

@@ -1,6 +1,6 @@
 const express = require('express');
 const { kräverInloggning, kräverTyp } = require('../middleware/auth');
-const { skapaJobb, hämtaAllaJobb, hämtaJobbViaId, hämtaJobbFörFöretag, hämtaTidigareJobbFörFöretag, uppdateraJobb, taBortJobb, räknaJobbDennaMånad, markeraAnsökningarSedda } = require('../db/jobb');
+const { skapaJobb, hämtaAllaJobb, hämtaJobbViaId, hämtaJobbMedFöretag, hämtaJobbFörFöretag, hämtaTidigareJobbFörFöretag, uppdateraJobb, taBortJobb, räknaJobbDennaMånad, markeraAnsökningarSedda } = require('../db/jobb');
 const { hämtaGodkändaFörJobb } = require('../db/ansokningar');
 const { skickaMeddelande } = require('../db/meddelanden');
 const { hämtaPushToken, hämtaPrivatpersonerIStad, ärBlockerad } = require('../db/användare');
@@ -82,7 +82,7 @@ router.post('/:id/markera-ansokningar-sedda', kräverInloggning, kräverTyp('fö
 // GET /api/jobb/:id — publik, hämtar ett specifikt jobb
 router.get('/:id', async (req, res) => {
   try {
-    const jobb = await hämtaJobbViaId(req.params.id);
+    const jobb = await hämtaJobbMedFöretag(req.params.id);
     if (!jobb) {
       return res.status(404).json({ fel: 'Jobbet hittades inte' });
     }
