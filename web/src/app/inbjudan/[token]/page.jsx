@@ -117,8 +117,8 @@ export default function Inbjudan() {
               börja chatta med företaget om detaljerna.
             </p>
             <div className="mt-6">
-              <Knapp variant="kontur" full href="/mina-ansokningar">
-                Till mina ansökningar
+              <Knapp variant="kontur" full href="/mina-pass">
+                Gå till mina pass
               </Knapp>
             </div>
           </div>
