@@ -77,6 +77,13 @@ export default function PubliceraSchema() {
   const [slutdatum, setSlutdatum] = useState('');
   const [valdaDatum, setValdaDatum] = useState(() => new Set());
   const [pass, setPass] = useState([]);
+  // Kalendern styrs utifrån (som appens visadMånad) så den hoppar till periodens start
+  // när Från/Till sätts – annars fastnar den på innevarande månad och perioden "förs
+  // inte vidare" till kalendern.
+  const [visadMånad, setVisadMånad] = useState(() => {
+    const d = new Date();
+    return { år: d.getFullYear(), månad: d.getMonth() };
+  });
 
   // Steg 3 – exakt ett urvalsläge
   const [öppetPassId, setÖppetPassId] = useState(null);
@@ -109,6 +116,34 @@ export default function PubliceraSchema() {
   // ── Steg 2: datumval ─────────────────────────────────────────────────────────
   function sättPass(nyaValda, basPass) {
     setPass(synkaPassMotDatum(nyaValda, basPass));
+  }
+
+  // Sätter Från/Till och hoppar kalendern till periodens startmånad. När båda är satta
+  // rensas val och pass utanför den nya perioden (speglar appens sättPeriod) – annars
+  // ligger datum kvar som inte längre är valbara. Har ett utanför-pass redan ifyllda
+  // tider varnar vi först, så ett misstag inte tyst raderar inlagt arbete.
+  function sättPeriod(vilken, värde) {
+    const nyStart = vilken === 'start' ? värde : startdatum;
+    const nySlut = vilken === 'slut' ? värde : slutdatum;
+
+    if (nyStart && nySlut) {
+      const inom = new Set(datumIntervall(nyStart, nySlut));
+      const ifylldaUtanför = pass.filter((p) => !inom.has(p.datum) && ärKomplett(p));
+      if (
+        ifylldaUtanför.length > 0 &&
+        typeof window !== 'undefined' &&
+        !window.confirm(`${ifylldaUtanför.length} pass med ifyllda tider ligger utanför den nya perioden och tas bort. Fortsätta?`)
+      ) {
+        return;
+      }
+      if (vilken === 'start') setStartdatum(värde); else setSlutdatum(värde);
+      setValdaDatum((prev) => new Set([...prev].filter((d) => inom.has(d))));
+      setPass((prev) => prev.filter((p) => inom.has(p.datum)));
+      const [år, m] = nyStart.split('-').map(Number);
+      setVisadMånad({ år, månad: m - 1 });
+      return;
+    }
+    if (vilken === 'start') setStartdatum(värde); else setSlutdatum(värde);
   }
 
   function toggleDatum(datum) {
@@ -344,31 +379,43 @@ export default function PubliceraSchema() {
             Välj period och klicka i de datum som ska ha pass. Perioden är bara ett filter för kalendern.
           </p>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <DatumVäljare etikett="Från" värde={startdatum} min={idag} onÄndra={setStartdatum} />
-            <DatumVäljare etikett="Till" värde={slutdatum} min={startdatum || idag} onÄndra={setSlutdatum} />
+            <DatumVäljare etikett="Från" värde={startdatum} min={idag} onÄndra={(d) => sättPeriod('start', d)} />
+            <DatumVäljare etikett="Till" värde={slutdatum} min={startdatum || idag} onÄndra={(d) => sättPeriod('slut', d)} />
           </div>
 
+          {/* Kalendern och genvägarna visas först när perioden är satt, så den alltid
+              speglar rätt månad och dimmar datum utanför perioden. */}
           {startdatum && slutdatum && (
-            <div className="flex flex-wrap gap-2">
-              {VECKODAGSKNAPPAR.map(([namn, index]) => (
-                <button key={namn} type="button" onClick={() => genväg(index)} className="rounded-pill border border-kant px-3 py-1.5 text-[13px] font-semibold text-text-dämpad hover:border-primär hover:text-primär">
-                  {namn}
+            <>
+              <div className="flex flex-wrap gap-2">
+                {VECKODAGSKNAPPAR.map(([namn, index]) => (
+                  <button key={namn} type="button" onClick={() => genväg(index)} className="rounded-pill border border-kant px-3 py-1.5 text-[13px] font-semibold text-text-dämpad hover:border-primär hover:text-primär">
+                    {namn}
+                  </button>
+                ))}
+                <button type="button" onClick={() => genväg('vardagar')} className="rounded-pill border border-kant px-3 py-1.5 text-[13px] font-semibold text-text-dämpad hover:border-primär hover:text-primär">
+                  Vardagar
                 </button>
-              ))}
-              <button type="button" onClick={() => genväg('vardagar')} className="rounded-pill border border-kant px-3 py-1.5 text-[13px] font-semibold text-text-dämpad hover:border-primär hover:text-primär">
-                Vardagar
-              </button>
-              <button type="button" onClick={() => genväg('helger')} className="rounded-pill border border-kant px-3 py-1.5 text-[13px] font-semibold text-text-dämpad hover:border-primär hover:text-primär">
-                Helger
-              </button>
-              <button type="button" onClick={() => genväg('rensa')} className="rounded-pill border border-kant px-3 py-1.5 text-[13px] font-semibold text-fel hover:bg-fel-mjuk">
-                Rensa
-              </button>
-            </div>
-          )}
+                <button type="button" onClick={() => genväg('helger')} className="rounded-pill border border-kant px-3 py-1.5 text-[13px] font-semibold text-text-dämpad hover:border-primär hover:text-primär">
+                  Helger
+                </button>
+                <button type="button" onClick={() => genväg('rensa')} className="rounded-pill border border-kant px-3 py-1.5 text-[13px] font-semibold text-fel hover:bg-fel-mjuk">
+                  Rensa
+                </button>
+              </div>
 
-          <MånadsKalender valdaDatum={valdaDatum} onToggle={toggleDatum} minDatum={startdatum || undefined} maxDatum={slutdatum || undefined} />
-          <p className="text-[14px] font-semibold text-text">{pass.length} pass valda</p>
+              <MånadsKalender
+                år={visadMånad.år}
+                månad={visadMånad.månad}
+                onBytMånad={(år, månad) => setVisadMånad({ år, månad })}
+                valdaDatum={valdaDatum}
+                onToggle={toggleDatum}
+                minDatum={startdatum || undefined}
+                maxDatum={slutdatum || undefined}
+              />
+              <p className="text-[14px] font-semibold text-text">{pass.length} pass valda</p>
+            </>
+          )}
           <FältFel>{fel.pass}</FältFel>
         </div>
       )}
