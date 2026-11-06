@@ -19,14 +19,19 @@ async function skapaAnvändare({ namn, email, lösenord, typ, beskrivning, brans
 }
 
 async function hämtaAnvändareViaEmail(email) {
+  // Skiftlägesokänslig uppslagning: registreringen sparar Email som den skrevs, så en
+  // exakt .eq-matchning missar konton registrerade med versaler. Escapea LIKE-jokertecken
+  // (\ % _) så adressen matchas exakt men skiftlägesokänsligt – e-post kan innehålla dem.
+  const mönster = String(email).trim().replace(/[\\%_]/g, '\\$&');
   const { data, error } = await supabase
     .from('användare')
     .select('*')
-    .eq('Email', email)
-    .single();
+    .ilike('Email', mönster)
+    .order('id', { ascending: true })
+    .limit(1);
 
-  if (error && error.code !== 'PGRST116') throw error;
-  return data;
+  if (error) throw error;
+  return data?.[0] ?? null;
 }
 
 async function hämtaAnvändareViaId(id) {

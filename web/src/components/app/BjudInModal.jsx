@@ -165,23 +165,23 @@ export default function BjudInModal({ typ, id, öppen, onStäng, onÄndrad }) {
             <p className="text-[14px] text-text-dämpad">
               Skriv in personens e-postadress så skickar vi inbjudan direkt till dem.
             </p>
-            {bekräftelse ? (
+            {bekräftelse && (
               <div className="mt-4"><Besked typ="framgång">{bekräftelse}</Besked></div>
-            ) : (
-              <form onSubmit={skickaInbjudan} className="mt-4 flex flex-col gap-3">
-                <Input
-                  id="bjud-in-email"
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="namn@exempel.se"
-                  autoComplete="off"
-                />
-                <Knapp type="submit" variant="primär" full laddar={skickar} disabled={!email.trim()}>
-                  Skicka inbjudan
-                </Knapp>
-              </form>
             )}
+            {/* Formuläret ligger kvar efter utskick så företaget kan bjuda in fler i rad. */}
+            <form onSubmit={skickaInbjudan} className="mt-4 flex flex-col gap-3">
+              <Input
+                id="bjud-in-email"
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="namn@exempel.se"
+                autoComplete="off"
+              />
+              <Knapp type="submit" variant="primär" full laddar={skickar} disabled={!email.trim()}>
+                Skicka inbjudan
+              </Knapp>
+            </form>
           </div>
         )}
       </div>
