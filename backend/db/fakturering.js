@@ -8,14 +8,16 @@ const supabase = createClient(
   { realtime: { transport: ws } }
 );
 
-// Hämtar alla godkända tidrapporter som inte är fakturerade, med företagsinfo
+// Hämtar alla godkända tidrapporter som inte är fakturerade, med företagsinfo.
+// betald (utbetalt till privatpersonen) och fakturerad (fakturerat till företaget) är
+// oberoende storheter – ett pass kan vara betalt men ännu inte fakturerat – så betald
+// får ALDRIG filtrera underlaget, annars försvinner ofakturerade pass så fort de betalas.
 async function hämtaFaktureringsunderlag() {
   const { data: rapporter, error } = await supabase
     .from('tidrapporter')
     .select('*')
     .eq('status', 'godkänd')
     .neq('fakturerad', true)
-    .eq('betald', false)
     .order('datum', { ascending: true });
   if (error) throw error;
   if (!rapporter || !rapporter.length) return [];
