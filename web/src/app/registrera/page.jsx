@@ -52,7 +52,7 @@ export default function Registrera() {
   // försvaret – men inline-fel ger snabbare återkoppling.
   function validera() {
     const f = {};
-    if (!form.namn.trim()) f.namn = ärFöretag ? 'Företagsnamn krävs' : 'Namn krävs';
+    if (!form.namn.trim()) f.namn = ärFöretag ? 'Företagsnamn krävs' : 'För- och efternamn krävs';
     if (!form.email.trim()) f.email = 'E-post krävs';
     if (!form.lösenord) f.lösenord = 'Lösenord krävs';
     else if (form.lösenord.length < MIN_LÖSENORD)
@@ -135,14 +135,22 @@ export default function Registrera() {
       <Besked typ="fel">{fel}</Besked>
 
       <form onSubmit={skicka} className="flex flex-col gap-4">
-        <Input
-          id="namn"
-          etikett={ärFöretag ? 'Företagsnamn' : 'Namn'}
-          required
-          value={form.namn}
-          fel={fältFel.namn}
-          onChange={(e) => sätt('namn', e.target.value)}
-        />
+        <div>
+          <Input
+            id="namn"
+            etikett={ärFöretag ? 'Företagsnamn' : 'För- och efternamn'}
+            placeholder={ärFöretag ? undefined : 'T.ex. Anna Andersson'}
+            required
+            value={form.namn}
+            fel={fältFel.namn}
+            onChange={(e) => sätt('namn', e.target.value)}
+          />
+          {!ärFöretag && (
+            <p className="mt-1.5 text-[12px] text-text-svag">
+              Skriv ditt fullständiga namn
+            </p>
+          )}
+        </div>
         <Input
           id="email"
           etikett="E-post"
