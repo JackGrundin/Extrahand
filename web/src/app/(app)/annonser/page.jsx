@@ -34,6 +34,7 @@ export default function MinaAnnonser() {
   const [flik, setFlik] = useState('pass');
   const [data, setData] = useState(null);
   const [fel, setFel] = useState('');
+  const [klart, setKlart] = useState('');
   const [laddar, setLaddar] = useState(true);
 
   const hämta = useCallback(async () => {
@@ -57,17 +58,23 @@ export default function MinaAnnonser() {
     hämta();
   }, [hämta]);
 
+  // Jobb som redan har en tidrapport – styr både pinningen nedan och om passkortet ska
+  // visa "Avsluta pass".
+  const avslutadeJobbIds = useMemo(
+    () => new Set((data?.rapporter ?? []).map((r) => r.jobbId).filter(Boolean)),
+    [data]
+  );
+
   // Pass-fliken: aktiva jobb plus tidigare jobb som behöver avslutas (ej redan rapporterade),
   // med de som behöver avslutas pinnade överst – precis som appen.
   const passlista = useMemo(() => {
     if (!data) return [];
-    const avslutadeJobbIds = new Set((data.rapporter ?? []).map((r) => r.jobbId).filter(Boolean));
     const attAvsluta = (data.tidigare ?? []).filter(
       (j) => !avslutadeJobbIds.has(j.id) && j.harGodkänd && behöverAvslutas(j.arbetstider)
     );
     const aktiva = (data.jobb ?? []).filter((j) => !attAvsluta.some((a) => a.id === j.id));
     return [...attAvsluta, ...aktiva];
-  }, [data]);
+  }, [data, avslutadeJobbIds]);
 
   const schemalista = useMemo(
     () => (data?.scheman ?? []).filter((s) => s.status !== 'avbrutet'),
@@ -120,16 +127,28 @@ export default function MinaAnnonser() {
         </div>
       ) : (
         <>
-          {flik === 'pass' &&
-            (passlista.length === 0 ? (
-              <TomRad text="Du har inga aktiva jobb." länkText="Publicera ett pass →" href="/publicera/jobb" />
-            ) : (
-              <div className="grid gap-4 sm:grid-cols-2">
-                {passlista.map((j) => (
-                  <JobbKort key={j.id} jobb={j} onÄndrad={hämta} />
-                ))}
-              </div>
-            ))}
+          {flik === 'pass' && (
+            <>
+              {klart && <Besked typ="framgång">{klart}</Besked>}
+              {passlista.length === 0 ? (
+                <TomRad text="Du har inga aktiva jobb." länkText="Publicera ett pass →" href="/publicera/jobb" />
+              ) : (
+                <div className="grid gap-4 sm:grid-cols-2">
+                  {passlista.map((j) => (
+                    <JobbKort
+                      key={j.id}
+                      jobb={j}
+                      redanAvslutad={avslutadeJobbIds.has(j.id)}
+                      onÄndrad={hämta}
+                      onAvslutat={(titel) =>
+                        setKlart(`Passet "${titel}" avslutades – tidrapporten skickades till arbetstagaren för godkännande.`)
+                      }
+                    />
+                  ))}
+                </div>
+              )}
+            </>
+          )}
 
           {flik === 'scheman' &&
             (schemalista.length === 0 ? (

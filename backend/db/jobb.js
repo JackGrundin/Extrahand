@@ -61,11 +61,16 @@ async function filtreraAktivaJobb(jobb, { visaTillsatta = false } = {}) {
   // jobbets ansökningslista (ansokningar_sedda_at). NULL = aldrig öppnat → alla är nya.
   const nyaPerJobb = {};
   const seddMap = Object.fromEntries(jobb.map(j => [j.id, j.ansokningar_sedda_at]));
+  // Jobb med en godkänd ansökan – används för harGodkänd nedan så att företagets egen
+  // lista (visaTillsatta) kan visa "Avsluta pass" på tillsatta pass redan innan passdatum.
+  // Byggs ur samma ansokningar-svar, ingen extra query.
+  const godkändaJobbIds = new Set();
   for (const a of (ansokningar || [])) {
     const sedd = seddMap[a.jobb_id];
     if (!sedd || new Date(a.created_at) > new Date(sedd)) {
       nyaPerJobb[a.jobb_id] = (nyaPerJobb[a.jobb_id] || 0) + 1;
     }
+    if (a.status === 'godkänd') godkändaJobbIds.add(a.jobb_id);
   }
 
   // Ett jobb ska försvinna från listan så snart en ansökan blivit godkänd – då är
@@ -126,7 +131,7 @@ async function filtreraAktivaJobb(jobb, { visaTillsatta = false } = {}) {
     return true;
   });
 
-  return aktiva.map(j => ({ ...j, nyaAnsökningar: nyaPerJobb[j.id] || 0 }));
+  return aktiva.map(j => ({ ...j, nyaAnsökningar: nyaPerJobb[j.id] || 0, harGodkänd: godkändaJobbIds.has(j.id) }));
 }
 
 // Returnerar en Set med de jobb-id (bland de angivna) som har minst en godkänd ansökan.

@@ -6,13 +6,19 @@
 // kunna tas bort under fötterna på den som jobbar.
 import { useState } from 'react';
 import Link from 'next/link';
-import { api } from '@/lib/api';
+import { api, felText } from '@/lib/api';
+import AvslutaPassModal from '@/components/app/AvslutaPassModal';
+import FältFel from '@/components/ui/FältFel';
 import { parsaArbetstider, formatDagDatum, harStartat, behöverAvslutas } from '@/utils/datumHelper';
 
-export default function JobbKort({ jobb, onÄndrad }) {
+export default function JobbKort({ jobb, onÄndrad, redanAvslutad = false, onAvslutat }) {
   const [meny, setMeny] = useState(false);
   const [tarBort, setTarBort] = useState(false);
   const [görPublik, setGörPublik] = useState(false);
+  // Avsluta pass: id på den godkända ansökan vi öppnat modalen för, + laddning/fel.
+  const [valt, setValt] = useState(null);
+  const [öppnar, setÖppnar] = useState(false);
+  const [avslutaFel, setAvslutaFel] = useState('');
 
   const datum = (parsaArbetstider(jobb.arbetstider) ?? [])
     .map((d) => d?.datum)
@@ -23,6 +29,28 @@ export default function JobbKort({ jobb, onÄndrad }) {
 
   const startat = harStartat(jobb.arbetstider);
   const måsteAvslutas = jobb.harGodkänd && behöverAvslutas(jobb.arbetstider);
+  // Visa "Avsluta pass" så fort passet är bemannat (godkänd ansökan) och ingen tidrapport
+  // finns än – samma villkor som appens MinaJobbScreen.
+  const kanAvsluta = jobb.harGodkänd && !redanAvslutad;
+
+  // Slå upp jobbets godkända ansökan och öppna modalen – samma mönster som /avsluta-sidan.
+  async function öppnaAvsluta() {
+    setAvslutaFel('');
+    setÖppnar(true);
+    try {
+      const ansökningar = await api.ansökningarFörJobb(jobb.id);
+      const godkänd = (Array.isArray(ansökningar) ? ansökningar : []).find((a) => a.status === 'godkänd');
+      if (!godkänd) {
+        setAvslutaFel('Hittade ingen godkänd ansökan för passet.');
+        return;
+      }
+      setValt(godkänd.id);
+    } catch (f) {
+      setAvslutaFel(felText(f));
+    } finally {
+      setÖppnar(false);
+    }
+  }
 
   async function taBort() {
     if (!window.confirm('Ta bort det här passet? Det går inte att ångra.')) return;
@@ -124,12 +152,39 @@ export default function JobbKort({ jobb, onÄndrad }) {
         )}
       </div>
 
-      <Link
-        href={`/annonser/jobb/${jobb.id}/ansokningar`}
-        className="mt-4 inline-block text-[14px] font-semibold text-primär hover:underline"
-      >
-        Se ansökningar →
-      </Link>
+      <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
+        <Link
+          href={`/annonser/jobb/${jobb.id}/ansokningar`}
+          className="text-[14px] font-semibold text-primär hover:underline"
+        >
+          Se ansökningar →
+        </Link>
+        {kanAvsluta && (
+          <button
+            type="button"
+            disabled={öppnar}
+            onClick={öppnaAvsluta}
+            className="shrink-0 rounded-sm bg-gradient-primär px-4 py-2 text-[14px] font-bold text-white shadow-mjuk transition-shadow hover:shadow-lyft disabled:opacity-60"
+          >
+            {öppnar ? 'Öppnar…' : 'Avsluta pass'}
+          </button>
+        )}
+      </div>
+
+      {avslutaFel && <FältFel>{avslutaFel}</FältFel>}
+
+      {valt && (
+        <AvslutaPassModal
+          jobb={jobb}
+          ansokanId={valt}
+          onStäng={() => setValt(null)}
+          onKlar={() => {
+            setValt(null);
+            onAvslutat?.(jobb.Titel);
+            onÄndrad?.();
+          }}
+        />
+      )}
     </div>
   );
 }
