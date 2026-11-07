@@ -3,7 +3,7 @@
 // Privatpersonens Meddelanden: två flikar – Konversationer (en konversation per ansökan,
 // via api.minaAnsökningar) och Förfrågningar (inkomna inbjudningar via länk/mejl +
 // jobbförfrågningar). Ligger UTANFÖR (app)-gruppen med egen auth-gate; realtid kommer från
-// RealtidsProvider i chatt/layout.jsx.
+// RealtidsProvider i root-layouten.
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';

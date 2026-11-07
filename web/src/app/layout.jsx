@@ -1,5 +1,6 @@
 import './globals.css';
 import { AuthProvider } from '@/context/AuthContext';
+import { RealtidsProvider } from '@/context/RealtidsContext';
 import BetaModal from '@/components/app/BetaModal';
 
 export const metadata = {
@@ -23,8 +24,14 @@ export default function RootLayout({ children }) {
     <html lang="sv">
       <body>
         <AuthProvider>
-          {children}
-          <BetaModal />
+          {/* Realtid (Supabase Broadcast) för hela den inloggade produkten. Providern guardar
+              på inloggad användare, så den är ofarlig på publika/utloggade sidor. Monterad här
+              (inte per route-grupp) så att både skalens badgar/toasts OCH sidornas egna
+              useRealtidsPing-anrop ligger inom samma provider. */}
+          <RealtidsProvider>
+            {children}
+            <BetaModal />
+          </RealtidsProvider>
         </AuthProvider>
       </body>
     </html>

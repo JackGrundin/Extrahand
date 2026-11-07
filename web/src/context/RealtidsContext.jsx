@@ -1,11 +1,12 @@
 'use client';
 
 // Realtid via Supabase Broadcast – speglar frontend/src/context/RealtidsContext.js.
-// Företaget prenumererar ENBART på sin egen privata kanal (`anvandare:<id>`) och tar emot
-// lättviktiga signaler utan känsligt innehåll (backend skickar bara en typ-etikett).
-// Signalen används som trigger; själva datan hämtas via det JWT-skyddade API:t. Ingen
-// tabellpublikation eller RLS-öppning krävs. (Jobblista-kanalen behövs bara för
-// privatpersoner och utelämnas här.)
+// Monteras i root-layouten och täcker hela den inloggade produkten (företag + privatperson).
+// Den inloggade användaren prenumererar ENBART på sin egen privata kanal (`anvandare:<id>`)
+// och tar emot lättviktiga signaler utan känsligt innehåll (backend skickar bara en
+// typ-etikett). Signalen används som trigger; själva datan hämtas via det JWT-skyddade API:t.
+// Ingen tabellpublikation eller RLS-öppning krävs. (Jobblista-kanalen behövs bara för
+// privatpersoners jobblista och utelämnas här.)
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/context/AuthContext';

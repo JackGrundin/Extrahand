@@ -16,13 +16,19 @@ const LÄNKAR = [
   { namn: 'Min profil', väg: '/min-profil' },
 ];
 
-export default function PrivatSidomeny({ onNavigera, olästa = 0 }) {
+export default function PrivatSidomeny({ onNavigera, olästa = 0, ansökanStatus = 0 }) {
   const { användare, loggaUt } = useAuth();
   const sökväg = usePathname();
 
   function ärAktiv(väg) {
     return sökväg === väg || sökväg?.startsWith(`${väg}/`);
   }
+
+  // Röd badge per väg: olästa meddelanden på /chatt, besvarade ansökningar på /mina-ansokningar.
+  const BADGE_PER_VÄG = {
+    '/chatt': olästa,
+    '/mina-ansokningar': ansökanStatus,
+  };
 
   return (
     <div className="flex h-full flex-col">
@@ -33,8 +39,8 @@ export default function PrivatSidomeny({ onNavigera, olästa = 0 }) {
       <nav className="flex-1 space-y-1 px-3 py-2">
         {LÄNKAR.map((l) => {
           const aktiv = ärAktiv(l.väg);
-          // Oläst-badge bara på Meddelanden (→ /chatt), antal från föräldern.
-          const badge = l.väg === '/chatt' ? olästa : 0;
+          // Badge-antal per väg (olästa meddelanden / besvarade ansökningar), från föräldern.
+          const badge = BADGE_PER_VÄG[l.väg] ?? 0;
           return (
             <Link
               key={l.väg}

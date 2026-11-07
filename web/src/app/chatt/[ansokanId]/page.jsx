@@ -2,7 +2,7 @@
 
 // Privatpersonens chatt-tråd (per ansökan). Speglar webbens företags-tråd
 // (app)/meddelanden/[ansokanId]: GET /meddelanden/:ansokanId + POST, realtid via
-// useRealtidsPing (RealtidsProvider kommer från chatt/layout.jsx), optimistiskt append.
+// useRealtidsPing (RealtidsProvider kommer från root-layouten), optimistiskt append.
 // Ligger utanför (app) med egen auth-gate. Textmeddelanden + ett tidrapportskort sist i
 // tidslinjen när en rapport finns (TidrapportSektion self-fetchar och self-gatar).
 // Jobbförfrågningar visas ännu bara i appen (saknar webbstöd).

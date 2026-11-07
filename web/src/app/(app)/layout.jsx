@@ -6,7 +6,6 @@
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
-import { RealtidsProvider } from '@/context/RealtidsContext';
 import AppSkal from '@/components/app/AppSkal';
 
 export default function FöretagsLayout({ children }) {
@@ -38,9 +37,6 @@ export default function FöretagsLayout({ children }) {
   // vidare; rendera inget företagsinnehåll under tiden (undviker en blink av fel vy).
   if (!inloggad || användare?.email === 'info@fastgig.se' || användare?.typ !== 'företag') return null;
 
-  return (
-    <RealtidsProvider>
-      <AppSkal>{children}</AppSkal>
-    </RealtidsProvider>
-  );
+  // RealtidsProvider monteras i root-layouten, så här räcker det med skalet.
+  return <AppSkal>{children}</AppSkal>;
 }

@@ -12,7 +12,7 @@ const LÄNKAR = [
   { namn: 'Översikt', väg: '/oversikt' },
   { namn: 'Mina annonser', väg: '/annonser', badgeNyckel: 'annonser' },
   { namn: 'Schemaöversikt', väg: '/kalender' },
-  { namn: 'Meddelanden', väg: '/meddelanden' },
+  { namn: 'Meddelanden', väg: '/meddelanden', badgeNyckel: 'meddelanden' },
   { namn: 'Publicera pass', väg: '/publicera/jobb' },
   { namn: 'Publicera schema', väg: '/publicera/schema' },
 ];

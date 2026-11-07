@@ -6,12 +6,40 @@
 import { useCallback, useEffect, useState } from 'react';
 import { usePathname } from 'next/navigation';
 import Sidomeny from '@/components/app/Sidomeny';
+import { useAuth } from '@/context/AuthContext';
+import { useRealtidsPing } from '@/context/RealtidsContext';
+import { useToaster } from '@/components/ui/Toast';
 import { api } from '@/lib/api';
 
+// Backend saknar läs-status för chatt, så "oläst" härleds klient-sidigt (precis som i
+// PrivatSkal): en konversation är oläst om dess senaste meddelande kom från motparten efter
+// att inboxen senast öppnades. Tidpunkten lagras i localStorage och seedas till nu vid första
+// besöket (ingen retroaktiv badge).
+const SEDD_NYCKEL = 'fastgig.foretag.chatt.sedd';
+
+function läsSedd() {
+  if (typeof window === 'undefined') return Date.now();
+  const rått = window.localStorage.getItem(SEDD_NYCKEL);
+  if (rått == null) {
+    const nu = Date.now();
+    try { window.localStorage.setItem(SEDD_NYCKEL, String(nu)); } catch {}
+    return nu;
+  }
+  return Number(rått) || 0;
+}
+
+function sättSedd(ts) {
+  if (typeof window === 'undefined') return;
+  try { window.localStorage.setItem(SEDD_NYCKEL, String(ts)); } catch {}
+}
+
 export default function AppSkal({ children }) {
+  const { användare } = useAuth();
   const [menyÖppen, setMenyÖppen] = useState(false);
-  const [badges, setBadges] = useState({ annonser: 0 });
+  const [badges, setBadges] = useState({ annonser: 0, meddelanden: 0 });
   const sökväg = usePathname();
+  const { visa, toaster } = useToaster();
+  const minId = String(användare?.id ?? '');
 
   // Nya ansökningar på både jobb och scheman. Fel sväljs: en trasig badge får aldrig
   // sänka hela vyn.
@@ -20,17 +48,46 @@ export default function AppSkal({ children }) {
       const [jobb, scheman] = await Promise.all([api.minaJobb(), api.minaScheman()]);
       const summa = (arr) =>
         (Array.isArray(arr) ? arr : []).reduce((s, x) => s + (Number(x?.nyaAnsökningar) || 0), 0);
-      setBadges({ annonser: summa(jobb) + summa(scheman) });
+      setBadges((prev) => ({ ...prev, annonser: summa(jobb) + summa(scheman) }));
     } catch {
       /* ignoreras med flit */
     }
   }, []);
 
+  // Olästa konversationer för Meddelanden-badgen. Samma härledning som privatpersonens inbox.
+  const laddaOlästa = useCallback(async () => {
+    try {
+      const data = await api.företagsKonversationer();
+      const sedd = läsSedd();
+      const antal = (Array.isArray(data) ? data : []).filter((k) => {
+        const sm = k.senasteMeddelande;
+        if (!sm?.created_at) return false;
+        if (String(sm.avsandare_id) === minId) return false; // mitt eget sista meddelande
+        return new Date(sm.created_at).getTime() > sedd;
+      }).length;
+      setBadges((prev) => ({ ...prev, meddelanden: antal }));
+    } catch {
+      /* ignoreras med flit */
+    }
+  }, [minId]);
+
   // Ladda vid montering och varje gång man byter sida (så badgen nollas efter att man
-  // tittat på ansökningarna).
+  // tittat på ansökningar/meddelanden). Nollställ oläst-stämpeln när inboxen öppnas.
   useEffect(() => {
+    if (sökväg?.startsWith('/meddelanden')) sättSedd(Date.now());
     laddaBadges();
-  }, [laddaBadges, sökväg]);
+    laddaOlästa();
+  }, [laddaBadges, laddaOlästa, sökväg]);
+
+  // Realtid: en ny ansökan uppdaterar annons-badgen, ett nytt meddelande uppdaterar
+  // oläst-badgen och visar en toast.
+  useRealtidsPing((p) => {
+    if (p?.typ === 'ansokan') laddaBadges();
+    if (p?.typ === 'meddelande') {
+      laddaOlästa();
+      visa({ titel: 'Nytt meddelande', text: 'Du har fått ett nytt meddelande.', href: '/meddelanden' });
+    }
+  });
 
   // Stäng mobildrawern vid sidbyte.
   useEffect(() => {
@@ -77,6 +134,9 @@ export default function AppSkal({ children }) {
       <main className="md:pl-64">
         <div className="mx-auto max-w-5xl px-5 py-8 sm:py-10">{children}</div>
       </main>
+
+      {/* Realtids-toasts */}
+      {toaster}
     </div>
   );
 }
