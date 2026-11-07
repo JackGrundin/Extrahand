@@ -6,6 +6,7 @@ import AuthSkal from '@/components/AuthSkal';
 import Input from '@/components/ui/Input';
 import Knapp from '@/components/ui/Knapp';
 import Besked from '@/components/ui/Besked';
+import VälkomstModal from '@/components/VälkomstModal';
 import { useAuth } from '@/context/AuthContext';
 import { api, felText } from '@/lib/api';
 
@@ -23,6 +24,10 @@ function VerifieraInnehåll() {
   const [besked, setBesked] = useState('');
   const [laddar, setLaddar] = useState(false);
   const [skickarKod, setSkickarKod] = useState(false);
+  // Privatpersoner möts av en välkomstruta om avtalet (precis som i appen) innan de
+  // navigeras vidare – målet sparas tills de klickar bort rutan.
+  const [visaVälkomst, setVisaVälkomst] = useState(false);
+  const [välkomstMål, setVälkomstMål] = useState('');
 
   async function skicka(e) {
     e.preventDefault();
@@ -32,8 +37,18 @@ function VerifieraInnehåll() {
     try {
       const svar = await verifieraKod(email.trim(), kod.trim());
       // Inbjudningslänk (next) först; annars företag → översikt, privatperson → jobblistan.
-      if (nästa) router.push(nästa);
-      else router.push(svar?.användare?.typ === 'företag' ? '/oversikt' : '/jobb');
+      const mål = nästa
+        ? nästa
+        : svar?.användare?.typ === 'företag'
+          ? '/oversikt'
+          : '/jobb';
+      // Privatpersoner ser först välkomstrutan om avtalet; företag navigeras direkt.
+      if (svar?.användare?.typ === 'privatperson') {
+        setVälkomstMål(mål);
+        setVisaVälkomst(true);
+      } else {
+        router.push(mål);
+      }
     } catch (f) {
       setFel(felText(f));
     } finally {
@@ -100,6 +115,11 @@ function VerifieraInnehåll() {
           Skicka ny kod
         </button>
       </div>
+
+      <VälkomstModal
+        öppen={visaVälkomst}
+        onStäng={() => router.push(välkomstMål)}
+      />
     </AuthSkal>
   );
 }

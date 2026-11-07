@@ -11,6 +11,14 @@ import Knapp from '@/components/ui/Knapp';
 
 const STÄMPEL_NYCKEL = 'fastgig.beta.välkommen';
 
+// Sidor där beta-modalen aldrig får lägga sig över en annan avsiktlig ruta:
+// inbjudningslandningen och verifieringssidans välkomst-/avtalsruta.
+function döljsPåSida(pathname) {
+  return (
+    pathname?.startsWith('/inbjudan') || pathname?.startsWith('/verifiera')
+  );
+}
+
 export default function BetaModal() {
   const { laddar, inloggad, användare } = useAuth();
   const pathname = usePathname();
@@ -19,10 +27,12 @@ export default function BetaModal() {
   // Avgör om modalen ska visas – bara i webbläsaren, bara för inloggade icke-admin
   // som inte redan bekräftat. Körs när sessionen återställts (laddar börjar true).
   // Inbjudningssidan (/inbjudan/[token]) är en avsiktlig ingång för privatpersoner –
-  // beta-modalen ska aldrig lägga sig över den.
+  // beta-modalen ska aldrig lägga sig över den. Verifieringssidan (/verifiera) äger i
+  // sin tur välkomst-/avtalsrutan för nyss verifierade privatpersoner; beta-modalen
+  // dyker i stället upp på nästa sida de landar på (/jobb resp. /oversikt).
   useEffect(() => {
     if (laddar || !inloggad) return;
-    if (pathname?.startsWith('/inbjudan')) return;
+    if (döljsPåSida(pathname)) return;
     if (användare?.email === 'info@fastgig.se') return;
     if (localStorage.getItem(STÄMPEL_NYCKEL)) return;
     setVisa(true);
@@ -33,7 +43,7 @@ export default function BetaModal() {
     setVisa(false);
   }
 
-  if (!visa || pathname?.startsWith('/inbjudan')) return null;
+  if (!visa || döljsPåSida(pathname)) return null;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
