@@ -16,6 +16,7 @@ const {
   hämtaInbjudanViaId,
   hämtaMinaInbjudningar,
   markeraAccepterad,
+  markeraInbjudanAvböjd,
 } = require('../db/schemaInbjudan');
 const { hämtaSchemaViaId, uppdateraSchema } = require('../db/scheman');
 const { hämtaJobbViaId, sättJobbPrivat } = require('../db/jobb');
@@ -336,6 +337,23 @@ router.post('/mina/:id/acceptera', kräverInloggning, kräverTyp('privatperson')
     res.json(resultat);
   } catch (fel) {
     svaraAcceptfel(res, fel);
+  }
+});
+
+// POST /api/inbjudan/mina/:id/avboj — mottagaren tar bort (avböjer) en inkommen inbjudan.
+// Soft: raden stämplas med avbojd_at och faller ur Förfrågningar-fliken; den raderas aldrig.
+router.post('/mina/:id/avboj', kräverInloggning, kräverTyp('privatperson'), async (req, res) => {
+  try {
+    const inbjudan = await hämtaInbjudanViaId(req.params.id);
+    if (!inbjudan) return res.status(404).json({ fel: 'Inbjudan hittades inte' });
+    if (inbjudan.anvandare_id !== req.användare.id) {
+      return res.status(403).json({ fel: 'Åtkomst nekad' });
+    }
+    await markeraInbjudanAvböjd(inbjudan.id);
+    res.json({ ok: true });
+  } catch (fel) {
+    console.error('Fel vid avböjning av inbjudan:', fel);
+    res.status(500).json({ fel: 'Serverfel vid avböjning av inbjudan' });
   }
 });
 

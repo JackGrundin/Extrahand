@@ -89,6 +89,7 @@ async function hämtaMinaInbjudningar(anvandare_id) {
     .from('schema_inbjudningar')
     .select('id, jobb_id, schema_id, skapad_datum')
     .eq('anvandare_id', anvandare_id)
+    .is('avbojd_at', null)
     .order('skapad_datum', { ascending: false });
   if (error) throw error;
   if (!inbjudningar?.length) return [];
@@ -197,6 +198,18 @@ async function markeraAccepterad(id, anvandare_id, { rabattGodkand = false } = {
   if (error) throw error;
 }
 
+// Stämplar att mottagaren avböjt (tagit bort) en inbjudan. Idempotent: skriver bara
+// om avbojd_at är null, så ett dubbelklick inte flyttar fram tidpunkten. Raden lämnas
+// kvar – filtret i hämtaMinaInbjudningar gör att den försvinner ur Förfrågningar-fliken.
+async function markeraInbjudanAvböjd(id) {
+  const { error } = await supabase
+    .from('schema_inbjudningar')
+    .update({ avbojd_at: new Date().toISOString() })
+    .eq('id', id)
+    .is('avbojd_at', null);
+  if (error) throw error;
+}
+
 module.exports = {
   hashaToken,
   skapaInbjudan,
@@ -206,4 +219,5 @@ module.exports = {
   hämtaMinaInbjudningar,
   hämtaInbjudningarFörSchema,
   markeraAccepterad,
+  markeraInbjudanAvböjd,
 };

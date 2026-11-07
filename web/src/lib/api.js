@@ -179,6 +179,7 @@ export const api = {
   // Förfrågningar-fliken: inkomna inbjudningar + acceptera via inbjudans id.
   hämtaMinaInbjudningar: () => anrop('GET', '/inbjudan/mina'),
   accepteraInbjudanViaId: (id) => anrop('POST', `/inbjudan/mina/${id}/acceptera`, {}),
+  avböjInbjudan: (id) => anrop('POST', `/inbjudan/mina/${id}/avboj`, {}),
   minaJobbförfrågningar: () => anrop('GET', '/jobbforfragan/mina-vantande'),
   görJobbPublikt: (jobbId) => anrop('PATCH', `/inbjudan/jobb/${jobbId}/publicera`, {}),
   // Privatpersons-ansökan till ett schema (mot dess annons-jobb). Backend fryser kravlistan.

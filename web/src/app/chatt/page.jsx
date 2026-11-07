@@ -35,8 +35,38 @@ function formatDatum(datum) {
   });
 }
 
+// Backend saknar läs-status för förfrågningar, så "ny" härleds klient-sidigt: en förfrågan
+// är ny om den kom efter att Förfrågningar-fliken senast öppnades. Tidpunkten lagras i
+// localStorage och seedas till nu vid första besöket (ingen retroaktiv flagga), precis som
+// konversationspricken i PrivatSkal.
+const FÖRFRÅGAN_SEDD_NYCKEL = 'fastgig.forfragan.sedd';
+
+function läsFörfråganSedd() {
+  if (typeof window === 'undefined') return Date.now();
+  const rått = window.localStorage.getItem(FÖRFRÅGAN_SEDD_NYCKEL);
+  if (rått == null) {
+    const nu = Date.now();
+    try { window.localStorage.setItem(FÖRFRÅGAN_SEDD_NYCKEL, String(nu)); } catch {}
+    return nu;
+  }
+  return Number(rått) || 0;
+}
+
+function sättFörfråganSedd(ts) {
+  if (typeof window === 'undefined') return;
+  try { window.localStorage.setItem(FÖRFRÅGAN_SEDD_NYCKEL, String(ts)); } catch {}
+}
+
+// Tidpunkten en förfrågan "kom in". skapad_datum för både inbjudningar och jobbförfrågningar;
+// faller tillbaka på passets datum om stämpel saknas.
+function förfråganTid(post) {
+  const iso = post?.data?.skapad_datum || post?.data?.datum || '';
+  const t = iso ? new Date(iso).getTime() : 0;
+  return Number.isFinite(t) ? t : 0;
+}
+
 // Kort för en inkommen inbjudan (länk/mejl). Acceptera skapar + godkänner ansökan direkt.
-function InbjudanKort({ inbjudan, onAccepterad }) {
+function InbjudanKort({ inbjudan, onAccepterad, onBorttagen }) {
   const [sparar, setSparar] = useState(false);
   const [fel, setFel] = useState('');
 
@@ -46,6 +76,20 @@ function InbjudanKort({ inbjudan, onAccepterad }) {
     try {
       const svar = await api.accepteraInbjudanViaId(inbjudan.id);
       onAccepterad(svar);
+    } catch (f) {
+      setFel(felText(f));
+    } finally {
+      setSparar(false);
+    }
+  }
+
+  // Ta bort: soft-avböj mot backend så inbjudan försvinner ur Förfrågningar-fliken.
+  async function taBort() {
+    setFel('');
+    setSparar(true);
+    try {
+      await api.avböjInbjudan(inbjudan.id);
+      onBorttagen?.();
     } catch (f) {
       setFel(felText(f));
     } finally {
@@ -89,12 +133,20 @@ function InbjudanKort({ inbjudan, onAccepterad }) {
         )}
       </dl>
       {fel && <p className="mt-2 text-[13px] text-fel">{fel}</p>}
-      <div className="mt-4">
+      <div className="mt-4 flex gap-2">
+        <button
+          type="button"
+          disabled={sparar}
+          onClick={taBort}
+          className="flex-1 rounded-sm border border-fel py-2.5 text-[14px] font-bold text-fel hover:bg-fel-mjuk disabled:opacity-50"
+        >
+          Ta bort
+        </button>
         <button
           type="button"
           disabled={sparar}
           onClick={acceptera}
-          className="w-full rounded-sm bg-framgång py-2.5 text-[14px] font-bold text-white hover:brightness-105 disabled:opacity-50"
+          className="flex-1 rounded-sm bg-framgång py-2.5 text-[14px] font-bold text-white hover:brightness-105 disabled:opacity-50"
         >
           Acceptera förfrågan
         </button>
@@ -114,6 +166,7 @@ export default function ChattInkorg() {
   const [laddar, setLaddar] = useState(true);
   const [fel, setFel] = useState('');
   const [avtalVäntar, setAvtalVäntar] = useState(false); // accepterad men avtal ej godkänt
+  const [förfråganSedd, setFörfråganSedd] = useState(() => läsFörfråganSedd());
 
   useEffect(() => {
     if (authLaddar) return;
@@ -169,6 +222,21 @@ export default function ChattInkorg() {
     return poster;
   }, [inbjudningar, jobbförfrågningar]);
 
+  // Flik-badgen räknar bara förfrågningar som kommit sedan fliken senast öppnades, så
+  // pricken försvinner när man "gått in och kollat" (till skillnad från ett rått totalantal).
+  const nyaFörfrågningar = useMemo(
+    () => förfrågningar.filter((p) => förfråganTid(p) > förfråganSedd).length,
+    [förfrågningar, förfråganSedd]
+  );
+
+  // Markera förfrågningar som sedda när fliken öppnas → nollar badgen.
+  useEffect(() => {
+    if (flik !== 'forfragningar') return;
+    const nu = Date.now();
+    sättFörfråganSedd(nu);
+    setFörfråganSedd(nu);
+  }, [flik]);
+
   // Efter accept: avtal godkänt → till chatten; annars visa väntmeddelande + uppdatera listor.
   function efterAccept(svar) {
     if (svar?.avtalGodkant && svar.ansokanId) {
@@ -219,9 +287,9 @@ export default function ChattInkorg() {
             }`}
           >
             Förfrågningar
-            {antalFörfrågningar > 0 && (
+            {nyaFörfrågningar > 0 && (
               <span className="rounded-pill bg-primär px-2 py-0.5 text-[11px] font-bold text-white">
-                {antalFörfrågningar}
+                {nyaFörfrågningar}
               </span>
             )}
           </button>
@@ -303,7 +371,7 @@ export default function ChattInkorg() {
           <div className="mt-6 space-y-3">
             {förfrågningar.map((post) =>
               post.typ === 'inbjudan' ? (
-                <InbjudanKort key={post.key} inbjudan={post.data} onAccepterad={efterAccept} />
+                <InbjudanKort key={post.key} inbjudan={post.data} onAccepterad={efterAccept} onBorttagen={hämta} />
               ) : (
                 <JobbförfråganKort
                   key={post.key}
