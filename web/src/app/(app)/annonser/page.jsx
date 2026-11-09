@@ -8,6 +8,7 @@ import Besked from '@/components/ui/Besked';
 import JobbKort from '@/components/app/JobbKort';
 import SchemaKort from '@/components/app/SchemaKort';
 import { api } from '@/lib/api';
+import { useRealtidsPing } from '@/context/RealtidsContext';
 import { behöverAvslutas } from '@/utils/datumHelper';
 import { STATUSFÄRGER_TIDRAPPORT, formateraPris } from '@/utils/konstanter';
 
@@ -57,6 +58,12 @@ export default function MinaAnnonser() {
   useEffect(() => {
     hämta();
   }, [hämta]);
+
+  // Realtid: hämta om annonserna när en ansökan kommer in eller en tidrapport ändras.
+  // Filtrera på typ – hämta() gör fyra parallella anrop och meddelande-pings är frekventa.
+  useRealtidsPing((p) => {
+    if (p?.typ === 'ansokan' || p?.typ === 'tidrapport') hämta();
+  });
 
   // Jobb som redan har en tidrapport – styr både pinningen nedan och om passkortet ska
   // visa "Avsluta pass".

@@ -11,6 +11,7 @@ import PrivatSkal from '@/components/privat/PrivatSkal';
 import Knapp from '@/components/ui/Knapp';
 import Besked from '@/components/ui/Besked';
 import { useAuth } from '@/context/AuthContext';
+import { useRealtidsPing } from '@/context/RealtidsContext';
 import { api, felText } from '@/lib/api';
 import { ansökanStatusVisning } from '@/utils/konstanter';
 
@@ -56,6 +57,12 @@ export default function MinaAnsokningar() {
   useEffect(() => {
     if (!authLaddar && inloggad && användare?.typ !== 'företag') hämta();
   }, [authLaddar, inloggad, användare, hämta]);
+
+  // Realtid: hämta om listan när en ansökans status ändras (godkänd/avvisad/avhopp).
+  // Backend skickar 'pass-status' till privatpersonens privata kanal vid dessa händelser.
+  useRealtidsPing((p) => {
+    if (p?.typ === 'pass-status') hämta();
+  });
 
   async function ångra(id) {
     if (!window.confirm('Vill du ångra din ansökan?')) return;

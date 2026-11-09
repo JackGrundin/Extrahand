@@ -5,8 +5,9 @@
 // och speglar appens JobbScreen (ort = substräng mot Plats, bransch = flerval mot Kategori,
 // min-lön mot Lon, min-dagar mot antal_dagar, sortering). Backend GET /jobb är publik och
 // har redan rensat bort schema-jobb, tillsatta och passerade pass.
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import PrivatSkal from '@/components/privat/PrivatSkal';
+import { useJobblistaPing } from '@/context/RealtidsContext';
 import AvtalBanner from '@/components/privat/AvtalBanner';
 import Input from '@/components/ui/Input';
 import Knapp from '@/components/ui/Knapp';
@@ -38,18 +39,26 @@ export default function JobbLista() {
   const [kategoriSök, setKategoriSök] = useState('');
   const [visaAllaBranscher, setVisaAllaBranscher] = useState(false);
 
-  useEffect(() => {
-    (async () => {
-      try {
-        const lista = await api.hämtaAllaJobb();
-        setJobb(Array.isArray(lista) ? lista : []);
-      } catch (f) {
-        setFel(felText(f));
-      } finally {
-        setLaddar(false);
-      }
-    })();
+  const ladda = useCallback(async () => {
+    try {
+      const lista = await api.hämtaAllaJobb();
+      setJobb(Array.isArray(lista) ? lista : []);
+      setFel('');
+    } catch (f) {
+      setFel(felText(f));
+    } finally {
+      setLaddar(false);
+    }
   }, []);
+
+  useEffect(() => {
+    ladda();
+  }, [ladda]);
+
+  // Realtid: hämta om listan när ett jobb publiceras, ändras, tas bort eller blir
+  // tillsatt/ledigt. Alla jobblista-signaler påverkar vilka jobb som är öppna, så ingen
+  // filtrering på typ behövs.
+  useJobblistaPing(() => ladda());
 
   function växlaKategori(kat) {
     setValdaKategorier((prev) => {
