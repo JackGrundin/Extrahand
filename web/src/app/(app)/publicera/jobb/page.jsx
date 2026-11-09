@@ -4,7 +4,7 @@
 // validering (valideraJobb), samma payload. Backend är sista försvaret och svarar
 // KRAVER_PLANVAL (409) om gratiskontot förbrukat månadens två pass – då visas planvalet
 // och publiceringen görs om med acceptera_hogre_paslag.
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Input from '@/components/ui/Input';
 import Textfält from '@/components/ui/Textfält';
@@ -23,7 +23,7 @@ import { api, felText } from '@/lib/api';
 import { valideraJobb } from '@/utils/jobbValidering';
 import { datumTillIso, planeradeTimmar } from '@/utils/datumHelper';
 import { saniteraObTillagg } from '@/utils/ob';
-import { beräknaFakturapris, formateraPris, PÅSLAG_PRO } from '@/utils/konstanter';
+import { beräknaFakturapris, formateraPris, PÅSLAG_GRATIS } from '@/utils/konstanter';
 
 export default function PubliceraJobb() {
   const router = useRouter();
@@ -47,6 +47,24 @@ export default function PubliceraJobb() {
   const [laddarUppgradera, setLaddarUppgradera] = useState(false);
   // Publicerings-popup: sätts till det skapade jobbet efter lyckad publicering.
   const [publiceratJobb, setPubliceratJobb] = useState(null);
+  // Företagets prognospåslag, bara för prisvisningen – backend avgör i slutändan.
+  const [prenumeration, setPrenumeration] = useState(null);
+
+  // Hämta påslaget som gäller för nästa pass så prisrutan kan visa rätt kostnad.
+  useEffect(() => {
+    let avbruten = false;
+    (async () => {
+      try {
+        const status = await api.prenumerationStatus();
+        if (!avbruten) setPrenumeration(status);
+      } catch {
+        // Statusen är bara till för prisvisningen – backend avgör i slutändan.
+      }
+    })();
+    return () => {
+      avbruten = true;
+    };
+  }, []);
 
   // Dagens datum som undre gräns för datumväljarna (man publicerar inte pass i det förflutna).
   const idag = datumTillIso(new Date());
@@ -132,12 +150,13 @@ export default function PubliceraJobb() {
     }
   }
 
-  // Prisförhandsvisning: brutto = timlön × planerade timmar, fakturabelopp med det lägsta
-  // påslaget (20 %). Exakt påslag avgörs först vid godkännande – därav gråtexten nedan.
+  // Prisförhandsvisning: brutto = timlön × planerade timmar. Påslaget är företagets
+  // prognospåslag (20/40 %) – exakt påslag fryses först vid godkännande.
   const lönNum = parseFloat(lon) || 0;
   const timmar = planeradeTimmar(dagScheman);
   const brutto = lönNum * (timmar || 0);
   const visaPris = lönNum > 0 && timmar > 0;
+  const gällandePåslag = prenumeration?.paslag ?? PÅSLAG_GRATIS;
 
   return (
     <div className="mx-auto max-w-2xl">
@@ -257,14 +276,15 @@ export default function PubliceraJobb() {
 
         {visaPris && (
           <div className="rounded-lg border border-kant bg-primär-mjuk p-4">
-            <p className="text-[14px] font-semibold text-text">Kostnad</p>
-            <div className="mt-2 flex justify-between text-[14px] text-text-dämpad">
-              <span>{formateraPris(lönNum)} kr/tim × {timmar} h (brutto)</span>
-              <span className="font-semibold text-text">{formateraPris(brutto)} kr</span>
+            <div className="flex items-center justify-between">
+              <span className="text-[14px] font-semibold text-text">Er kostnad (ex. moms)</span>
+              <span className="text-[15px] font-semibold text-primär">
+                {formateraPris(beräknaFakturapris(lönNum, gällandePåslag))} kr/h
+              </span>
             </div>
-            <div className="flex justify-between text-[14px] text-text-dämpad">
-              <span>Fakturabelopp exkl. moms</span>
-              <span className="font-semibold text-text">{formateraPris(beräknaFakturapris(brutto, PÅSLAG_PRO))} kr</span>
+            <div className="mt-1 flex items-center justify-between text-[13px] text-text-dämpad">
+              <span>Totalt för passet (ex. moms)</span>
+              <span>{formateraPris(beräknaFakturapris(brutto, gällandePåslag))} kr</span>
             </div>
           </div>
         )}
