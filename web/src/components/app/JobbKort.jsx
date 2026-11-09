@@ -104,6 +104,16 @@ export default function JobbKort({ jobb, onÄndrad, redanAvslutad = false, onAvs
             </button>
             {meny && (
               <div className="absolute right-0 z-10 mt-1 w-40 overflow-hidden rounded-sm border border-kant bg-yta shadow-lyft">
+                {/* Redigera går bara innan någon godkänts – då har ingen tackat ja till
+                    villkoren annonsen beskriver. */}
+                {!jobb.harGodkänd && (
+                  <Link
+                    href={`/redigera/jobb/${jobb.id}`}
+                    className="block w-full px-4 py-2.5 text-left text-[14px] font-semibold text-text hover:bg-yta-dämpad"
+                  >
+                    Redigera
+                  </Link>
+                )}
                 <button
                   type="button"
                   disabled={tarBort}

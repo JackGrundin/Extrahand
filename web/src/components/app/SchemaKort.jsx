@@ -4,10 +4,12 @@
 // appen: antalAnsökningar räknar väntande ("så här många kan jag välja bland") och nya
 // markeras separat. Visar period, timlön, roller och statuschip (tillsatt / söker person).
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import RollBrickor from '@/components/app/RollBrickor';
 import { formatPeriod } from '@/utils/datumHelper';
 
 export default function SchemaKort({ schema }) {
+  const router = useRouter();
   const period = formatPeriod(
     (schema.pass ?? []).map((p) => p.datum).filter(Boolean)
   ) || formatPeriod([schema.startdatum, schema.slutdatum].filter(Boolean));
@@ -57,6 +59,24 @@ export default function SchemaKort({ schema }) {
           {tillsatt ? schema.personNamn || 'Tillsatt' : 'Söker person'}
         </span>
       </div>
+
+      {/* Redigera går bara innan någon godkänts. Kortet är en Link, så knappen måste
+          stoppa navigeringen och själv routa till redigeringssidan. */}
+      {!tillsatt && (
+        <div className="mt-4 border-t border-kant pt-3">
+          <button
+            type="button"
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              router.push(`/redigera/schema/${schema.id}`);
+            }}
+            className="rounded-sm border border-kant px-3.5 py-1.5 text-[13px] font-semibold text-text-dämpad hover:border-kant-stark hover:text-text"
+          >
+            Redigera
+          </button>
+        </div>
+      )}
     </Link>
   );
 }

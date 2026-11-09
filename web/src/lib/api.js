@@ -160,6 +160,13 @@ export const api = {
   minaScheman: () => anrop('GET', '/scheman/mina'),
   skapaSchema: (kropp) => anrop('POST', '/scheman', kropp),
   hämtaSchema: (id) => anrop('GET', `/scheman/${id}`),
+  // Redigering efter publicering (speglar frontend/src/api/klient.js). PUT uppdaterar
+  // bara de fält som skickas; befintliga pass flyttas aldrig – de tas bort och läggs till.
+  uppdateraSchema: (id, kropp) => anrop('PUT', `/scheman/${id}`, kropp),
+  läggTillSchemaPass: (id, pass) => anrop('POST', `/scheman/${id}/pass`, { pass }),
+  taBortSchemaPass: (id, passId) => anrop('DELETE', `/scheman/${id}/pass/${passId}`),
+  skapaSchemaAvdrag: (id, kropp) => anrop('POST', `/scheman/${id}/avdrag`, kropp),
+  taBortSchemaAvdrag: (id, avdragId) => anrop('DELETE', `/scheman/${id}/avdrag/${avdragId}`),
   markeraSchemaAnsökningarSedda: (schemaId) =>
     anrop('POST', `/scheman/${schemaId}/markera-ansokningar-sedda`, {}),
   // Kalendervy: union av schemapass och godkända enstaka pass (inkl. obemannade).
