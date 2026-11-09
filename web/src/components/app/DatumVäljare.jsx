@@ -4,7 +4,7 @@
 // vid knappning – segmentformatet följer webbläsarens locale (inte lang="sv-SE") och
 // placeholder ignoreras – så manuell inmatning sker i stället i ett textfält med mask och
 // validering. Värdet som skickas upp är alltid ISO YYYY-MM-DD, samma format backend vill ha.
-// min styr tidigaste valbara dag (ISO-strängar jämförs lexikografiskt).
+// min/max styr tidigaste/senaste valbara dag (ISO-strängar jämförs lexikografiskt).
 import { useEffect, useRef, useState } from 'react';
 import FältFel from '@/components/ui/FältFel';
 
@@ -29,7 +29,7 @@ function parsaIsoDatum(text) {
   return `${år}-${mån}-${dag}`;
 }
 
-export default function DatumVäljare({ etikett, värde, onÄndra, fel, min, className = '' }) {
+export default function DatumVäljare({ etikett, värde, onÄndra, fel, min, max, className = '' }) {
   const [text, setText] = useState(värde ?? '');
   const [lokaltFel, setLokaltFel] = useState('');
   const fokuserad = useRef(false);
@@ -51,9 +51,9 @@ export default function DatumVäljare({ etikett, värde, onÄndra, fel, min, cla
       return;
     }
     const iso = parsaIsoDatum(maskerad);
-    // Committa bara kompletta, reella datum som inte bryter min. Ofullständigt/ogiltigt
+    // Committa bara kompletta, reella datum inom min/max. Ofullständigt/ogiltigt
     // behålls lokalt medan man skriver – föräldern behåller då sitt förra värde.
-    if (iso && (!min || iso >= min)) {
+    if (iso && (!min || iso >= min) && (!max || iso <= max)) {
       onÄndra(iso);
     }
   }
@@ -69,6 +69,8 @@ export default function DatumVäljare({ etikett, värde, onÄndra, fel, min, cla
       setLokaltFel('Ange ett giltigt datum, ÅÅÅÅ-MM-DD');
     } else if (min && iso < min) {
       setLokaltFel('Datumet är för tidigt');
+    } else if (max && iso > max) {
+      setLokaltFel('Datumet är för sent');
     } else {
       setLokaltFel('');
       setText(iso);
@@ -123,6 +125,7 @@ export default function DatumVäljare({ etikett, värde, onÄndra, fel, min, cla
           type="date"
           value={värde ?? ''}
           min={min}
+          max={max}
           onChange={(e) => onÄndra(e.target.value)}
           tabIndex={-1}
           aria-hidden="true"

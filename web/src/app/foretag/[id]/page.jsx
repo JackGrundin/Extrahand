@@ -110,6 +110,9 @@ export default function FöretagsProfil() {
             <p className="mt-1 text-[15px] text-text-dämpad">{profil.bransch}</p>
           )}
           {profil.stad && <p className="mt-0.5 text-[14px] text-text-svag">{profil.stad}</p>}
+          {profil.alder != null && (
+            <p className="mt-0.5 text-[14px] text-text-svag">{profil.alder} år</p>
+          )}
           {hemsidaUrl && (
             <a
               href={hemsidaUrl}

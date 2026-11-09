@@ -38,6 +38,7 @@ export default function MinProfil() {
 
   const [namn, setNamn] = useState('');
   const [email, setEmail] = useState('');
+  const [ålder, setÅlder] = useState(null);
   const [profilBild, setProfilBild] = useState(null);
   const [totalTimmar, setTotalTimmar] = useState(0);
   const [dokument, setDokument] = useState([]);
@@ -77,6 +78,7 @@ export default function MinProfil() {
       };
       setNamn(p.namn ?? '');
       setEmail(p.email ?? '');
+      setÅlder(p.alder ?? null);
       setProfilBild(p.profilBild ?? null);
       setTotalTimmar(p.totalTimmar ?? 0);
       setDokument(p.dokument ?? []);
@@ -234,6 +236,12 @@ export default function MinProfil() {
                     <p className="text-[13px] font-semibold text-text-dämpad">E-post</p>
                     <p className="mt-1 truncate text-[15px] text-text">{email}</p>
                   </div>
+                  {ålder != null && (
+                    <div className="min-w-0">
+                      <p className="text-[13px] font-semibold text-text-dämpad">Ålder</p>
+                      <p className="mt-1 text-[15px] text-text">{ålder} år</p>
+                    </div>
+                  )}
                   <div className="min-w-0">
                     <p className="text-[13px] font-semibold text-text-dämpad">Jobbade timmar</p>
                     <p className="mt-1 text-[15px] text-text">{totalTimmar} h</p>

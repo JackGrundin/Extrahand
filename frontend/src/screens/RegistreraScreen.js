@@ -3,6 +3,7 @@ import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, ScrollView,
 import { useAuth } from '../context/AuthContext';
 import { felText } from '../api/klient';
 import Knapp from '../components/Knapp';
+import DatumVäljare from '../components/DatumVäljare';
 import { FÄRG, TEXT, STIL, RADIE } from '../utils/tema';
 
 export default function RegistreraScreen({ navigation }) {
@@ -12,6 +13,7 @@ export default function RegistreraScreen({ navigation }) {
   const [lösenord, setLösenord] = useState('');
   const [typ, setTyp] = useState('privatperson');
   const [telefonnummer, setTelefonnummer] = useState('');
+  const [fodelsedatum, setFodelsedatum] = useState('');
   const [beskrivning, setBeskrivning] = useState('');
   const [bransch, setBransch] = useState('');
   const [stad, setStad] = useState('');
@@ -31,6 +33,10 @@ export default function RegistreraScreen({ navigation }) {
     }
     if (!telefonnummer.trim()) {
       Alert.alert('Fel', 'Telefonnummer krävs');
+      return;
+    }
+    if (typ === 'privatperson' && !fodelsedatum) {
+      Alert.alert('Fel', 'Ange ditt födelsedatum');
       return;
     }
     if (typ === 'företag') {
@@ -59,7 +65,7 @@ export default function RegistreraScreen({ navigation }) {
             referensperson: referensperson.trim(),
           }
         : {};
-      const svar = await registrera(namn, email, lösenord, typ, { ...företagsInfo, telefonnummer: telefonnummer.trim() || null });
+      const svar = await registrera(namn, email, lösenord, typ, { ...företagsInfo, telefonnummer: telefonnummer.trim() || null, fodelsedatum: typ === 'privatperson' ? fodelsedatum || null : null });
       if (svar?.väntarVerifiering) {
         navigation.replace('VerifieraEmail', { email });
       }
@@ -95,13 +101,23 @@ export default function RegistreraScreen({ navigation }) {
         />
 
         {typ === 'privatperson' && (
-          <TextInput
-            style={styles.input}
-            placeholder="Telefonnummer *"
-            value={telefonnummer}
-            onChangeText={setTelefonnummer}
-            keyboardType="phone-pad"
-          />
+          <>
+            <TextInput
+              style={styles.input}
+              placeholder="Telefonnummer *"
+              value={telefonnummer}
+              onChangeText={setTelefonnummer}
+              keyboardType="phone-pad"
+            />
+            <Text style={styles.label}>Födelsedatum *</Text>
+            <DatumVäljare
+              värde={fodelsedatum}
+              onÄndra={setFodelsedatum}
+              placeholder="Välj födelsedatum"
+              maximumDate={new Date()}
+              style={styles.datum}
+            />
+          </>
         )}
 
         <Text style={styles.label}>Kontotyp</Text>
@@ -232,6 +248,7 @@ const styles = StyleSheet.create({
   innehåll: { padding: 24, paddingBottom: 48 },
   rubrik: { ...TEXT.rubrikXL, textAlign: 'center', marginBottom: 28, color: FÄRG.text },
   input: { ...STIL.input, fontSize: 16, marginBottom: 12, letterSpacing: 0 },
+  datum: { marginBottom: 12 },
   textArea: { height: 110, textAlignVertical: 'top' },
   rad: { flexDirection: 'row', gap: 10 },
   radFältLitet: { flex: 2 },

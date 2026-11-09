@@ -59,6 +59,10 @@ export default function SökandeProfilScreen({ route, navigation }) {
 
       <Text style={styles.namn}>{profil.namn}</Text>
 
+      {profil.alder != null && (
+        <Text style={styles.alder}>{profil.alder} år</Text>
+      )}
+
       <BetygsSammanfattning betyg={betyg} />
 
       {profil.totalTimmar > 0 && (
@@ -105,6 +109,7 @@ const styles = StyleSheet.create({
   profilBild: { width: 88, height: 88, borderRadius: 44, marginBottom: 16 },
   avatarText: { color: '#fff', fontSize: 34, fontWeight: 'bold' },
   namn: { fontSize: 22, fontWeight: 'bold', color: '#1a1a1a', marginBottom: 12 },
+  alder: { fontSize: 15, color: '#6b7280', marginBottom: 12, marginTop: -4 },
   timmArBadge: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#f0fdf4', borderRadius: 20, paddingHorizontal: 14, paddingVertical: 7, marginBottom: 16 },
   timmArText: { fontSize: 14, color: '#059669', fontWeight: '600' },
   divider: { width: '100%', height: 1, backgroundColor: '#f0f0f0', marginVertical: 20 },

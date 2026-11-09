@@ -7,10 +7,10 @@ const supabase = createClient(
   { realtime: { transport: ws } }
 );
 
-async function skapaAnvändare({ namn, email, lösenord, typ, beskrivning, bransch, stad, hemsida, telefonnummer, organisationsnummer, fakturaadress, postnummer, ort, fakturamail, referensperson }) {
+async function skapaAnvändare({ namn, email, lösenord, typ, beskrivning, bransch, stad, hemsida, telefonnummer, fodelsedatum, organisationsnummer, fakturaadress, postnummer, ort, fakturamail, referensperson }) {
   const { data, error } = await supabase
     .from('användare')
-    .insert([{ Namn: namn, Email: email, Lösenord: lösenord, Typ: typ, beskrivning, bransch, stad, hemsida, telefonnummer, organisationsnummer, fakturaadress, postnummer, ort, fakturamail, referensperson }])
+    .insert([{ Namn: namn, Email: email, Lösenord: lösenord, Typ: typ, beskrivning, bransch, stad, hemsida, telefonnummer, fodelsedatum, organisationsnummer, fakturaadress, postnummer, ort, fakturamail, referensperson }])
     .select()
     .single();
 
@@ -37,7 +37,7 @@ async function hämtaAnvändareViaEmail(email) {
 async function hämtaAnvändareViaId(id) {
   const { data, error } = await supabase
     .from('användare')
-    .select('id, Namn, Typ, created_at, cv, erfarenheter, kompetenser, intressen, profil_bild, beskrivning, bransch, stad, hemsida, telefonnummer, organisationsnummer, fakturaadress, postnummer, ort, fakturamail, referensperson')
+    .select('id, Namn, Typ, created_at, cv, erfarenheter, kompetenser, intressen, profil_bild, beskrivning, bransch, stad, hemsida, telefonnummer, fodelsedatum, organisationsnummer, fakturaadress, postnummer, ort, fakturamail, referensperson')
     .eq('id', id)
     .single();
 

@@ -7,6 +7,7 @@ const { hämtaAnvändareViaEmail, hämtaAnvändareViaId, uppdateraProfil, uppdat
 const { skapaDokument, hämtaDokumentFörAnvändare, hämtaDokument, räknaDokument, raderaDokument, hämtaLagringPathsFörAnvändare, raderaAllaDokumentFörAnvändare } = require('../db/dokument');
 const { hämtaTotalTimmar, avvisaVäntandeAnsökningar } = require('../db/ansokningar');
 const { ärPro } = require('../db/prenumeration');
+const { beräknaÅlder } = require('../utils/alder');
 const { skickaNotifikation } = require('../utils/pushNotifikation');
 const { skickaAvtalÅterkalladMail } = require('../utils/email');
 const { hämtaJobbFörFöretag } = require('../db/jobb');
@@ -48,6 +49,7 @@ router.get('/profil', kräverInloggning, async (req, res) => {
       bransch: användare.bransch ?? null,
       stad: användare.stad ?? null,
       hemsida: användare.hemsida ?? null,
+      alder: beräknaÅlder(användare.fodelsedatum),
       dokument,
       totalTimmar,
       avtalGodkant: användare.avtal_godkant ?? false,
@@ -89,6 +91,7 @@ router.get('/:id/profil', kräverInloggning, async (req, res) => {
       bransch: användare.bransch ?? null,
       stad: användare.stad ?? null,
       hemsida: användare.hemsida ?? null,
+      alder: användare.Typ === 'privatperson' ? beräknaÅlder(användare.fodelsedatum) : null,
       dokument,
       totalTimmar,
       aktivaJobb,

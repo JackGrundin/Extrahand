@@ -13,6 +13,7 @@ const {
 } = require('../db/användare');
 const { skickaVerifieringsMail, skickaÅterställningsMail } = require('../utils/email');
 const { valideraLösenord } = require('../utils/losenord');
+const { giltigtFödelsedatum } = require('../utils/alder');
 const { JWT_HEMLIG_NYCKEL } = require('../utils/jwt');
 const { inloggningsGräns, känsligGräns } = require('../middleware/rateLimit');
 
@@ -45,7 +46,7 @@ function skapaToken(användare) {
 
 // POST /api/auth/registrera
 router.post('/registrera', känsligGräns, async (req, res) => {
-  const { namn, email, lösenord, typ, beskrivning, bransch, stad, hemsida, telefonnummer, organisationsnummer, fakturaadress, postnummer, ort, fakturamail, referensperson } = req.body;
+  const { namn, email, lösenord, typ, beskrivning, bransch, stad, hemsida, telefonnummer, fodelsedatum, organisationsnummer, fakturaadress, postnummer, ort, fakturamail, referensperson } = req.body;
 
   if (!namn || !email || !lösenord || !typ) {
     return res.status(400).json({ fel: 'Alla fält krävs: namn, e-post, lösenord, typ' });
@@ -59,6 +60,12 @@ router.post('/registrera', känsligGräns, async (req, res) => {
     const befintlig = await hämtaAnvändareViaEmail(email);
     if (befintlig) {
       return res.status(409).json({ fel: 'E-postadressen används redan' });
+    }
+
+    // Privatpersoner måste ange ett giltigt födelsedatum (sista försvaret – klienterna
+    // validerar också). Företag anger inget.
+    if (typ === 'privatperson' && !giltigtFödelsedatum(fodelsedatum)) {
+      return res.status(400).json({ fel: 'Ange ett giltigt födelsedatum' });
     }
 
     const hashatLösenord = await bcrypt.hash(lösenord, 10);
@@ -79,6 +86,7 @@ router.post('/registrera', känsligGräns, async (req, res) => {
       stad: stad || null,
       hemsida: hemsida || null,
       telefonnummer: telefonnummer || null,
+      fodelsedatum: fodelsedatum || null,
       organisationsnummer: organisationsnummer || null,
       fakturaadress: fakturaadress || null,
       postnummer: postnummer || null,

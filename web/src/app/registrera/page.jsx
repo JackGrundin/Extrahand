@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import AuthSkal from '@/components/AuthSkal';
 import Input from '@/components/ui/Input';
+import DatumVäljare from '@/components/app/DatumVäljare';
 import Knapp from '@/components/ui/Knapp';
 import Besked from '@/components/ui/Besked';
 import { useAuth } from '@/context/AuthContext';
@@ -14,6 +15,15 @@ import { felText } from '@/lib/api';
 // ett lösenord som servern sedan avvisar.
 const MIN_LÖSENORD = 8;
 const ORGNR_FORMAT = /^\d{6}-\d{4}$/;
+
+// Dagens datum i ISO (lokalt) – spärr för födelsedatum: ingen får vara född i framtiden.
+function dagensIso() {
+  const d = new Date();
+  const år = d.getFullYear();
+  const mån = String(d.getMonth() + 1).padStart(2, '0');
+  const dag = String(d.getDate()).padStart(2, '0');
+  return `${år}-${mån}-${dag}`;
+}
 
 export default function Registrera() {
   const router = useRouter();
@@ -31,6 +41,7 @@ export default function Registrera() {
     email: '',
     lösenord: '',
     telefonnummer: '',
+    fodelsedatum: '',
     organisationsnummer: '',
     fakturaadress: '',
     postnummer: '',
@@ -59,6 +70,13 @@ export default function Registrera() {
       f.lösenord = `Lösenordet måste vara minst ${MIN_LÖSENORD} tecken`;
     // Telefonnummer krävs för båda kontotyper – speglar appens RegistreraScreen.
     if (!form.telefonnummer.trim()) f.telefonnummer = 'Telefonnummer krävs';
+
+    if (!ärFöretag) {
+      // Födelsedatum krävs för privatpersoner. DatumVäljare committar bara reella datum,
+      // men värdet kan vara tomt eller (teoretiskt) i framtiden – spärra båda.
+      if (!form.fodelsedatum) f.fodelsedatum = 'Födelsedatum krävs';
+      else if (form.fodelsedatum > dagensIso()) f.fodelsedatum = 'Födelsedatum kan inte vara i framtiden';
+    }
 
     if (ärFöretag) {
       if (!form.organisationsnummer.trim())
@@ -90,6 +108,9 @@ export default function Registrera() {
         telefonnummer: form.telefonnummer.trim(),
         typ,
       };
+      if (!ärFöretag) {
+        data.fodelsedatum = form.fodelsedatum;
+      }
       if (ärFöretag) {
         data.organisationsnummer = form.organisationsnummer.trim();
         data.fakturaadress = form.fakturaadress.trim();
@@ -183,6 +204,16 @@ export default function Registrera() {
           fel={fältFel.telefonnummer}
           onChange={(e) => sätt('telefonnummer', e.target.value)}
         />
+
+        {!ärFöretag && (
+          <DatumVäljare
+            etikett="Födelsedatum"
+            värde={form.fodelsedatum}
+            onÄndra={(v) => sätt('fodelsedatum', v)}
+            fel={fältFel.fodelsedatum}
+            max={dagensIso()}
+          />
+        )}
 
         {ärFöretag && (
           <>

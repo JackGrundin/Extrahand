@@ -207,6 +207,10 @@ export default function ProfilScreen({ navigation }) {
         <Text style={styles.typText}>{ärPrivatperson ? 'Privatperson' : 'Företag'}</Text>
       </View>
 
+      {ärPrivatperson && profil?.alder != null && (
+        <Text style={styles.alder}>{profil.alder} år</Text>
+      )}
+
       <BetygsSammanfattning betyg={betyg} />
 
       {ärPrivatperson && profil?.totalTimmar > 0 && (
@@ -375,6 +379,7 @@ const styles = StyleSheet.create({
   email: { fontSize: 15, color: FÄRG.textDämpad, marginBottom: 12 },
   typBadge: { backgroundColor: FÄRG.primärMjuk, paddingHorizontal: 14, paddingVertical: 6, borderRadius: RADIE.pill, marginBottom: 16 },
   typText: { color: FÄRG.primär, fontWeight: '700' },
+  alder: { fontSize: 15, color: FÄRG.textDämpad, marginBottom: 16 },
   timmArBadge: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: FÄRG.framgångMjuk, borderRadius: RADIE.pill, paddingHorizontal: 14, paddingVertical: 7, marginBottom: 20 },
   timmArText: { fontSize: 14, color: '#059669', fontWeight: '700' },
   redigeraKnapp: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, alignSelf: 'stretch', borderWidth: 1.5, borderColor: FÄRG.primärKant, backgroundColor: FÄRG.primärMjuk, borderRadius: RADIE.sm, paddingVertical: 13, paddingHorizontal: 20, marginBottom: 14 },
