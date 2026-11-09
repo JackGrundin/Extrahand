@@ -53,7 +53,10 @@ export default function JobbKort({ jobb, onÄndrad, redanAvslutad = false, onAvs
   }
 
   async function taBort() {
-    if (!window.confirm('Ta bort det här passet? Det går inte att ångra.')) return;
+    const bekräftelse = jobb.harGodkänd
+      ? `${jobb.godkändNamn || 'En person'} är godkänd för det här passet och kommer att avvisas och få en notis om att passet är inställt. Vill du ändå ta bort passet?`
+      : 'Ta bort det här passet? Det går inte att ångra.';
+    if (!window.confirm(bekräftelse)) return;
     setTarBort(true);
     try {
       await api.taBortJobb(jobb.id);

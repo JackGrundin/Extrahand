@@ -22,13 +22,16 @@ export default function MinaJobbScreen({ navigation, route }) {
   const [laddar, setLaddar] = useState(true);
   const { setAntalAttAvsluta } = useAttAvsluta();
 
-  async function taBort(id) {
-    Alert.alert('Ta bort annons', 'Är du säker? Detta går inte att ångra.', [
+  async function taBort(item) {
+    const text = item.harGodkänd
+      ? `${item.godkändNamn || 'En person'} är godkänd för det här passet och avvisas och får en notis om att passet är inställt. Vill du fortsätta?`
+      : 'Är du säker? Detta går inte att ångra.';
+    Alert.alert('Ta bort annons', text, [
       { text: 'Avbryt', style: 'cancel' },
       { text: 'Ta bort', style: 'destructive', onPress: async () => {
         try {
-          await api.taBortJobb(id);
-          setJobb(prev => prev.filter(j => j.id !== id));
+          await api.taBortJobb(item.id);
+          setJobb(prev => prev.filter(j => j.id !== item.id));
         } catch (fel) {
           Alert.alert('Fel', felText(fel));
         }
@@ -42,13 +45,13 @@ export default function MinaJobbScreen({ navigation, route }) {
         { options: ['Avbryt', 'Redigera', 'Ta bort'], destructiveButtonIndex: 2, cancelButtonIndex: 0 },
         (index) => {
           if (index === 1) navigation.navigate('RedigeraJobb', { jobb: item });
-          if (index === 2) taBort(item.id);
+          if (index === 2) taBort(item);
         }
       );
     } else {
       Alert.alert(item.Titel, null, [
         { text: 'Redigera', onPress: () => navigation.navigate('RedigeraJobb', { jobb: item }) },
-        { text: 'Ta bort', style: 'destructive', onPress: () => taBort(item.id) },
+        { text: 'Ta bort', style: 'destructive', onPress: () => taBort(item) },
         { text: 'Avbryt', style: 'cancel' },
       ]);
     }

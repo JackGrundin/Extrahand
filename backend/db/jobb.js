@@ -54,7 +54,7 @@ async function filtreraAktivaJobb(jobb, { visaTillsatta = false } = {}) {
   const jobbIds = jobb.map(j => j.id);
   const { data: ansokningar } = await supabase
     .from('ansokningar')
-    .select('id, jobb_id, status, created_at')
+    .select('id, jobb_id, status, created_at, sokande_id')
     .in('jobb_id', jobbIds);
 
   // Räkna nya ansökningar per jobb – de som kommit in efter att företaget senast öppnade
@@ -65,12 +65,32 @@ async function filtreraAktivaJobb(jobb, { visaTillsatta = false } = {}) {
   // lista (visaTillsatta) kan visa "Avsluta pass" på tillsatta pass redan innan passdatum.
   // Byggs ur samma ansokningar-svar, ingen extra query.
   const godkändaJobbIds = new Set();
+  // Den godkändas sokande_id per jobb – används för att slå upp namnet (godkändNamn),
+  // som frontend visar i bekräftelsedialogen när ett tillsatt pass tas bort.
+  const godkändSokandePerJobb = {};
   for (const a of (ansokningar || [])) {
     const sedd = seddMap[a.jobb_id];
     if (!sedd || new Date(a.created_at) > new Date(sedd)) {
       nyaPerJobb[a.jobb_id] = (nyaPerJobb[a.jobb_id] || 0) + 1;
     }
-    if (a.status === 'godkänd') godkändaJobbIds.add(a.jobb_id);
+    if (a.status === 'godkänd') {
+      godkändaJobbIds.add(a.jobb_id);
+      godkändSokandePerJobb[a.jobb_id] = a.sokande_id;
+    }
+  }
+
+  // Slå upp namnen för de godkända sökandena i en enda query → jobb_id → namn.
+  const godkändNamnPerJobb = {};
+  const godkändaSokandeIds = [...new Set(Object.values(godkändSokandePerJobb).filter(Boolean))];
+  if (godkändaSokandeIds.length > 0) {
+    const { data: sökande } = await supabase
+      .from('användare')
+      .select('id, Namn')
+      .in('id', godkändaSokandeIds);
+    const namnMap = Object.fromEntries((sökande || []).map(s => [s.id, s.Namn]));
+    for (const [jobbId, sokandeId] of Object.entries(godkändSokandePerJobb)) {
+      godkändNamnPerJobb[jobbId] = namnMap[sokandeId] ?? null;
+    }
   }
 
   // Ett jobb ska försvinna från listan så snart en ansökan blivit godkänd – då är
@@ -131,7 +151,7 @@ async function filtreraAktivaJobb(jobb, { visaTillsatta = false } = {}) {
     return true;
   });
 
-  return aktiva.map(j => ({ ...j, nyaAnsökningar: nyaPerJobb[j.id] || 0, harGodkänd: godkändaJobbIds.has(j.id) }));
+  return aktiva.map(j => ({ ...j, nyaAnsökningar: nyaPerJobb[j.id] || 0, harGodkänd: godkändaJobbIds.has(j.id), godkändNamn: godkändNamnPerJobb[j.id] ?? null }));
 }
 
 // Returnerar en Set med de jobb-id (bland de angivna) som har minst en godkänd ansökan.

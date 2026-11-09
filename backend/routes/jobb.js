@@ -1,7 +1,8 @@
 const express = require('express');
 const { kräverInloggning, kräverTyp } = require('../middleware/auth');
 const { skapaJobb, hämtaAllaJobb, hämtaJobbViaId, hämtaJobbMedFöretag, hämtaJobbFörFöretag, hämtaTidigareJobbFörFöretag, uppdateraJobb, taBortJobb, räknaJobbDennaMånad, markeraAnsökningarSedda } = require('../db/jobb');
-const { hämtaGodkändaFörJobb } = require('../db/ansokningar');
+const { hämtaGodkändaFörJobb, uppdateraStatus } = require('../db/ansokningar');
+const { hämtaTidrapportFörAnsökan } = require('../db/tidrapporter');
 const { skickaMeddelande } = require('../db/meddelanden');
 const { hämtaPushToken, hämtaPrivatpersonerIStad, ärBlockerad } = require('../db/användare');
 const { hämtaPrenumeration, ärPro, harGjortPlanval, sättPlanvalGjort } = require('../db/prenumeration');
@@ -232,6 +233,26 @@ router.put('/:id', kräverInloggning, kräverTyp('företag'), async (req, res) =
 router.delete('/:id', kräverInloggning, kräverTyp('företag'), async (req, res) => {
   try {
     const godkända = await hämtaGodkändaFörJobb(req.params.id);
+
+    // Ett pass med en redan behandlad tidrapport får inte tas bort – då skulle
+    // underlaget för fakturering/utbetalning rivas bort. En tidrapport som fortfarande
+    // 'väntar' (auto-skapad, obesvarad) är däremot ofarlig att släppa.
+    for (const a of godkända) {
+      const tidrapport = await hämtaTidrapportFörAnsökan(a.id);
+      if (tidrapport && tidrapport.status !== 'väntar') {
+        return res.status(409).json({ fel: 'Passet har redan en tidrapport och kan inte tas bort' });
+      }
+    }
+
+    // Jobbets titel till push-texten – hämtas innan jobbet raderas.
+    const jobbRad = await hämtaJobbViaId(req.params.id);
+
+    // Den godkändas ansökan avvisas – passet finns inte längre och statusen ska
+    // inte ligga kvar som 'godkänd'.
+    for (const a of godkända) {
+      await uppdateraStatus(a.id, 'avvisad');
+    }
+
     await taBortJobb(req.params.id, req.användare.id);
     res.json({ ok: true });
 
@@ -247,7 +268,7 @@ router.delete('/:id', kräverInloggning, kräverTyp('företag'), async (req, res
           innehall: 'Passet har tagits bort av företaget.',
         });
         const pushToken = await hämtaPushToken(a.sokande_id);
-        await skickaNotifikation(pushToken, 'Pass inställt', 'Ett pass du var godkänd för har tagits bort av företaget.');
+        await skickaNotifikation(pushToken, 'Pass inställt', `Passet "${jobbRad?.Titel ?? ''}" har tyvärr ställts in`);
       } catch (notisfel) {
         console.error('Notifikationsfel vid borttagning av jobb:', notisfel);
       }
