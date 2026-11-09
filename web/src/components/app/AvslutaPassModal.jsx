@@ -10,8 +10,9 @@ import Besked from '@/components/ui/Besked';
 import FältFel from '@/components/ui/FältFel';
 import OBTilläggRedigerare from '@/components/app/OBTilläggRedigerare';
 import { api, felText } from '@/lib/api';
-import { parsaObTillagg, planeradeTimmar } from '@/utils/datumHelper';
+import { parsaObTillagg, planeradeTimmar, beräknaObBelopp } from '@/utils/datumHelper';
 import { saniteraObTillagg } from '@/utils/ob';
+import { beräknaFakturapris, påslagEller40, formateraPris } from '@/utils/konstanter';
 
 export default function AvslutaPassModal({ jobb, ansokanId, onStäng, onKlar }) {
   const [timmar, setTimmar] = useState('');
@@ -25,6 +26,12 @@ export default function AvslutaPassModal({ jobb, ansokanId, onStäng, onKlar }) 
 
   // Komma → punkt, precis som appen.
   const timmarTal = parseFloat(String(timmar).replace(',', '.'));
+
+  // Uppskattad kostnad (ex. moms) – speglar appens kostnadsrad. Backend beräknar facit.
+  const paslag = påslagEller40(jobb?.paslag);
+  const obBelopp = beräknaObBelopp(saniteraObTillagg(ob), timlön);
+  const visaKostnad = timmarTal > 0 && timlön > 0;
+  const kostnad = beräknaFakturapris(timmarTal * timlön, paslag) + beräknaFakturapris(obBelopp, paslag);
 
   async function skicka() {
     if (!(timmarTal > 0)) {
@@ -118,6 +125,14 @@ export default function AvslutaPassModal({ jobb, ansokanId, onStäng, onKlar }) 
         <div className="mt-4">
           <OBTilläggRedigerare värde={ob} onÄndra={setOb} />
         </div>
+
+        {/* Uppskattad kostnad */}
+        {visaKostnad && (
+          <div className="mt-4 flex items-center justify-between border-t border-kant pt-4">
+            <span className="text-[14px] text-text-dämpad">Er kostnad (ex. moms)</span>
+            <span className="text-[15px] font-semibold text-text">{formateraPris(kostnad)} kr</span>
+          </div>
+        )}
 
         <div className="mt-6 flex gap-3">
           <Knapp variant="kontur" full onClick={onStäng}>

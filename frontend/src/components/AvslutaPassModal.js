@@ -165,7 +165,7 @@ export default function AvslutaPassModal({ visible, onClose, timlön = 0, paslag
 
             {timmar > 0 && timlön > 0 && (
               <View style={styles.totalRad}>
-                <Text style={styles.totalEtikett}>Er totalkostnad{obKostnad > 0 ? ' (inkl. OB)' : ''}</Text>
+                <Text style={styles.totalEtikett}>Er kostnad (ex. moms)</Text>
                 <Text style={styles.totalVärde}>{formateraPris(beräknaFakturapris(timmar * timlön, påslagEller40(paslag)) + obKostnad)} kr</Text>
               </View>
             )}
