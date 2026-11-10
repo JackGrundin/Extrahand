@@ -23,6 +23,13 @@ function kräverAdmin(req, res, next) {
   next();
 }
 
+// Plockar ut tidsfiltret (from/till) ur query-strängen. Backend är sista försvaret:
+// bara rena YYYY-MM-DD-värden släpps igenom, allt annat behandlas som saknat.
+function tidsfilter(req) {
+  const giltigt = v => (typeof v === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(v) ? v : undefined);
+  return { from: giltigt(req.query.from), till: giltigt(req.query.till) };
+}
+
 // GET /api/admin/statistik — dashboard-siffror i ett anrop
 router.get('/statistik', kräverInloggning, kräverAdmin, async (req, res) => {
   try {
@@ -37,7 +44,8 @@ router.get('/statistik', kräverInloggning, kräverAdmin, async (req, res) => {
 router.get('/tidrapporter', kräverInloggning, kräverAdmin, async (req, res) => {
   try {
     const status = typeof req.query.status === 'string' ? req.query.status.trim() : '';
-    res.json(await hämtaTidrapporterFörAdmin({ status: status || undefined }));
+    const { from, till } = tidsfilter(req);
+    res.json(await hämtaTidrapporterFörAdmin({ status: status || undefined, from, till }));
   } catch (fel) {
     console.error('Admin-tidrapporter fel:', fel);
     res.status(500).json({ fel: 'Serverfel' });
@@ -92,7 +100,7 @@ router.get('/privatpersoner', kräverInloggning, kräverAdmin, async (req, res) 
 // GET /api/admin/fakturering — faktureringsunderlag (godkända, ej fakturerade)
 router.get('/fakturering', kräverInloggning, kräverAdmin, async (req, res) => {
   try {
-    res.json(await hämtaFaktureringsunderlag());
+    res.json(await hämtaFaktureringsunderlag(tidsfilter(req)));
   } catch (fel) {
     console.error('Admin-fakturering fel:', fel);
     res.status(500).json({ fel: 'Serverfel' });
@@ -102,7 +110,7 @@ router.get('/fakturering', kräverInloggning, kräverAdmin, async (req, res) => 
 // GET /api/admin/faktureringsstatistik — månadens fakturering grupperad per påslag
 router.get('/faktureringsstatistik', kräverInloggning, kräverAdmin, async (req, res) => {
   try {
-    res.json(await hämtaFaktureringsstatistik());
+    res.json(await hämtaFaktureringsstatistik(tidsfilter(req)));
   } catch (fel) {
     console.error('Admin-faktureringsstatistik fel:', fel);
     res.status(500).json({ fel: 'Serverfel' });
@@ -112,7 +120,7 @@ router.get('/faktureringsstatistik', kräverInloggning, kräverAdmin, async (req
 // GET /api/admin/fakturering-per-foretag — månadens fakturering summerad per företag
 router.get('/fakturering-per-foretag', kräverInloggning, kräverAdmin, async (req, res) => {
   try {
-    res.json(await hämtaFaktureringPerFöretag());
+    res.json(await hämtaFaktureringPerFöretag(tidsfilter(req)));
   } catch (fel) {
     console.error('Admin-fakturering-per-företag fel:', fel);
     res.status(500).json({ fel: 'Serverfel' });

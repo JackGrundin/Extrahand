@@ -6,6 +6,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import Besked from '@/components/ui/Besked';
 import Knapp from '@/components/ui/Knapp';
 import { api, felText } from '@/lib/api';
+import { TIDSFILTER, STANDARD_TIDSFILTER, TIDSFILTER_NYCKEL, tidsfilterFrån } from '@/utils/tidsfilter';
 
 // Etikett för utbetalningsinställningen.
 const UTBETALNING_ETIKETT = { direkt: 'Direkt', '25': '25:e varje månad' };
@@ -150,20 +151,33 @@ function RapportKort({ r, sparar, onBetald, onFakturerad }) {
 
 export default function AdminTidrapporter() {
   const [status, setStatus] = useState('');
+  const [tid, setTid] = useState(STANDARD_TIDSFILTER);
   const [rapporter, setRapporter] = useState(null);
   const [fel, setFel] = useState('');
   const [sparar, setSparar] = useState(null);
 
+  // Återställ sparat tidsfilter (delat med faktureringsvyn). I en effekt → körs bara i
+  // webbläsaren, ingen hydrerings-krock.
+  useEffect(() => {
+    const sparat = window.localStorage.getItem(TIDSFILTER_NYCKEL);
+    if (sparat && TIDSFILTER.some(t => t.nyckel === sparat)) setTid(sparat);
+  }, []);
+
+  function väljTid(nyckel) {
+    setTid(nyckel);
+    window.localStorage.setItem(TIDSFILTER_NYCKEL, nyckel);
+  }
+
   const hämta = useCallback(async () => {
     setFel('');
     try {
-      const lista = await api.adminTidrapporter(status);
+      const lista = await api.adminTidrapporter(status, tidsfilterFrån(tid));
       setRapporter(Array.isArray(lista) ? lista : []);
     } catch (f) {
       setRapporter([]);
       setFel(felText(f));
     }
-  }, [status]);
+  }, [status, tid]);
 
   useEffect(() => {
     setRapporter(null);
@@ -260,6 +274,23 @@ export default function AdminTidrapporter() {
             }`}
           >
             {f.etikett}
+          </button>
+        ))}
+      </div>
+
+      <div className="mt-3 flex flex-wrap gap-2">
+        {TIDSFILTER.map((t) => (
+          <button
+            key={t.nyckel}
+            type="button"
+            onClick={() => väljTid(t.nyckel)}
+            className={`rounded-pill px-4 py-1.5 text-[14px] font-semibold transition-colors ${
+              tid === t.nyckel
+                ? 'bg-primär text-white'
+                : 'bg-yta text-text-dämpad border border-kant hover:border-kant-stark'
+            }`}
+          >
+            {t.etikett}
           </button>
         ))}
       </div>

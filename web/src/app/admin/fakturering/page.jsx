@@ -7,6 +7,13 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import Besked from '@/components/ui/Besked';
 import Knapp from '@/components/ui/Knapp';
 import { api, felText } from '@/lib/api';
+import {
+  TIDSFILTER,
+  STANDARD_TIDSFILTER,
+  TIDSFILTER_NYCKEL,
+  tidsfilterFrån,
+  tidsfilterEtikett,
+} from '@/utils/tidsfilter';
 
 function kr(belopp) {
   return `${Math.round(Number(belopp) || 0).toLocaleString('sv-SE')} kr`;
@@ -52,16 +59,29 @@ export default function AdminFakturering() {
   const [rader, setRader] = useState(null);
   const [statistik, setStatistik] = useState([]);
   const [perFöretag, setPerFöretag] = useState([]);
+  const [tid, setTid] = useState(STANDARD_TIDSFILTER);
   const [fel, setFel] = useState('');
   const [sparar, setSparar] = useState(false);
+
+  // Återställ sparat tidsfilter (delat med tidrapportsvyn). I en effekt → bara i webbläsaren.
+  useEffect(() => {
+    const sparat = window.localStorage.getItem(TIDSFILTER_NYCKEL);
+    if (sparat && TIDSFILTER.some(t => t.nyckel === sparat)) setTid(sparat);
+  }, []);
+
+  function väljTid(nyckel) {
+    setTid(nyckel);
+    window.localStorage.setItem(TIDSFILTER_NYCKEL, nyckel);
+  }
 
   const hämta = useCallback(async () => {
     setFel('');
     try {
+      const from = tidsfilterFrån(tid);
       const [lista, stat, företag] = await Promise.all([
-        api.adminFakturering(),
-        api.adminFaktureringsstatistik(),
-        api.adminFaktureringPerFöretag(),
+        api.adminFakturering(from),
+        api.adminFaktureringsstatistik(from),
+        api.adminFaktureringPerFöretag(from),
       ]);
       setRader(Array.isArray(lista) ? lista : []);
       setStatistik(Array.isArray(stat) ? stat : []);
@@ -72,11 +92,15 @@ export default function AdminFakturering() {
       setPerFöretag([]);
       setFel(felText(f));
     }
-  }, []);
+  }, [tid]);
 
   useEffect(() => {
+    setRader(null);
     hämta();
   }, [hämta]);
+
+  // Periodtext till underrubrikerna – gemener, så "denna månad" blir "senaste 3 månader" osv.
+  const periodText = tidsfilterEtikett(tid).toLowerCase();
 
   // Gruppera per företag. Nyckel på orgnr när det finns, annars namnet.
   const grupper = useMemo(() => {
@@ -125,13 +149,30 @@ export default function AdminFakturering() {
       <h1 className="rubrik-l text-text">Fakturering</h1>
       <p className="mt-1 text-[14px] text-text-dämpad">Godkända, ännu ej fakturerade pass</p>
 
+      <div className="mt-5 flex flex-wrap gap-2">
+        {TIDSFILTER.map((t) => (
+          <button
+            key={t.nyckel}
+            type="button"
+            onClick={() => väljTid(t.nyckel)}
+            className={`rounded-pill px-4 py-1.5 text-[14px] font-semibold transition-colors ${
+              tid === t.nyckel
+                ? 'bg-primär text-white'
+                : 'bg-yta text-text-dämpad border border-kant hover:border-kant-stark'
+            }`}
+          >
+            {t.etikett}
+          </button>
+        ))}
+      </div>
+
       {fel && <div className="mt-6"><Besked typ="fel">{fel}</Besked></div>}
 
       {(statistik.length > 0 || perFöretag.length > 0) && (
         <div className="mt-8 grid gap-6 lg:grid-cols-2">
           <section className="rounded-lg border border-kant bg-yta p-5 shadow-mjuk">
             <h2 className="rubrik-m text-text">Faktureringsöversikt</h2>
-            <p className="mt-0.5 text-[12px] text-text-svag">Godkända pass denna månad, per påslag</p>
+            <p className="mt-0.5 text-[12px] text-text-svag">Godkända pass {periodText}, per påslag</p>
             <table className="mt-4 w-full text-[13px]">
               <thead>
                 <tr className="border-b border-kant text-left text-[11px] uppercase text-text-svag">
@@ -151,7 +192,7 @@ export default function AdminFakturering() {
                   </tr>
                 ))}
                 {statistik.length === 0 && (
-                  <tr><td colSpan={4} className="py-3 text-center text-text-svag">Inga godkända pass denna månad.</td></tr>
+                  <tr><td colSpan={4} className="py-3 text-center text-text-svag">Inga godkända pass för vald period.</td></tr>
                 )}
               </tbody>
               {statistik.length > 0 && (
@@ -169,7 +210,7 @@ export default function AdminFakturering() {
 
           <section className="rounded-lg border border-kant bg-yta p-5 shadow-mjuk">
             <h2 className="rubrik-m text-text">Fakturering per företag</h2>
-            <p className="mt-0.5 text-[12px] text-text-svag">Vad varje företag ska faktureras denna månad</p>
+            <p className="mt-0.5 text-[12px] text-text-svag">Vad varje företag ska faktureras ({periodText})</p>
             <table className="mt-4 w-full text-[13px]">
               <thead>
                 <tr className="border-b border-kant text-left text-[11px] uppercase text-text-svag">
@@ -187,7 +228,7 @@ export default function AdminFakturering() {
                   </tr>
                 ))}
                 {perFöretag.length === 0 && (
-                  <tr><td colSpan={3} className="py-3 text-center text-text-svag">Inga godkända pass denna månad.</td></tr>
+                  <tr><td colSpan={3} className="py-3 text-center text-text-svag">Inga godkända pass för vald period.</td></tr>
                 )}
               </tbody>
               {perFöretag.length > 0 && (

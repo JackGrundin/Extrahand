@@ -113,6 +113,15 @@ async function anrop(metod, sökväg, kropp, { tystAuthFel = false } = {}) {
   return data;
 }
 
+// Bygger en ?-frågesträng ur ett objekt, hoppar över tomma värden och URL-kodar.
+// Tom in → tom sträng (ingen '?'), så anropen degraderar till den oparametriserade varianten.
+function frågesträng(params) {
+  const delar = Object.entries(params)
+    .filter(([, v]) => v != null && v !== '')
+    .map(([k, v]) => `${k}=${encodeURIComponent(v)}`);
+  return delar.length ? `?${delar.join('&')}` : '';
+}
+
 export const api = {
   // Auth
   loggaIn: (kropp) => anrop('POST', '/auth/logga-in', kropp),
@@ -242,14 +251,16 @@ export const api = {
   // befintliga admin-endpointsen (avtal mejlar redan via Resend, betald/fakturerad
   // bor kvar i sina respektive routrar).
   adminStatistik: () => anrop('GET', '/admin/statistik'),
-  adminTidrapporter: (status) =>
-    anrop('GET', `/admin/tidrapporter${status ? `?status=${encodeURIComponent(status)}` : ''}`),
+  adminTidrapporter: (status, from) =>
+    anrop('GET', `/admin/tidrapporter${frågesträng({ status, from })}`),
   adminAvtal: () => anrop('GET', '/admin/avtal'),
   adminFöretag: () => anrop('GET', '/admin/foretag'),
   adminPrivatpersoner: () => anrop('GET', '/admin/privatpersoner'),
-  adminFakturering: () => anrop('GET', '/admin/fakturering'),
-  adminFaktureringsstatistik: () => anrop('GET', '/admin/faktureringsstatistik'),
-  adminFaktureringPerFöretag: () => anrop('GET', '/admin/fakturering-per-foretag'),
+  adminFakturering: (from) => anrop('GET', `/admin/fakturering${frågesträng({ from })}`),
+  adminFaktureringsstatistik: (from) =>
+    anrop('GET', `/admin/faktureringsstatistik${frågesträng({ from })}`),
+  adminFaktureringPerFöretag: (from) =>
+    anrop('GET', `/admin/fakturering-per-foretag${frågesträng({ from })}`),
   adminRaderade: () => anrop('GET', '/admin/raderade'),
   godkännAvtal: (id) => anrop('PATCH', `/users/admin/${id}/avtal`, {}),
   återkallaAvtal: (id, orsak) => anrop('PATCH', `/users/admin/${id}/avtal-aterkalla`, { orsak }),

@@ -84,12 +84,15 @@ async function hämtaStatistik() {
 // Till skillnad från hämtaAllaTidrapporter (som bara ger godkända obetalda) – admin ska
 // kunna se hela bilden och filtrera själv. Valfritt status-filter. Berikas med person-,
 // företags- och jobbinfo via samma join-mönster som hämtaAllaTidrapporter.
-async function hämtaTidrapporterFörAdmin({ status } = {}) {
+async function hämtaTidrapporterFörAdmin({ status, from, till } = {}) {
   let query = supabase
     .from('tidrapporter')
     .select('*')
     .order('datum', { ascending: false });
   if (status) query = query.eq('status', status);
+  // Tidsfilter på passets datum (date-kolumn). from/till är YYYY-MM-DD.
+  if (from) query = query.gte('datum', from);
+  if (till) query = query.lte('datum', till);
 
   const { data: rapporter, error } = await query;
   if (error) throw error;
@@ -196,18 +199,22 @@ async function hämtaPrivatpersonerMedStatistik() {
   });
 }
 
-// Godkända tidrapporter för innevarande månad (svensk tidszon via månadensStart).
-// Delas av faktureringsöversikten och fakturering-per-företag så att båda vyerna
-// utgår från exakt samma rader. Returnerar bruttot (totalt_belopp) + det frysta
-// påslaget; fakturabeloppet räknas av anroparen via beräknaFakturapris.
-async function hämtaMånadensGodkändaRapporter() {
-  // datum är en date-kolumn, så en ren 'YYYY-MM-01'-gräns i svensk månad räcker och
-  // undviker tidszonströskel vid månadens första midnatt.
-  const { data: rapporter, error } = await supabase
+// Godkända tidrapporter för en period (svensk tidszon). Delas av faktureringsöversikten
+// och fakturering-per-företag så att båda vyerna utgår från exakt samma rader. Utan
+// from faller den tillbaka på innevarande månad – samma beteende som adminvyn hade
+// innan tidsfiltret fanns. Returnerar bruttot (totalt_belopp) + det frysta påslaget;
+// fakturabeloppet räknas av anroparen via beräknaFakturapris.
+async function hämtaMånadensGodkändaRapporter({ from, till } = {}) {
+  // datum är en date-kolumn, så rena 'YYYY-MM-DD'-gränser räcker och undviker
+  // tidszonströskel vid månadens första midnatt.
+  const undreGräns = from || `${nuvarandeMånad()}-01`;
+  let query = supabase
     .from('tidrapporter')
     .select('foretag_id, totalt_belopp, paslag')
     .eq('status', 'godkänd')
-    .gte('datum', `${nuvarandeMånad()}-01`);
+    .gte('datum', undreGräns);
+  if (till) query = query.lte('datum', till);
+  const { data: rapporter, error } = await query;
   if (error) throw error;
   return rapporter || [];
 }
@@ -224,8 +231,8 @@ const PÅSLAG_ETIKETT = {
 
 // Faktureringsöversikt för innevarande månad, grupperad på det frysta påslaget.
 // Returnerar [{ paslag, etikett, antal, totalFaktura }], sorterad på påslag stigande.
-async function hämtaFaktureringsstatistik() {
-  const rapporter = await hämtaMånadensGodkändaRapporter();
+async function hämtaFaktureringsstatistik({ from, till } = {}) {
+  const rapporter = await hämtaMånadensGodkändaRapporter({ from, till });
 
   const perPåslag = new Map();
   for (const r of rapporter) {
@@ -247,8 +254,8 @@ async function hämtaFaktureringsstatistik() {
 
 // Vad vi ska fakturera varje företag denna månad. Returnerar
 // [{ foretag_id, foretagsnamn, antal, totalFaktura }], sorterad på belopp fallande.
-async function hämtaFaktureringPerFöretag() {
-  const rapporter = await hämtaMånadensGodkändaRapporter();
+async function hämtaFaktureringPerFöretag({ from, till } = {}) {
+  const rapporter = await hämtaMånadensGodkändaRapporter({ from, till });
   if (!rapporter.length) return [];
 
   const perFöretag = new Map();

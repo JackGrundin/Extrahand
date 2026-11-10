@@ -12,13 +12,17 @@ const supabase = createClient(
 // betald (utbetalt till privatpersonen) och fakturerad (fakturerat till företaget) är
 // oberoende storheter – ett pass kan vara betalt men ännu inte fakturerat – så betald
 // får ALDRIG filtrera underlaget, annars försvinner ofakturerade pass så fort de betalas.
-async function hämtaFaktureringsunderlag() {
-  const { data: rapporter, error } = await supabase
+async function hämtaFaktureringsunderlag({ from, till } = {}) {
+  let query = supabase
     .from('tidrapporter')
     .select('*')
     .eq('status', 'godkänd')
     .neq('fakturerad', true)
     .order('datum', { ascending: true });
+  // Tidsfilter på passets datum (date-kolumn). from/till är YYYY-MM-DD.
+  if (from) query = query.gte('datum', from);
+  if (till) query = query.lte('datum', till);
+  const { data: rapporter, error } = await query;
   if (error) throw error;
   if (!rapporter || !rapporter.length) return [];
 
