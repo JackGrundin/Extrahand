@@ -12,6 +12,7 @@ const { skickaNotifikation } = require('../utils/pushNotifikation');
 const { skickaAvtalÅterkalladMail } = require('../utils/email');
 const { hämtaJobbFörFöretag } = require('../db/jobb');
 const { sändRealtidsPing } = require('../realtid');
+const { hämtaFrånCache, sparaTillCache, ogiltigförklaraCache } = require('../utils/cache');
 
 const router = express.Router();
 
@@ -24,6 +25,12 @@ const supabase = createClient(
 // GET /api/users/profil — kräver giltig JWT
 router.get('/profil', kräverInloggning, async (req, res) => {
   try {
+    // Profilen läses vid varje sidladdning på webben – cacha det sammansatta svaret
+    // per användar-id i 60 s för att slippa tre Supabase-anrop per laddning.
+    const cacheNyckel = `profil:${req.användare.id}`;
+    const cachad = hämtaFrånCache(cacheNyckel);
+    if (cachad) return res.json(cachad);
+
     const [användare, totalTimmar, dokument] = await Promise.all([
       hämtaAnvändareViaEmail(req.användare.email),
       hämtaTotalTimmar(req.användare.id),
@@ -34,7 +41,7 @@ router.get('/profil', kräverInloggning, async (req, res) => {
       return res.status(404).json({ fel: 'Användaren hittades inte' });
     }
 
-    res.json({
+    const svar = {
       id: användare.id,
       namn: användare.Namn,
       email: användare.Email,
@@ -57,7 +64,10 @@ router.get('/profil', kräverInloggning, async (req, res) => {
       prenumerationStatus: användare.prenumeration_status ?? 'gratis',
       prenumerationExpiresAt: användare.prenumeration_expires_at ?? null,
       pro: ärPro(användare),
-    });
+    };
+
+    sparaTillCache(cacheNyckel, svar, 60);
+    res.json(svar);
   } catch (fel) {
     console.error('Profilfel:', fel);
     res.status(500).json({ fel: 'Serverfel vid hämtning av profil' });
@@ -128,6 +138,7 @@ router.put('/profil', kräverInloggning, async (req, res) => {
 
   try {
     await uppdateraProfil(req.användare.id, fält);
+    ogiltigförklaraCache(`profil:${req.användare.id}`);
     res.json({ ok: true });
   } catch (fel) {
     console.error('Profiluppdatering fel:', fel);
@@ -140,6 +151,7 @@ router.put('/stad', kräverInloggning, async (req, res) => {
   const { stad } = req.body;
   try {
     await uppdateraStad(req.användare.id, stad?.trim() || null);
+    ogiltigförklaraCache(`profil:${req.användare.id}`);
     res.json({ ok: true });
   } catch (fel) {
     console.error('Stadsuppdatering fel:', fel);
@@ -174,6 +186,7 @@ router.post('/profil-bild', kräverInloggning, async (req, res) => {
     const { data: { publicUrl } } = supabase.storage.from('profilbilder').getPublicUrl(filNamn);
 
     await uppdateraProfilBild(req.användare.id, publicUrl);
+    ogiltigförklaraCache(`profil:${req.användare.id}`);
     res.json({ url: publicUrl });
   } catch (fel) {
     console.error('Profilbild fel:', fel);
@@ -243,6 +256,7 @@ router.post('/dokument', kräverInloggning, kräverTyp('privatperson'), async (r
       storlek: buffer.length,
     });
 
+    ogiltigförklaraCache(`profil:${req.användare.id}`);
     res.status(201).json(dokument);
   } catch (fel) {
     console.error('Dokumentuppladdning fel:', fel);
@@ -267,6 +281,7 @@ router.delete('/dokument/:id', kräverInloggning, async (req, res) => {
     if (bildFel) console.error('Kunde inte ta bort dokumentfil ur Storage:', bildFel);
 
     await raderaDokument(dokument.id);
+    ogiltigförklaraCache(`profil:${req.användare.id}`);
     res.json({ ok: true });
   } catch (fel) {
     console.error('Dokumentradering fel:', fel);
@@ -350,6 +365,7 @@ router.delete('/konto', kräverInloggning, async (req, res) => {
     }
 
     await raderaKonto(användare.id);
+    ogiltigförklaraCache(`profil:${req.användare.id}`);
     res.json({ ok: true });
   } catch (fel) {
     console.error('Kontoradering fel:', fel);
