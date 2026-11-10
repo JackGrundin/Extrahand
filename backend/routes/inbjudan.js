@@ -18,8 +18,10 @@ const {
   markeraAccepterad,
   markeraInbjudanAvböjd,
 } = require('../db/schemaInbjudan');
-const { hämtaSchemaViaId, uppdateraSchema } = require('../db/scheman');
+const { hämtaSchemaViaId, uppdateraSchema, hämtaPassFörSchema, passMedArv, räknaKategorier } = require('../db/scheman');
 const { hämtaJobbViaId, sättJobbPrivat } = require('../db/jobb');
+const { hämtaAktivaAvdrag } = require('../db/schemaAvdrag');
+const { passTimmar } = require('../utils/tid');
 const { hämtaNamnFörAnvändare, skapaAnsökan, hämtaAnsökanFörJobbOchSökande, hämtaGodkändaFörJobb } = require('../db/ansokningar');
 const { hämtaAnvändareViaId, hämtaAvtalGodkant, hämtaPushToken, hämtaAnvändareViaEmail } = require('../db/användare');
 const { godkännAnsökan } = require('../db/godkannande');
@@ -385,9 +387,15 @@ router.get('/:token', async (req, res) => {
     // Perioden visas på inbjudningssidan INNAN personen väljer – bara för scheman.
     let startdatum = null;
     let slutdatum = null;
+    // Fullständig pass-/schemainfo som visas ovanför Acceptera/Tacka nej. Byggs här (inte via
+    // de auth-skyddade /scheman/:id och /jobb/:id) eftersom sidan nås utloggad. Schema-grenen
+    // speglar GET /scheman/:id, jobb-grenen /jobb/:id – med samma fältnamn så webben kan
+    // återanvända detaljsidornas rendering rakt av.
+    let schema = null;
+    let jobb = null;
 
     if (inbjudan.schema_id) {
-      const schema = await hämtaSchemaViaId(inbjudan.schema_id);
+      schema = await hämtaSchemaViaId(inbjudan.schema_id);
       if (!schema) return res.status(404).json({ fel: 'Schemat hittades inte' });
       schemaId = schema.id;
       titel = schema.titel;
@@ -395,7 +403,7 @@ router.get('/:token', async (req, res) => {
       startdatum = schema.startdatum ?? null;
       slutdatum = schema.slutdatum ?? null;
     } else {
-      const jobb = await hämtaJobbViaId(inbjudan.jobb_id);
+      jobb = await hämtaJobbViaId(inbjudan.jobb_id);
       if (!jobb) return res.status(404).json({ fel: 'Jobbet hittades inte' });
       jobbId = jobb.id;
       titel = jobb.Titel;
@@ -412,8 +420,34 @@ router.get('/:token', async (req, res) => {
     }
 
     const företagNamn = (await hämtaNamnFörAnvändare([foretagId]))[foretagId] || null;
+
+    let detaljer = null;
+    if (schema) {
+      // Spegla GET /scheman/:id: pass med arv, löneavdrag, roller och totala timmar.
+      const rådaPass = await hämtaPassFörSchema(schema.id);
+      const pass = rådaPass.map(p => passMedArv(schema, p));
+      const avdrag = await hämtaAktivaAvdrag(schema.id);
+      // Samma timberäkning som scheman-routen: inställda pass räknas inte, och summan
+      // avrundas igen så många termer inte flyter iväg (464.99999…).
+      const totaltTimmar = Math.round(
+        pass.filter(p => p.status !== 'installt').reduce((s, p) => s + passTimmar(p), 0) * 100
+      ) / 100;
+      detaljer = {
+        ...schema,
+        företagNamn,
+        pass,
+        antalPass: pass.length,
+        totaltTimmar,
+        avdrag,
+        kategorier: räknaKategorier(pass),
+      };
+    } else if (jobb) {
+      // foretagNamn (o) matchar fältnamnet /jobb/[id] läser.
+      detaljer = { ...jobb, foretagNamn: företagNamn };
+    }
+
     // schemaId behålls i svaret för bakåtkompatibilitet med den tidigare schema-endpointen.
-    res.json({ jobbId, schemaId, titel, företagNamn, redan_inlost, startdatum, slutdatum });
+    res.json({ jobbId, schemaId, titel, företagNamn, redan_inlost, startdatum, slutdatum, detaljer });
   } catch (fel) {
     console.error('Fel vid uppslag av inbjudan:', fel);
     res.status(500).json({ fel: 'Serverfel' });

@@ -8,13 +8,23 @@
 //   - Utloggad → förhandsvisning + "Skapa konto och ansök"/"Logga in" (bär med ?next=
 //     tillbaka hit, så personen landar här igen efter inloggning/registrering).
 // Token sparas i sessionStorage så att den överlever registrerings-/verifieringsstegen.
-import { useEffect, useState } from 'react';
+import { Fragment, useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import Knapp from '@/components/ui/Knapp';
 import Besked from '@/components/ui/Besked';
+import RollBrickor from '@/components/app/RollBrickor';
 import { api, felText } from '@/lib/api';
-import { formatPeriod } from '@/utils/datumHelper';
+import {
+  formatPeriod,
+  veckodagsNamn,
+  formatDagDatum,
+  parsaArbetstider,
+  parsaObTillagg,
+  planeradeTimmar,
+} from '@/utils/datumHelper';
+import { schematypEtikett, formateraPris } from '@/utils/konstanter';
+import { normaliseraKrav } from '@/utils/behorighet';
 
 const TOKEN_NYCKEL = 'fastgig.inbjudan.token';
 
@@ -88,12 +98,17 @@ export default function Inbjudan() {
 
   const nästa = `/inbjudan/${token}`;
   const ärSchema = Boolean(inbjudan?.schemaId);
-  // Perioden visas innan personen väljer – bara för scheman (jobb saknar start/slut).
-  const period = ärSchema ? formatPeriod([inbjudan?.startdatum, inbjudan?.slutdatum]) : null;
+  // Förhandsvisningen (med all pass-/schemainfo) visas i båda inloggningslägena. Fel-, ladd-,
+  // klar- och avböjd-lägena behåller det smala centrerade kortet.
+  const visarFörhandsvisning = Boolean(inbjudan) && !fel && !laddar && !klar && !avböjd;
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-bakgrund px-5">
-      <div className="w-full max-w-md rounded-lg border border-kant bg-yta p-8 text-center shadow-mjuk">
+    <main className="flex min-h-screen items-center justify-center bg-bakgrund px-5 py-10">
+      <div
+        className={`w-full rounded-lg border border-kant bg-yta p-8 shadow-mjuk ${
+          visarFörhandsvisning ? 'max-w-2xl text-left' : 'max-w-md text-center'
+        }`}
+      >
         <p className="text-[12px] font-semibold uppercase tracking-wide text-text-svag">FastGig</p>
 
         {fel ? (
@@ -135,65 +150,248 @@ export default function Inbjudan() {
               </Knapp>
             </div>
           </div>
-        ) : inloggad ? (
-          // Inloggad inbjuden → acceptera förfrågan med ett klick.
+        ) : (
+          // Förhandsvisning av passet/schemat ovanför knapparna. Samma info i båda
+          // inloggningslägena – bara knapparna längst ner skiljer sig.
           <>
-            <h1 className="mt-3 text-[22px] font-bold text-text">
+            <h1 className="mt-3 text-center text-[20px] font-bold text-text">
               {inbjudan.företagNamn || 'Ett företag'} har bjudit in dig
             </h1>
-            <p className="mt-2 text-[15px] leading-relaxed text-text-dämpad">
-              till {ärSchema ? 'schemat' : 'jobbet'} <strong>{inbjudan.titel}</strong> · via FastGig
+            <p className="mt-1 text-center text-[14px] text-text-dämpad">
+              till {ärSchema ? 'schemat' : 'jobbet'} nedan · via FastGig
             </p>
-            {period && (
-              <p className="mt-3 text-[14px] text-text-dämpad">
-                Period: <strong className="text-text">{period}</strong>
-              </p>
-            )}
+
+            <Detaljer inbjudan={inbjudan} />
+
             {accFel && (
               <div className="mt-4">
                 <Besked typ="fel">{accFel}</Besked>
               </div>
             )}
-            <div className="mt-6 flex flex-col gap-3">
-              <Knapp variant="primär" full laddar={accepterar} onClick={acceptera}>
-                Acceptera förfrågan
-              </Knapp>
-              <Knapp variant="kontur" full disabled={accepterar} onClick={tackaNej}>
-                Tacka nej
-              </Knapp>
-            </div>
-          </>
-        ) : (
-          // Utloggad → registrera/logga in och kom tillbaka hit.
-          <>
-            <h1 className="mt-3 text-[22px] font-bold text-text">
-              {inbjudan.företagNamn || 'Ett företag'} har bjudit in dig
-            </h1>
-            <p className="mt-2 text-[15px] leading-relaxed text-text-dämpad">
-              till {ärSchema ? 'schemat' : 'jobbet'} <strong>{inbjudan.titel}</strong> · via FastGig
-            </p>
-            {period && (
-              <p className="mt-3 text-[14px] text-text-dämpad">
-                Period: <strong className="text-text">{period}</strong>
-              </p>
+
+            {inloggad ? (
+              // Inloggad inbjuden → acceptera förfrågan med ett klick.
+              <div className="mt-6 flex flex-col gap-3">
+                <Knapp variant="primär" full laddar={accepterar} onClick={acceptera}>
+                  Acceptera förfrågan
+                </Knapp>
+                <Knapp variant="kontur" full disabled={accepterar} onClick={tackaNej}>
+                  Tacka nej
+                </Knapp>
+              </div>
+            ) : (
+              // Utloggad → registrera/logga in och kom tillbaka hit.
+              <>
+                <p className="mt-5 text-center text-[14px] text-text-dämpad">
+                  Skapa ett konto eller logga in för att acceptera förfrågan.
+                </p>
+                <div className="mt-4 flex flex-col gap-3">
+                  <Knapp variant="primär" full href={`/registrera?next=${encodeURIComponent(nästa)}`}>
+                    Skapa konto och ansök
+                  </Knapp>
+                  <Knapp variant="kontur" full href={`/logga-in?next=${encodeURIComponent(nästa)}`}>
+                    Logga in
+                  </Knapp>
+                  <Knapp variant="kontur" full onClick={tackaNej}>
+                    Tacka nej
+                  </Knapp>
+                </div>
+              </>
             )}
-            <p className="mt-3 text-[14px] text-text-dämpad">
-              Skapa ett konto eller logga in för att acceptera förfrågan.
-            </p>
-            <div className="mt-6 flex flex-col gap-3">
-              <Knapp variant="primär" full href={`/registrera?next=${encodeURIComponent(nästa)}`}>
-                Skapa konto och ansök
-              </Knapp>
-              <Knapp variant="kontur" full href={`/logga-in?next=${encodeURIComponent(nästa)}`}>
-                Logga in
-              </Knapp>
-              <Knapp variant="kontur" full onClick={tackaNej}>
-                Tacka nej
-              </Knapp>
-            </div>
           </>
         )}
       </div>
     </main>
+  );
+}
+
+// Fullständig förhandsvisning av passet/schemat. Backend levererar `detaljer` i svaret
+// (sidan nås utloggad och kan inte anropa de auth-skyddade /scheman/:id och /jobb/:id).
+// Renderingen speglar /schema/[id] respektive /jobb/[id] och återanvänder samma utils.
+function Detaljer({ inbjudan }) {
+  const detaljer = inbjudan?.detaljer;
+  if (!detaljer) return null;
+  return inbjudan.schemaId ? (
+    <SchemaDetaljer schema={detaljer} />
+  ) : (
+    <JobbDetaljer jobb={detaljer} />
+  );
+}
+
+function SchemaDetaljer({ schema }) {
+  const period = formatPeriod((schema.pass ?? []).map((p) => p.datum).filter(Boolean));
+  const krav = normaliseraKrav(schema.behorighets_krav);
+
+  return (
+    <div className="mt-5">
+      <h2 className="text-[22px] font-bold leading-tight text-text">{schema.titel}</h2>
+      <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-[14px] text-text-dämpad">
+        <span>{schematypEtikett(schema.typ)}</span>
+        <span aria-hidden="true">·</span>
+        <span>{Math.round(Number(schema.timlon))} kr/tim</span>
+        {period && (
+          <>
+            <span aria-hidden="true">·</span>
+            <span>{period}</span>
+          </>
+        )}
+      </div>
+      <div className="mt-3">
+        <RollBrickor kategorier={schema.kategorier} />
+      </div>
+
+      {schema.beskrivning && (
+        <p className="mt-4 whitespace-pre-wrap text-[14px] leading-relaxed text-text-dämpad">
+          {schema.beskrivning}
+        </p>
+      )}
+
+      {/* Löneavdrag visas INNAN beslutet – den inbjudna ska se avdragen först. */}
+      {Array.isArray(schema.avdrag) && schema.avdrag.length > 0 && (
+        <section className="mt-5">
+          <h3 className="mb-2 text-[15px] font-bold text-text">Löneavdrag</h3>
+          <ul className="space-y-1">
+            {schema.avdrag.map((a) => (
+              <li
+                key={a.id}
+                className="flex justify-between rounded-sm border border-kant bg-yta px-4 py-2.5 text-[13px]"
+              >
+                <span className="text-text">{a.namn}</span>
+                <span className="font-semibold text-text">
+                  {formateraPris(Number(a.belopp) || 0)} kr {a.typ === 'totalt' ? '(totalt)' : '(per pass)'}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+
+      <section className="mt-5">
+        <h3 className="mb-2 text-[15px] font-bold text-text">Pass ({schema.antalPass})</h3>
+        <ul className="space-y-1">
+          {(schema.pass ?? []).map((p, i) => (
+            <li
+              key={p.id ?? i}
+              className="flex items-center justify-between rounded-sm border border-kant bg-yta px-4 py-2.5 text-[13px]"
+            >
+              <span className="text-text">
+                {veckodagsNamn(p.datum)} {formatDagDatum(p.datum)}
+                {p.kategori ? ` · ${p.kategori}` : ''}
+              </span>
+              <span className="font-semibold text-text-dämpad">
+                {p.starttid}–{p.sluttid}
+              </span>
+            </li>
+          ))}
+        </ul>
+      </section>
+
+      {krav.length > 0 && (
+        <section className="mt-5">
+          <h3 className="mb-2 text-[15px] font-bold text-text">Behörighetskrav</h3>
+          <ul className="list-inside list-disc space-y-1 text-[14px] text-text-dämpad">
+            {krav.map((k) => (
+              <li key={k}>{k}</li>
+            ))}
+          </ul>
+        </section>
+      )}
+    </div>
+  );
+}
+
+function JobbDetaljer({ jobb }) {
+  const arbetstider = parsaArbetstider(jobb.arbetstider) ?? [];
+  const obRader = parsaObTillagg(jobb.ob_tillagg);
+  const timmar = planeradeTimmar(jobb.arbetstider);
+  const krav = normaliseraKrav(jobb.behorighets_krav);
+  const metad = [
+    jobb.Plats || null,
+    jobb.Lon != null ? `${Math.round(Number(jobb.Lon))} kr/tim` : null,
+    jobb.antal_dagar ? `${jobb.antal_dagar} ${jobb.antal_dagar === 1 ? 'dag' : 'dagar'}` : null,
+  ].filter(Boolean);
+
+  return (
+    <div className="mt-5">
+      <h2 className="text-[22px] font-bold leading-tight text-text">{jobb.Titel}</h2>
+      {metad.length > 0 && (
+        <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-[14px] text-text-dämpad">
+          {metad.map((del, i) => (
+            <Fragment key={i}>
+              {i > 0 && <span aria-hidden="true">·</span>}
+              <span>{del}</span>
+            </Fragment>
+          ))}
+        </div>
+      )}
+
+      {jobb.Beskrivning && (
+        <p className="mt-4 whitespace-pre-wrap text-[14px] leading-relaxed text-text-dämpad">
+          {jobb.Beskrivning}
+        </p>
+      )}
+
+      {obRader.length > 0 && (
+        <section className="mt-5">
+          <h3 className="mb-2 text-[15px] font-bold text-text">OB-tillägg</h3>
+          <ul className="space-y-1">
+            {obRader.map((ob, i) => (
+              <li
+                key={i}
+                className="flex justify-between rounded-sm border border-kant bg-yta px-4 py-2.5 text-[13px]"
+              >
+                <span className="text-text">
+                  {ob.start}–{ob.slut}
+                </span>
+                <span className="font-semibold text-text">
+                  {ob.typ === 'procent' ? `+${ob.värde} %` : `+${ob.värde} kr/tim`}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+
+      {arbetstider.length > 0 && (
+        <section className="mt-5">
+          <h3 className="mb-2 text-[15px] font-bold text-text">
+            Arbetstider{timmar ? ` · ${timmar} h totalt` : ''}
+          </h3>
+          <ul className="space-y-1">
+            {arbetstider.map((d, i) => (
+              <li
+                key={d?.datum ?? i}
+                className="flex items-center justify-between rounded-sm border border-kant bg-yta px-4 py-2.5 text-[13px]"
+              >
+                <span className="text-text">
+                  {veckodagsNamn(d.datum)} {formatDagDatum(d.datum)}
+                </span>
+                <span className="font-semibold text-text-dämpad">
+                  {d.start}–{d.slut}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+
+      {jobb.adress && (
+        <section className="mt-5">
+          <h3 className="mb-1 text-[15px] font-bold text-text">Adress</h3>
+          <p className="text-[14px] text-text-dämpad">{jobb.adress}</p>
+        </section>
+      )}
+
+      {krav.length > 0 && (
+        <section className="mt-5">
+          <h3 className="mb-2 text-[15px] font-bold text-text">Behörighetskrav</h3>
+          <ul className="list-inside list-disc space-y-1 text-[14px] text-text-dämpad">
+            {krav.map((k) => (
+              <li key={k}>{k}</li>
+            ))}
+          </ul>
+        </section>
+      )}
+    </div>
   );
 }
