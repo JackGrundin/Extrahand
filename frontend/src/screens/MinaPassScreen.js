@@ -140,6 +140,10 @@ export default function MinaPassScreen({ navigation }) {
       <SectionList
         sections={sektioner}
         keyExtractor={(item) => item.id}
+        removeClippedSubviews={true}
+        maxToRenderPerBatch={10}
+        windowSize={5}
+        initialNumToRender={8}
         contentContainerStyle={styles.lista}
         refreshControl={refresh.refreshControl}
         onScroll={refresh.onScroll}

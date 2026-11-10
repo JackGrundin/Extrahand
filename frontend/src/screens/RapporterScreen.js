@@ -369,6 +369,10 @@ export default function RapporterScreen({ navigation }) {
           <FlatList
             data={rapporter}
             keyExtractor={(item) => item.id}
+            removeClippedSubviews={true}
+            maxToRenderPerBatch={10}
+            windowSize={5}
+            initialNumToRender={8}
             contentContainerStyle={styles.lista}
             ListEmptyComponent={<Text style={styles.tom}>Inga godkända rapporter hittades</Text>}
             ListFooterComponent={rapporter.length > 0 ? (
@@ -461,6 +465,10 @@ export default function RapporterScreen({ navigation }) {
         <SectionList
           sections={faktureringSektioner}
           keyExtractor={(item) => item.id.toString()}
+          removeClippedSubviews={true}
+          maxToRenderPerBatch={10}
+          windowSize={5}
+          initialNumToRender={8}
           contentContainerStyle={styles.lista}
           stickySectionHeadersEnabled={false}
           ListHeaderComponent={faktureringsunderlag.length > 0 ? (
@@ -542,6 +550,10 @@ export default function RapporterScreen({ navigation }) {
           <FlatList
           data={filtreradeFöretag}
           keyExtractor={(item) => item.id.toString()}
+          removeClippedSubviews={true}
+          maxToRenderPerBatch={10}
+          windowSize={5}
+          initialNumToRender={8}
           contentContainerStyle={styles.lista}
           ListEmptyComponent={<Text style={styles.tom}>Inga företag hittades</Text>}
           renderItem={({ item }) => (
@@ -579,6 +591,10 @@ export default function RapporterScreen({ navigation }) {
         <FlatList
           data={raderadeKonton}
           keyExtractor={(item) => item.id.toString()}
+          removeClippedSubviews={true}
+          maxToRenderPerBatch={10}
+          windowSize={5}
+          initialNumToRender={8}
           contentContainerStyle={styles.lista}
           ListEmptyComponent={<Text style={styles.tom}>Inga raderade konton</Text>}
           renderItem={({ item }) => (
@@ -614,6 +630,10 @@ export default function RapporterScreen({ navigation }) {
           <FlatList
           data={filtradePrivatpersoner}
           keyExtractor={(item) => item.id.toString()}
+          removeClippedSubviews={true}
+          maxToRenderPerBatch={10}
+          windowSize={5}
+          initialNumToRender={8}
           contentContainerStyle={styles.lista}
           ListEmptyComponent={<Text style={styles.tom}>Inga privatpersoner hittades</Text>}
           renderItem={({ item }) => (

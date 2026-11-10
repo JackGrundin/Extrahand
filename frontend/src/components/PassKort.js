@@ -1,3 +1,4 @@
+import { memo } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { parsaArbetstider, formatPeriod } from '../utils/datumHelper';
@@ -11,7 +12,7 @@ const STATUS = {
   avvisad:  { bg: FÄRG.felMjuk, text: FÄRG.fel, etikett: 'Nekad' },
 };
 
-export default function PassKort({ pass }) {
+function PassKort({ pass }) {
   const färg = STATUS[pass.status] ?? STATUS.väntande;
   const schema = parsaArbetstider(pass.arbetstider);
   const datum = schema ? schema.map(d => d.datum).filter(Boolean) : [];
@@ -47,6 +48,8 @@ export default function PassKort({ pass }) {
     </Kort>
   );
 }
+
+export default memo(PassKort);
 
 const styles = StyleSheet.create({
   kort: { marginTop: 12 },

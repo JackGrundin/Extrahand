@@ -225,6 +225,10 @@ export default function JobbScreen({ navigation }) {
         <FlatList
           data={filtreradeScheman}
           keyExtractor={(item) => item.id}
+          removeClippedSubviews={true}
+          maxToRenderPerBatch={10}
+          windowSize={5}
+          initialNumToRender={8}
           contentContainerStyle={styles.lista}
           refreshControl={refresh.refreshControl}
           onScroll={refresh.onScroll}
@@ -409,6 +413,10 @@ export default function JobbScreen({ navigation }) {
       <FlatList
         data={filtrerade}
         keyExtractor={(item) => item.id}
+        removeClippedSubviews={true}
+        maxToRenderPerBatch={10}
+        windowSize={5}
+        initialNumToRender={8}
         contentContainerStyle={styles.lista}
         refreshControl={refresh.refreshControl}
         onScroll={refresh.onScroll}

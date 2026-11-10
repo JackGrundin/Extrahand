@@ -244,6 +244,10 @@ export default function JobbAnsokningarScreen({ route, navigation }) {
         style={styles.lista}
         data={aktivaAnsökningar}
         keyExtractor={(item) => item.id}
+        removeClippedSubviews={true}
+        maxToRenderPerBatch={10}
+        windowSize={5}
+        initialNumToRender={8}
         refreshControl={refresh.refreshControl}
         onScroll={refresh.onScroll}
         scrollEventThrottle={refresh.scrollEventThrottle}

@@ -1,4 +1,4 @@
-import { useRef } from 'react';
+import { memo, useRef } from 'react';
 import { Pressable, Animated, View } from 'react-native';
 import { STIL } from '../utils/tema';
 
@@ -6,7 +6,7 @@ import { STIL } from '../utils/tema';
 // Tidigare upprepades `styles.kort` med en knappt synlig skugga i varje skärm; nu utgår
 // alla kort från STIL.kort så looken är enhetlig. Scale-animationen ger en modern,
 // taktil känsla utan att något animationsbibliotek behövs – inbyggda Animated räcker.
-export default function Kort({ children, onPress, style, tryckbar = true, ...rest }) {
+function Kort({ children, onPress, style, tryckbar = true, ...rest }) {
   const skala = useRef(new Animated.Value(1)).current;
 
   // Statiskt kort (ingen onPress) renderas som en vanlig View – ingen Pressable-overhead.
@@ -30,3 +30,5 @@ export default function Kort({ children, onPress, style, tryckbar = true, ...res
     </Animated.View>
   );
 }
+
+export default memo(Kort);

@@ -483,6 +483,10 @@ export default function ChattScreen({ route, navigation }) {
         ref={listRef}
         data={tidslinje}
         keyExtractor={(item) => item.key}
+        removeClippedSubviews={true}
+        maxToRenderPerBatch={10}
+        windowSize={5}
+        initialNumToRender={8}
         contentContainerStyle={styles.meddelandeLista}
         onContentSizeChange={() => listRef.current?.scrollToEnd({ animated: false })}
         refreshControl={refresh.refreshControl}

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { memo, useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { api, felText } from '../api/klient';
@@ -13,7 +13,7 @@ const STATUS = {
   avslagen:    { bg: FÄRG.felMjuk, text: FÄRG.fel, etikett: 'Avböjd' },
 };
 
-export default function JobbforfraganKort({ förfrågan, ärPrivatperson, onUppdaterad }) {
+function JobbforfraganKort({ förfrågan, ärPrivatperson, onUppdaterad }) {
   const [sparar, setSparar] = useState(false);
 
   async function hantera(åtgärd) {
@@ -104,6 +104,8 @@ export default function JobbforfraganKort({ förfrågan, ärPrivatperson, onUppd
     </Kort>
   );
 }
+
+export default memo(JobbforfraganKort);
 
 const styles = StyleSheet.create({
   kort: { marginTop: 12 },

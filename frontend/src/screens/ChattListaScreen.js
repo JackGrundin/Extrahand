@@ -183,6 +183,10 @@ export default function ChattListaScreen({ navigation }) {
             style={styles.lista}
             data={förfrågningar}
             keyExtractor={(item) => item.key}
+            removeClippedSubviews={true}
+            maxToRenderPerBatch={10}
+            windowSize={5}
+            initialNumToRender={8}
             contentContainerStyle={styles.listaInnehåll}
             refreshControl={refresh.refreshControl}
             onScroll={refresh.onScroll}
@@ -231,6 +235,10 @@ export default function ChattListaScreen({ navigation }) {
         style={styles.lista}
         sections={sektioner}
         keyExtractor={(item) => item.id}
+        removeClippedSubviews={true}
+        maxToRenderPerBatch={10}
+        windowSize={5}
+        initialNumToRender={8}
         contentContainerStyle={styles.listaInnehåll}
         refreshControl={refresh.refreshControl}
         onScroll={refresh.onScroll}

@@ -1,5 +1,6 @@
 import { useCallback, useState } from 'react';
-import { View, Text, Image, TouchableOpacity, StyleSheet, ScrollView, ActivityIndicator, Linking } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, ScrollView, ActivityIndicator, Linking } from 'react-native';
+import { Image } from 'expo-image';
 import { useFocusEffect } from '@react-navigation/native';
 import { api } from '../api/klient';
 import { BetygsSammanfattning, BetygsLista } from '../components/BetygsSektion';

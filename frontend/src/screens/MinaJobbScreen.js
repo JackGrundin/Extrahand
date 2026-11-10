@@ -244,6 +244,10 @@ export default function MinaJobbScreen({ navigation, route }) {
           style={styles.lista}
           data={scheman}
           keyExtractor={(item) => item.id}
+          removeClippedSubviews={true}
+          maxToRenderPerBatch={10}
+          windowSize={5}
+          initialNumToRender={8}
           refreshControl={refresh.refreshControl}
           onScroll={refresh.onScroll}
           scrollEventThrottle={refresh.scrollEventThrottle}
@@ -322,6 +326,10 @@ export default function MinaJobbScreen({ navigation, route }) {
           style={styles.lista}
           data={huvudAktiva}
           keyExtractor={(item) => item.id}
+          removeClippedSubviews={true}
+          maxToRenderPerBatch={10}
+          windowSize={5}
+          initialNumToRender={8}
           refreshControl={refresh.refreshControl}
           onScroll={refresh.onScroll}
           scrollEventThrottle={refresh.scrollEventThrottle}
@@ -356,6 +364,10 @@ export default function MinaJobbScreen({ navigation, route }) {
           style={styles.lista}
           data={tidigareLista}
           keyExtractor={(item) => `${item._typ}-${item.id}`}
+          removeClippedSubviews={true}
+          maxToRenderPerBatch={10}
+          windowSize={5}
+          initialNumToRender={8}
           refreshControl={refresh.refreshControl}
           onScroll={refresh.onScroll}
           scrollEventThrottle={refresh.scrollEventThrottle}
