@@ -43,6 +43,9 @@ export default function MinProfil() {
   const [totalTimmar, setTotalTimmar] = useState(0);
   const [dokument, setDokument] = useState([]);
   const [betyg, setBetyg] = useState(null);
+  // Utbetalningsinställning ('direkt'/'25'): sparas direkt vid val, utanför "Spara profil".
+  const [utbetalning, setUtbetalning] = useState('direkt');
+  const [spararUtbetalning, setSpararUtbetalning] = useState(false);
 
   const [laddar, setLaddar] = useState(true);
   const [sparar, setSparar] = useState(false);
@@ -82,6 +85,7 @@ export default function MinProfil() {
       setProfilBild(p.profilBild ?? null);
       setTotalTimmar(p.totalTimmar ?? 0);
       setDokument(p.dokument ?? []);
+      setUtbetalning(p.utbetalningInstallning ?? 'direkt');
       // Betyg i egen try/catch – får inte sänka hela sidan.
       try {
         setBetyg(await api.hämtaBetyg(p.id));
@@ -162,6 +166,24 @@ export default function MinProfil() {
     } finally {
       setLaddarBild(false);
       if (filInput.current) filInput.current.value = '';
+    }
+  }
+
+  // Byter utbetalningsinställning. Sparas direkt (optimistiskt) via samma PUT /users/profil;
+  // backend gör en partiell update så övriga profilfält inte rörs.
+  async function väljUtbetalning(val) {
+    if (val === utbetalning || spararUtbetalning) return;
+    const föregående = utbetalning;
+    setUtbetalning(val);
+    setSpararUtbetalning(true);
+    setFel('');
+    try {
+      await api.uppdateraProfil({ utbetalning_installning: val });
+    } catch (f) {
+      setUtbetalning(föregående);
+      setFel(felText(f));
+    } finally {
+      setSpararUtbetalning(false);
     }
   }
 
@@ -294,6 +316,46 @@ export default function MinProfil() {
                     onChange={(e) => sätt('intressen', e.target.value)}
                     placeholder="t.ex. Friluftsliv, Musik, Djur"
                   />
+                </div>
+              </div>
+
+              {/* Utbetalning */}
+              <div className="rounded-xl border border-kant bg-yta p-6 shadow-mjuk">
+                <h2 className="mb-1 text-[17px] font-bold text-text">Utbetalning</h2>
+                <p className="mb-4 text-[14px] text-text-dämpad">Välj när du vill ha din lön utbetald.</p>
+                <div className="flex flex-col gap-3">
+                  {[
+                    { nyckel: 'direkt', rubrik: 'Direkt', beskrivning: 'En arbetsdag efter att du godkänt tidrapporten' },
+                    { nyckel: '25', rubrik: 'Den 25:e varje månad', beskrivning: 'Månadens pass samlas till en utbetalning den 25:e' },
+                  ].map((val) => {
+                    const aktiv = utbetalning === val.nyckel;
+                    return (
+                      <button
+                        key={val.nyckel}
+                        type="button"
+                        onClick={() => väljUtbetalning(val.nyckel)}
+                        disabled={spararUtbetalning}
+                        aria-pressed={aktiv}
+                        className={`flex items-start gap-3 rounded-md border p-4 text-left transition-colors disabled:opacity-60 ${
+                          aktiv ? 'border-primär bg-primär-mjuk' : 'border-kant hover:border-kant-stark'
+                        }`}
+                      >
+                        <span
+                          className={`mt-0.5 flex h-5 w-5 flex-none items-center justify-center rounded-full border-2 ${
+                            aktiv ? 'border-primär' : 'border-kant-stark'
+                          }`}
+                        >
+                          {aktiv && <span className="h-2.5 w-2.5 rounded-full bg-primär" />}
+                        </span>
+                        <span className="min-w-0">
+                          <span className={`block text-[15px] font-semibold ${aktiv ? 'text-primär' : 'text-text'}`}>
+                            {val.rubrik}
+                          </span>
+                          <span className="block text-[13px] text-text-svag">{val.beskrivning}</span>
+                        </span>
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
             </div>

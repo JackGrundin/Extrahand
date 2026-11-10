@@ -177,6 +177,17 @@ function TidrapportKort({ rapport, ärPrivatperson, ärSenaste, onUppdaterad }) 
             </Text>
           </View>
         )}
+
+        {/* När rapporten är godkänd vet vi när lönen betalas ut (direkt/25:e). Datumet
+            räknas fram på servern utifrån personens utbetalningsinställning. */}
+        {rapport.status === 'godkänd' && rapport.lonedatum && (
+          <View style={styles.lonedatumRad}>
+            <Ionicons name="calendar-outline" size={16} color="#16a34a" accessible={false} importantForAccessibility="no" />
+            <Text style={styles.lonedatumText}>
+              Lön betalas ut {new Date(rapport.lonedatum).toLocaleDateString('sv-SE')}
+            </Text>
+          </View>
+        )}
       </View>
 
       {ärPrivatperson && rapport.status === 'väntar' && (
@@ -603,6 +614,8 @@ const styles = StyleSheet.create({
   avdragBelopp: { fontSize: 13, fontWeight: '700', color: '#dc2626' },
   utbetalningEtikett: { fontSize: 14, fontWeight: '700', color: '#16a34a' },
   utbetalningVärde: { fontSize: 15, fontWeight: '700', color: '#16a34a' },
+  lonedatumRad: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 8, paddingTop: 10, borderTopWidth: 1, borderTopColor: '#dcfce7' },
+  lonedatumText: { fontSize: 14, fontWeight: '600', color: '#16a34a' },
   modalBakgrund: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'center', padding: 24 },
   modalKort: { backgroundColor: '#fff', borderRadius: 16, padding: 20 },
   modalRubrik: { fontSize: 17, fontWeight: '700', color: '#1a1a1a', marginBottom: 8 },

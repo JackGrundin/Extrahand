@@ -6,6 +6,7 @@ const { hämtaJobbViaId } = require('../db/jobb');
 const { hämtaAnvändareViaId, hämtaPushToken } = require('../db/användare');
 const { skickaNotifikation } = require('../utils/pushNotifikation');
 const { påslagEller40, beräknaObBelopp, beräknaBelopp, valideraObTillagg } = require('../utils/pris');
+const { beräknaLönedatum } = require('../utils/lonedatum');
 const { sändRealtidsPing } = require('../realtid');
 
 const router = express.Router();
@@ -92,6 +93,15 @@ router.get('/ansokan/:ansokningId', kräverInloggning, async (req, res) => {
     if (rapport && rapport.anvandare_id !== req.användare.id && rapport.foretag_id !== req.användare.id) {
       return res.status(403).json({ fel: 'Åtkomst nekad' });
     }
+
+    // För en godkänd rapport: räkna fram när personen får sin lön (direkt/25:e) så att
+    // både appens tidrapportskort och webbens "Mina pass" kan visa "Lön betalas ut [datum]".
+    if (rapport && rapport.status === 'godkänd') {
+      const person = await hämtaAnvändareViaId(rapport.anvandare_id);
+      const installning = person?.utbetalning_installning ?? 'direkt';
+      rapport.lonedatum = beräknaLönedatum(rapport.godkand_at, installning, rapport.created_at);
+    }
+
     res.json(rapport ?? null);
   } catch (fel) {
     console.error('Tidrapport hämtning fel:', fel);

@@ -1,5 +1,6 @@
 const { createClient } = require('@supabase/supabase-js');
 const ws = require('ws');
+const { beräknaLönedatum } = require('../utils/lonedatum');
 
 const supabase = createClient(
   process.env.SUPABASE_URL,
@@ -69,6 +70,8 @@ async function hämtaTidrapportFörAnsökan(ansokan_id) {
 async function uppdateraTidrapportStatus(id, status, bestridande_orsak) {
   const fält = { status };
   if (status === 'bestridd') fält.bestridande_orsak = bestridande_orsak ?? null;
+  // Stämpla godkännandetidpunkten – lönedatumet (direkt/25:e) härleds ur den.
+  if (status === 'godkänd') fält.godkand_at = new Date().toISOString();
   const { error } = await supabase
     .from('tidrapporter')
     .update(fält)
@@ -97,7 +100,7 @@ async function hämtaAllaTidrapporter({ fromDate, toDate } = {}) {
   const ansokanIds = [...new Set(rapporter.map(r => r.ansokan_id))];
 
   const [{ data: anvandare }, { data: foretag }, { data: ansokningar }] = await Promise.all([
-    supabase.from('användare').select('id, Namn, Email, telefonnummer').in('id', anvandareIds),
+    supabase.from('användare').select('id, Namn, Email, telefonnummer, utbetalning_installning').in('id', anvandareIds),
     supabase.from('användare').select('id, Namn').in('id', foretagIds),
     supabase.from('ansokningar').select('id, jobb_id').in('id', ansokanIds),
   ]);
@@ -114,6 +117,7 @@ async function hämtaAllaTidrapporter({ fromDate, toDate } = {}) {
 
   return rapporter.map(r => {
     const j = jobbMap[ansokanMap[r.ansokan_id]?.jobb_id];
+    const installning = anvandareMap[r.anvandare_id]?.utbetalning_installning ?? 'direkt';
     return {
       ...r,
       anvandareNamn: anvandareMap[r.anvandare_id]?.Namn ?? null,
@@ -122,6 +126,9 @@ async function hämtaAllaTidrapporter({ fromDate, toDate } = {}) {
       foretagNamn: foretagMap[r.foretag_id]?.Namn ?? null,
       jobbTitel: j?.Titel ?? null,
       ärSchemapass: j?.schema_id != null,
+      utbetalning_installning: installning,
+      // Alla rader här är godkända; lönedatumet styr grupperingen i adminvyn.
+      lonedatum: beräknaLönedatum(r.godkand_at, installning, r.created_at),
     };
   });
 }

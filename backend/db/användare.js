@@ -37,7 +37,7 @@ async function hämtaAnvändareViaEmail(email) {
 async function hämtaAnvändareViaId(id) {
   const { data, error } = await supabase
     .from('användare')
-    .select('id, Namn, Typ, created_at, cv, erfarenheter, kompetenser, intressen, profil_bild, beskrivning, bransch, stad, hemsida, telefonnummer, fodelsedatum, organisationsnummer, fakturaadress, postnummer, ort, fakturamail, referensperson')
+    .select('id, Namn, Typ, created_at, cv, erfarenheter, kompetenser, intressen, profil_bild, beskrivning, bransch, stad, hemsida, telefonnummer, fodelsedatum, organisationsnummer, fakturaadress, postnummer, ort, fakturamail, referensperson, utbetalning_installning')
     .eq('id', id)
     .single();
 
@@ -50,10 +50,19 @@ async function uppdateraProfilBild(id, url) {
   if (error) throw error;
 }
 
-async function uppdateraProfil(id, { cv, erfarenheter, kompetenser, intressen, beskrivning, bransch, stad, hemsida, telefonnummer }) {
+// Partiell update: bara de fält som faktiskt skickas in (!== undefined) skrivs. Det låter
+// en ren toggle (t.ex. { utbetalning_installning }) uppdateras utan att nolla cv,
+// erfarenheter m.m. Befintliga anropare skickar hela profilen och påverkas inte.
+async function uppdateraProfil(id, fält) {
+  const tillåtna = ['cv', 'erfarenheter', 'kompetenser', 'intressen', 'beskrivning', 'bransch', 'stad', 'hemsida', 'telefonnummer', 'utbetalning_installning'];
+  const uppdatering = {};
+  for (const nyckel of tillåtna) {
+    if (fält[nyckel] !== undefined) uppdatering[nyckel] = fält[nyckel];
+  }
+  if (Object.keys(uppdatering).length === 0) return;
   const { error } = await supabase
     .from('användare')
-    .update({ cv, erfarenheter, kompetenser, intressen, beskrivning, bransch, stad, hemsida, telefonnummer })
+    .update(uppdatering)
     .eq('id', id);
   if (error) throw error;
 }

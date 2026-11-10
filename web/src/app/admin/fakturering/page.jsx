@@ -16,6 +16,38 @@ function procent(paslag) {
   return `${Math.round((Number(paslag) || 0) * 100)}%`;
 }
 
+// YYYY-MM-DD → svenskt datum. T12:00 undviker tidszonshopp.
+function formatDatum(iso) {
+  if (!iso) return '';
+  return new Date(`${iso}T12:00:00`).toLocaleDateString('sv-SE');
+}
+
+// YYYY-MM → "juni 2026".
+function formatMånad(ym) {
+  if (!ym) return '';
+  return new Date(`${ym}-01T12:00:00`).toLocaleDateString('sv-SE', { month: 'long', year: 'numeric' });
+}
+
+// Delar upp ett företags rader i delposter efter personens utbetalningsinställning:
+//   '25'     → en samlad månadspost per person (alla pass under månaden slås ihop)
+//   'direkt' → en post per person och dag (flera pass samma dag slås ihop)
+function byggDelposter(rader) {
+  const karta = new Map();
+  for (const r of rader) {
+    const samlad = r.utbetalning_installning === '25';
+    const period = samlad ? String(r.datum || '').slice(0, 7) : r.datum;
+    const nyckel = `${samlad ? 'm' : 'd'}|${r.anvandare_id}|${period}`;
+    let d = karta.get(nyckel);
+    if (!d) {
+      d = { nyckel, samlad, person: r.anvandareNamn || 'Okänd', period, rader: [], summa: 0 };
+      karta.set(nyckel, d);
+    }
+    d.rader.push(r);
+    d.summa += Number(r.faktureringsbelopp) || 0;
+  }
+  return [...karta.values()];
+}
+
 export default function AdminFakturering() {
   const [rader, setRader] = useState(null);
   const [statistik, setStatistik] = useState([]);
@@ -59,6 +91,10 @@ export default function AdminFakturering() {
       }
       grupp.rader.push(r);
       grupp.summa += Number(r.faktureringsbelopp) || 0;
+    }
+    // Delposter per person (samlad månad för '25', per dag för 'direkt').
+    for (const grupp of karta.values()) {
+      grupp.delposter = byggDelposter(grupp.rader);
     }
     return [...karta.values()];
   }, [rader]);
@@ -264,28 +300,55 @@ export default function AdminFakturering() {
               </div>
 
               <ul className="divide-y divide-kant">
-                {g.rader.map((r) => (
-                  <li key={r.id} className="flex flex-wrap items-center justify-between gap-3 p-5">
-                    <div className="min-w-0">
-                      <p className="text-[14px] font-semibold text-text">
-                        {r.jobbTitel || 'Pass'}
-                        {r.ärSchemapass && (
-                          <span className="ml-2 rounded-pill bg-primär-mjuk px-2 py-0.5 text-[11px] font-bold text-primär">
-                            Schemapass
-                          </span>
-                        )}
-                      </p>
-                      <p className="text-[12px] text-text-dämpad">
-                        {r.datum} · {Number(r.timmar) || 0} h · {kr(r.timlon)}/h · påslag {Math.round((Number(r.paslag) || 0) * 100)}%
-                        {Number(r.ob_belopp) > 0 ? ` · OB ${kr(r.ob_belopp)}` : ''}
-                      </p>
+                {g.delposter.map((d) => (
+                  <li key={d.nyckel} className="p-5">
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="text-[14px] font-semibold text-text">
+                          {d.person}
+                          {d.samlad ? (
+                            <span className="ml-2 rounded-pill bg-primär-mjuk px-2 py-0.5 text-[11px] font-bold text-primär">
+                              Samlad månadsfaktura
+                            </span>
+                          ) : null}
+                        </p>
+                        <p className="text-[12px] text-text-dämpad">
+                          {d.samlad
+                            ? `${formatMånad(d.period)} · ${d.rader.length} pass`
+                            : `${formatDatum(d.period)}${d.rader.length > 1 ? ` · ${d.rader.length} pass` : ''}`}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <span className="text-[15px] font-bold text-text">{kr(d.summa)}</span>
+                        <Knapp
+                          variant="kontur"
+                          storlek="liten"
+                          laddar={sparar}
+                          onClick={() => markera(d.rader.map((r) => r.id))}
+                        >
+                          Fakturerat
+                        </Knapp>
+                      </div>
                     </div>
-                    <div className="flex items-center gap-3">
-                      <span className="text-[15px] font-bold text-text">{kr(r.faktureringsbelopp)}</span>
-                      <Knapp variant="kontur" storlek="liten" laddar={sparar} onClick={() => markera([r.id])}>
-                        Fakturerat
-                      </Knapp>
-                    </div>
+
+                    {/* Ingående pass i delposten. */}
+                    <ul className="mt-2 space-y-1 border-l-2 border-kant pl-3">
+                      {d.rader.map((r) => (
+                        <li key={r.id} className="flex flex-wrap items-center justify-between gap-2">
+                          <p className="text-[12px] text-text-dämpad">
+                            {r.jobbTitel || 'Pass'}
+                            {r.ärSchemapass && (
+                              <span className="ml-2 rounded-pill bg-primär-mjuk px-1.5 py-0.5 text-[10px] font-bold text-primär">
+                                Schemapass
+                              </span>
+                            )}
+                            {' · '}{r.datum} · {Number(r.timmar) || 0} h · {kr(r.timlon)}/h · påslag {Math.round((Number(r.paslag) || 0) * 100)}%
+                            {Number(r.ob_belopp) > 0 ? ` · OB ${kr(r.ob_belopp)}` : ''}
+                          </p>
+                          <span className="text-[12px] font-semibold text-text">{kr(r.faktureringsbelopp)}</span>
+                        </li>
+                      ))}
+                    </ul>
                   </li>
                 ))}
               </ul>

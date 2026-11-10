@@ -50,6 +50,7 @@ router.get('/profil', kräverInloggning, async (req, res) => {
       stad: användare.stad ?? null,
       hemsida: användare.hemsida ?? null,
       alder: beräknaÅlder(användare.fodelsedatum),
+      utbetalningInstallning: användare.utbetalning_installning ?? 'direkt',
       dokument,
       totalTimmar,
       avtalGodkant: användare.avtal_godkant ?? false,
@@ -104,18 +105,29 @@ router.get('/:id/profil', kräverInloggning, async (req, res) => {
 
 // PUT /api/users/profil — uppdaterar CV och profilinformation
 router.put('/profil', kräverInloggning, async (req, res) => {
-  const { cv, erfarenheter, kompetenser, intressen, beskrivning, bransch, stad, hemsida } = req.body;
+  const { cv, erfarenheter, kompetenser, intressen, beskrivning, bransch, stad, hemsida, utbetalning_installning } = req.body;
+
+  // Utbetalningsinställningen kan sparas ensam (toggle i profilen) – validera den innan
+  // den når databasen, check-constrainten är bara sista försvaret.
+  if (utbetalning_installning !== undefined && !['direkt', '25'].includes(utbetalning_installning)) {
+    return res.status(400).json({ fel: 'Ogiltig utbetalningsinställning' });
+  }
+
+  // Bygg en partiell uppdatering: skicka bara med de fält som faktiskt kom med i anropet,
+  // så en ensam inställningstoggle inte nollar cv/erfarenheter m.m.
+  const fält = {};
+  if (cv !== undefined) fält.cv = cv?.trim() || null;
+  if (erfarenheter !== undefined) fält.erfarenheter = erfarenheter?.trim() || null;
+  if (kompetenser !== undefined) fält.kompetenser = kompetenser?.trim() || null;
+  if (intressen !== undefined) fält.intressen = intressen?.trim() || null;
+  if (beskrivning !== undefined) fält.beskrivning = beskrivning?.trim() || null;
+  if (bransch !== undefined) fält.bransch = bransch?.trim() || null;
+  if (stad !== undefined) fält.stad = stad?.trim() || null;
+  if (hemsida !== undefined) fält.hemsida = hemsida?.trim() || null;
+  if (utbetalning_installning !== undefined) fält.utbetalning_installning = utbetalning_installning;
+
   try {
-    await uppdateraProfil(req.användare.id, {
-      cv: cv?.trim() || null,
-      erfarenheter: erfarenheter?.trim() || null,
-      kompetenser: kompetenser?.trim() || null,
-      intressen: intressen?.trim() || null,
-      beskrivning: beskrivning?.trim() || null,
-      bransch: bransch?.trim() || null,
-      stad: stad?.trim() || null,
-      hemsida: hemsida?.trim() || null,
-    });
+    await uppdateraProfil(req.användare.id, fält);
     res.json({ ok: true });
   } catch (fel) {
     console.error('Profiluppdatering fel:', fel);

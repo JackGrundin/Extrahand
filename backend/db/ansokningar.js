@@ -2,6 +2,7 @@ const { createClient } = require('@supabase/supabase-js');
 const ws = require('ws');
 const { hämtaVäntandeFörAnvändare } = require('./jobbforfragan');
 const { normaliseraKrav, saknadeKrav } = require('../utils/behorighet');
+const { beräknaLönedatum } = require('../utils/lonedatum');
 
 const supabase = createClient(
   process.env.SUPABASE_URL,
@@ -463,6 +464,20 @@ async function hämtaKonversationMellan(företagId, privatpersonId, motpartId) {
     meddelanden = m;
     meddelanden.sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
     tidrapporter = t;
+  }
+
+  // Lönedatum ("Lön betalas ut …") på godkända rapporter. Alla rapporter här gäller samma
+  // privatperson, så inställningen slås upp en gång. Samma beräkning som GET /tidrapporter.
+  if (tidrapporter.some(r => r.status === 'godkänd')) {
+    const { data: person } = await supabase
+      .from('användare')
+      .select('utbetalning_installning')
+      .eq('id', privatpersonId)
+      .maybeSingle();
+    const installning = person?.utbetalning_installning ?? 'direkt';
+    for (const r of tidrapporter) {
+      if (r.status === 'godkänd') r.lonedatum = beräknaLönedatum(r.godkand_at, installning, r.created_at);
+    }
   }
 
   // Flera tidrapporter kan finnas per ansökan (bestridda + korrigerade). Samla dem

@@ -7,6 +7,7 @@ import { useCallback, useEffect, useState } from 'react';
 import Knapp from '@/components/ui/Knapp';
 import Besked from '@/components/ui/Besked';
 import { api, felText } from '@/lib/api';
+import { formatDagDatum } from '@/utils/datumHelper';
 
 function formatBelopp(kr) {
   if (kr == null) return '–';
@@ -54,6 +55,8 @@ export default function TidrapportSektion({ ansökanId }) {
       await api.godkännRapport(rapport.id);
       setBesked('Tidrapporten är godkänd! 🎉');
       setRapport((prev) => ({ ...prev, status: 'godkänd' }));
+      // Hämta om så att det serverberäknade lönedatumet ("Lön betalas ut …") kommer med.
+      hämta();
     } catch (f) {
       setFel(felText(f));
     } finally {
@@ -144,6 +147,13 @@ export default function TidrapportSektion({ ansökanId }) {
 
       {/* Status */}
       <p className={`mt-2 text-[13px] font-semibold ${statusFärg}`}>{statusText}</p>
+
+      {/* Lönedatum: när rapporten är godkänd vet backend när lönen betalas ut (direkt/25:e). */}
+      {rapport.status === 'godkänd' && rapport.lonedatum && (
+        <p className="mt-1 text-[13px] font-semibold text-framgång">
+          Lön betalas ut {formatDagDatum(rapport.lonedatum)}
+        </p>
+      )}
 
       {/* Feedback */}
       {fel && <div className="mt-3"><Besked typ="fel">{fel}</Besked></div>}

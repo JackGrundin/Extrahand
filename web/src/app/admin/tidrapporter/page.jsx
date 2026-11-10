@@ -2,10 +2,13 @@
 
 // Admin-tidrapporter: alla tidrapporter oavsett status, med status-filter och möjlighet att
 // markera godkända (obetalda) som betalda. Beloppen kommer färdigräknade från backend.
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import Besked from '@/components/ui/Besked';
 import Knapp from '@/components/ui/Knapp';
 import { api, felText } from '@/lib/api';
+
+// Etikett för utbetalningsinställningen.
+const UTBETALNING_ETIKETT = { direkt: 'Direkt', '25': '25:e varje månad' };
 
 const FILTER = [
   { nyckel: '', etikett: 'Alla' },
@@ -22,6 +25,95 @@ const STATUSFÄRG = {
 
 function kr(belopp) {
   return `${Math.round(Number(belopp) || 0).toLocaleString('sv-SE')} kr`;
+}
+
+// Visar ett YYYY-MM-DD i svensk form. T12:00 undviker att tidszonen flyttar datumet en dag.
+function formatDatum(iso) {
+  if (!iso) return '';
+  return new Date(`${iso}T12:00:00`).toLocaleDateString('sv-SE');
+}
+
+// Enskilt tidrapportskort (direkt-utbetalning, väntande, bestridd eller redan betald).
+function RapportKort({ r, sparar, onBetald }) {
+  const installning = r.utbetalning_installning || 'direkt';
+  return (
+    <li className="rounded-lg border border-kant bg-yta p-5 shadow-mjuk">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-2">
+            <p className="text-[16px] font-bold text-text">{r.anvandareNamn || 'Okänd'}</p>
+            <span
+              className={`rounded-pill px-2 py-0.5 text-[11px] font-bold capitalize ${
+                STATUSFÄRG[r.status] ?? 'bg-yta-dämpad text-text-dämpad'
+              }`}
+            >
+              {r.status}
+            </span>
+            <span className="rounded-pill bg-yta-dämpad px-2 py-0.5 text-[11px] font-bold text-text-dämpad">
+              {UTBETALNING_ETIKETT[installning] ?? installning}
+            </span>
+            {r.betald && (
+              <span className="rounded-pill bg-framgång-mjuk px-2 py-0.5 text-[11px] font-bold text-framgång">
+                Betald
+              </span>
+            )}
+          </div>
+          <p className="text-[13px] text-text-dämpad">
+            {r.anvandareEmail}
+            {r.anvandareTelefon ? ` · ${r.anvandareTelefon}` : ''}
+          </p>
+          <p className="mt-1 text-[14px] text-text">
+            {r.jobbTitel || 'Pass'}
+            {r.ärSchemapass && (
+              <span className="ml-2 rounded-pill bg-primär-mjuk px-2 py-0.5 text-[11px] font-bold text-primär">
+                Schemapass
+              </span>
+            )}
+          </p>
+          <p className="text-[13px] text-text-dämpad">
+            {r.datum} · {r.foretagNamn || 'Okänt företag'}
+          </p>
+          {r.status === 'godkänd' && r.lonedatum && (
+            <p className="mt-1 text-[13px] font-semibold text-framgång">
+              Betalas ut {formatDatum(r.lonedatum)}
+            </p>
+          )}
+        </div>
+        {r.status === 'godkänd' && !r.betald && (
+          <Knapp
+            variant="sekundär"
+            storlek="liten"
+            laddar={sparar === r.id}
+            onClick={() => onBetald(r.id)}
+          >
+            Markera som betald
+          </Knapp>
+        )}
+      </div>
+
+      <div className="mt-4 grid grid-cols-3 gap-3">
+        <div className="rounded-sm bg-yta-dämpad px-3 py-2">
+          <p className="text-[11px] font-semibold uppercase text-text-svag">Timmar</p>
+          <p className="text-[15px] font-bold text-text">{Number(r.timmar) || 0} h</p>
+        </div>
+        <div className="rounded-sm bg-yta-dämpad px-3 py-2">
+          <p className="text-[11px] font-semibold uppercase text-text-svag">Timlön</p>
+          <p className="text-[15px] font-bold text-text">{kr(r.timlon)}</p>
+        </div>
+        <div className="rounded-sm bg-yta-dämpad px-3 py-2">
+          <p className="text-[11px] font-semibold uppercase text-text-svag">Totalt</p>
+          <p className="text-[15px] font-bold text-text">{kr(r.totalt_belopp)}</p>
+        </div>
+      </div>
+
+      {Number(r.avdrag_belopp) > 0 && (
+        <p className="mt-2 text-[13px] text-text-dämpad">
+          Löneavdrag: {kr(r.avdrag_belopp)} · Nettoutbetalning:{' '}
+          {kr((Number(r.totalt_belopp) || 0) - (Number(r.avdrag_belopp) || 0))}
+        </p>
+      )}
+    </li>
+  );
 }
 
 export default function AdminTidrapporter() {
@@ -59,6 +151,50 @@ export default function AdminTidrapporter() {
     }
   }
 
+  // Markerar en hel samlad utbetalning (en '25:e'-persons månad) som betald. Loopar den
+  // enskilda endpointen – samma mönster som fakturering använder för "Markera alla".
+  async function markeraGruppBetald(nyckel, ids) {
+    setSparar(nyckel);
+    setFel('');
+    try {
+      for (const id of ids) {
+        await api.markeraTidrapportBetald(id);
+      }
+      await hämta();
+    } catch (f) {
+      setFel(felText(f));
+    } finally {
+      setSparar(null);
+    }
+  }
+
+  // Godkända, obetalda pass för en '25:e'-person slås ihop till en utbetalning per person
+  // och lönedatum (den 25:e). Övriga rader (direkt, väntar, bestridd, redan betalda) visas
+  // som enskilda kort. Första förekomst styr ordningen, så datum-sorteringen från backend
+  // bevaras.
+  const poster = useMemo(() => {
+    if (!rapporter) return [];
+    const grupper = new Map();
+    const resultat = [];
+    for (const r of rapporter) {
+      const samlad = r.status === 'godkänd' && !r.betald && r.utbetalning_installning === '25';
+      if (samlad) {
+        const nyckel = `${r.anvandare_id}|${r.lonedatum}`;
+        let g = grupper.get(nyckel);
+        if (!g) {
+          g = { typ: 'grupp', nyckel, person: r, lonedatum: r.lonedatum, rader: [], summa: 0 };
+          grupper.set(nyckel, g);
+          resultat.push(g);
+        }
+        g.rader.push(r);
+        g.summa += (Number(r.totalt_belopp) || 0) - (Number(r.avdrag_belopp) || 0);
+      } else {
+        resultat.push({ typ: 'rad', nyckel: `rad-${r.id}`, rapport: r });
+      }
+    }
+    return resultat;
+  }, [rapporter]);
+
   return (
     <div>
       <h1 className="rubrik-l text-text">Tidrapporter</h1>
@@ -92,76 +228,73 @@ export default function AdminTidrapporter() {
         </p>
       ) : (
         <ul className="mt-6 space-y-3">
-          {rapporter.map((r) => (
-            <li key={r.id} className="rounded-lg border border-kant bg-yta p-5 shadow-mjuk">
-              <div className="flex flex-wrap items-start justify-between gap-3">
-                <div className="min-w-0">
-                  <div className="flex items-center gap-2">
-                    <p className="text-[16px] font-bold text-text">{r.anvandareNamn || 'Okänd'}</p>
-                    <span
-                      className={`rounded-pill px-2 py-0.5 text-[11px] font-bold capitalize ${
-                        STATUSFÄRG[r.status] ?? 'bg-yta-dämpad text-text-dämpad'
-                      }`}
-                    >
-                      {r.status}
-                    </span>
-                    {r.betald && (
-                      <span className="rounded-pill bg-framgång-mjuk px-2 py-0.5 text-[11px] font-bold text-framgång">
-                        Betald
+          {poster.map((post) =>
+            post.typ === 'grupp' ? (
+              <li key={post.nyckel} className="rounded-lg border-2 border-primär bg-yta p-5 shadow-mjuk">
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2">
+                      <p className="text-[16px] font-bold text-text">{post.person.anvandareNamn || 'Okänd'}</p>
+                      <span className="rounded-pill bg-primär-mjuk px-2 py-0.5 text-[11px] font-bold text-primär">
+                        25:e varje månad
                       </span>
-                    )}
+                    </div>
+                    <p className="text-[13px] text-text-dämpad">
+                      {post.person.anvandareEmail}
+                      {post.person.anvandareTelefon ? ` · ${post.person.anvandareTelefon}` : ''}
+                    </p>
+                    <p className="mt-1 text-[14px] font-semibold text-text">
+                      Samlad utbetalning · {post.rader.length} pass · betalas ut {formatDatum(post.lonedatum)}
+                    </p>
                   </div>
-                  <p className="text-[13px] text-text-dämpad">
-                    {r.anvandareEmail}
-                    {r.anvandareTelefon ? ` · ${r.anvandareTelefon}` : ''}
-                  </p>
-                  <p className="mt-1 text-[14px] text-text">
-                    {r.jobbTitel || 'Pass'}
-                    {r.ärSchemapass && (
-                      <span className="ml-2 rounded-pill bg-primär-mjuk px-2 py-0.5 text-[11px] font-bold text-primär">
-                        Schemapass
+                  <div className="text-right">
+                    <p className="text-[11px] font-semibold uppercase text-text-svag">Summa</p>
+                    <p className="text-[20px] font-bold text-primär">{kr(post.summa)}</p>
+                    <Knapp
+                      variant="sekundär"
+                      storlek="liten"
+                      laddar={sparar === post.nyckel}
+                      onClick={() => markeraGruppBetald(post.nyckel, post.rader.map((r) => r.id))}
+                      className="mt-2"
+                    >
+                      Markera hela utbetalningen som betald
+                    </Knapp>
+                  </div>
+                </div>
+
+                <ul className="mt-4 divide-y divide-kant border-t border-kant">
+                  {post.rader.map((r) => (
+                    <li key={r.id} className="flex flex-wrap items-center justify-between gap-2 py-2">
+                      <div className="min-w-0">
+                        <p className="text-[14px] text-text">
+                          {r.jobbTitel || 'Pass'}
+                          {r.ärSchemapass && (
+                            <span className="ml-2 rounded-pill bg-primär-mjuk px-2 py-0.5 text-[11px] font-bold text-primär">
+                              Schemapass
+                            </span>
+                          )}
+                        </p>
+                        <p className="text-[12px] text-text-dämpad">
+                          {r.datum} · {Number(r.timmar) || 0} h · {r.foretagNamn || 'Okänt företag'}
+                          {Number(r.avdrag_belopp) > 0 ? ` · löneavdrag ${kr(r.avdrag_belopp)}` : ''}
+                        </p>
+                      </div>
+                      <span className="text-[14px] font-semibold text-text">
+                        {kr((Number(r.totalt_belopp) || 0) - (Number(r.avdrag_belopp) || 0))}
                       </span>
-                    )}
-                  </p>
-                  <p className="text-[13px] text-text-dämpad">
-                    {r.datum} · {r.foretagNamn || 'Okänt företag'}
-                  </p>
-                </div>
-                {r.status === 'godkänd' && !r.betald && (
-                  <Knapp
-                    variant="sekundär"
-                    storlek="liten"
-                    laddar={sparar === r.id}
-                    onClick={() => markeraBetald(r.id)}
-                  >
-                    Markera som betald
-                  </Knapp>
-                )}
-              </div>
-
-              <div className="mt-4 grid grid-cols-3 gap-3">
-                <div className="rounded-sm bg-yta-dämpad px-3 py-2">
-                  <p className="text-[11px] font-semibold uppercase text-text-svag">Timmar</p>
-                  <p className="text-[15px] font-bold text-text">{Number(r.timmar) || 0} h</p>
-                </div>
-                <div className="rounded-sm bg-yta-dämpad px-3 py-2">
-                  <p className="text-[11px] font-semibold uppercase text-text-svag">Timlön</p>
-                  <p className="text-[15px] font-bold text-text">{kr(r.timlon)}</p>
-                </div>
-                <div className="rounded-sm bg-yta-dämpad px-3 py-2">
-                  <p className="text-[11px] font-semibold uppercase text-text-svag">Totalt</p>
-                  <p className="text-[15px] font-bold text-text">{kr(r.totalt_belopp)}</p>
-                </div>
-              </div>
-
-              {Number(r.avdrag_belopp) > 0 && (
-                <p className="mt-2 text-[13px] text-text-dämpad">
-                  Löneavdrag: {kr(r.avdrag_belopp)} · Nettoutbetalning:{' '}
-                  {kr((Number(r.totalt_belopp) || 0) - (Number(r.avdrag_belopp) || 0))}
-                </p>
-              )}
-            </li>
-          ))}
+                    </li>
+                  ))}
+                </ul>
+              </li>
+            ) : (
+              <RapportKort
+                key={post.nyckel}
+                r={post.rapport}
+                sparar={sparar}
+                onBetald={markeraBetald}
+              />
+            )
+          )}
         </ul>
       )}
     </div>

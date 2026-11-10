@@ -42,6 +42,10 @@ export default function ProfilScreen({ navigation }) {
   const [laddaUppBild, setLaddaUppBild] = useState(false);
   const [prenumerationLaddar, setPrenumerationLaddar] = useState(false);
   const [raderar, setRaderar] = useState(false);
+  // Utbetalningsinställning (bara privatpersoner): 'direkt' eller '25'. Speglas från
+  // profilen och sparas optimistiskt vid val.
+  const [utbetalning, setUtbetalning] = useState('direkt');
+  const [spararUtbetalning, setSpararUtbetalning] = useState(false);
 
   // Mjuk entré: innehållet tonar in och glider upp en aning när profilen laddats.
   const tona = useRef(new Animated.Value(0)).current;
@@ -126,6 +130,7 @@ export default function ProfilScreen({ navigation }) {
         användare?.id ? api.hämtaBetyg(användare.id) : null,
       ]);
       setProfil(profilData);
+      if (profilData?.utbetalningInstallning) setUtbetalning(profilData.utbetalningInstallning);
       if (betygData) setBetyg(betygData);
     } catch (fel) {
       console.error(fel);
@@ -168,6 +173,24 @@ export default function ProfilScreen({ navigation }) {
       Alert.alert('Fel', felText(fel));
     } finally {
       setLaddaUppBild(false);
+    }
+  }
+
+  // Byter utbetalningsinställning. Optimistiskt: visar valet direkt och återställer bara
+  // om sparandet mot servern misslyckas.
+  async function väljaUtbetalning(val) {
+    if (val === utbetalning || spararUtbetalning) return;
+    const föregående = utbetalning;
+    setUtbetalning(val);
+    setSpararUtbetalning(true);
+    try {
+      await api.uppdateraProfil({ utbetalning_installning: val });
+      setProfil(prev => (prev ? { ...prev, utbetalningInstallning: val } : prev));
+    } catch (fel) {
+      setUtbetalning(föregående);
+      Alert.alert('Fel', felText(fel));
+    } finally {
+      setSpararUtbetalning(false);
     }
   }
 
@@ -257,6 +280,45 @@ export default function ProfilScreen({ navigation }) {
           {!profil?.cv && !profil?.erfarenheter && !profil?.kompetenser && !profil?.intressen && (
             <Text style={styles.tomProfil}>Fyll i ditt CV och erfarenheter för att sticka ut när du söker jobb.</Text>
           )}
+
+          <View style={styles.sektion}>
+            <Text style={styles.sektionsRubrik}>Utbetalning</Text>
+            <Text style={styles.utbetalningInfo}>Välj när du vill ha din lön utbetald.</Text>
+            <View style={styles.valRad}>
+              {[
+                { nyckel: 'direkt', rubrik: 'Direkt', beskrivning: 'En arbetsdag efter att du godkänt tidrapporten' },
+                { nyckel: '25', rubrik: 'Den 25:e varje månad', beskrivning: 'Månadens pass samlas till en utbetalning den 25:e' },
+              ].map((val) => {
+                const aktiv = utbetalning === val.nyckel;
+                return (
+                  <TouchableOpacity
+                    key={val.nyckel}
+                    style={[styles.valKnapp, aktiv && styles.valKnappAktiv]}
+                    onPress={() => väljaUtbetalning(val.nyckel)}
+                    disabled={spararUtbetalning}
+                    activeOpacity={0.8}
+                    accessibilityRole="button"
+                    accessibilityState={{ selected: aktiv }}
+                    accessibilityLabel={val.rubrik}
+                  >
+                    <View style={styles.valRadbryt}>
+                      <Ionicons
+                        name={aktiv ? 'radio-button-on' : 'radio-button-off'}
+                        size={20}
+                        color={aktiv ? FÄRG.primär : FÄRG.textSvag}
+                        accessible={false}
+                        importantForAccessibility="no"
+                      />
+                      <View style={styles.valTextWrapper}>
+                        <Text style={[styles.valRubrik, aktiv && styles.valRubrikAktiv]}>{val.rubrik}</Text>
+                        <Text style={styles.valBeskrivning}>{val.beskrivning}</Text>
+                      </View>
+                    </View>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          </View>
         </>
       )}
 
@@ -389,6 +451,15 @@ const styles = StyleSheet.create({
   sektion: { width: '100%', ...STIL.kort, marginBottom: 14 },
   sektionsRubrik: { ...TEXT.överlinje, color: FÄRG.textDämpad, marginBottom: 6 },
   sektionsText: { fontSize: 15, color: FÄRG.text, lineHeight: 22 },
+  utbetalningInfo: { fontSize: 14, color: FÄRG.textSvag, lineHeight: 20, marginBottom: 10 },
+  valRad: { gap: 10 },
+  valKnapp: { borderWidth: 1.5, borderColor: FÄRG.kant, borderRadius: RADIE.md, padding: 12 },
+  valKnappAktiv: { borderColor: FÄRG.primär, backgroundColor: FÄRG.primärMjuk },
+  valRadbryt: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  valTextWrapper: { flex: 1 },
+  valRubrik: { fontSize: 15, fontWeight: '600', color: FÄRG.text },
+  valRubrikAktiv: { color: FÄRG.primär },
+  valBeskrivning: { fontSize: 13, color: FÄRG.textSvag, lineHeight: 18, marginTop: 2 },
   tomProfil: { fontSize: 14, color: FÄRG.textSvag, textAlign: 'center', lineHeight: 22, marginBottom: 24, paddingHorizontal: 8 },
   loggaUtKnapp: { marginTop: 16 },
 

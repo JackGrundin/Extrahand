@@ -32,8 +32,9 @@ async function hämtaFaktureringsunderlag() {
       .select('id, Namn, organisationsnummer, fakturaadress, postnummer, ort, fakturamail, referensperson')
       .in('id', foretagIds),
     supabase.from('ansokningar').select('id, jobb_id').in('id', ansokanIds),
-    // Privatpersonens namn – visas i adminens platta faktureringsunderlag.
-    supabase.from('användare').select('id, Namn').in('id', anvandareIds),
+    // Privatpersonens namn + utbetalningsinställning – inställningen styr hur raderna
+    // grupperas i adminens faktureringsvy (direkt per dag vs. samlat per månad).
+    supabase.from('användare').select('id, Namn, utbetalning_installning').in('id', anvandareIds),
   ]);
 
   // Jobbtiteln så att den som fakturerar ser vilket pass/schema en rad avser, och
@@ -70,7 +71,9 @@ async function hämtaFaktureringsunderlag() {
       avdrag_belopp: r.avdrag_belopp || 0,
       jobbTitel: j?.Titel ?? null,
       ärSchemapass: j?.schema_id != null,
+      anvandare_id: r.anvandare_id,
       anvandareNamn: personMap[r.anvandare_id]?.Namn ?? null,
+      utbetalning_installning: personMap[r.anvandare_id]?.utbetalning_installning ?? 'direkt',
       foretagsnamn: f.Namn ?? null,
       organisationsnummer: f.organisationsnummer ?? null,
       fakturaadress: f.fakturaadress ?? null,
