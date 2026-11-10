@@ -33,8 +33,25 @@ function formatDatum(iso) {
   return new Date(`${iso}T12:00:00`).toLocaleDateString('sv-SE');
 }
 
+// Visar en full ISO-tidsstämpel (t.ex. fakturerad_at) som svenskt datum.
+function formatTidsstämpel(iso) {
+  if (!iso) return '';
+  return new Date(iso).toLocaleDateString('sv-SE');
+}
+
+// Grön "Fakturerad {datum}"-markör. Fakturerad (fakturerat till företaget) är oberoende
+// av betald (utbetalt till personen), så den visas vid sidan av betald-statusen.
+function FaktureradBadge({ r }) {
+  if (!r.fakturerad) return null;
+  return (
+    <span className="rounded-pill bg-framgång-mjuk px-2 py-0.5 text-[11px] font-bold text-framgång">
+      Fakturerad{r.fakturerad_at ? ` ${formatTidsstämpel(r.fakturerad_at)}` : ''}
+    </span>
+  );
+}
+
 // Enskilt tidrapportskort (direkt-utbetalning, väntande, bestridd eller redan betald).
-function RapportKort({ r, sparar, onBetald }) {
+function RapportKort({ r, sparar, onBetald, onFakturerad }) {
   const installning = r.utbetalning_installning || 'direkt';
   return (
     <li className="rounded-lg border border-kant bg-yta p-5 shadow-mjuk">
@@ -57,6 +74,7 @@ function RapportKort({ r, sparar, onBetald }) {
                 Betald
               </span>
             )}
+            <FaktureradBadge r={r} />
           </div>
           <p className="text-[13px] text-text-dämpad">
             {r.anvandareEmail}
@@ -79,15 +97,29 @@ function RapportKort({ r, sparar, onBetald }) {
             </p>
           )}
         </div>
-        {r.status === 'godkänd' && !r.betald && (
-          <Knapp
-            variant="sekundär"
-            storlek="liten"
-            laddar={sparar === r.id}
-            onClick={() => onBetald(r.id)}
-          >
-            Markera som betald
-          </Knapp>
+        {r.status === 'godkänd' && (!r.betald || !r.fakturerad) && (
+          <div className="flex flex-col items-end gap-2">
+            {!r.betald && (
+              <Knapp
+                variant="sekundär"
+                storlek="liten"
+                laddar={sparar === r.id}
+                onClick={() => onBetald(r.id)}
+              >
+                Markera som betald
+              </Knapp>
+            )}
+            {!r.fakturerad && (
+              <Knapp
+                variant="sekundär"
+                storlek="liten"
+                laddar={sparar === `fakt-${r.id}`}
+                onClick={() => onFakturerad(r.id)}
+              >
+                Markera fakturerad
+              </Knapp>
+            )}
+          </div>
         )}
       </div>
 
@@ -143,6 +175,22 @@ export default function AdminTidrapporter() {
     setFel('');
     try {
       await api.markeraTidrapportBetald(id);
+      await hämta();
+    } catch (f) {
+      setFel(felText(f));
+    } finally {
+      setSparar(null);
+    }
+  }
+
+  // Markerar en rapport som fakturerad (fakturerat till företaget). Fakturerad är oberoende
+  // av betald, så varje rapport bockas av för sig – även raderna inuti en samlad utbetalning.
+  // Spar-nyckeln prefixas med 'fakt-' så laddningen inte landar på betald-knappen samma rad.
+  async function markeraFakturerad(id) {
+    setSparar(`fakt-${id}`);
+    setFel('');
+    try {
+      await api.markeraFakturerad(id);
       await hämta();
     } catch (f) {
       setFel(felText(f));
@@ -279,9 +327,23 @@ export default function AdminTidrapporter() {
                           {Number(r.avdrag_belopp) > 0 ? ` · löneavdrag ${kr(r.avdrag_belopp)}` : ''}
                         </p>
                       </div>
-                      <span className="text-[14px] font-semibold text-text">
-                        {kr((Number(r.totalt_belopp) || 0) - (Number(r.avdrag_belopp) || 0))}
-                      </span>
+                      <div className="flex items-center gap-3">
+                        {r.fakturerad ? (
+                          <FaktureradBadge r={r} />
+                        ) : (
+                          <Knapp
+                            variant="sekundär"
+                            storlek="liten"
+                            laddar={sparar === `fakt-${r.id}`}
+                            onClick={() => markeraFakturerad(r.id)}
+                          >
+                            Markera fakturerad
+                          </Knapp>
+                        )}
+                        <span className="text-[14px] font-semibold text-text">
+                          {kr((Number(r.totalt_belopp) || 0) - (Number(r.avdrag_belopp) || 0))}
+                        </span>
+                      </div>
                     </li>
                   ))}
                 </ul>
@@ -292,6 +354,7 @@ export default function AdminTidrapporter() {
                 r={post.rapport}
                 sparar={sparar}
                 onBetald={markeraBetald}
+                onFakturerad={markeraFakturerad}
               />
             )
           )}

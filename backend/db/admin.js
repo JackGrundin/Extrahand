@@ -3,6 +3,7 @@ const ws = require('ws');
 const { beräknaFakturapris, påslagEller40, BRUTTO_KOEFFICIENT } = require('../utils/pris');
 const { hämtaAllaFöretag, hämtaAllaPrivatpersoner } = require('./användare');
 const { nuvarandeMånad } = require('../utils/manad');
+const { beräknaLönedatum } = require('../utils/lonedatum');
 
 const supabase = createClient(
   process.env.SUPABASE_URL,
@@ -99,7 +100,7 @@ async function hämtaTidrapporterFörAdmin({ status } = {}) {
   const ansokanIds = rapporter.map(r => r.ansokan_id);
 
   const [anvandare, foretag, ansokningar] = await Promise.all([
-    hämtaIBitar(anvandareIds, bit => supabase.from('användare').select('id, Namn, Email, telefonnummer').in('id', bit)),
+    hämtaIBitar(anvandareIds, bit => supabase.from('användare').select('id, Namn, Email, telefonnummer, utbetalning_installning').in('id', bit)),
     hämtaIBitar(foretagIds, bit => supabase.from('användare').select('id, Namn').in('id', bit)),
     hämtaIBitar(ansokanIds, bit => supabase.from('ansokningar').select('id, jobb_id').in('id', bit)),
   ]);
@@ -114,6 +115,9 @@ async function hämtaTidrapporterFörAdmin({ status } = {}) {
 
   return rapporter.map(r => {
     const j = jobbMap[ansokanMap[r.ansokan_id]?.jobb_id];
+    // Utbetalningsinställningen + härlett lönedatum följer med så att adminvyn kan gruppera
+    // godkända '25:e'-pass till en samlad utbetalning (samma berikning som hämtaAllaTidrapporter).
+    const installning = anvandareMap[r.anvandare_id]?.utbetalning_installning ?? 'direkt';
     return {
       ...r,
       anvandareNamn: anvandareMap[r.anvandare_id]?.Namn ?? null,
@@ -122,6 +126,8 @@ async function hämtaTidrapporterFörAdmin({ status } = {}) {
       foretagNamn: foretagMap[r.foretag_id]?.Namn ?? null,
       jobbTitel: j?.Titel ?? null,
       ärSchemapass: j?.schema_id != null,
+      utbetalning_installning: installning,
+      lonedatum: beräknaLönedatum(r.godkand_at, installning, r.created_at),
     };
   });
 }

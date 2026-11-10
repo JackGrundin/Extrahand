@@ -85,11 +85,14 @@ async function hämtaFaktureringsunderlag() {
   });
 }
 
+// Markerar en tidrapport som fakturerad. Idempotent: redan fakturerade rader rörs
+// inte (.neq filtrerar bort dem), så fakturerad_at bevaras vid en andra avbockning.
 async function markeraFakturerad(id) {
   const { error } = await supabase
     .from('tidrapporter')
     .update({ fakturerad: true, fakturerad_at: new Date().toISOString() })
-    .eq('id', id);
+    .eq('id', id)
+    .neq('fakturerad', true);
   if (error) throw error;
 }
 
