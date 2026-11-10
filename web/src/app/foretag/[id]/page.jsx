@@ -7,6 +7,7 @@
 // min-profil/page.jsx. Profil-endpointen (GET /users/:id/profil) kräver inloggning och
 // delas med privatpersoners profiler, så sidan kräver inloggning.
 import { useCallback, useEffect, useState } from 'react';
+import Image from 'next/image';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import PrivatSkal from '@/components/privat/PrivatSkal';
@@ -94,10 +95,11 @@ export default function FöretagsProfil() {
         {/* Huvud: logga, namn, bransch/stad, hemsida */}
         <div className="flex flex-col items-center rounded-xl border border-kant bg-yta p-7 text-center shadow-mjuk">
           {profil.profilBild ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
+            <Image
               src={profil.profilBild}
               alt={profil.namn ?? 'Företag'}
+              width={80}
+              height={80}
               className="h-20 w-20 rounded-full object-cover"
             />
           ) : (

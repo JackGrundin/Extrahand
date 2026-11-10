@@ -6,6 +6,7 @@
 // samma mönster som app/schema/[id]. Fälten och endpoints speglar appens RedigeraProfilScreen
 // och ProfilScreen; backend är sista försvaret.
 import { useCallback, useEffect, useRef, useState } from 'react';
+import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import PrivatSkal from '@/components/privat/PrivatSkal';
 import Input from '@/components/ui/Input';
@@ -218,10 +219,11 @@ export default function MinProfil() {
 
                 <div className="flex items-center gap-4">
                   {profilBild ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
+                    <Image
                       src={profilBild}
                       alt="Profilbild"
+                      width={80}
+                      height={80}
                       className="h-20 w-20 rounded-full object-cover"
                     />
                   ) : (

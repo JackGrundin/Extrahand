@@ -71,8 +71,7 @@ export default function PrivatSidomeny({ onNavigera, olästa = 0, ansökanStatus
           }`}
         >
           {användare?.profilBild ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={användare.profilBild} alt="" className="h-8 w-8 shrink-0 rounded-full object-cover" />
+            <Image src={användare.profilBild} alt="" width={32} height={32} className="h-8 w-8 shrink-0 rounded-full object-cover" />
           ) : (
             <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gradient-primär text-[13px] font-bold text-white">
               {(användare?.namn || '?').charAt(0).toUpperCase()}

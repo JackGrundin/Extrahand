@@ -6,6 +6,7 @@
 // (POST /users/profil-bild → Supabase Storage). Namn och e-post sätts vid registrering och
 // visas här skrivskyddat. Fakturauppgifter ändras inte via profil-API:t.
 import { useEffect, useRef, useState } from 'react';
+import Image from 'next/image';
 import Input from '@/components/ui/Input';
 import Textfält from '@/components/ui/Textfält';
 import Knapp from '@/components/ui/Knapp';
@@ -185,8 +186,7 @@ export default function Profil() {
             <h2 className="mb-4 text-[17px] font-bold text-text">Profilbild</h2>
             <div className="flex items-center gap-4">
               {profilBild ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={profilBild} alt="Profilbild" className="h-20 w-20 rounded-full object-cover" />
+                <Image src={profilBild} alt="Profilbild" width={80} height={80} className="h-20 w-20 rounded-full object-cover" />
               ) : (
                 <span className="flex h-20 w-20 items-center justify-center rounded-full bg-gradient-primär text-[28px] font-bold text-white">
                   {(namn || '?').charAt(0).toUpperCase()}
