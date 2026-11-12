@@ -7,6 +7,7 @@
 // när samtycke finns, så att inget analytics-skript någonsin körs utan godkännande.
 import { useEffect, useState } from 'react';
 import Script from 'next/script';
+import Image from 'next/image';
 import Knapp from '@/components/ui/Knapp';
 
 const SAMTYCKE_NYCKEL = 'fastgig.cookie-samtycke';
@@ -60,17 +61,26 @@ export default function CookieBanner() {
       )}
 
       {samtycke === '' && (
-        <div className="fixed inset-x-0 bottom-0 z-50 px-4 pb-4">
-          <div className="mx-auto flex max-w-innehåll flex-col gap-4 rounded-lg border border-kant bg-yta p-5 shadow-lyft sm:flex-row sm:items-center sm:justify-between">
-            <p className="text-[14px] leading-relaxed text-text-dämpad">
-              Vi använder cookies för att förstå hur sajten används (Google Analytics). Du
-              väljer själv om du vill tillåta det – vi laddar inga analys-cookies om du
-              avböjer.
+        <div className="fixed inset-x-0 bottom-0 z-50 border-t border-kant bg-yta shadow-[0_-4px_24px_rgba(15,23,42,0.08)]">
+          <div className="mx-auto flex max-w-innehåll flex-col gap-4 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+            <Image
+              src="/logotyp.png"
+              alt="FastGig"
+              width={132}
+              height={34}
+              className="h-6 w-auto shrink-0"
+            />
+            <p className="text-[14px] leading-relaxed text-text-dämpad sm:flex-1 sm:px-6">
+              Den här webbplatsen använder cookies för analys (Google Analytics).
             </p>
-            <div className="flex shrink-0 gap-3">
-              <Knapp variant="kontur" storlek="liten" onClick={() => spara('avböjt')}>
+            <div className="flex shrink-0 items-center gap-3">
+              <button
+                type="button"
+                onClick={() => spara('avböjt')}
+                className="text-[14px] font-semibold text-text-dämpad transition-colors hover:text-text"
+              >
                 Avböj
-              </Knapp>
+              </button>
               <Knapp variant="primär" storlek="liten" onClick={() => spara('godkänt')}>
                 Godkänn
               </Knapp>
