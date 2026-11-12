@@ -2,6 +2,7 @@ import './globals.css';
 import { AuthProvider } from '@/context/AuthContext';
 import { RealtidsProvider } from '@/context/RealtidsContext';
 import BetaModal from '@/components/app/BetaModal';
+import CookieBanner from '@/components/CookieBanner';
 
 export const metadata = {
   title: 'FastGig – Flexibla jobb, enkelt',
@@ -35,6 +36,9 @@ export default function RootLayout({ children }) {
           <RealtidsProvider>
             {children}
             <BetaModal />
+            {/* GDPR-samtyckesbanner. Laddar Google Analytics (gtag) först när besökaren
+                godkänner – avböjer man laddas inga analys-skript. Valet sparas i localStorage. */}
+            <CookieBanner />
           </RealtidsProvider>
         </AuthProvider>
       </body>
