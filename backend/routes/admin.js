@@ -33,7 +33,7 @@ function tidsfilter(req) {
 // GET /api/admin/statistik — dashboard-siffror i ett anrop
 router.get('/statistik', kräverInloggning, kräverAdmin, async (req, res) => {
   try {
-    res.json(await hämtaStatistik());
+    res.json(await hämtaStatistik(tidsfilter(req)));
   } catch (fel) {
     console.error('Admin-statistik fel:', fel);
     res.status(500).json({ fel: 'Serverfel' });

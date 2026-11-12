@@ -250,7 +250,7 @@ export const api = {
   // Listorna hämtas via den samlade /admin-routern; mutationerna återanvänder de
   // befintliga admin-endpointsen (avtal mejlar redan via Resend, betald/fakturerad
   // bor kvar i sina respektive routrar).
-  adminStatistik: () => anrop('GET', '/admin/statistik'),
+  adminStatistik: (from) => anrop('GET', `/admin/statistik${frågesträng({ from })}`),
   adminTidrapporter: (status, from) =>
     anrop('GET', `/admin/tidrapporter${frågesträng({ status, from })}`),
   adminAvtal: () => anrop('GET', '/admin/avtal'),

@@ -31,26 +31,34 @@ async function hämtaIBitar(ids, hämta) {
 // via beräknaFakturapris (samma formel som faktureringsvyn), bruttolön är arbetskostnaden
 // och påslagsintäkten är skillnaden mot vad arbetet kostar via Invoicery
 // (brutto * BRUTTO_KOEFFICIENT, dvs. fakturapriset utan vårt påslag).
-async function hämtaStatistik() {
+async function hämtaStatistik({ from, till } = {}) {
   const sedan30 = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+
+  // Tidrapporter-queryn (pengar, timmar och pass) filtreras på passets datum (date-kolumn),
+  // samma mönster som hämtaTidrapporterFörAdmin. from/till är YYYY-MM-DD. Användar-räknarna
+  // nedan är medvetet OFILTRERADE – de visar alltid totaler oavsett vald period.
+  let rapportQuery = supabase.from('tidrapporter').select('timmar, timlon, ob_belopp, paslag').eq('status', 'godkänd');
+  if (from) rapportQuery = rapportQuery.gte('datum', from);
+  if (till) rapportQuery = rapportQuery.lte('datum', till);
 
   const [
     { count: antalFöretag },
     { count: antalPrivatpersoner },
-    { count: godkändaPass },
     { count: proPrenumeranter },
     { count: nyaAnvändare30d },
     { data: rapporter, error: rapportFel },
   ] = await Promise.all([
     supabase.from('användare').select('id', { count: 'exact', head: true }).eq('Typ', 'företag').not('aktiv', 'is', false),
     supabase.from('användare').select('id', { count: 'exact', head: true }).eq('Typ', 'privatperson').not('aktiv', 'is', false),
-    supabase.from('ansokningar').select('id', { count: 'exact', head: true }).eq('status', 'godkänd'),
     supabase.from('användare').select('id', { count: 'exact', head: true }).eq('Typ', 'företag').eq('prenumeration_status', 'pro').not('aktiv', 'is', false),
     supabase.from('användare').select('id', { count: 'exact', head: true }).not('aktiv', 'is', false).gte('created_at', sedan30),
-    supabase.from('tidrapporter').select('timmar, timlon, ob_belopp, paslag').eq('status', 'godkänd'),
+    rapportQuery,
   ]);
 
   if (rapportFel) throw rapportFel;
+
+  // Godkända pass i perioden = antalet godkända tidrapporter (samma dataset som pengar/timmar).
+  const godkändaPass = (rapporter || []).length;
 
   let totaltTimmar = 0;
   let bruttolön = 0;

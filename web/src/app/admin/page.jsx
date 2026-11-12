@@ -6,6 +6,13 @@
 import { useCallback, useEffect, useState } from 'react';
 import Besked from '@/components/ui/Besked';
 import { api, felText } from '@/lib/api';
+import {
+  TIDSFILTER,
+  STANDARD_TIDSFILTER,
+  TIDSFILTER_NYCKEL,
+  tidsfilterFrån,
+  tidsfilterEtikett,
+} from '@/utils/tidsfilter';
 
 // Heltal med svenskt tusentalsavgränsning (samma formatering som appens admin-vy).
 function kr(belopp) {
@@ -32,15 +39,27 @@ function Kort({ etikett, värde, under, accent }) {
 export default function AdminDashboard() {
   const [data, setData] = useState(null);
   const [fel, setFel] = useState('');
+  const [tid, setTid] = useState(STANDARD_TIDSFILTER);
+
+  // Återställ senast valda period (delas med tidrapport- och faktureringsvyn).
+  useEffect(() => {
+    const sparat = window.localStorage.getItem(TIDSFILTER_NYCKEL);
+    if (sparat && TIDSFILTER.some(t => t.nyckel === sparat)) setTid(sparat);
+  }, []);
+
+  function väljTid(nyckel) {
+    setTid(nyckel);
+    window.localStorage.setItem(TIDSFILTER_NYCKEL, nyckel);
+  }
 
   const hämta = useCallback(async () => {
     setFel('');
     try {
-      setData(await api.adminStatistik());
+      setData(await api.adminStatistik(tidsfilterFrån(tid)));
     } catch (f) {
       setFel(felText(f));
     }
-  }, []);
+  }, [tid]);
 
   useEffect(() => {
     hämta();
@@ -51,6 +70,23 @@ export default function AdminDashboard() {
       <h1 className="rubrik-l text-text">Dashboard</h1>
       <p className="mt-1 text-[14px] text-text-dämpad">Överblick över plattformen</p>
 
+      <div className="mt-3 flex flex-wrap gap-2">
+        {TIDSFILTER.map((t) => (
+          <button
+            key={t.nyckel}
+            type="button"
+            onClick={() => väljTid(t.nyckel)}
+            className={`rounded-pill px-4 py-1.5 text-[14px] font-semibold transition-colors ${
+              tid === t.nyckel
+                ? 'bg-primär text-white'
+                : 'bg-yta text-text-dämpad border border-kant hover:border-kant-stark'
+            }`}
+          >
+            {t.etikett}
+          </button>
+        ))}
+      </div>
+
       {fel && <div className="mt-6"><Besked typ="fel">{fel}</Besked></div>}
 
       {!data && !fel ? (
@@ -59,7 +95,8 @@ export default function AdminDashboard() {
         </div>
       ) : data ? (
         <>
-          <h2 className="mb-4 mt-8 text-[17px] font-bold text-text">Användare</h2>
+          <h2 className="mb-1 mt-8 text-[17px] font-bold text-text">Användare</h2>
+          <p className="mb-4 text-[13px] text-text-dämpad">Totalsiffror – påverkas inte av tidsfiltret.</p>
           <div className="grid items-stretch gap-4 sm:grid-cols-2 lg:grid-cols-4">
             <Kort etikett="Totalt antal användare" värde={antal(data.antalAnvändare)} accent="primär" />
             <Kort etikett="Företag" värde={antal(data.antalFöretag)} />
@@ -71,21 +108,24 @@ export default function AdminDashboard() {
             />
           </div>
 
-          <h2 className="mb-4 mt-10 text-[17px] font-bold text-text">Aktivitet</h2>
+          <h2 className="mb-1 mt-10 text-[17px] font-bold text-text">Aktivitet</h2>
+          <p className="mb-4 text-[13px] text-text-dämpad">
+            Avser perioden <span className="font-semibold text-text">{tidsfilterEtikett(tid).toLowerCase()}</span> (Pro-prenumeranter är en totalsiffra).
+          </p>
           <div className="grid items-stretch gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            <Kort etikett="Godkända pass" värde={antal(data.godkändaPass)} />
+            <Kort etikett="Godkända pass" värde={antal(data.godkändaPass)} under="Från godkända tidrapporter" />
             <Kort
-              etikett="Totalt jobbade timmar"
+              etikett="Jobbade timmar"
               värde={`${(Number(data.totaltTimmar) || 0).toLocaleString('sv-SE')} h`}
               under="Från godkända tidrapporter"
             />
-            <Kort etikett="Pro-prenumeranter" värde={antal(data.proPrenumeranter)} accent="primär" />
+            <Kort etikett="Pro-prenumeranter" värde={antal(data.proPrenumeranter)} under="Totalt – oberoende av period" accent="primär" />
           </div>
 
-          <h2 className="mb-4 mt-10 text-[17px] font-bold text-text">Ekonomi</h2>
-          <p className="mb-4 -mt-2 text-[13px] text-text-dämpad">
-            Baserat på godkända tidrapporter. Fakturerat räknas med samma formel som
-            faktureringsvyn (bruttolön + sociala avgifter + semester + påslag).
+          <h2 className="mb-1 mt-10 text-[17px] font-bold text-text">Ekonomi</h2>
+          <p className="mb-4 text-[13px] text-text-dämpad">
+            Avser perioden <span className="font-semibold text-text">{tidsfilterEtikett(tid).toLowerCase()}</span>, baserat på godkända tidrapporter.
+            Fakturerat räknas med samma formel som faktureringsvyn (bruttolön + sociala avgifter + semester + påslag).
           </p>
           <div className="grid items-stretch gap-4 sm:grid-cols-2 lg:grid-cols-3">
             <Kort etikett="Total fakturerad summa" värde={kr(data.fakturerat)} accent="primär" />
