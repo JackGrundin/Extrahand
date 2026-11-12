@@ -287,7 +287,7 @@ export default function ProfilScreen({ navigation }) {
             <Text style={styles.utbetalningInfo}>Välj när du vill ha din lön utbetald.</Text>
             <View style={styles.valRad}>
               {[
-                { nyckel: 'direkt', rubrik: 'Direkt', beskrivning: 'En arbetsdag efter att du godkänt tidrapporten' },
+                { nyckel: 'direkt', rubrik: 'Direkt', beskrivning: 'Din löneutbetalning startar inom 1 arbetsdag' },
                 { nyckel: '25', rubrik: 'Den 25:e varje månad', beskrivning: 'Månadens pass samlas till en utbetalning den 25:e' },
               ].map((val) => {
                 const aktiv = utbetalning === val.nyckel;

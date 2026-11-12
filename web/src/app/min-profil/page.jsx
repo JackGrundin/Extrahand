@@ -327,7 +327,7 @@ export default function MinProfil() {
                 <p className="mb-4 text-[14px] text-text-dämpad">Välj när du vill ha din lön utbetald.</p>
                 <div className="flex flex-col gap-3">
                   {[
-                    { nyckel: 'direkt', rubrik: 'Direkt', beskrivning: 'En arbetsdag efter att du godkänt tidrapporten' },
+                    { nyckel: 'direkt', rubrik: 'Direkt', beskrivning: 'Din löneutbetalning startar inom 1 arbetsdag' },
                     { nyckel: '25', rubrik: 'Den 25:e varje månad', beskrivning: 'Månadens pass samlas till en utbetalning den 25:e' },
                   ].map((val) => {
                     const aktiv = utbetalning === val.nyckel;
