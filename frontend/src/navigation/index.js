@@ -62,20 +62,18 @@ function ChatKnapp({ navigation }) {
       onPress={() => navigation.getParent()?.navigate('ChattTab')}
       style={badgeStyles.knapp}
       hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
-      activeOpacity={0.6}
+      activeOpacity={0.7}
       accessibilityRole="button"
       accessibilityLabel="Öppna chattar"
     >
-      <View style={badgeStyles.ikonYta}>
-        <Ionicons name="chatbubbles-outline" size={26} color={FÄRG.primär} />
-        {totalOlästa > 0 && (
-          <View style={badgeStyles.badge}>
-            <Text style={badgeStyles.badgeText}>
-              {totalOlästa > 9 ? '9+' : String(totalOlästa)}
-            </Text>
-          </View>
-        )}
-      </View>
+      <Ionicons name="chatbubble-ellipses" size={22} color={FÄRG.primär} />
+      {totalOlästa > 0 && (
+        <View style={badgeStyles.badge}>
+          <Text style={badgeStyles.badgeText}>
+            {totalOlästa > 9 ? '9+' : String(totalOlästa)}
+          </Text>
+        </View>
+      )}
     </TouchableOpacity>
   );
 }
@@ -381,30 +379,26 @@ const styles = StyleSheet.create({
 });
 
 const badgeStyles = StyleSheet.create({
-  // Padding + hitSlop ger en stor, förlåtande tryckyta runt ikonen
+  // Fast, rund tryckyta – ändrar aldrig storlek (hitSlop utökar bara träffytan)
   knapp: {
-    marginRight: 12,
-    paddingVertical: 6,
-    paddingHorizontal: 8,
-  },
-  // Centrerar ikonen helt – ingen inramning/bakgrund
-  ikonYta: {
-    width: 30,
-    height: 30,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    marginRight: 8,
     justifyContent: 'center',
     alignItems: 'center',
   },
+  // Liten röd notis-bubbla i övre högra hörnet, fast storlek
   badge: {
     position: 'absolute',
-    top: -3,
-    right: -5,
-    minWidth: 17,
-    height: 17,
-    borderRadius: 8.5,
+    top: -4,
+    right: -4,
+    width: 18,
+    height: 18,
+    borderRadius: 9,
     backgroundColor: '#ef4444',
     justifyContent: 'center',
     alignItems: 'center',
-    paddingHorizontal: 4,
     borderWidth: 2,
     borderColor: '#fff',
   },
