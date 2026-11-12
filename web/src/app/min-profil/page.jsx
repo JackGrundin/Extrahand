@@ -201,186 +201,188 @@ export default function MinProfil() {
 
   return (
     <PrivatSkal>
-      <div className="mx-auto max-w-2xl">
-          <h1 className="rubrik-l text-text">Min profil</h1>
-          <p className="mt-1 text-[15px] text-text-dämpad">
-            Det här ser företag när de tittar på din ansökan.
-          </p>
+      <div className="mx-auto max-w-5xl">
+        {/* Sidhuvud (full bredd) */}
+        <h1 className="rubrik-l text-text">Min profil</h1>
+        <p className="mt-1 text-[15px] text-text-dämpad">
+          Det här ser företag när de tittar på din ansökan.
+        </p>
 
-          {fel && <Besked typ="fel">{fel}</Besked>}
-          {sparat && <Besked typ="framgång">Profilen är sparad.</Besked>}
+        {fel && <Besked typ="fel">{fel}</Besked>}
+        {sparat && <Besked typ="framgång">Profilen är sparad.</Besked>}
 
-          <div className="mt-6 grid grid-cols-1 gap-6 md:grid-cols-2">
-            {/* Vänsterkolumn: Om dig + Kompetenser & intressen */}
-            <div className="flex flex-col gap-6">
-              {/* Om dig */}
-              <div className="rounded-xl border border-kant bg-yta p-6 shadow-mjuk">
-                <h2 className="mb-4 text-[17px] font-bold text-text">Om dig</h2>
+        <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-[280px_1fr_300px]">
+          {/* Vänsterkolumn: profilkort + dokument + utbetalning */}
+          <div className="flex flex-col gap-6">
+            {/* Profilkort */}
+            <div className="rounded-lg border border-kant bg-yta p-6 shadow-mjuk">
+              {profilBild ? (
+                <Image
+                  src={profilBild}
+                  alt="Profilbild"
+                  width={112}
+                  height={112}
+                  className="mx-auto h-28 w-28 rounded-full object-cover"
+                />
+              ) : (
+                <span className="mx-auto flex h-28 w-28 items-center justify-center rounded-full bg-gradient-primär text-[40px] font-bold text-white">
+                  {(namn || '?').charAt(0).toUpperCase()}
+                </span>
+              )}
 
-                <div className="flex items-center gap-4">
-                  {profilBild ? (
-                    <Image
-                      src={profilBild}
-                      alt="Profilbild"
-                      width={80}
-                      height={80}
-                      className="h-20 w-20 rounded-full object-cover"
-                    />
-                  ) : (
-                    <span className="flex h-20 w-20 items-center justify-center rounded-full bg-gradient-primär text-[28px] font-bold text-white">
-                      {(namn || '?').charAt(0).toUpperCase()}
-                    </span>
-                  )}
-                  <div>
-                    <input
-                      ref={filInput}
-                      type="file"
-                      accept="image/*"
-                      onChange={väljBild}
-                      className="hidden"
-                    />
-                    <Knapp
-                      variant="kontur"
-                      storlek="liten"
-                      laddar={laddarBild}
-                      onClick={() => filInput.current?.click()}
-                    >
-                      Byt bild
-                    </Knapp>
-                    <p className="mt-1 text-[12px] text-text-svag">JPG eller PNG, max 3 MB</p>
-                  </div>
-                </div>
-
-                <div className="mt-5 grid grid-cols-1 gap-4 sm:grid-cols-2">
-                  <div className="min-w-0">
-                    <p className="text-[13px] font-semibold text-text-dämpad">Namn</p>
-                    <p className="mt-1 text-[15px] text-text">{namn}</p>
-                  </div>
-                  <div className="min-w-0">
-                    <p className="text-[13px] font-semibold text-text-dämpad">E-post</p>
-                    <p className="mt-1 truncate text-[15px] text-text">{email}</p>
-                  </div>
-                  {ålder != null && (
-                    <div className="min-w-0">
-                      <p className="text-[13px] font-semibold text-text-dämpad">Ålder</p>
-                      <p className="mt-1 text-[15px] text-text">{ålder} år</p>
-                    </div>
-                  )}
-                  <div className="min-w-0">
-                    <p className="text-[13px] font-semibold text-text-dämpad">Jobbade timmar</p>
-                    <p className="mt-1 text-[15px] text-text">{totalTimmar} h</p>
-                  </div>
-                </div>
-
-                <div className="mt-5 flex flex-col gap-5">
-                  <Textfält
-                    id="cv"
-                    etikett="CV / Om mig"
-                    value={form.cv}
-                    onChange={(e) => sätt('cv', e.target.value)}
-                    placeholder="Berätta om dig själv…"
-                  />
-                  <Textfält
-                    id="erfarenheter"
-                    etikett="Tidigare erfarenheter"
-                    value={form.erfarenheter}
-                    onChange={(e) => sätt('erfarenheter', e.target.value)}
-                    placeholder="t.ex. Jobbade som städare 2023…"
-                  />
-                  <div>
-                    <StadInput
-                      värde={form.stad}
-                      onVälj={(v) => { sätt('stad', v); setStadFel(''); }}
-                      fel={stadFel}
-                    />
-                    <p className="mt-1.5 text-[12px] text-text-svag">
-                      Ange din stad för att få notiser om nya jobb nära dig.
-                    </p>
-                  </div>
-                </div>
+              <div className="mt-4 text-center">
+                <p className="text-[18px] font-bold text-text">{namn}</p>
+                {form.stad && (
+                  <p className="mt-0.5 text-[14px] text-text-dämpad">{form.stad}</p>
+                )}
+                <p className="mt-0.5 truncate text-[13px] text-text-svag">{email}</p>
               </div>
 
-              {/* Kompetenser & intressen */}
-              <div className="rounded-xl border border-kant bg-yta p-6 shadow-mjuk">
-                <h2 className="mb-4 text-[17px] font-bold text-text">Kompetenser &amp; intressen</h2>
-                <div className="flex flex-col gap-5">
-                  <Input
-                    id="kompetenser"
-                    etikett="Kompetenser"
-                    value={form.kompetenser}
-                    onChange={(e) => sätt('kompetenser', e.target.value)}
-                    placeholder="t.ex. Körkort, Snickeri, Matlagning"
-                  />
-                  <Input
-                    id="intressen"
-                    etikett="Intressen"
-                    value={form.intressen}
-                    onChange={(e) => sätt('intressen', e.target.value)}
-                    placeholder="t.ex. Friluftsliv, Musik, Djur"
-                  />
-                </div>
+              <div className="mt-4 flex flex-col items-center">
+                <input
+                  ref={filInput}
+                  type="file"
+                  accept="image/*"
+                  onChange={väljBild}
+                  className="hidden"
+                />
+                <Knapp
+                  variant="kontur"
+                  storlek="liten"
+                  laddar={laddarBild}
+                  onClick={() => filInput.current?.click()}
+                >
+                  Byt bild
+                </Knapp>
+                <p className="mt-1 text-[12px] text-text-svag">JPG eller PNG, max 3 MB</p>
               </div>
 
-              {/* Utbetalning */}
-              <div className="rounded-xl border border-kant bg-yta p-6 shadow-mjuk">
-                <h2 className="mb-1 text-[17px] font-bold text-text">Utbetalning</h2>
-                <p className="mb-4 text-[14px] text-text-dämpad">Välj när du vill ha din lön utbetald.</p>
-                <div className="flex flex-col gap-3">
-                  {[
-                    { nyckel: 'direkt', rubrik: 'Direkt', beskrivning: 'Din löneutbetalning startar inom 1 arbetsdag' },
-                    { nyckel: '25', rubrik: 'Den 25:e varje månad', beskrivning: 'Månadens pass samlas till en utbetalning den 25:e' },
-                  ].map((val) => {
-                    const aktiv = utbetalning === val.nyckel;
-                    return (
-                      <button
-                        key={val.nyckel}
-                        type="button"
-                        onClick={() => väljUtbetalning(val.nyckel)}
-                        disabled={spararUtbetalning}
-                        aria-pressed={aktiv}
-                        className={`flex items-start gap-3 rounded-md border p-4 text-left transition-colors disabled:opacity-60 ${
-                          aktiv ? 'border-primär bg-primär-mjuk' : 'border-kant hover:border-kant-stark'
-                        }`}
-                      >
-                        <span
-                          className={`mt-0.5 flex h-5 w-5 flex-none items-center justify-center rounded-full border-2 ${
-                            aktiv ? 'border-primär' : 'border-kant-stark'
-                          }`}
-                        >
-                          {aktiv && <span className="h-2.5 w-2.5 rounded-full bg-primär" />}
-                        </span>
-                        <span className="min-w-0">
-                          <span className={`block text-[15px] font-semibold ${aktiv ? 'text-primär' : 'text-text'}`}>
-                            {val.rubrik}
-                          </span>
-                          <span className="block text-[13px] text-text-svag">{val.beskrivning}</span>
-                        </span>
-                      </button>
-                    );
-                  })}
+              <div className="mt-5 grid grid-cols-2 gap-3">
+                {ålder != null && (
+                  <div className="rounded-md border border-kant p-3 text-center">
+                    <p className="text-[12px] font-semibold text-text-dämpad">Ålder</p>
+                    <p className="mt-1 text-[18px] font-bold text-text">{ålder} år</p>
+                  </div>
+                )}
+                <div className="rounded-md border border-kant p-3 text-center">
+                  <p className="text-[12px] font-semibold text-text-dämpad">Jobbade timmar</p>
+                  <p className="mt-1 text-[18px] font-bold text-text">{totalTimmar} h</p>
                 </div>
               </div>
             </div>
 
-            {/* Högerkolumn: Dokument + Recensioner */}
-            <div className="flex flex-col gap-6">
-              {/* Dokument (DokumentLista renderar egen rubrik) */}
-              <div className="rounded-xl border border-kant bg-yta p-6 shadow-mjuk">
-                <DokumentLista dokument={dokument} onÄndrad={hämta} />
-              </div>
+            {/* Dokument (DokumentLista renderar egen rubrik) */}
+            <div className="rounded-lg border border-kant bg-yta p-6 shadow-mjuk">
+              <DokumentLista dokument={dokument} onÄndrad={hämta} />
+            </div>
 
-              {/* Recensioner (BetygsSektion renderar egen rubrik) */}
-              <div className="rounded-xl border border-kant bg-yta p-6 shadow-mjuk">
-                <BetygsSektion betyg={betyg} />
+            {/* Utbetalning */}
+            <div className="rounded-lg border border-kant bg-yta p-6 shadow-mjuk">
+              <h2 className="överlinje mb-1">Utbetalning</h2>
+              <p className="mb-4 text-[14px] text-text-dämpad">Välj när du vill ha din lön utbetald.</p>
+              <div className="flex flex-col gap-3">
+                {[
+                  { nyckel: 'direkt', rubrik: 'Direkt', beskrivning: 'Din löneutbetalning startar inom 1 arbetsdag' },
+                  { nyckel: '25', rubrik: 'Den 25:e varje månad', beskrivning: 'Månadens pass samlas till en utbetalning den 25:e' },
+                ].map((val) => {
+                  const aktiv = utbetalning === val.nyckel;
+                  return (
+                    <button
+                      key={val.nyckel}
+                      type="button"
+                      onClick={() => väljUtbetalning(val.nyckel)}
+                      disabled={spararUtbetalning}
+                      aria-pressed={aktiv}
+                      className={`flex items-start gap-3 rounded-md border p-4 text-left transition-colors disabled:opacity-60 ${
+                        aktiv ? 'border-primär bg-primär-mjuk' : 'border-kant hover:border-kant-stark'
+                      }`}
+                    >
+                      <span
+                        className={`mt-0.5 flex h-5 w-5 flex-none items-center justify-center rounded-full border-2 ${
+                          aktiv ? 'border-primär' : 'border-kant-stark'
+                        }`}
+                      >
+                        {aktiv && <span className="h-2.5 w-2.5 rounded-full bg-primär" />}
+                      </span>
+                      <span className="min-w-0">
+                        <span className={`block text-[15px] font-semibold ${aktiv ? 'text-primär' : 'text-text'}`}>
+                          {val.rubrik}
+                        </span>
+                        <span className="block text-[13px] text-text-svag">{val.beskrivning}</span>
+                      </span>
+                    </button>
+                  );
+                })}
               </div>
             </div>
           </div>
 
-          <div className="mt-6 flex justify-center">
+          {/* Mittkolumn: Om dig + Kompetenser & intressen + Spara */}
+          <div className="flex min-w-0 flex-col gap-6">
+            {/* Om dig */}
+            <div className="rounded-lg border border-kant bg-yta p-6 shadow-mjuk">
+              <h2 className="överlinje mb-4">Om dig</h2>
+              <div className="flex flex-col gap-5">
+                <Textfält
+                  id="cv"
+                  etikett="CV / Om mig"
+                  value={form.cv}
+                  onChange={(e) => sätt('cv', e.target.value)}
+                  placeholder="Berätta om dig själv…"
+                />
+                <Textfält
+                  id="erfarenheter"
+                  etikett="Tidigare erfarenheter"
+                  value={form.erfarenheter}
+                  onChange={(e) => sätt('erfarenheter', e.target.value)}
+                  placeholder="t.ex. Jobbade som städare 2023…"
+                />
+                <div>
+                  <StadInput
+                    värde={form.stad}
+                    onVälj={(v) => { sätt('stad', v); setStadFel(''); }}
+                    fel={stadFel}
+                  />
+                  <p className="mt-1.5 text-[12px] text-text-svag">
+                    Ange din stad för att få notiser om nya jobb nära dig.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Kompetenser & intressen */}
+            <div className="rounded-lg border border-kant bg-yta p-6 shadow-mjuk">
+              <h2 className="överlinje mb-4">Kompetenser &amp; intressen</h2>
+              <div className="flex flex-col gap-5">
+                <Input
+                  id="kompetenser"
+                  etikett="Kompetenser"
+                  value={form.kompetenser}
+                  onChange={(e) => sätt('kompetenser', e.target.value)}
+                  placeholder="t.ex. Körkort, Snickeri, Matlagning"
+                />
+                <Input
+                  id="intressen"
+                  etikett="Intressen"
+                  value={form.intressen}
+                  onChange={(e) => sätt('intressen', e.target.value)}
+                  placeholder="t.ex. Friluftsliv, Musik, Djur"
+                />
+              </div>
+            </div>
+
             <Knapp variant="primär" laddar={sparar} onClick={spara}>
               Spara profil
             </Knapp>
           </div>
+
+          {/* Högerkolumn: Recensioner (BetygsSektion renderar egen rubrik) */}
+          <div className="flex flex-col gap-6">
+            <div className="rounded-lg border border-kant bg-yta p-6 shadow-mjuk">
+              <BetygsSektion betyg={betyg} />
+            </div>
+          </div>
+        </div>
       </div>
     </PrivatSkal>
   );
