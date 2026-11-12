@@ -61,19 +61,19 @@ export default function CookieBanner() {
       )}
 
       {samtycke === '' && (
-        <div className="fixed inset-x-0 bottom-0 z-50 border-t border-kant bg-yta shadow-[0_-4px_24px_rgba(15,23,42,0.08)]">
+        <div className="fixed inset-x-0 bottom-0 z-50 max-w-full overflow-hidden border-t border-kant bg-yta shadow-[0_-4px_24px_rgba(15,23,42,0.08)]">
           <div className="mx-auto flex max-w-innehåll flex-col gap-4 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
             <Image
               src="/logotyp.png"
               alt="FastGig"
               width={132}
               height={34}
-              className="h-6 w-auto shrink-0"
+              className="hidden h-5 w-auto shrink-0 sm:block"
             />
             <p className="text-[14px] leading-relaxed text-text-dämpad sm:flex-1 sm:px-6">
               Den här webbplatsen använder cookies för analys (Google Analytics).
             </p>
-            <div className="flex shrink-0 items-center gap-3">
+            <div className="flex shrink-0 items-center gap-2">
               <button
                 type="button"
                 onClick={() => spara('avböjt')}
