@@ -56,8 +56,13 @@ router.post('/registrera', känsligGräns, async (req, res) => {
     return res.status(400).json({ fel: 'Typ måste vara "företag" eller "privatperson"' });
   }
 
+  // Kanonisera e-posten en gång: trimma blanksteg och gör gemener. Backend är enda
+  // sanningskällan så att olika klienter (app skickar otrimmat, webben trimmat) ändå
+  // lagrar adressen likadant – annars kan uppslaget vid login landa på fel/ingen rad.
+  const normEmail = String(email).trim().toLowerCase();
+
   try {
-    const befintlig = await hämtaAnvändareViaEmail(email);
+    const befintlig = await hämtaAnvändareViaEmail(normEmail);
     if (befintlig) {
       return res.status(409).json({ fel: 'E-postadressen används redan' });
     }
@@ -80,7 +85,7 @@ router.post('/registrera', känsligGräns, async (req, res) => {
     }
 
     const användare = await skapaAnvändare({
-      namn, email, lösenord: hashatLösenord, typ,
+      namn, email: normEmail, lösenord: hashatLösenord, typ,
       beskrivning: beskrivning || null,
       bransch: bransch || null,
       stad: stad || null,
@@ -106,7 +111,7 @@ router.post('/registrera', känsligGräns, async (req, res) => {
     }
 
     try {
-      await skickaVerifieringsMail(email, kod);
+      await skickaVerifieringsMail(normEmail, kod);
     } catch (mailFel) {
       console.error('Mailfelet är icke-kritiskt, koden finns sparad:', mailFel.message);
     }

@@ -40,6 +40,7 @@ export default function Registrera() {
     namn: '',
     email: '',
     lösenord: '',
+    lösenordUpprepa: '',
     telefonnummer: '',
     fodelsedatum: '',
     organisationsnummer: '',
@@ -52,6 +53,7 @@ export default function Registrera() {
   const [fältFel, setFältFel] = useState({});
   const [fel, setFel] = useState('');
   const [laddar, setLaddar] = useState(false);
+  const [visaLösenord, setVisaLösenord] = useState(false);
 
   const ärFöretag = typ === 'företag';
 
@@ -68,6 +70,10 @@ export default function Registrera() {
     if (!form.lösenord) f.lösenord = 'Lösenord krävs';
     else if (form.lösenord.length < MIN_LÖSENORD)
       f.lösenord = `Lösenordet måste vara minst ${MIN_LÖSENORD} tecken`;
+    // Bekräftelsefältet kontrolleras bara här på klienten – det skickas aldrig till
+    // servern. Utan det hashas en felstavning ordagrant och går inte att verifiera.
+    if (form.lösenord && form.lösenord !== form.lösenordUpprepa)
+      f.lösenordUpprepa = 'Lösenorden matchar inte';
     // Telefonnummer krävs för båda kontotyper – speglar appens RegistreraScreen.
     if (!form.telefonnummer.trim()) f.telefonnummer = 'Telefonnummer krävs';
 
@@ -185,7 +191,7 @@ export default function Registrera() {
         <Input
           id="losenord"
           etikett="Lösenord"
-          type="password"
+          type={visaLösenord ? 'text' : 'password'}
           autoComplete="new-password"
           required
           value={form.lösenord}
@@ -193,6 +199,23 @@ export default function Registrera() {
           onChange={(e) => sätt('lösenord', e.target.value)}
           placeholder={`Minst ${MIN_LÖSENORD} tecken`}
         />
+        <Input
+          id="losenord-upprepa"
+          etikett="Upprepa lösenord"
+          type={visaLösenord ? 'text' : 'password'}
+          autoComplete="new-password"
+          required
+          value={form.lösenordUpprepa}
+          fel={fältFel.lösenordUpprepa}
+          onChange={(e) => sätt('lösenordUpprepa', e.target.value)}
+        />
+        <button
+          type="button"
+          onClick={() => setVisaLösenord((v) => !v)}
+          className="-mt-1 self-end text-[14px] font-semibold text-primär"
+        >
+          {visaLösenord ? 'Dölj lösenord' : 'Visa lösenord'}
+        </button>
         <Input
           id="telefonnummer"
           etikett="Telefonnummer"

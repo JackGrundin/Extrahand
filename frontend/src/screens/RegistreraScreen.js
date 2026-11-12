@@ -11,6 +11,8 @@ export default function RegistreraScreen({ navigation }) {
   const [namn, setNamn] = useState('');
   const [email, setEmail] = useState('');
   const [lösenord, setLösenord] = useState('');
+  const [lösenordUpprepa, setLösenordUpprepa] = useState('');
+  const [visaLösenord, setVisaLösenord] = useState(false);
   const [typ, setTyp] = useState('privatperson');
   const [telefonnummer, setTelefonnummer] = useState('');
   const [fodelsedatum, setFodelsedatum] = useState('');
@@ -29,6 +31,12 @@ export default function RegistreraScreen({ navigation }) {
   async function hanteraRegistrering() {
     if (!namn || !email || !lösenord) {
       Alert.alert('Fel', 'Fyll i namn, email och lösenord');
+      return;
+    }
+    // Bekräftelsefältet valideras bara här på klienten – det skickas aldrig till
+    // servern. Utan det hashas en felstavning ordagrant och går inte att verifiera.
+    if (lösenord !== lösenordUpprepa) {
+      Alert.alert('Fel', 'Lösenorden matchar inte');
       return;
     }
     if (!telefonnummer.trim()) {
@@ -97,8 +105,20 @@ export default function RegistreraScreen({ navigation }) {
           placeholder="Lösenord"
           value={lösenord}
           onChangeText={setLösenord}
-          secureTextEntry
+          secureTextEntry={!visaLösenord}
+          autoCapitalize="none"
         />
+        <TextInput
+          style={styles.input}
+          placeholder="Upprepa lösenord"
+          value={lösenordUpprepa}
+          onChangeText={setLösenordUpprepa}
+          secureTextEntry={!visaLösenord}
+          autoCapitalize="none"
+        />
+        <TouchableOpacity onPress={() => setVisaLösenord((v) => !v)} style={styles.visaKnapp}>
+          <Text style={styles.visaText}>{visaLösenord ? 'Dölj lösenord' : 'Visa lösenord'}</Text>
+        </TouchableOpacity>
 
         {typ === 'privatperson' && (
           <>
@@ -253,6 +273,8 @@ const styles = StyleSheet.create({
   rad: { flexDirection: 'row', gap: 10 },
   radFältLitet: { flex: 2 },
   radFältStort: { flex: 3 },
+  visaKnapp: { alignSelf: 'flex-end', paddingVertical: 4, marginBottom: 8, marginTop: -4 },
+  visaText: { color: FÄRG.primär, fontSize: 14, fontWeight: '600' },
   label: { fontSize: 15, color: FÄRG.textDämpad, marginBottom: 8, fontWeight: '600' },
   sektionsRubrik: { fontSize: 15, fontWeight: '700', color: FÄRG.text, marginBottom: 10, marginTop: 4 },
   typVäljare: { flexDirection: 'row', gap: 10, marginBottom: 20 },
