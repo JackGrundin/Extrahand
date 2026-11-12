@@ -8,6 +8,7 @@
 import { useEffect, useState } from 'react';
 import Script from 'next/script';
 import Image from 'next/image';
+import Link from 'next/link';
 import Knapp from '@/components/ui/Knapp';
 
 const SAMTYCKE_NYCKEL = 'fastgig.cookie-samtycke';
@@ -71,7 +72,15 @@ export default function CookieBanner() {
               className="hidden h-5 w-auto shrink-0 sm:block"
             />
             <p className="text-[14px] leading-relaxed text-text-dämpad sm:flex-1 sm:px-6">
-              Den här webbplatsen använder cookies för analys (Google Analytics).
+              Den här webbplatsen använder cookies för analys (Google Analytics).{' '}
+              Läs mer i vår{' '}
+              <Link
+                href="/integritetspolicy"
+                className="font-semibold text-primär hover:underline"
+              >
+                integritetspolicy
+              </Link>
+              .
             </p>
             <div className="flex shrink-0 items-center gap-2">
               <button

@@ -16,6 +16,9 @@ export default function Sidfot() {
           <Link href="/kontakt" className="hover:text-text">
             Kontakt
           </Link>
+          <Link href="/integritetspolicy" className="hover:text-text">
+            Integritetspolicy
+          </Link>
           <Link href="/logga-in" className="hover:text-text">
             Logga in
           </Link>
