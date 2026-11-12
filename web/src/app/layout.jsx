@@ -9,6 +9,10 @@ export const metadata = {
     'En enkel app för extrajobb och extrapersonal. Företag lägger upp pass, privatpersoner söker, ni chattar och sätter betyg. Inga bemanningsavtal, gratis att börja.',
   icons: {
     icon: '/favicon.png',
+    apple: '/logotyp.png',
+  },
+  openGraph: {
+    images: [{ url: '/logotyp.png' }],
   },
 };
 
