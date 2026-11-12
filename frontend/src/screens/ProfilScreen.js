@@ -399,7 +399,7 @@ export default function ProfilScreen({ navigation }) {
 
       <TouchableOpacity
         style={styles.integritetspolicyKnapp}
-        onPress={() => navigation.navigate('Integritetspolicy')}
+        onPress={() => Linking.openURL('https://fastgig.se/integritetspolicy')}
         accessibilityRole="button"
         accessibilityLabel="Integritetspolicy"
       >

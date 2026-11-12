@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, ScrollView, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, ScrollView, KeyboardAvoidingView, Platform, Linking } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../context/AuthContext';
 import { felText } from '../api/klient';
 import Knapp from '../components/Knapp';
@@ -26,6 +27,7 @@ export default function RegistreraScreen({ navigation }) {
   const [ort, setOrt] = useState('');
   const [fakturamail, setFakturamail] = useState('');
   const [referensperson, setReferensperson] = useState('');
+  const [godkantPolicy, setGodkantPolicy] = useState(false);
   const [laddar, setLaddar] = useState(false);
 
   async function hanteraRegistrering() {
@@ -246,14 +248,31 @@ export default function RegistreraScreen({ navigation }) {
           </>
         )}
 
-        <Text style={styles.policyText}>
-          Genom att skapa ett konto godkänner du vår{' '}
-          <Text style={styles.policyLänk} onPress={() => navigation.navigate('Integritetspolicy')}>
-            integritetspolicy
-          </Text>.
-        </Text>
+        {/* GDPR: användaren måste aktivt godkänna integritetspolicyn innan konto skapas.
+            Länken öppnar den publicerade webbsidan i extern webbläsare. */}
+        <TouchableOpacity
+          style={styles.policyRad}
+          onPress={() => setGodkantPolicy((v) => !v)}
+          activeOpacity={0.7}
+          accessibilityRole="checkbox"
+          accessibilityLabel="Jag har läst och godkänner integritetspolicyn"
+          accessibilityState={{ checked: godkantPolicy }}
+        >
+          <View style={[styles.kryssRuta, godkantPolicy && styles.kryssRutaAktiv]}>
+            {godkantPolicy && <Ionicons name="checkmark" size={14} color="#fff" accessible={false} importantForAccessibility="no" />}
+          </View>
+          <Text style={styles.policyRadText}>
+            Jag har läst och godkänner{' '}
+            <Text
+              style={styles.policyLänk}
+              onPress={() => Linking.openURL('https://fastgig.se/integritetspolicy')}
+            >
+              integritetspolicyn
+            </Text>
+          </Text>
+        </TouchableOpacity>
 
-        <Knapp text="Skapa konto" onPress={hanteraRegistrering} laddar={laddar} style={styles.knapp} />
+        <Knapp text="Skapa konto" onPress={hanteraRegistrering} laddar={laddar} inaktiverad={!godkantPolicy} style={styles.knapp} />
 
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.länkKnapp}>
           <Text style={styles.länk}>Har du redan ett konto? Logga in</Text>
@@ -285,6 +304,9 @@ const styles = StyleSheet.create({
   knapp: { marginBottom: 16, marginTop: 8 },
   länkKnapp: { paddingVertical: 4 },
   länk: { textAlign: 'center', color: FÄRG.primär, fontSize: 15, fontWeight: '600' },
-  policyText: { fontSize: 13, color: FÄRG.textDämpad, textAlign: 'center', lineHeight: 20, marginBottom: 12 },
+  policyRad: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 16, marginTop: 4 },
+  kryssRuta: { width: 24, height: 24, borderRadius: 6, borderWidth: 1.5, borderColor: FÄRG.kant, backgroundColor: FÄRG.yta, justifyContent: 'center', alignItems: 'center' },
+  kryssRutaAktiv: { backgroundColor: FÄRG.primär, borderColor: FÄRG.primär },
+  policyRadText: { flex: 1, fontSize: 14, color: FÄRG.textDämpad, lineHeight: 20 },
   policyLänk: { color: FÄRG.primär, fontWeight: '600', textDecorationLine: 'underline' },
 });

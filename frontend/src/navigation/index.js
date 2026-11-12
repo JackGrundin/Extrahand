@@ -36,7 +36,6 @@ import SchemaDetaljScreen from '../screens/SchemaDetaljScreen';
 import RedigeraSchemaScreen from '../screens/RedigeraSchemaScreen';
 import SchemaKalenderScreen from '../screens/SchemaKalenderScreen';
 import GlömtLösenordScreen from '../screens/GlömtLösenordScreen';
-import IntegritetspolicyScreen from '../screens/IntegritetspolicyScreen';
 import OfflineBanner from '../components/OfflineBanner';
 import OnboardingGate from '../components/OnboardingGate';
 import { FÄRG } from '../utils/tema';
@@ -88,9 +87,6 @@ function AuthNavigator() {
       <Stack.Screen name="Registrera" component={RegistreraScreen} />
       <Stack.Screen name="GlömtLösenord" component={GlömtLösenordScreen} />
       <Stack.Screen name="VerifieraEmail" component={VerifieraEmailScreen} />
-      {/* Nås från länken på registreringssidan – AuthNavigator döljer headern som
-          standard, så här krävs headerShown: true för tillbaka-knapp/rubrik. */}
-      <Stack.Screen name="Integritetspolicy" component={IntegritetspolicyScreen} options={{ headerShown: true, title: 'Integritetspolicy' }} />
     </Stack.Navigator>
   );
 }
@@ -163,7 +159,6 @@ function ProfilNavigator() {
       })}
     >
       <Stack.Screen name="ProfilHuvud" component={ProfilScreen} options={{ title: 'Profil' }} />
-      <Stack.Screen name="Integritetspolicy" component={IntegritetspolicyScreen} options={{ title: 'Integritetspolicy' }} />
       <Stack.Screen name="RedigeraProfil" component={RedigeraProfilScreen} options={{ title: 'Redigera profil' }} />
       <Stack.Screen name="SchemaKalender" component={SchemaKalenderScreen} options={{ title: 'Schemaöversikt' }} />
       {/* Kalenderns passkort öppnar schemat, och SchemaDetalj har i sin tur en
