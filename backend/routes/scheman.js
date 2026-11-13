@@ -18,6 +18,8 @@ const {
   sättSchemaPeriod,
   hämtaPassViaId,
   sättPassInställt,
+  ställInPass,
+  återställPass,
 } = require('../db/scheman');
 const { GILTIGA_TYPER: AVDRAGSTYPER, skapaAvdrag, hämtaAktivaAvdrag, avaktiveraAvdrag } = require('../db/schemaAvdrag');
 const { tilldelaSchema, frigörFramtidaPass, återställSchema } = require('../db/schemaTilldelning');
@@ -614,6 +616,77 @@ router.delete('/:id/pass/:passId', kräverInloggning, kräverTyp('företag'), as
   } catch (fel) {
     console.error('Fel vid borttagning av schemapass:', fel);
     res.status(500).json({ fel: 'Serverfel vid borttagning av pass' });
+  }
+});
+
+// POST /api/scheman/:id/pass/:passId/stall-in — markerar ett kommande pass som inställt
+// (sjukdom/frånvaro). REVERSIBELT: passet behåller status, ansökan och tilldelad person –
+// bara installt_at/installt_orsak sätts. Crons hoppar över inställda pass. Till skillnad från
+// DELETE (ta bort pass) avvisas ingen ansökan och annons-jobbet synkas inte om.
+router.post('/:id/pass/:passId/stall-in', kräverInloggning, kräverTyp('företag'), async (req, res) => {
+  try {
+    const schema = await hämtaSchemaViaId(req.params.id);
+    if (!schema) return res.status(404).json({ fel: 'Schemat hittades inte' });
+    if (String(schema.foretag_id) !== String(req.användare.id)) {
+      return res.status(403).json({ fel: 'Åtkomst nekad' });
+    }
+
+    const passet = await hämtaPassViaId(req.params.passId);
+    if (!passet || String(passet.schema_id) !== String(schema.id)) {
+      return res.status(404).json({ fel: 'Passet hittades inte' });
+    }
+    if (passet.tidrapport_id) {
+      return res.status(409).json({ fel: 'Passet är redan rapporterat och kan inte ställas in' });
+    }
+
+    const orsak = typeof req.body?.orsak === 'string' ? req.body.orsak.trim() : '';
+    await ställInPass(passet.id, orsak);
+
+    // Push till den tilldelade personen om passet är tillsatt.
+    if (passet.anvandare_id) {
+      try {
+        const token = await hämtaPushToken(passet.anvandare_id);
+        const orsakText = orsak ? ` Orsak: ${orsak}` : '';
+        await skickaNotifikation(
+          token,
+          'Pass inställt',
+          `Ditt pass ${passet.datum} ${passet.starttid}–${passet.sluttid} har ställts in.${orsakText}`
+        );
+      } catch (pushFel) {
+        console.error('Kunde inte skicka notis om inställt pass:', pushFel);
+      }
+    }
+
+    res.json({ ok: true });
+  } catch (fel) {
+    console.error('Fel vid inställning av schemapass:', fel);
+    res.status(500).json({ fel: 'Serverfel vid inställning av pass' });
+  }
+});
+
+// POST /api/scheman/:id/pass/:passId/aterstall — ångrar en inställning: nollar
+// installt_at/installt_orsak så att passet åter behandlas normalt av cron.
+router.post('/:id/pass/:passId/aterstall', kräverInloggning, kräverTyp('företag'), async (req, res) => {
+  try {
+    const schema = await hämtaSchemaViaId(req.params.id);
+    if (!schema) return res.status(404).json({ fel: 'Schemat hittades inte' });
+    if (String(schema.foretag_id) !== String(req.användare.id)) {
+      return res.status(403).json({ fel: 'Åtkomst nekad' });
+    }
+
+    const passet = await hämtaPassViaId(req.params.passId);
+    if (!passet || String(passet.schema_id) !== String(schema.id)) {
+      return res.status(404).json({ fel: 'Passet hittades inte' });
+    }
+    if (passet.tidrapport_id) {
+      return res.status(409).json({ fel: 'Passet är redan rapporterat' });
+    }
+
+    await återställPass(passet.id);
+    res.json({ ok: true });
+  } catch (fel) {
+    console.error('Fel vid återställning av schemapass:', fel);
+    res.status(500).json({ fel: 'Serverfel vid återställning av pass' });
   }
 });
 

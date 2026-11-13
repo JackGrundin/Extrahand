@@ -160,9 +160,11 @@ export default function PrivatSchemaVy() {
               <span className="text-text">
                 {veckodagsNamn(p.datum)} {formatDagDatum(p.datum)}
                 {p.kategori ? ` · ${p.kategori}` : ''}
+                {p.rast_minuter > 0 ? ` · ${p.rast_minuter} min rast` : ''}
               </span>
               <span className="font-semibold text-text-dämpad">
                 {p.starttid}–{p.sluttid}
+                {p.status === 'installt' || p.installt_at ? ' (inställt)' : ''}
               </span>
             </li>
           ))}

@@ -456,6 +456,26 @@ async function sättPassInställt(id) {
   if (error) throw error;
 }
 
+// Reversibelt: markera ett enskilt pass som inställt (sjukdom/frånvaro) UTAN att röra
+// status, ansökan eller tilldelad person. Crons hoppar över pass med installt_at satt,
+// men passet kan när som helst återställas med återställPass. Skilt från sättPassInställt,
+// som permanent tar bort passet och avvisar ansökan.
+async function ställInPass(id, orsak) {
+  const { error } = await supabase
+    .from('schema_pass')
+    .update({ installt_at: new Date().toISOString(), installt_orsak: orsak || null })
+    .eq('id', id);
+  if (error) throw error;
+}
+
+async function återställPass(id) {
+  const { error } = await supabase
+    .from('schema_pass')
+    .update({ installt_at: null, installt_orsak: null })
+    .eq('id', id);
+  if (error) throw error;
+}
+
 // Har schemat något pass som redan genomförts? Avgör om påslag och passräknare ska
 // nollas vid ett återkallande – ett schema där någon faktiskt jobbat ska faktureras.
 async function harGenomförtPass(schema_id) {
@@ -489,6 +509,7 @@ async function hämtaPassAttRapportera(tillDatum) {
     .select('*')
     .eq('status', 'planerad')
     .not('ansokan_id', 'is', null)
+    .is('installt_at', null)
     .lte('datum', tillDatum)
     .order('datum', { ascending: true });
   if (error) throw error;
@@ -528,6 +549,7 @@ async function hämtaPassFörPåminnelse(datum) {
     .eq('datum', datum)
     .eq('status', 'planerad')
     .not('anvandare_id', 'is', null)
+    .is('installt_at', null)
     .is('paminnelse_skickad_at', null);
   if (error) throw error;
   return data || [];
@@ -697,6 +719,8 @@ module.exports = {
   kopplaPassTillJobb,
   frikopplaPass,
   sättPassInställt,
+  ställInPass,
+  återställPass,
   harGenomförtPass,
   hämtaJobbIdnFörSchema,
   hämtaPassAttRapportera,

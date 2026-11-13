@@ -1,5 +1,5 @@
 import { useCallback, useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, ScrollView, ActivityIndicator, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, ScrollView, ActivityIndicator, KeyboardAvoidingView, Platform, Modal } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { api, felText } from '../api/klient';
@@ -44,6 +44,10 @@ export default function RedigeraSchemaScreen({ route, navigation }) {
 
   const [passFormVisas, setPassFormVisas] = useState(false);
   const [nyttPass, setNyttPass] = useState(TOMT_PASS);
+
+  // Pass som håller på att ställas in (sjukdom/frånvaro). null = ingen dialog öppen.
+  const [instälPass, setInstälPass] = useState(null);
+  const [instälOrsak, setInstälOrsak] = useState('');
 
   const hämta = useCallback(async () => {
     try {
@@ -204,6 +208,39 @@ export default function RedigeraSchemaScreen({ route, navigation }) {
         } },
       ]
     );
+  }
+
+  // Öppnar dialogen för att ställa in ett pass (sjukdom/frånvaro).
+  function öppnaInställDialog(p) {
+    setInstälPass(p);
+    setInstälOrsak('');
+  }
+
+  async function bekräftaInställning() {
+    if (!instälPass) return;
+    setSparar(true);
+    try {
+      await api.ställInSchemaPass(schemaId, instälPass.id, instälOrsak.trim());
+      setInstälPass(null);
+      setInstälOrsak('');
+      await hämta();
+    } catch (f) {
+      Alert.alert('Fel', felText(f));
+    } finally {
+      setSparar(false);
+    }
+  }
+
+  async function återställPass(p) {
+    setSparar(true);
+    try {
+      await api.återställSchemaPass(schemaId, p.id);
+      await hämta();
+    } catch (f) {
+      Alert.alert('Fel', felText(f));
+    } finally {
+      setSparar(false);
+    }
   }
 
   if (laddar) return <ActivityIndicator style={{ flex: 1 }} size="large" />;
@@ -418,7 +455,22 @@ export default function RedigeraSchemaScreen({ route, navigation }) {
             <View style={{ flex: 1 }}>
               <Text style={styles.passTid}>{p.starttid} – {p.sluttid}</Text>
               {p.kategori ? <Text style={styles.passRoll}>{p.kategori}</Text> : null}
+              {p.installt_at ? (
+                <View style={styles.inställdRad}>
+                  <Text style={styles.inställdEtikett}>Inställt</Text>
+                  {p.installt_orsak ? <Text style={styles.inställdOrsak}>· {p.installt_orsak}</Text> : null}
+                </View>
+              ) : null}
             </View>
+            {p.installt_at ? (
+              <TouchableOpacity onPress={() => återställPass(p)} disabled={sparar} style={styles.ångraKnapp} accessibilityRole="button" accessibilityLabel={`Ångra inställning ${formatDagDatum(p.datum)}`}>
+                <Text style={styles.ångraText}>Ångra</Text>
+              </TouchableOpacity>
+            ) : (
+              <TouchableOpacity onPress={() => öppnaInställDialog(p)} disabled={sparar} style={{ padding: 4, marginRight: 4 }} accessibilityRole="button" accessibilityLabel={`Markera pass ${formatDagDatum(p.datum)} som inställt`}>
+                <Ionicons name="medkit-outline" size={20} color="#f59e0b" accessible={false} importantForAccessibility="no" />
+              </TouchableOpacity>
+            )}
             <TouchableOpacity onPress={() => taBortPass(p)} disabled={sparar} style={{ padding: 4 }} accessibilityRole="button" accessibilityLabel={`Ta bort pass ${formatDagDatum(p.datum)}`}>
               <Ionicons name="close-circle" size={20} color="#ef4444" accessible={false} importantForAccessibility="no" />
             </TouchableOpacity>
@@ -485,6 +537,36 @@ export default function RedigeraSchemaScreen({ route, navigation }) {
           <Text style={styles.sparaText}>Spara ändringar</Text>
         </TouchableOpacity>
       </View>
+
+      {/* Dialog: markera pass som inställt (sjukdom/frånvaro) med valfri orsak. */}
+      <Modal visible={instälPass != null} transparent animationType="fade" onRequestClose={() => setInstälPass(null)}>
+        <View style={styles.modalBakgrund}>
+          <View style={styles.modalKort}>
+            <Text style={styles.modalRubrik}>Markera som inställt</Text>
+            {instälPass ? (
+              <Text style={styles.modalInfo}>
+                {veckodagsNamn(instälPass.datum)} {formatDagDatum(instälPass.datum)}, {instälPass.starttid}–{instälPass.sluttid}
+              </Text>
+            ) : null}
+            <Text style={styles.label}>Orsak (frivilligt)</Text>
+            <TextInput
+              style={styles.input}
+              value={instälOrsak}
+              onChangeText={setInstälOrsak}
+              placeholder="t.ex. Sjukdom"
+              maxLength={200}
+            />
+            <View style={styles.formKnappar}>
+              <TouchableOpacity style={styles.avbrytKnapp} onPress={() => setInstälPass(null)} disabled={sparar}>
+                <Text style={styles.avbrytText}>Avbryt</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.läggTillKnapp} onPress={bekräftaInställning} disabled={sparar}>
+                <Text style={styles.läggTillText}>Ställ in pass</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </KeyboardAvoidingView>
   );
 }
@@ -537,6 +619,15 @@ const styles = StyleSheet.create({
   passTid: { fontSize: 14, color: '#1a1a1a', fontWeight: '600' },
   passRoll: { fontSize: 12, color: '#6b7280', marginTop: 2 },
   passForm: { backgroundColor: '#f8faff', borderRadius: 12, padding: 12, marginTop: 4, borderWidth: 1, borderColor: '#bfdbfe' },
+  inställdRad: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 4, marginTop: 2 },
+  inställdEtikett: { fontSize: 12, color: '#b45309', fontWeight: '700' },
+  inställdOrsak: { fontSize: 12, color: '#9ca3af' },
+  ångraKnapp: { paddingVertical: 6, paddingHorizontal: 10, borderRadius: 8, borderWidth: 1, borderColor: '#d1d5db', marginRight: 4 },
+  ångraText: { fontSize: 13, color: '#374151', fontWeight: '600' },
+  modalBakgrund: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'center', padding: 24 },
+  modalKort: { backgroundColor: '#fff', borderRadius: 14, padding: 20 },
+  modalRubrik: { fontSize: 17, fontWeight: '700', color: '#1a1a1a' },
+  modalInfo: { fontSize: 14, color: '#6b7280', marginTop: 6 },
 
   addKnapp: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 10, marginTop: 4 },
   addText: { fontSize: 14, color: '#dc2626', fontWeight: '600' },

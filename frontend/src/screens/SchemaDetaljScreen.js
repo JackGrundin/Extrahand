@@ -581,7 +581,9 @@ export default function SchemaDetaljScreen({ route, navigation }) {
         {passUtfällt && (
         <View style={styles.passLista}>
           {(schema.pass ?? []).map(p => {
-            const färg = PASSFÄRGER[p.status] ?? PASSFÄRGER.planerad;
+            // Ett pass med installt_at (sjukdom/frånvaro) behåller status 'planerad' men
+            // visas som inställt.
+            const färg = p.installt_at ? PASSFÄRGER.installt : (PASSFÄRGER[p.status] ?? PASSFÄRGER.planerad);
             return (
               <View key={p.id} style={styles.passRad}>
                 <View style={styles.passDatumBlock}>
@@ -596,6 +598,9 @@ export default function SchemaDetaljScreen({ route, navigation }) {
                     ) : null}
                     {p.ob_tillagg?.length > 0 && (
                       <View style={styles.obBricka}><Text style={styles.obBrickaText}>OB</Text></View>
+                    )}
+                    {p.rast_minuter > 0 && (
+                      <View style={styles.rastBricka}><Text style={styles.rastBrickaText}>{p.rast_minuter} min rast</Text></View>
                     )}
                   </View>
                 </View>
@@ -759,6 +764,8 @@ const styles = StyleSheet.create({
   rollBrickaText: { fontSize: 11, color: '#2563eb', fontWeight: '700' },
   obBricka: { backgroundColor: '#fff7ed', borderRadius: 6, paddingHorizontal: 7, paddingVertical: 2 },
   obBrickaText: { fontSize: 11, color: '#c2410c', fontWeight: '700' },
+  rastBricka: { backgroundColor: '#f3f4f6', borderRadius: 6, paddingHorizontal: 7, paddingVertical: 2 },
+  rastBrickaText: { fontSize: 11, color: '#6b7280', fontWeight: '700' },
 
   // Neutral yta som resten av sidan, med rött bara på ikonen och beloppet. Kortet bar
   // tidigare rött på fem nivåer (bakgrund, ram, rubrik, namn, detaljrad) och skrek mer

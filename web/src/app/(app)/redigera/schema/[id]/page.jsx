@@ -208,6 +208,34 @@ export default function RedigeraSchema() {
     }
   }
 
+  // Markera ett kommande pass som inställt (sjukdom/frånvaro). Reversibelt – behåller
+  // personen och ansökan, till skillnad från "Ta bort". Orsaken är frivillig.
+  async function ställInPass(p) {
+    const orsak = window.prompt('Orsak till att passet ställs in (frivilligt):', '');
+    if (orsak === null) return; // Avbröt dialogen.
+    setSparar(true);
+    try {
+      await api.ställInSchemaPass(id, p.id, orsak.trim());
+      await hämta();
+    } catch (f) {
+      window.alert(felText(f));
+    } finally {
+      setSparar(false);
+    }
+  }
+
+  async function återställPass(p) {
+    setSparar(true);
+    try {
+      await api.återställSchemaPass(id, p.id);
+      await hämta();
+    } catch (f) {
+      window.alert(felText(f));
+    } finally {
+      setSparar(false);
+    }
+  }
+
   if (laddar) {
     return (
       <div className="flex justify-center py-20">
@@ -461,7 +489,32 @@ export default function RedigeraSchema() {
               <div className="min-w-0 flex-1">
                 <p className="text-[14px] font-semibold text-text">{p.starttid} – {p.sluttid}</p>
                 {p.kategori && <p className="text-[12px] text-text-dämpad">{p.kategori}</p>}
+                {p.rast_minuter > 0 && <p className="text-[12px] text-text-svag">{p.rast_minuter} min rast</p>}
+                {p.installt_at && (
+                  <p className="text-[12px] font-semibold text-varning">
+                    Inställt{p.installt_orsak ? ` · ${p.installt_orsak}` : ''}
+                  </p>
+                )}
               </div>
+              {p.installt_at ? (
+                <button
+                  type="button"
+                  onClick={() => återställPass(p)}
+                  disabled={sparar}
+                  className="shrink-0 text-[13px] font-semibold text-primär hover:underline disabled:opacity-60"
+                >
+                  Ångra
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => ställInPass(p)}
+                  disabled={sparar}
+                  className="shrink-0 text-[13px] font-semibold text-varning hover:underline disabled:opacity-60"
+                >
+                  Markera som inställt
+                </button>
+              )}
               <button
                 type="button"
                 onClick={() => taBortPass(p)}
