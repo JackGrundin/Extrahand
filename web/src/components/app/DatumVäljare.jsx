@@ -99,6 +99,7 @@ export default function DatumVäljare({ etikett, värde, onÄndra, fel, min, max
           maxLength={10}
           value={text}
           onFocus={() => { fokuserad.current = true; }}
+          onClick={öppnaKalender}
           onChange={hanteraText}
           onBlur={hanteraBlur}
           aria-invalid={felläge}

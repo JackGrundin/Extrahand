@@ -40,6 +40,9 @@ export default function DatumVäljare({
       value: värde || '',
       min: iso(minimumDate),
       max: iso(maximumDate),
+      // Ett tryck i fältet öppnar kalendern direkt; annars kräver desktop-webbläsare
+      // klick på den lilla indikatorn. showPicker kräver stöd/användargest – fånga felet.
+      onClick: e => { try { e.currentTarget.showPicker?.(); } catch {} },
       onChange: e => onÄndra(e.target.value),
       style: {
         border: fel ? '1.5px solid #dc2626' : '1px solid #ddd', borderRadius: 10, padding: 13,
