@@ -225,10 +225,9 @@ export const api = {
   // beräknar alla belopp (timlön, påslag, OB, avdrag, datum).
   skapaRapport: (kropp) => anrop('POST', '/tidrapporter', kropp),
   hämtaTidrapport: (ansökanId) => anrop('GET', `/tidrapporter/ansokan/${ansökanId}`),
-  // Privatperson: godkänn eller bestrida en väntande tidrapport. starttid/sluttid
-  // (valfria, 'HH:MM') = föreslagna korrigerade tider som företaget sedan ser.
+  // Privatperson: godkänn eller bestrida en väntande tidrapport
   godkännRapport: (rapportId) => anrop('PATCH', `/tidrapporter/${rapportId}/status`, { status: 'godkänd' }),
-  bestridaRapport: (rapportId, orsak, starttid, sluttid) => anrop('PATCH', `/tidrapporter/${rapportId}/status`, { status: 'bestridd', orsak, starttid, sluttid }),
+  bestridaRapport: (rapportId, orsak) => anrop('PATCH', `/tidrapporter/${rapportId}/status`, { status: 'bestridd', orsak }),
   // Företag: rätta en automatiskt skapad tidrapport som väntar (övertid/rast på schemapass).
   korrigeraTidrapport: (id, kropp) => anrop('PATCH', `/tidrapporter/${id}/korrigera`, kropp),
 

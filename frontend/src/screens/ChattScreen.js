@@ -11,7 +11,6 @@ import ErbjudPassModal from '../components/ErbjudPassModal';
 import JobbforfraganKort from '../components/JobbforfraganKort';
 import PassKort from '../components/PassKort';
 import AvslutaPassModal from '../components/AvslutaPassModal';
-import TidVäljare from '../components/TidVäljare';
 import { useRealtidsPing } from '../context/RealtidsContext';
 import { useBetyg } from '../context/BetygsContext';
 import { useLoggaRefresh } from '../components/LoggaRefresh';
@@ -22,9 +21,6 @@ function TidrapportKort({ rapport, ärPrivatperson, ärSenaste, onUppdaterad }) 
   const [sparar, setSparar] = useState(false);
   const [bestridVisas, setBestridVisas] = useState(false);
   const [bestridText, setBestridText] = useState('');
-  // Valfria föreslagna korrigerade tider som privatpersonen kan ange vid bestridande.
-  const [bestridStart, setBestridStart] = useState('');
-  const [bestridSlut, setBestridSlut] = useState('');
   const [korrigeraVisas, setKorrigeraVisas] = useState(false);
   const { kollaBetyg } = useBetyg();
 
@@ -51,20 +47,11 @@ function TidrapportKort({ rapport, ärPrivatperson, ärSenaste, onUppdaterad }) 
       Alert.alert('Fel', 'Skriv en förklaring till varför du bestrider tidrapporten.');
       return;
     }
-    // Tiderna är valfria men hör ihop: antingen båda eller ingen.
-    const start = bestridStart.trim();
-    const slut = bestridSlut.trim();
-    if ((start && !slut) || (!start && slut)) {
-      Alert.alert('Fel', 'Ange både start- och sluttid, eller lämna båda tomma.');
-      return;
-    }
     setSparar(true);
     try {
-      await api.bestridTidrapport(rapport.id, orsak, start || undefined, slut || undefined);
+      await api.bestridTidrapport(rapport.id, orsak);
       setBestridVisas(false);
       setBestridText('');
-      setBestridStart('');
-      setBestridSlut('');
       onUppdaterad();
     } catch (fel) {
       Alert.alert('Fel', felText(fel));
@@ -264,25 +251,8 @@ function TidrapportKort({ rapport, ärPrivatperson, ärSenaste, onUppdaterad }) 
               multiline
               autoFocus
             />
-            {/* Valfritt: föreslå korrigerade tider som företaget kan utgå från. */}
-            <Text style={styles.bestridTidEtikett}>Föreslå korrigerad tid (valfritt)</Text>
-            <View style={styles.bestridTidRad}>
-              <TidVäljare
-                style={{ flex: 1 }}
-                placeholder="Från"
-                value={bestridStart}
-                onChange={setBestridStart}
-              />
-              <Text style={styles.bestridTidStreck}>–</Text>
-              <TidVäljare
-                style={{ flex: 1 }}
-                placeholder="Till"
-                value={bestridSlut}
-                onChange={setBestridSlut}
-              />
-            </View>
             <View style={styles.modalKnappar}>
-              <TouchableOpacity style={styles.modalAvbryt} onPress={() => { setBestridVisas(false); setBestridStart(''); setBestridSlut(''); }} disabled={sparar}>
+              <TouchableOpacity style={styles.modalAvbryt} onPress={() => setBestridVisas(false)} disabled={sparar}>
                 <Text style={styles.modalAvbrytText}>Avbryt</Text>
               </TouchableOpacity>
               <TouchableOpacity style={[styles.modalSkicka, sparar && { opacity: 0.5 }]} onPress={skickaBestridande} disabled={sparar}>
@@ -318,11 +288,6 @@ function BestriddKort({ rapport }) {
         <Text style={styles.bestriddRubrik}>Tidrapport bestriden</Text>
       </View>
       <Text style={styles.bestriddText}>{rapport.bestridande_orsak}</Text>
-      {rapport.bestridande_starttid && rapport.bestridande_sluttid && (
-        <Text style={styles.bestriddTid}>
-          Föreslagen tid: {rapport.bestridande_starttid}–{rapport.bestridande_sluttid}
-        </Text>
-      )}
     </View>
   );
 }
@@ -643,7 +608,6 @@ const styles = StyleSheet.create({
   bestriddHuvud: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 },
   bestriddRubrik: { fontSize: 15, fontWeight: '700', color: '#dc2626', flex: 1 },
   bestriddText: { fontSize: 15, color: '#7f1d1d', lineHeight: 21 },
-  bestriddTid: { fontSize: 14, fontWeight: '600', color: '#991b1b', marginTop: 8 },
   korrigeraKnapp: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, borderWidth: 1, borderColor: '#2563eb', borderRadius: 10, paddingVertical: 10 },
   korrigeraText: { color: '#2563eb', fontWeight: '600', fontSize: 14 },
   autoNot: { fontSize: 12, color: '#9ca3af', fontStyle: 'italic', marginTop: 6 },
@@ -660,9 +624,6 @@ const styles = StyleSheet.create({
   modalKort: { backgroundColor: '#fff', borderRadius: 16, padding: 20 },
   modalRubrik: { fontSize: 17, fontWeight: '700', color: '#1a1a1a', marginBottom: 8 },
   modalInput: { borderWidth: 1, borderColor: '#ddd', borderRadius: 10, padding: 12, fontSize: 15, minHeight: 48, textAlignVertical: 'top', marginBottom: 16 },
-  bestridTidEtikett: { fontSize: 13, fontWeight: '600', color: '#444', marginBottom: 8 },
-  bestridTidRad: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 16 },
-  bestridTidStreck: { fontSize: 16, color: '#9ca3af' },
   modalKnappar: { flexDirection: 'row', gap: 10 },
   modalAvbryt: { flex: 1, borderWidth: 1, borderColor: '#ddd', borderRadius: 10, paddingVertical: 12, alignItems: 'center' },
   modalAvbrytText: { color: '#666', fontWeight: '600', fontSize: 15 },

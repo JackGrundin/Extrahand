@@ -111,17 +111,12 @@ export default function TidrapportSektionFöretag({ ansökanId, jobbTitel }) {
         </p>
       )}
 
-      {/* Bestridande: visa orsak + ev. föreslagna tider, precis som appens BestriddKort. */}
+      {/* Bestridande: visa orsaken (fritext), precis som appens BestriddKort. */}
       {rapport.status === 'bestridd' && (
         <div className="mt-3 rounded-sm border border-fel/30 bg-[#fef2f2] p-3">
           <p className="text-[13px] font-bold text-fel">Tidrapport bestriden</p>
           {rapport.bestridande_orsak && (
             <p className="mt-1 whitespace-pre-wrap text-[14px] text-[#7f1d1d]">{rapport.bestridande_orsak}</p>
-          )}
-          {rapport.bestridande_starttid && rapport.bestridande_sluttid && (
-            <p className="mt-2 text-[14px] font-semibold text-[#991b1b]">
-              Föreslagen tid: {rapport.bestridande_starttid}–{rapport.bestridande_sluttid}
-            </p>
           )}
         </div>
       )}

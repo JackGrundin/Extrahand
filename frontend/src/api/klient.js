@@ -221,8 +221,7 @@ export const api = {
   skapaRapport: (kropp) => anrop('POST', '/tidrapporter', kropp),
   hämtaTidrapport: (ansokningId) => anrop('GET', `/tidrapporter/ansokan/${ansokningId}`),
   uppdateraTidrapportStatus: (id, status) => anrop('PATCH', `/tidrapporter/${id}/status`, { status }),
-  // starttid/sluttid (valfria, 'HH:MM') = privatpersonens föreslagna korrigerade tider.
-  bestridTidrapport: (id, orsak, starttid, sluttid) => anrop('PATCH', `/tidrapporter/${id}/status`, { status: 'bestridd', orsak, starttid, sluttid }),
+  bestridTidrapport: (id, orsak) => anrop('PATCH', `/tidrapporter/${id}/status`, { status: 'bestridd', orsak }),
   allaRapporter: (fromDate, toDate) => anrop('GET', `/tidrapporter/alla${fromDate || toDate ? `?${fromDate ? 'fromDate=' + fromDate : ''}${fromDate && toDate ? '&' : ''}${toDate ? 'toDate=' + toDate : ''}` : ''}`),
   tidrapporterFörFöretag: () => anrop('GET', '/tidrapporter/foretag'),
   markeraTidrapportBetald: (id) => anrop('PATCH', `/tidrapporter/${id}/betald`, {}),

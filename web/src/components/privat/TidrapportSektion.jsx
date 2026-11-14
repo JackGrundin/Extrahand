@@ -27,9 +27,6 @@ export default function TidrapportSektion({ ansökanId }) {
   // Bestridandeläge
   const [bestriderVis, setBestriderVis] = useState(false);
   const [orsak, setOrsak] = useState('');
-  // Valfria föreslagna korrigerade tider ('HH:MM').
-  const [starttid, setStarttid] = useState('');
-  const [sluttid, setSluttid] = useState('');
   const [skickar, setSkickar] = useState(false);
 
   const hämta = useCallback(async () => {
@@ -72,15 +69,10 @@ export default function TidrapportSektion({ ansökanId }) {
       setFel('Du måste skriva en förklaring till bestridandet.');
       return;
     }
-    // Tiderna är valfria men hör ihop: antingen båda eller ingen.
-    if ((starttid && !sluttid) || (!starttid && sluttid)) {
-      setFel('Ange både start- och sluttid, eller lämna båda tomma.');
-      return;
-    }
     setSkickar(true);
     setFel('');
     try {
-      await api.bestridaRapport(rapport.id, orsak.trim(), starttid || undefined, sluttid || undefined);
+      await api.bestridaRapport(rapport.id, orsak.trim());
       setBesked('Bestridandet är skickat. Företaget får ett meddelande.');
       setRapport((prev) => ({ ...prev, status: 'bestridd' }));
       setBestriderVis(false);
@@ -200,28 +192,6 @@ export default function TidrapportSektion({ ansökanId }) {
                 placeholder="Beskriv vad som är fel – t.ex. fel antal timmar eller att du inte jobbade detta pass."
                 className="mt-1.5 w-full rounded-sm border border-kant bg-yta-dämpad px-3.5 py-3 text-[14px] text-text outline-none focus:border-primär focus:border-[1.5px] focus:bg-yta"
               />
-
-              {/* Valfritt: föreslå korrigerade tider som företaget kan utgå från. */}
-              <label className="mt-3 block text-[13px] font-semibold text-text-dämpad">
-                Föreslå korrigerad tid (valfritt)
-              </label>
-              <div className="mt-1.5 flex items-center gap-2">
-                <input
-                  type="time"
-                  value={starttid}
-                  onChange={(e) => setStarttid(e.target.value)}
-                  aria-label="Föreslagen starttid"
-                  className="w-full rounded-sm border border-kant bg-yta-dämpad px-3.5 py-3 text-[14px] text-text outline-none focus:border-primär focus:border-[1.5px] focus:bg-yta"
-                />
-                <span className="text-text-svag">–</span>
-                <input
-                  type="time"
-                  value={sluttid}
-                  onChange={(e) => setSluttid(e.target.value)}
-                  aria-label="Föreslagen sluttid"
-                  className="w-full rounded-sm border border-kant bg-yta-dämpad px-3.5 py-3 text-[14px] text-text outline-none focus:border-primär focus:border-[1.5px] focus:bg-yta"
-                />
-              </div>
 
               <div className="mt-3 flex gap-3">
                 <Knapp
