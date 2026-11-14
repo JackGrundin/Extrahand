@@ -14,7 +14,10 @@ import { parsaObTillagg, planeradeTimmar, beräknaObBelopp } from '@/utils/datum
 import { saniteraObTillagg } from '@/utils/ob';
 import { beräknaFakturapris, påslagEller40, formateraPris } from '@/utils/konstanter';
 
-export default function AvslutaPassModal({ jobb, ansokanId, onStäng, onKlar }) {
+// onSkicka (valfri): om angiven anropas den med { timmar, ob_tillagg } i stället för
+// att skapa en ny tidrapport – används för att rätta en auto-skapad rapport (korrigera).
+// rubrik/knappText styr texterna så att "Skicka korrigerad rapport" kan återanvända modalen.
+export default function AvslutaPassModal({ jobb, ansokanId, onStäng, onKlar, onSkicka, rubrik = 'Avsluta pass', knappText = 'Avsluta pass' }) {
   const [timmar, setTimmar] = useState('');
   const [ob, setOb] = useState(() => parsaObTillagg(jobb?.ob_tillagg));
   const [fel, setFel] = useState('');
@@ -41,11 +44,12 @@ export default function AvslutaPassModal({ jobb, ansokanId, onStäng, onKlar }) 
     setFel('');
     setSparar(true);
     try {
-      await api.skapaRapport({
-        ansokan_id: ansokanId,
-        timmar: timmarTal,
-        ob_tillagg: saniteraObTillagg(ob),
-      });
+      const nyttOb = saniteraObTillagg(ob);
+      if (onSkicka) {
+        await onSkicka({ timmar: timmarTal, ob_tillagg: nyttOb });
+      } else {
+        await api.skapaRapport({ ansokan_id: ansokanId, timmar: timmarTal, ob_tillagg: nyttOb });
+      }
       onKlar();
     } catch (f) {
       setFel(felText(f));
@@ -58,7 +62,7 @@ export default function AvslutaPassModal({ jobb, ansokanId, onStäng, onKlar }) 
     <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center">
       <div className="absolute inset-0 bg-black/40" onClick={onStäng} aria-hidden="true" />
       <div className="relative flex max-h-[90vh] w-full max-w-md flex-col overflow-auto rounded-t-lg bg-yta p-6 shadow-lyft sm:rounded-lg">
-        <h2 className="rubrik-m text-text">Avsluta pass</h2>
+        <h2 className="rubrik-m text-text">{rubrik}</h2>
         {jobb?.Titel && <p className="mt-0.5 text-[14px] text-text-dämpad">{jobb.Titel}</p>}
 
         {fel && (
@@ -139,7 +143,7 @@ export default function AvslutaPassModal({ jobb, ansokanId, onStäng, onKlar }) 
             Avbryt
           </Knapp>
           <Knapp variant="primär" full laddar={sparar} onClick={skicka}>
-            Avsluta pass
+            {knappText}
           </Knapp>
         </div>
       </div>

@@ -10,6 +10,7 @@ import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import Besked from '@/components/ui/Besked';
 import JobbförfråganKort from '@/components/chatt/JobbförfråganKort';
+import TidrapportSektionFöretag from '@/components/app/TidrapportSektionFöretag';
 import { useAuth } from '@/context/AuthContext';
 import { useRealtidsPing } from '@/context/RealtidsContext';
 import { api, felText } from '@/lib/api';
@@ -173,6 +174,8 @@ export default function ChattTråd() {
             );
           })
         )}
+        {/* Tidrapportskort sist i tidslinjen – self-fetchar och renderar null utan rapport. */}
+        {!laddar && <TidrapportSektionFöretag ansökanId={ansokanId} jobbTitel={meta?.jobbTitel} />}
         <div ref={bottenRef} />
       </div>
 

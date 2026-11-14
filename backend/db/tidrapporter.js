@@ -67,9 +67,17 @@ async function hämtaTidrapportFörAnsökan(ansokan_id) {
   return data;
 }
 
-async function uppdateraTidrapportStatus(id, status, bestridande_orsak) {
+async function uppdateraTidrapportStatus(id, status, bestridande_orsak, starttid = null, sluttid = null) {
   const fält = { status };
-  if (status === 'bestridd') fält.bestridande_orsak = bestridande_orsak ?? null;
+  if (status === 'bestridd') {
+    fält.bestridande_orsak = bestridande_orsak ?? null;
+    // Valfria föreslagna korrigerade tider. Rör kolumnerna BARA när tider faktiskt angetts –
+    // annars funkar ett vanligt bestridande (utan tider) även innan migrationen körts.
+    if (starttid && sluttid) {
+      fält.bestridande_starttid = starttid;
+      fält.bestridande_sluttid = sluttid;
+    }
+  }
   // Stämpla godkännandetidpunkten – lönedatumet (direkt/25:e) härleds ur den.
   if (status === 'godkänd') fält.godkand_at = new Date().toISOString();
   const { error } = await supabase

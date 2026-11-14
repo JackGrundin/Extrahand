@@ -111,7 +111,7 @@ router.get('/ansokan/:ansokningId', kräverInloggning, async (req, res) => {
 
 // PATCH /api/tidrapporter/:id/status — privatperson godkänner eller bestrider
 router.patch('/:id/status', kräverInloggning, kräverTyp('privatperson'), async (req, res) => {
-  const { status, orsak } = req.body;
+  const { status, orsak, starttid, sluttid } = req.body;
   if (!['godkänd', 'bestridd'].includes(status)) {
     return res.status(400).json({ fel: 'Status måste vara godkänd eller bestridd' });
   }
@@ -119,6 +119,23 @@ router.patch('/:id/status', kräverInloggning, kräverTyp('privatperson'), async
   const förklaring = typeof orsak === 'string' ? orsak.trim() : '';
   if (status === 'bestridd' && !förklaring) {
     return res.status(400).json({ fel: 'En förklaring krävs vid bestridande' });
+  }
+
+  // Valfria föreslagna korrigerade tider. Antingen båda eller ingen, och båda måste vara
+  // giltig 'HH:MM'. Blockera ALDRIG sluttid före starttid – ett pass över midnatt
+  // (22:00–06:00) är giltigt, precis som i schemaflödet.
+  const giltigTid = v => typeof v === 'string' && /^([01]\d|2[0-3]):[0-5]\d$/.test(v);
+  let föreslagenStart = null;
+  let föreslagenSlut = null;
+  if (status === 'bestridd' && (starttid != null || sluttid != null)) {
+    if (!giltigTid(starttid) || !giltigTid(sluttid)) {
+      return res.status(400).json({ fel: 'Ange både start- och sluttid i formatet HH:MM' });
+    }
+    if (starttid === sluttid) {
+      return res.status(400).json({ fel: 'Start- och sluttid kan inte vara samma' });
+    }
+    föreslagenStart = starttid;
+    föreslagenSlut = sluttid;
   }
 
   try {
@@ -136,7 +153,7 @@ router.patch('/:id/status', kräverInloggning, kräverTyp('privatperson'), async
       return res.status(409).json({ fel: 'Tidrapporten är redan besvarad' });
     }
 
-    await uppdateraTidrapportStatus(req.params.id, status, förklaring);
+    await uppdateraTidrapportStatus(req.params.id, status, förklaring, föreslagenStart, föreslagenSlut);
     res.json({ ok: true });
 
     // Realtidssignal (utan innehåll) till företaget som skapade tidrapporten
