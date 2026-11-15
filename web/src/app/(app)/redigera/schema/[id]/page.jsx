@@ -481,48 +481,54 @@ export default function RedigeraSchema() {
 
         <div className="mt-3 flex flex-col gap-2">
           {kommandePass.map((p) => (
-            <div key={p.id} className="flex items-center gap-3 rounded-sm border border-kant bg-yta-dämpad p-3">
-              <div className="w-20 shrink-0">
-                <p className="text-[11px] font-semibold uppercase text-text-svag">{veckodagsNamn(p.datum)}</p>
-                <p className="text-[13px] font-semibold text-text">{formatDagDatum(p.datum)}</p>
+            // Staplas på mobil (knapparna under infot) och blir en rad på desktop. Utan detta
+            // trycks shrink-0-knapparna ut utanför viewporten och klipps av body:ns overflow-x:hidden.
+            <div key={p.id} className="flex flex-col gap-3 rounded-sm border border-kant bg-yta-dämpad p-3 sm:flex-row sm:items-center">
+              <div className="flex min-w-0 flex-1 gap-3">
+                <div className="w-20 shrink-0">
+                  <p className="text-[11px] font-semibold uppercase text-text-svag">{veckodagsNamn(p.datum)}</p>
+                  <p className="text-[13px] font-semibold text-text">{formatDagDatum(p.datum)}</p>
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-[14px] font-semibold text-text">{p.starttid} – {p.sluttid}</p>
+                  {p.kategori && <p className="text-[12px] text-text-dämpad">{p.kategori}</p>}
+                  {p.rast_minuter > 0 && <p className="text-[12px] text-text-svag">{p.rast_minuter} min rast</p>}
+                  {p.installt_at && (
+                    <p className="text-[12px] font-semibold text-varning">
+                      Inställt{p.installt_orsak ? ` · ${p.installt_orsak}` : ''}
+                    </p>
+                  )}
+                </div>
               </div>
-              <div className="min-w-0 flex-1">
-                <p className="text-[14px] font-semibold text-text">{p.starttid} – {p.sluttid}</p>
-                {p.kategori && <p className="text-[12px] text-text-dämpad">{p.kategori}</p>}
-                {p.rast_minuter > 0 && <p className="text-[12px] text-text-svag">{p.rast_minuter} min rast</p>}
-                {p.installt_at && (
-                  <p className="text-[12px] font-semibold text-varning">
-                    Inställt{p.installt_orsak ? ` · ${p.installt_orsak}` : ''}
-                  </p>
+              <div className="flex shrink-0 flex-wrap gap-3">
+                {p.installt_at ? (
+                  <button
+                    type="button"
+                    onClick={() => återställPass(p)}
+                    disabled={sparar}
+                    className="text-[13px] font-semibold text-primär hover:underline disabled:opacity-60"
+                  >
+                    Ångra
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => ställInPass(p)}
+                    disabled={sparar}
+                    className="text-[13px] font-semibold text-varning hover:underline disabled:opacity-60"
+                  >
+                    Markera som inställt
+                  </button>
                 )}
+                <button
+                  type="button"
+                  onClick={() => taBortPass(p)}
+                  disabled={sparar}
+                  className="text-[13px] font-semibold text-fel hover:underline disabled:opacity-60"
+                >
+                  Ta bort
+                </button>
               </div>
-              {p.installt_at ? (
-                <button
-                  type="button"
-                  onClick={() => återställPass(p)}
-                  disabled={sparar}
-                  className="shrink-0 text-[13px] font-semibold text-primär hover:underline disabled:opacity-60"
-                >
-                  Ångra
-                </button>
-              ) : (
-                <button
-                  type="button"
-                  onClick={() => ställInPass(p)}
-                  disabled={sparar}
-                  className="shrink-0 text-[13px] font-semibold text-varning hover:underline disabled:opacity-60"
-                >
-                  Markera som inställt
-                </button>
-              )}
-              <button
-                type="button"
-                onClick={() => taBortPass(p)}
-                disabled={sparar}
-                className="shrink-0 text-[13px] font-semibold text-fel hover:underline disabled:opacity-60"
-              >
-                Ta bort
-              </button>
             </div>
           ))}
         </div>
