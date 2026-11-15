@@ -39,35 +39,29 @@ export default function FöretagsProfilScreen({ route, navigation }) {
   }
 
   return (
-    <ScrollView style={styles.container}>
-      <View style={styles.huvud}>
-        {profil.profilBild
-          ? <Image source={{ uri: profil.profilBild }} style={styles.logga} accessible={false} importantForAccessibility="no" />
-          : <View style={styles.loggaPlaceholder}><Text style={styles.loggaInitial}>{profil.namn?.[0] ?? '?'}</Text></View>
-        }
-        <Text style={styles.namn}>{profil.namn}</Text>
-        {profil.bransch && <Text style={styles.bransch}>{profil.bransch}</Text>}
-        {profil.stad && <Text style={styles.meta}>{profil.stad}</Text>}
-        {profil.hemsida && (
-          <TouchableOpacity onPress={öppnaHemsida}>
-            <Text style={styles.hemsida}>{profil.hemsida}</Text>
-          </TouchableOpacity>
-        )}
-        <View style={styles.betygAvstånd}>
-          <BetygsSammanfattning betyg={betyg} />
-        </View>
+    <ScrollView style={styles.container} contentContainerStyle={styles.innehall}>
+      {profil.profilBild
+        ? <Image source={{ uri: profil.profilBild }} style={styles.logga} accessible={false} importantForAccessibility="no" />
+        : <View style={styles.loggaPlaceholder}><Text style={styles.loggaInitial}>{profil.namn?.[0] ?? '?'}</Text></View>
+      }
+      <Text style={styles.namn}>{profil.namn}</Text>
+      {profil.bransch && <Text style={styles.bransch}>{profil.bransch}</Text>}
+      {profil.stad && <Text style={styles.meta}>{profil.stad}</Text>}
+      {profil.hemsida && (
+        <TouchableOpacity onPress={öppnaHemsida} style={styles.hemsidaKnapp}>
+          <Text style={styles.hemsida} numberOfLines={1}>{profil.hemsida}</Text>
+        </TouchableOpacity>
+      )}
+      <View style={styles.betygAvstånd}>
+        <BetygsSammanfattning betyg={betyg} />
       </View>
+
+      <View style={styles.divider} />
 
       {profil.beskrivning && (
         <View style={styles.sektion}>
           <Text style={styles.sektionsRubrik}>Om företaget</Text>
           <Text style={styles.beskrivning}>{profil.beskrivning}</Text>
-        </View>
-      )}
-
-      {betyg?.antal > 0 && (
-        <View style={styles.sektion}>
-          <BetygsLista betyg={betyg} rubrik="Omdömen" />
         </View>
       )}
 
@@ -87,24 +81,32 @@ export default function FöretagsProfilScreen({ route, navigation }) {
           <Text style={styles.ingaJobb}>Inga aktiva annonser just nu</Text>
         )}
       </View>
+
+      {betyg?.antal > 0 && (
+        <View style={styles.sektion}>
+          <BetygsLista betyg={betyg} rubrik="Omdömen" />
+        </View>
+      )}
     </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f8fafc' },
-  huvud: { backgroundColor: '#fff', alignItems: 'center', padding: 28, marginBottom: 12 },
-  logga: { width: 88, height: 88, borderRadius: 44, marginBottom: 14 },
-  loggaPlaceholder: { width: 88, height: 88, borderRadius: 44, backgroundColor: '#2563eb', alignItems: 'center', justifyContent: 'center', marginBottom: 14 },
+  container: { flex: 1, backgroundColor: '#fff' },
+  innehall: { alignItems: 'center', padding: 32, paddingBottom: 48 },
+  logga: { width: 88, height: 88, borderRadius: 44, marginBottom: 16 },
+  loggaPlaceholder: { width: 88, height: 88, borderRadius: 44, backgroundColor: '#2563eb', alignItems: 'center', justifyContent: 'center', marginBottom: 16 },
   loggaInitial: { color: '#fff', fontSize: 34, fontWeight: 'bold' },
   namn: { fontSize: 22, fontWeight: 'bold', color: '#1a1a1a', marginBottom: 4 },
   bransch: { fontSize: 15, color: '#2563eb', fontWeight: '600', marginBottom: 2 },
   meta: { fontSize: 14, color: '#888', marginBottom: 2 },
-  hemsida: { fontSize: 14, color: '#2563eb', marginTop: 4, textDecorationLine: 'underline' },
+  hemsidaKnapp: { maxWidth: '100%', marginTop: 4 },
+  hemsida: { fontSize: 14, color: '#2563eb', textDecorationLine: 'underline', flexShrink: 1 },
   betygAvstånd: { marginTop: 12 },
-  sektion: { backgroundColor: '#fff', padding: 20, marginBottom: 12 },
-  sektionsRubrik: { fontSize: 16, fontWeight: '700', color: '#1a1a1a', marginBottom: 12 },
-  beskrivning: { fontSize: 15, color: '#444', lineHeight: 22 },
+  divider: { width: '100%', height: 1, backgroundColor: '#f0f0f0', marginVertical: 20 },
+  sektion: { width: '100%', marginBottom: 20 },
+  sektionsRubrik: { fontSize: 13, fontWeight: '700', color: '#888', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 6 },
+  beskrivning: { fontSize: 15, color: '#333', lineHeight: 22 },
   jobbKort: { borderWidth: 1, borderColor: '#eee', borderRadius: 10, padding: 14, marginBottom: 10 },
   jobbTitel: { fontSize: 15, fontWeight: '600', color: '#1a1a1a', marginBottom: 4 },
   jobbMeta: { fontSize: 13, color: '#888', marginBottom: 2 },

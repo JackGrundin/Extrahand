@@ -126,7 +126,7 @@ export default function Profil() {
   }
 
   return (
-    <div className="mx-auto max-w-2xl">
+    <div className="mx-auto max-w-5xl">
       <h1 className="rubrik-l text-text">Företagsprofil</h1>
       <p className="mt-1 text-[15px] text-text-dämpad">Det här ser sökande när de tittar på era annonser.</p>
 
@@ -134,84 +134,85 @@ export default function Profil() {
       {sparat && <Besked typ="framgång">Profilen är sparad.</Besked>}
 
       <form onSubmit={spara} className="mt-6">
-        <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-          {/* Om företaget */}
-          <div className="rounded-xl border border-kant bg-yta p-6 shadow-mjuk">
-            <h2 className="mb-4 text-[17px] font-bold text-text">Om företaget</h2>
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-[280px_1fr]">
+          {/* Vänsterkolumn: profilkort med avatar, namn, e-post och bildbyte */}
+          <div className="h-fit rounded-lg border border-kant bg-yta p-6 shadow-mjuk">
+            {profilBild ? (
+              <Image
+                src={profilBild}
+                alt="Profilbild"
+                width={112}
+                height={112}
+                className="mx-auto h-28 w-28 rounded-full object-cover"
+              />
+            ) : (
+              <span className="mx-auto flex h-28 w-28 items-center justify-center rounded-full bg-gradient-primär text-[40px] font-bold text-white">
+                {(namn || '?').charAt(0).toUpperCase()}
+              </span>
+            )}
 
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              <div>
-                <p className="text-[13px] font-semibold text-text-dämpad">Företagsnamn</p>
-                <p className="mt-1 text-[15px] text-text">{namn}</p>
-              </div>
-              <div>
-                <p className="text-[13px] font-semibold text-text-dämpad">E-post</p>
-                <p className="mt-1 text-[15px] text-text">{email}</p>
-              </div>
-            </div>
-
-            <div className="mt-5 flex flex-col gap-5">
-              <Textfält
-                etikett="Om företaget"
-                value={form.beskrivning}
-                onChange={(e) => sätt('beskrivning', e.target.value)}
-                placeholder="Berätta om företaget – vad ni gör och hur det är att jobba hos er."
-              />
-              <Input
-                etikett="Bransch"
-                value={form.bransch}
-                onChange={(e) => sätt('bransch', e.target.value)}
-                placeholder="t.ex. Restaurang, Bygg, Städ"
-              />
-              <StadInput
-                värde={form.stad}
-                onVälj={(v) => { sätt('stad', v); setStadFel(''); }}
-                fel={stadFel}
-              />
-              {/* Ingen type="url": webbläsarens inbyggda url-validering kräver ett schema (https://)
-                  och blockerar HELA formulärets submit för vanliga värden som "www.foretaget.se",
-                  så profilen gick inte att spara. Hemsidan är fri text; backend är validerare. */}
-              <Input
-                etikett="Hemsida"
-                inputMode="url"
-                value={form.hemsida}
-                onChange={(e) => sätt('hemsida', e.target.value)}
-                placeholder="t.ex. www.foretaget.se"
-              />
-            </div>
-          </div>
-
-          {/* Profilbild */}
-          <div className="h-fit rounded-xl border border-kant bg-yta p-6 shadow-mjuk">
-            <h2 className="mb-4 text-[17px] font-bold text-text">Profilbild</h2>
-            <div className="flex items-center gap-4">
-              {profilBild ? (
-                <Image src={profilBild} alt="Profilbild" width={80} height={80} className="h-20 w-20 rounded-full object-cover" />
-              ) : (
-                <span className="flex h-20 w-20 items-center justify-center rounded-full bg-gradient-primär text-[28px] font-bold text-white">
-                  {(namn || '?').charAt(0).toUpperCase()}
-                </span>
+            <div className="mt-4 text-center">
+              <p className="text-[18px] font-bold text-text">{namn}</p>
+              {form.stad && (
+                <p className="mt-0.5 text-[14px] text-text-dämpad">{form.stad}</p>
               )}
-              <div>
-                <input ref={filInput} type="file" accept="image/*" onChange={väljBild} className="hidden" />
-                <Knapp
-                  variant="kontur"
-                  storlek="liten"
-                  laddar={laddarBild}
-                  onClick={() => filInput.current?.click()}
-                >
-                  Byt bild
-                </Knapp>
-                <p className="mt-1 text-[12px] text-text-svag">JPG eller PNG, max 3 MB</p>
-              </div>
+              {/* truncate: en lång e-post får inte bryta ut ur kortet på smala skärmar. */}
+              <p className="mt-0.5 truncate text-[13px] text-text-svag">{email}</p>
+            </div>
+
+            <div className="mt-4 flex flex-col items-center">
+              <input ref={filInput} type="file" accept="image/*" onChange={väljBild} className="hidden" />
+              <Knapp
+                variant="kontur"
+                storlek="liten"
+                laddar={laddarBild}
+                onClick={() => filInput.current?.click()}
+              >
+                Byt bild
+              </Knapp>
+              <p className="mt-1 text-[12px] text-text-svag">JPG eller PNG, max 3 MB</p>
             </div>
           </div>
-        </div>
 
-        <div className="mt-6 flex justify-center">
-          <Knapp type="submit" variant="primär" laddar={sparar}>
-            Spara profil
-          </Knapp>
+          {/* Mittkolumn: Om företaget */}
+          <div className="flex min-w-0 flex-col gap-6">
+            <div className="rounded-lg border border-kant bg-yta p-6 shadow-mjuk">
+              <h2 className="överlinje mb-4">Om företaget</h2>
+              <div className="flex flex-col gap-5">
+                <Textfält
+                  etikett="Om företaget"
+                  value={form.beskrivning}
+                  onChange={(e) => sätt('beskrivning', e.target.value)}
+                  placeholder="Berätta om företaget – vad ni gör och hur det är att jobba hos er."
+                />
+                <Input
+                  etikett="Bransch"
+                  value={form.bransch}
+                  onChange={(e) => sätt('bransch', e.target.value)}
+                  placeholder="t.ex. Restaurang, Bygg, Städ"
+                />
+                <StadInput
+                  värde={form.stad}
+                  onVälj={(v) => { sätt('stad', v); setStadFel(''); }}
+                  fel={stadFel}
+                />
+                {/* Ingen type="url": webbläsarens inbyggda url-validering kräver ett schema (https://)
+                    och blockerar HELA formulärets submit för vanliga värden som "www.foretaget.se",
+                    så profilen gick inte att spara. Hemsidan är fri text; backend är validerare. */}
+                <Input
+                  etikett="Hemsida"
+                  inputMode="url"
+                  value={form.hemsida}
+                  onChange={(e) => sätt('hemsida', e.target.value)}
+                  placeholder="t.ex. www.foretaget.se"
+                />
+              </div>
+            </div>
+
+            <Knapp type="submit" variant="primär" laddar={sparar}>
+              Spara profil
+            </Knapp>
+          </div>
         </div>
       </form>
     </div>
