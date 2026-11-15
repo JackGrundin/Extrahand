@@ -239,7 +239,7 @@ export default function JobbDetaljScreen({ route, navigation }) {
           <View style={styles.modalKort}>
             <Text style={styles.modalRubrik}>Avtal krävs</Text>
             <Text style={styles.modalText}>
-              Du behöver skriva på ett anställningsavtal innan du kan ansöka om jobb. Vi skickar avtalet till din mejl inom kort.
+              Du måste skriva på ditt anställningsavtal som skickats till din e-post. Det kan ta upp till 1 arbetsdag innan du får det.
             </Text>
             <TouchableOpacity style={styles.modalKnapp} onPress={() => setAvtalsModalSynlig(false)}>
               <Text style={styles.modalKnappText}>Stäng</Text>

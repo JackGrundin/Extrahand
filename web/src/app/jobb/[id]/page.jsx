@@ -239,7 +239,7 @@ export default function JobbDetalj() {
             </>
           ) : avtalFel ? (
             <Besked typ="fel">
-              Du behöver godkänna ditt avtal i FastGig-appen innan du kan söka jobb.
+              Du måste skriva på ditt anställningsavtal som skickats till din e-post. Det kan ta upp till 1 arbetsdag innan du får det.
             </Besked>
           ) : !inloggad ? (
             <>
