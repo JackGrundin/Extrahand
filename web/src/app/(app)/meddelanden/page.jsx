@@ -86,9 +86,13 @@ export default function MeddelandeInkorg() {
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center justify-between gap-2">
                       <p className="truncate text-[15px] font-bold text-text">{k.sökandeNamn || 'Sökande'}</p>
-                      <span className="shrink-0 text-[12px] text-text-svag">
-                        {tidKort(k.senasteMeddelande?.created_at)}
-                      </span>
+                      <div className="flex shrink-0 items-center gap-1.5">
+                        {/* Orange prick: tidrapport som väntar eller är bestridd behöver företagets åtgärd. */}
+                        {(k.rapportStatus === 'väntar' || k.rapportStatus === 'bestridd') && (
+                          <span className="h-2 w-2 shrink-0 rounded-full bg-varning" aria-label="Tidrapport att hantera" />
+                        )}
+                        <span className="text-[12px] text-text-svag">{tidKort(k.senasteMeddelande?.created_at)}</span>
+                      </div>
                     </div>
                     <p className="truncate text-[13px] text-text-dämpad">{k.jobbTitel}</p>
                     <p className="truncate text-[13px] text-text-svag">

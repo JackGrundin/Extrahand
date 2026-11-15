@@ -576,6 +576,10 @@ async function hämtaGrupperadeKonversationer(userId, ärFöretag) {
       senasteMeddelande,
       harVäntandeFörfragan: väntandeMotparter.has(String(g.motpartId)),
       harVäntandeTidrapport: g.items.some(k => k.rapportStatus === 'väntar'),
+      // Prick i chattlistan: en tidrapport som väntar rör BÅDA parter; en bestridd rör bara
+      // företaget (de måste skicka en korrigerad rapport). ärFöretag är redan känt här.
+      harTidrapportAttHantera: g.items.some(k => k.rapportStatus === 'väntar')
+        || (ärFöretag && g.items.some(k => k.rapportStatus === 'bestridd')),
       harAktivtPass: g.items.some(k => k.status === 'godkänd' && k.rapportStatus !== 'godkänd'),
       harAvslutat: g.items.some(k => k.rapportStatus === 'godkänd' || k.status === 'avvisad'),
     };

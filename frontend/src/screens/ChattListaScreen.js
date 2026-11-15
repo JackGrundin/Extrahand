@@ -296,7 +296,11 @@ export default function ChattListaScreen({ navigation }) {
                   {harOlästa && <View style={styles.oläsPrick} />}
                 </View>
                 <View style={{ flex: 1 }}>
-                  <Text style={[styles.titel, harOlästa && styles.titelOläst]} numberOfLines={1}>{rubrik}</Text>
+                  <View style={styles.titelRad}>
+                    <Text style={[styles.titel, harOlästa && styles.titelOläst]} numberOfLines={1}>{rubrik}</Text>
+                    {/* Orange prick när en tidrapport behöver åtgärdas (väntar/bestridd per part). */}
+                    {item.harTidrapportAttHantera && <View style={styles.tidrapportPrick} />}
+                  </View>
                   <Text style={[styles.förhandsgranskning, harOlästa && styles.förhandsOläst]} numberOfLines={1}>
                     {förhandsvisning}
                   </Text>
@@ -337,8 +341,10 @@ const styles = StyleSheet.create({
   avatarText: { color: '#2563eb', fontWeight: '700', fontSize: 18 },
   avatarTextBrådskande: { color: '#d97706' },
   oläsPrick: { position: 'absolute', top: 0, right: 10, width: 11, height: 11, borderRadius: 6, backgroundColor: '#ef4444', borderWidth: 2, borderColor: '#fff' },
-  titel: { fontSize: 15, fontWeight: '600', color: '#1a1a1a' },
+  titelRad: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  titel: { flexShrink: 1, fontSize: 15, fontWeight: '600', color: '#1a1a1a' },
   titelOläst: { fontWeight: '700' },
+  tidrapportPrick: { width: 8, height: 8, borderRadius: 4, backgroundColor: '#ea580c' },
   förhandsgranskning: { fontSize: 14, color: '#888', marginTop: 2 },
   förhandsOläst: { color: '#374151', fontWeight: '500' },
   tom: { textAlign: 'center', color: '#999', marginTop: 60, fontSize: 16 },
