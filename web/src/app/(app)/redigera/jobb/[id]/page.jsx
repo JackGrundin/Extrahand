@@ -23,7 +23,7 @@ import BehörighetsKravRedigerare from '@/components/app/BehörighetsKravRediger
 import { api, felText } from '@/lib/api';
 import { valideraJobb } from '@/utils/jobbValidering';
 import { normaliseraKrav } from '@/utils/behorighet';
-import { datumTillIso, parsaArbetstider, parsaObTillagg, planeradeTimmar } from '@/utils/datumHelper';
+import { datumTillIso, parsaArbetstider, parsaObTillagg, planeradeTimmar, beräknaObBelopp } from '@/utils/datumHelper';
 import { saniteraObTillagg } from '@/utils/ob';
 import { beräknaFakturapris, formateraPris, PÅSLAG_PRO } from '@/utils/konstanter';
 
@@ -204,10 +204,11 @@ export default function RedigeraJobb() {
     );
   }
 
-  // Prisförhandsvisning: brutto = timlön × planerade timmar, fakturabelopp med lägsta påslaget.
+  // Prisförhandsvisning: brutto = timlön × planerade timmar + OB, fakturabelopp med lägsta påslaget.
   const lönNum = parseFloat(lon) || 0;
   const timmar = planeradeTimmar(dagScheman);
-  const brutto = lönNum * (timmar || 0);
+  const obBrutto = beräknaObBelopp(saniteraObTillagg(obTillagg), lönNum);
+  const brutto = lönNum * (timmar || 0) + obBrutto;
   const visaPris = lönNum > 0 && timmar > 0;
 
   return (

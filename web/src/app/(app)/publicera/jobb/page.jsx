@@ -21,7 +21,7 @@ import BehörighetsKravRedigerare from '@/components/app/BehörighetsKravRediger
 import PlanvalModal from '@/components/app/PlanvalModal';
 import { api, felText } from '@/lib/api';
 import { valideraJobb } from '@/utils/jobbValidering';
-import { datumTillIso, planeradeTimmar } from '@/utils/datumHelper';
+import { datumTillIso, planeradeTimmar, beräknaObBelopp } from '@/utils/datumHelper';
 import { saniteraObTillagg } from '@/utils/ob';
 import { beräknaFakturapris, formateraPris, PÅSLAG_GRATIS } from '@/utils/konstanter';
 
@@ -150,11 +150,12 @@ export default function PubliceraJobb() {
     }
   }
 
-  // Prisförhandsvisning: brutto = timlön × planerade timmar. Påslaget är företagets
+  // Prisförhandsvisning: brutto = timlön × planerade timmar + OB. Påslaget är företagets
   // prognospåslag (20/40 %) – exakt påslag fryses först vid godkännande.
   const lönNum = parseFloat(lon) || 0;
   const timmar = planeradeTimmar(dagScheman);
-  const brutto = lönNum * (timmar || 0);
+  const obBrutto = beräknaObBelopp(saniteraObTillagg(obTillagg), lönNum);
+  const brutto = lönNum * (timmar || 0) + obBrutto;
   const visaPris = lönNum > 0 && timmar > 0;
   const gällandePåslag = prenumeration?.paslag ?? PÅSLAG_GRATIS;
 
