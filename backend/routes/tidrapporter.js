@@ -170,6 +170,14 @@ router.patch('/:id/status', kräverInloggning, kräverTyp('privatperson'), async
         await skickaNotifikation(token, 'Tidrapport bestriden', `${namn}: ${förklaring}`);
       })().catch(console.error);
     }
+
+    // Vid godkännande: notifiera företaget att tidrapporten är klar.
+    if (status === 'godkänd') {
+      (async () => {
+        const token = await hämtaPushToken(rapport.foretag_id);
+        await skickaNotifikation(token, 'Tidrapport godkänd', 'Tidrapporten är godkänd.');
+      })().catch(console.error);
+    }
   } catch (fel) {
     console.error('Status fel:', fel);
     res.status(500).json({ fel: 'Serverfel' });
