@@ -1,6 +1,8 @@
 const express = require('express');
 const { kräverInloggning } = require('../middleware/auth');
 const { skapaBetyg, finnsDublettBetyg, hämtaBetyg, hämtaObetygsatta } = require('../db/betyg');
+const { hämtaPushToken, hämtaAnvändareViaId } = require('../db/användare');
+const { skickaNotifikation } = require('../utils/pushNotifikation');
 const { sändRealtidsPing } = require('../realtid');
 const { createClient } = require('@supabase/supabase-js');
 const ws = require('ws');
@@ -79,6 +81,22 @@ router.post('/:ansokningId', kräverInloggning, async (req, res) => {
 
     // Realtidssignal (utan innehåll) till den som fått betyget
     sändRealtidsPing(till_anvandare_id, 'betyg');
+
+    // Push-notis till den som fått betyget. Icke-blockerande, precis som övriga push-anrop –
+    // svaret har redan skickats och ett notisfel får aldrig fälla betygsättningen.
+    try {
+      const [pushToken, avsändare] = await Promise.all([
+        hämtaPushToken(till_anvandare_id),
+        hämtaAnvändareViaId(anvandareId),
+      ]);
+      await skickaNotifikation(
+        pushToken,
+        'Nytt omdöme',
+        `${avsändare?.Namn ?? 'Någon'} har gett dig ett omdöme.`
+      );
+    } catch (notisfel) {
+      console.error('Push-notifikation fel (betyg):', notisfel);
+    }
   } catch (fel) {
     console.error('Fel vid betygsättning:', fel);
     res.status(500).json({ fel: 'Serverfel vid betygsättning' });

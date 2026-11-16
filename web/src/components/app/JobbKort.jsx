@@ -142,9 +142,17 @@ export default function JobbKort({ jobb, onÄndrad, redanAvslutad = false, onAvs
       </div>
 
       <div className="mt-4 flex flex-wrap items-center gap-2">
-        {jobb.nyaAnsökningar > 0 && (
+        {/* Beständig sökande-badge: ligger kvar tills ansökningarna hanterats (antalAnsökningar
+            räknar väntande). "nya"-pillen tystnar när företaget öppnat listan – samma modell
+            som schemakorten. */}
+        {jobb.antalAnsökningar > 0 && (
           <span className="rounded-pill bg-primär-mjuk px-2.5 py-1 text-[12px] font-bold text-primär">
-            {jobb.nyaAnsökningar} {jobb.nyaAnsökningar === 1 ? 'ny ansökan' : 'nya ansökningar'}
+            {jobb.antalAnsökningar} sökande
+          </span>
+        )}
+        {jobb.nyaAnsökningar > 0 && (
+          <span className="rounded-pill bg-primär px-2.5 py-1 text-[12px] font-bold text-white">
+            {jobb.nyaAnsökningar} {jobb.nyaAnsökningar === 1 ? 'ny' : 'nya'}
           </span>
         )}
         {måsteAvslutas && (

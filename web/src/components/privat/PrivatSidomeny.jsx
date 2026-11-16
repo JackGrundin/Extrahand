@@ -16,7 +16,7 @@ const LÄNKAR = [
   { namn: 'Min profil', väg: '/min-profil' },
 ];
 
-export default function PrivatSidomeny({ onNavigera, olästa = 0, ansökanStatus = 0 }) {
+export default function PrivatSidomeny({ onNavigera, olästa = 0, ansökanStatus = 0, nyaPass = 0 }) {
   const { användare, loggaUt } = useAuth();
   const sökväg = usePathname();
 
@@ -24,10 +24,12 @@ export default function PrivatSidomeny({ onNavigera, olästa = 0, ansökanStatus
     return sökväg === väg || sökväg?.startsWith(`${väg}/`);
   }
 
-  // Röd badge per väg: olästa meddelanden på /chatt, besvarade ansökningar på /mina-ansokningar.
+  // Röd badge per väg: olästa meddelanden på /chatt, besvarade ansökningar på /mina-ansokningar,
+  // nyss godkända pass på /mina-pass.
   const BADGE_PER_VÄG = {
     '/chatt': olästa,
     '/mina-ansokningar': ansökanStatus,
+    '/mina-pass': nyaPass,
   };
 
   return (

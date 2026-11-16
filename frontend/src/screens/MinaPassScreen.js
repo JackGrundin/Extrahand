@@ -1,8 +1,9 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import { View, Text, SectionList, TouchableOpacity, StyleSheet } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { api } from '../api/klient';
 import { useRealtidsPing } from '../context/RealtidsContext';
+import { useNyaPass } from '../context/NyaPassContext';
 import { useAppStateAktiv } from '../utils/useAppStateAktiv';
 import { useLoggaRefresh } from '../components/LoggaRefresh';
 import HandlingsKnapp from '../components/HandlingsKnapp';
@@ -43,6 +44,14 @@ export default function MinaPassScreen({ navigation }) {
   const [laddar, setLaddar] = useState(true);
   const [aktivFlik, setAktivFlik] = useState('kommande');
 
+  // Orange prick på nyss godkända pass. nyaPassIds kommer från NyaPassContext (räknas på
+  // navigatornivå vid godkännande-ping); vi fryser den aktuella mängden i en ref så prickarna
+  // syns kvar under besöket även efter att vi släckt flikbadgen med markeraPassSedda.
+  const { nyaPassIds, markeraPassSedda } = useNyaPass();
+  const nyaPassIdsRef = useRef(nyaPassIds);
+  nyaPassIdsRef.current = nyaPassIds;
+  const [visadeNyaIds, setVisadeNyaIds] = useState(() => new Set());
+
   async function hämta() {
     try {
       const data = await api.minaAnsökningar();
@@ -57,6 +66,14 @@ export default function MinaPassScreen({ navigation }) {
   const refresh = useLoggaRefresh(hämta);
 
   useFocusEffect(useCallback(() => { hämta(); }, []));
+
+  // När skärmen öppnas: frys vilka pass som är "nya" just nu (för prickarna) och släck sedan
+  // flikbadgen. Prickarna ligger kvar under besöket tack vare visadeNyaIds; nästa gång är
+  // passen redan markerade som sedda och ingen prick visas.
+  useFocusEffect(useCallback(() => {
+    setVisadeNyaIds(new Set(nyaPassIdsRef.current.map(String)));
+    markeraPassSedda();
+  }, [markeraPassSedda]));
 
   // Realtid: passlistan uppdateras direkt vid statusändringar och nya tidrapporter
   useRealtidsPing(() => { hämta(); });
@@ -200,6 +217,7 @@ export default function MinaPassScreen({ navigation }) {
                 </View>
                 <View style={styles.passInfo}>
                   <View style={styles.titelRad}>
+                    {visadeNyaIds.has(String(item.id)) && <View style={styles.nyPrick} />}
                     <Text style={styles.passTitel} numberOfLines={1}>{item.jobbTitel ?? 'Jobb'}</Text>
                     {ärSchemaKort && (
                       <View style={styles.schemaBricka}>
@@ -271,6 +289,8 @@ const styles = StyleSheet.create({
   datumPeriod: { fontSize: 13, fontWeight: '700', color: '#2563eb', lineHeight: 17 },
   passInfo: { flex: 1 },
   titelRad: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  // Orange prick på nyss godkänt pass – samma som chattlistans tidrapportPrick.
+  nyPrick: { width: 8, height: 8, borderRadius: 4, backgroundColor: '#ea580c' },
   passTitel: { fontSize: 15, fontWeight: '600', color: '#1a1a1a', flexShrink: 1 },
   schemaBricka: { backgroundColor: '#eff6ff', borderRadius: 6, paddingHorizontal: 6, paddingVertical: 2 },
   schemaBrickaText: { fontSize: 11, fontWeight: '700', color: '#2563eb' },

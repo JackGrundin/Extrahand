@@ -157,11 +157,15 @@ export default function MinaJobbScreen({ navigation, route }) {
             <Text style={styles.avslutaBadgeText}>Behöver avslutas</Text>
           </View>
         )}
-        {item.nyaAnsökningar > 0 && (
+        {/* Beständig sökande-badge: ligger kvar tills ansökningarna hanterats (antalAnsökningar
+            räknar väntande). "nya"-tillägget tystnar när företaget öppnat listan – samma modell
+            som schemakorten. */}
+        {item.antalAnsökningar > 0 && (
           <View style={styles.nyaAnsBadge}>
             <Ionicons name="person-add" size={13} color="#fff" accessible={false} importantForAccessibility="no" />
             <Text style={styles.nyaAnsBadgeText}>
-              {item.nyaAnsökningar} {item.nyaAnsökningar === 1 ? 'ny ansökan' : 'nya ansökningar'}
+              {item.antalAnsökningar} sökande
+              {item.nyaAnsökningar > 0 ? ` · ${item.nyaAnsökningar} ${item.nyaAnsökningar === 1 ? 'ny' : 'nya'}` : ''}
             </Text>
           </View>
         )}

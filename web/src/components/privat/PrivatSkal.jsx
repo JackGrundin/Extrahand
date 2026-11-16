@@ -27,6 +27,11 @@ const SEDD_NYCKEL = 'fastgig.chatt.sedd';
 // vid första besöket så att redan kända statusar inte ger retroaktiva prickar.
 const ANSÖKAN_NYCKEL = 'fastgig.ansokningar.sedda';
 
+// Snapshot av vilka GODKÄNDA pass som setts under Mina pass. En prick tänds på "Mina pass"
+// när ett pass blivit godkänt, tills användaren öppnat sidan. Seedas vid första besöket (ingen
+// retroaktiv prick). Samma nyckelnamn som appens NyaPassContext.
+const PASS_NYCKEL = 'fastgig.pass.sedda';
+
 function läsSedd() {
   if (typeof window === 'undefined') return Date.now();
   const rått = window.localStorage.getItem(SEDD_NYCKEL);
@@ -55,11 +60,24 @@ function sättAnsökanSnapshot(karta) {
   try { window.localStorage.setItem(ANSÖKAN_NYCKEL, JSON.stringify(karta)); } catch {}
 }
 
+function läsPassSnapshot() {
+  if (typeof window === 'undefined') return null;
+  const rått = window.localStorage.getItem(PASS_NYCKEL);
+  if (rått == null) return null; // null = aldrig sett → seedas av anroparen
+  try { const v = JSON.parse(rått); return Array.isArray(v) ? v.map(String) : []; } catch { return []; }
+}
+
+function sättPassSnapshot(ids) {
+  if (typeof window === 'undefined') return;
+  try { window.localStorage.setItem(PASS_NYCKEL, JSON.stringify(ids)); } catch {}
+}
+
 export default function PrivatSkal({ children }) {
   const { inloggad, användare } = useAuth();
   const [menyÖppen, setMenyÖppen] = useState(false);
   const [olästa, setOlästa] = useState(0);
   const [ansökanStatus, setAnsökanStatus] = useState(0);
+  const [nyaPass, setNyaPass] = useState(0);
   const sökväg = usePathname();
   const { visa, toaster } = useToaster();
 
@@ -74,7 +92,7 @@ export default function PrivatSkal({ children }) {
   // Räkna olästa konversationer OCH ansökningar med ändrad status. Delad hämtning: båda
   // härleds ur samma /ansokningar/mina. Fel sväljs – en trasig badge får aldrig sänka vyn.
   const laddaBadges = useCallback(
-    async ({ nollställOlästa = false, nollställStatus = false } = {}) => {
+    async ({ nollställOlästa = false, nollställStatus = false, nollställPass = false } = {}) => {
       if (nollställOlästa) sättSedd(Date.now());
       try {
         const data = await api.minaAnsökningar();
@@ -108,6 +126,21 @@ export default function PrivatSkal({ children }) {
           ).length;
           setAnsökanStatus(ändrade);
         }
+
+        // Nyss godkända pass → prick på "Mina pass" tills sidan öppnas. Samma id-rymd som
+        // Mina pass-korten: godkända ansökningar utan schemaPassId (samlat schemakort + enstaka
+        // pass). Seedas vid första besöket och när användaren är på /mina-pass.
+        const godkändaPass = lista
+          .filter((a) => a.status === 'godkänd' && a.schemaPassId == null)
+          .map((a) => String(a.id));
+        const passSnapshot = läsPassSnapshot();
+        if (passSnapshot == null || nollställPass) {
+          sättPassSnapshot(godkändaPass);
+          setNyaPass(0);
+        } else {
+          const seddaSet = new Set(passSnapshot);
+          setNyaPass(godkändaPass.filter((id) => !seddaSet.has(id)).length);
+        }
       } catch {
         /* en trasig badge får aldrig sänka vyn */
       }
@@ -122,6 +155,7 @@ export default function PrivatSkal({ children }) {
     laddaBadges({
       nollställOlästa: sökväg?.startsWith('/chatt'),
       nollställStatus: sökväg?.startsWith('/mina-ansokningar'),
+      nollställPass: sökväg?.startsWith('/mina-pass'),
     });
   }, [ärPrivat, laddaBadges, sökväg]);
 
@@ -164,7 +198,7 @@ export default function PrivatSkal({ children }) {
     <div className="min-h-screen bg-bakgrund">
       {/* Fast sidomeny – desktop */}
       <aside className="fixed inset-y-0 left-0 z-40 hidden w-64 border-r border-kant bg-yta md:block">
-        <PrivatSidomeny olästa={olästa} ansökanStatus={ansökanStatus} />
+        <PrivatSidomeny olästa={olästa} ansökanStatus={ansökanStatus} nyaPass={nyaPass} />
       </aside>
 
       {/* Mobil topprad */}
@@ -195,6 +229,7 @@ export default function PrivatSkal({ children }) {
               onNavigera={() => setMenyÖppen(false)}
               olästa={olästa}
               ansökanStatus={ansökanStatus}
+              nyaPass={nyaPass}
             />
           </div>
         </div>

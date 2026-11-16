@@ -60,6 +60,11 @@ async function filtreraAktivaJobb(jobb, { visaTillsatta = false } = {}) {
   // Räkna nya ansökningar per jobb – de som kommit in efter att företaget senast öppnade
   // jobbets ansökningslista (ansokningar_sedda_at). NULL = aldrig öppnat → alla är nya.
   const nyaPerJobb = {};
+  // antalAnsökningar = de som fortfarande VÄNTAR på svar. Till skillnad från nyaAnsökningar
+  // (olästa, tystnar när företaget öppnat listan) ligger den kvar tills ansökan hanterats –
+  // det är den som driver den beständiga badgen på passet. Samma storhet som scheman redan
+  // har via berikaMedNyaAnsökningar i db/scheman.js.
+  const antalPerJobb = {};
   const seddMap = Object.fromEntries(jobb.map(j => [j.id, j.ansokningar_sedda_at]));
   // Jobb med en godkänd ansökan – används för harGodkänd nedan så att företagets egen
   // lista (visaTillsatta) kan visa "Avsluta pass" på tillsatta pass redan innan passdatum.
@@ -73,6 +78,8 @@ async function filtreraAktivaJobb(jobb, { visaTillsatta = false } = {}) {
     if (!sedd || new Date(a.created_at) > new Date(sedd)) {
       nyaPerJobb[a.jobb_id] = (nyaPerJobb[a.jobb_id] || 0) + 1;
     }
+    // "Hur många väntar på svar just nu" – avvisade och avhoppade hör inte dit.
+    if (a.status === 'väntande') antalPerJobb[a.jobb_id] = (antalPerJobb[a.jobb_id] || 0) + 1;
     if (a.status === 'godkänd') {
       godkändaJobbIds.add(a.jobb_id);
       godkändSokandePerJobb[a.jobb_id] = a.sokande_id;
@@ -151,7 +158,7 @@ async function filtreraAktivaJobb(jobb, { visaTillsatta = false } = {}) {
     return true;
   });
 
-  return aktiva.map(j => ({ ...j, nyaAnsökningar: nyaPerJobb[j.id] || 0, harGodkänd: godkändaJobbIds.has(j.id), godkändNamn: godkändNamnPerJobb[j.id] ?? null }));
+  return aktiva.map(j => ({ ...j, nyaAnsökningar: nyaPerJobb[j.id] || 0, antalAnsökningar: antalPerJobb[j.id] || 0, harGodkänd: godkändaJobbIds.has(j.id), godkändNamn: godkändNamnPerJobb[j.id] ?? null }));
 }
 
 // Returnerar en Set med de jobb-id (bland de angivna) som har minst en godkänd ansökan.

@@ -10,6 +10,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../context/AuthContext';
 import { useNotifikationer } from '../context/NotifikationsContext';
 import { useAttAvsluta } from '../context/AttAvslutaContext';
+import { useNyaPass } from '../context/NyaPassContext';
 import { useRealtidsPing } from '../context/RealtidsContext';
 import { api } from '../api/klient';
 import LoggaInScreen from '../screens/LoggaInScreen';
@@ -227,6 +228,7 @@ function HuvudNavigator() {
   const { användare, återhämtaAnvändare } = useAuth();
   const { uppdateraOlästa } = useNotifikationer();
   const { antalAttAvsluta, antalNyaAnsökningar, uppdateraAttAvsluta } = useAttAvsluta();
+  const { antalNyaPass, uppdateraNyaPass } = useNyaPass();
   const ärPrivatperson = användare?.typ === 'privatperson';
   const ärFöretag = användare?.typ === 'företag';
   const ärAdmin = användare?.email === 'info@fastgig.se';
@@ -252,11 +254,19 @@ function HuvudNavigator() {
     if (ärFöretag) uppdateraAttAvsluta();
   }, [användare?.id, ärFöretag]);
 
+  // Seed:a antalet nyss godkända pass (orange prick på Mina pass) direkt vid inloggning, så
+  // privatpersonen ser badgen även innan fliken öppnats.
+  useEffect(() => {
+    if (ärPrivatperson) uppdateraNyaPass();
+  }, [användare?.id, ärPrivatperson]);
+
   // Äkta realtid: en signal (utan innehåll) på användarens privata kanal räknar om olästa
   // (och pass-att-avsluta för företag) direkt när något nytt skapats i databasen.
   useRealtidsPing((payload) => {
     laddaOlästa();
     if (ärFöretag) uppdateraAttAvsluta();
+    // Ett godkännande skickar 'pass-status'; räkna om den orangea Mina pass-pricken direkt.
+    if (ärPrivatperson) uppdateraNyaPass();
     // Admin har godkänt avtalet: hämta om profilen så att avtalGodkant blir true
     // och "Avtal krävs"-spärren släpper direkt, utan omstart. Bara denna typ
     // triggar en profilhämtning – vanliga pings (meddelande, tidrapport) ska inte.
@@ -273,9 +283,11 @@ function HuvudNavigator() {
       // Täcker fallet att admin godkände avtalet medan appen låg i bakgrunden och
       // realtidspingen missades: hämta om profilen när appen väcks.
       if (ärPrivatperson) återhämtaAnvändare();
+      // Ett godkännande kan ha kommit medan appen låg i bakgrunden – räkna om pricken.
+      if (ärPrivatperson) uppdateraNyaPass();
     });
     return () => prenumeration.remove();
-  }, [laddaOlästa, ärFöretag, ärPrivatperson, uppdateraAttAvsluta, återhämtaAnvändare]);
+  }, [laddaOlästa, ärFöretag, ärPrivatperson, uppdateraAttAvsluta, återhämtaAnvändare, uppdateraNyaPass]);
 
   // Kolla om välkomstrutan ska visas (flagga sätts vid e-postverifiering)
   useEffect(() => {
@@ -321,7 +333,17 @@ function HuvudNavigator() {
         <Tab.Screen name="AnsökningarTab" component={AnsökningarNavigator} options={{ tabBarLabel: 'Ansökningar' }} />
       )}
       {ärPrivatperson && (
-        <Tab.Screen name="MinaPassTab" component={MinaPassNavigator} options={{ tabBarLabel: 'Mina pass' }} />
+        <Tab.Screen
+          name="MinaPassTab"
+          component={MinaPassNavigator}
+          options={{
+            tabBarLabel: 'Mina pass',
+            // Orange prick/badge när ett eller flera pass nyligen godkänts – släcks när
+            // fliken öppnats (markeraPassSedda i MinaPassScreen).
+            tabBarBadge: antalNyaPass > 0 ? (antalNyaPass > 9 ? '9+' : antalNyaPass) : undefined,
+            tabBarBadgeStyle: { backgroundColor: FÄRG.varning },
+          }}
+        />
       )}
       {ärFöretag && (
         <Tab.Screen
