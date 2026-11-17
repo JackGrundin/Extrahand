@@ -57,6 +57,40 @@ export default function MinaJobbScreen({ navigation, route }) {
     }
   }
 
+  // Schemat raderas permanent (backend blockerar tillsatta scheman). Samma bekräftelse
+  // och optimistiska listuppdatering som passens taBort.
+  function taBortSchema(item) {
+    Alert.alert('Radera schema', 'Är du säker? Schemat och alla pass raderas permanent.', [
+      { text: 'Avbryt', style: 'cancel' },
+      { text: 'Radera', style: 'destructive', onPress: async () => {
+        try {
+          await api.taBortSchema(item.id);
+          setScheman(prev => prev.filter(s => s.id !== item.id));
+        } catch (fel) {
+          Alert.alert('Fel', felText(fel));
+        }
+      }},
+    ]);
+  }
+
+  function öppnaSchemaÅtgärder(item) {
+    if (Platform.OS === 'ios') {
+      ActionSheetIOS.showActionSheetWithOptions(
+        { options: ['Avbryt', 'Redigera', 'Ta bort'], destructiveButtonIndex: 2, cancelButtonIndex: 0 },
+        (index) => {
+          if (index === 1) navigation.navigate('RedigeraSchema', { schemaId: item.id });
+          if (index === 2) taBortSchema(item);
+        }
+      );
+    } else {
+      Alert.alert(item.titel, null, [
+        { text: 'Redigera', onPress: () => navigation.navigate('RedigeraSchema', { schemaId: item.id }) },
+        { text: 'Ta bort', style: 'destructive', onPress: () => taBortSchema(item) },
+        { text: 'Avbryt', style: 'cancel' },
+      ]);
+    }
+  }
+
   async function hämta() {
     // De fyra anropen är oberoende av varandra. Tidigare kördes de i sekvens – fyra
     // rundturer efter varandra – vilket gjorde skärmen onödigt seg att öppna. Kör dem
@@ -321,7 +355,16 @@ export default function MinaJobbScreen({ navigation, route }) {
                   </View>
                 )}
               </View>
-              <HandlingsKnapp text="Visa schema →" onPress={() => navigation.navigate('SchemaDetalj', { schemaId: item.id })} />
+              {/* ⋯-menyn (Redigera + Ta bort) speglar passkortets kortBotten och visas bara
+                  när schemat inte är tillsatt – samma signal som "Söker person"-chippet. */}
+              <View style={styles.kortBotten}>
+                <Text style={styles.seAnsokningar} onPress={() => navigation.navigate('SchemaDetalj', { schemaId: item.id })}>Visa schema →</Text>
+                {!item.personNamn && item.anvandare_id == null && item.status !== 'tillsatt' && (
+                  <TouchableOpacity style={styles.menyKnapp} onPress={() => öppnaSchemaÅtgärder(item)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }} accessibilityRole="button" accessibilityLabel="Fler åtgärder">
+                    <Text style={styles.menyIkon} accessible={false} importantForAccessibility="no">•••</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
             </TouchableOpacity>
           )}
         />

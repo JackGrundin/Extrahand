@@ -20,6 +20,7 @@ const {
   sättPassInställt,
   ställInPass,
   återställPass,
+  taBortSchema,
 } = require('../db/scheman');
 const { GILTIGA_TYPER: AVDRAGSTYPER, skapaAvdrag, hämtaAktivaAvdrag, avaktiveraAvdrag } = require('../db/schemaAvdrag');
 const { tilldelaSchema, frigörFramtidaPass, återställSchema } = require('../db/schemaTilldelning');
@@ -930,6 +931,30 @@ router.post('/:id/avbryt', kräverInloggning, kräverTyp('företag'), async (req
   } catch (fel) {
     console.error('Fel vid avbrytande av schema:', fel);
     res.status(500).json({ fel: 'Serverfel vid avbrytande av schema' });
+  }
+});
+
+// DELETE /api/scheman/:id — företaget raderar ett schema PERMANENT.
+// Bara ej tillsatta scheman får raderas: ett tillsatt schema kan ha genomförda pass
+// och tidrapporter och ska avbrytas via /avbryt i stället.
+router.delete('/:id', kräverInloggning, kräverTyp('företag'), async (req, res) => {
+  try {
+    const schema = await hämtaSchemaViaId(req.params.id);
+    if (!schema) return res.status(404).json({ fel: 'Schemat hittades inte' });
+    if (String(schema.foretag_id) !== String(req.användare.id)) {
+      return res.status(403).json({ fel: 'Åtkomst nekad' });
+    }
+    if (schema.status === 'tillsatt' || schema.anvandare_id != null) {
+      return res.status(409).json({ fel: 'Schemat har en tillsatt person och kan inte raderas.' });
+    }
+
+    await taBortSchema(schema.id);
+
+    res.json({ ok: true });
+    sändJobblistaPing('schema-borttagen'); // annons-jobbet försvann ur sökandes listor
+  } catch (fel) {
+    console.error('Fel vid radering av schema:', fel);
+    res.status(500).json({ fel: 'Serverfel vid radering av schema' });
   }
 });
 

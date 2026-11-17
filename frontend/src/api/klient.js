@@ -267,6 +267,7 @@ export const api = {
   ersättPersonISchema: (id, nyAnvandareId) => anrop('PATCH', `/scheman/${id}/ersatt`, { ny_anvandare_id: nyAnvandareId }),
   hoppaAvSchema: (id) => anrop('POST', `/scheman/${id}/hoppa-av`, {}),
   avbrytSchema: (id) => anrop('POST', `/scheman/${id}/avbryt`, {}),
+  taBortSchema: (id) => anrop('DELETE', `/scheman/${id}`),
   schemaKalender: (från, till) => anrop('GET', `/scheman/kalender?from=${från}&till=${till}`),
   // Företagets egna tidigare passkategorier – förslag för fri text i pass-modalen.
   schemaKategorier: () => anrop('GET', '/scheman/kategorier'),

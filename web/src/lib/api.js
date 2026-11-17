@@ -172,6 +172,7 @@ export const api = {
   // Redigering efter publicering (speglar frontend/src/api/klient.js). PUT uppdaterar
   // bara de fält som skickas; befintliga pass flyttas aldrig – de tas bort och läggs till.
   uppdateraSchema: (id, kropp) => anrop('PUT', `/scheman/${id}`, kropp),
+  taBortSchema: (id) => anrop('DELETE', `/scheman/${id}`),
   läggTillSchemaPass: (id, pass) => anrop('POST', `/scheman/${id}/pass`, { pass }),
   taBortSchemaPass: (id, passId) => anrop('DELETE', `/scheman/${id}/pass/${passId}`),
   ställInSchemaPass: (id, passId, orsak) => anrop('POST', `/scheman/${id}/pass/${passId}/stall-in`, { orsak }),

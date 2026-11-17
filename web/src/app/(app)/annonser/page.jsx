@@ -163,7 +163,7 @@ export default function MinaAnnonser() {
             ) : (
               <div className="grid gap-4 sm:grid-cols-2">
                 {schemalista.map((s) => (
-                  <SchemaKort key={s.id} schema={s} />
+                  <SchemaKort key={s.id} schema={s} onÄndrad={hämta} />
                 ))}
               </div>
             ))}
