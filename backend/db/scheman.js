@@ -695,14 +695,28 @@ async function räknaPassFörSchema(schema_id) {
   return count ?? 0;
 }
 
-// Raderar ett schema permanent. Annons-jobbet (Jobb.schema_id satt) raderas FÖRST:
-// Jobb.schema_id saknar ON DELETE CASCADE, så schemat kan inte raderas medan det finns
-// Jobb-rader som pekar på det. Att radera Jobb-raden cascadear dess ansökningar + chatt
-// (samma som taBortJobb förlitar sig på). Själva schemat cascadear schema_pass,
-// schema_avdrag och schema_inbjudningar (alla on delete cascade).
+// Raderar ett schema permanent, i strikt beroendeordning. Jobb.schema_id saknar
+// ON DELETE CASCADE, så alla Jobb-rader som pekar på schemat måste bort före schemat.
+// Att radera en Jobb-rad cascadear dess ansökningar + chatt (samma som taBortJobb
+// förlitar sig på). Ordningen är:
+//   1. Pass-jobben (schema_id satt + schema_pass_id satt) – ett per tilldelat pass.
+//   2. Annons-jobbet (schema_id satt + schema_pass_id NULL) – bär ansökningarna.
+//   3. Schemat självt – cascadear schema_pass, schema_avdrag och schema_inbjudningar.
 async function taBortSchema(schema_id) {
-  const { error: jobbFel } = await supabase.from('Jobb').delete().eq('schema_id', schema_id);
-  if (jobbFel) throw jobbFel;
+  const { error: passJobbFel } = await supabase
+    .from('Jobb')
+    .delete()
+    .eq('schema_id', schema_id)
+    .not('schema_pass_id', 'is', null);
+  if (passJobbFel) throw passJobbFel;
+
+  const { error: annonsJobbFel } = await supabase
+    .from('Jobb')
+    .delete()
+    .eq('schema_id', schema_id)
+    .is('schema_pass_id', null);
+  if (annonsJobbFel) throw annonsJobbFel;
+
   const { error } = await supabase.from('scheman').delete().eq('id', schema_id);
   if (error) throw error;
 }
