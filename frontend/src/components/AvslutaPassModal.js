@@ -83,6 +83,18 @@ export default function AvslutaPassModal({ visible, onClose, timlön = 0, paslag
               keyboardType="decimal-pad"
               autoFocus
             />
+            {planeradeTimmar > 0 && (
+              <TouchableOpacity
+                style={styles.planeradKnapp}
+                onPress={() => setTimmarText(String(planeradeTimmar))}
+                activeOpacity={0.7}
+                accessibilityRole="button"
+                accessibilityLabel={`Använd planerat antal timmar, ${planeradeTimmar} timmar`}
+              >
+                <Ionicons name="time-outline" size={15} color="#2563eb" accessible={false} importantForAccessibility="no" />
+                <Text style={styles.planeradKnappText}>Använd planerat ({planeradeTimmar.toLocaleString('sv-SE')} h)</Text>
+              </TouchableOpacity>
+            )}
 
             <View style={styles.obSektion}>
               <Text style={styles.obRubrik}>OB-tillägg (redigerbara)</Text>
@@ -196,7 +208,9 @@ const styles = StyleSheet.create({
   planeradeEtikett: { fontSize: 14, color: '#1e40af' },
   planeradeVärde: { fontSize: 14, fontWeight: '700', color: '#1e40af' },
   modalLabel: { fontSize: 14, fontWeight: '600', color: '#444', marginBottom: 8 },
-  modalInput: { borderWidth: 1, borderColor: '#ddd', borderRadius: 10, padding: 14, fontSize: 18, backgroundColor: '#fafafa', marginBottom: 16, textAlign: 'center', letterSpacing: 0 },
+  modalInput: { borderWidth: 1, borderColor: '#ddd', borderRadius: 10, padding: 14, fontSize: 18, backgroundColor: '#fafafa', marginBottom: 10, textAlign: 'center', letterSpacing: 0 },
+  planeradKnapp: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, alignSelf: 'center', paddingVertical: 8, paddingHorizontal: 12, marginBottom: 16 },
+  planeradKnappText: { fontSize: 14, color: '#2563eb', fontWeight: '600' },
   totalRad: { flexDirection: 'row', justifyContent: 'space-between', backgroundColor: '#eff6ff', borderRadius: 10, padding: 12, marginBottom: 20 },
   totalEtikett: { fontSize: 14, color: '#1e40af' },
   totalVärde: { fontSize: 16, fontWeight: '700', color: '#1e40af' },
