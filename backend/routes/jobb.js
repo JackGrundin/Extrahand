@@ -102,7 +102,7 @@ router.get('/:id', async (req, res) => {
 
 // POST /api/jobb — kräver inloggning som företag
 router.post('/', kräverInloggning, kräverTyp('företag'), async (req, res) => {
-  const { titel, beskrivning, plats, adress, lon, typ, kategori, antal_dagar, arbetstider, ob_tillagg, behorighets_krav, acceptera_hogre_paslag } = req.body;
+  const { titel, beskrivning, plats, adress, lon, typ, kategori, antal_dagar, arbetstider, ob_tillagg, behorighets_krav, acceptera_hogre_paslag, rast_minuter } = req.body;
 
   const valideringsfel = valideraJobbInput({ titel, beskrivning, typ, plats, adress, lon, kategori, arbetstider, behorighets_krav });
   if (valideringsfel) {
@@ -148,6 +148,7 @@ router.post('/', kräverInloggning, kräverTyp('företag'), async (req, res) => 
       arbetstider: arbetstider?.trim() || null,
       ob_tillagg: Array.isArray(ob_tillagg) ? ob_tillagg : [],
       behorighets_krav: normaliseraKrav(behorighets_krav),
+      rast_minuter: Math.max(0, Number(rast_minuter) || 0),
       foretag_id: req.användare.id,
     });
 
@@ -188,7 +189,7 @@ async function notifieraPrivatpersonerIStad(jobb) {
 
 // PUT /api/jobb/:id — företag uppdaterar sitt jobb
 router.put('/:id', kräverInloggning, kräverTyp('företag'), async (req, res) => {
-  const { titel, beskrivning, plats, adress, lon, typ, kategori, antal_dagar, arbetstider, ob_tillagg, behorighets_krav } = req.body;
+  const { titel, beskrivning, plats, adress, lon, typ, kategori, antal_dagar, arbetstider, ob_tillagg, behorighets_krav, rast_minuter } = req.body;
 
   const valideringsfel = valideraJobbInput({ titel, beskrivning, typ, plats, adress, lon, kategori, arbetstider, behorighets_krav });
   if (valideringsfel) {
@@ -211,6 +212,7 @@ router.put('/:id', kräverInloggning, kräverTyp('företag'), async (req, res) =
       arbetstider: arbetstider?.trim() || null,
       ob_tillagg: Array.isArray(ob_tillagg) ? ob_tillagg : [],
       behorighets_krav: normaliseraKrav(behorighets_krav),
+      rast_minuter: rast_minuter != null ? Math.max(0, Number(rast_minuter) || 0) : undefined,
     });
 
     if (!jobb) {

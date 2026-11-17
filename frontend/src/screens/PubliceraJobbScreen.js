@@ -32,6 +32,7 @@ export default function PubliceraJobbScreen({ navigation }) {
   const [kategoriModalVisas, setKategoriModalVisas] = useState(false);
   const [sokKategori, setSokKategori] = useState('');
   const [obTillagg, setObTillagg] = useState([]);
+  const [rastMinuter, setRastMinuter] = useState('');
   const [behorighetsKrav, setBehorighetsKrav] = useState([]);
   const [obFormVisas, setObFormVisas] = useState(false);
   const [obStart, setObStart] = useState('');
@@ -147,6 +148,7 @@ export default function PubliceraJobbScreen({ navigation }) {
       antal_dagar: antalDagar ? parseInt(antalDagar) : undefined,
       arbetstider,
       ob_tillagg: obTillagg,
+      rast_minuter: rastMinuter ? parseInt(rastMinuter) : 0,
       behorighets_krav: behorighetsKrav,
       ...(accepteraHögrePåslag ? { acceptera_hogre_paslag: true } : {}),
     });
@@ -353,6 +355,15 @@ export default function PubliceraJobbScreen({ navigation }) {
               <FältFel text={fel.schema} />
             </View>
           )}
+
+          <Text style={styles.label}>Rast (min)</Text>
+          <TextInput
+            style={styles.input}
+            placeholder="t.ex. 30"
+            value={rastMinuter}
+            onChangeText={(t) => setRastMinuter(t.replace(/[^0-9]/g, ''))}
+            keyboardType="numeric"
+          />
 
           <Text style={styles.label}>OB-tillägg (obekväm arbetstid)</Text>
           {obTillagg.map((ob, i) => (

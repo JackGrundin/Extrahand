@@ -210,6 +210,16 @@ export default function JobbDetalj() {
           </section>
         )}
 
+        {/* Rast */}
+        {jobb.rast_minuter > 0 && (
+          <section className="mt-6">
+            <h2 className="mb-2 text-[17px] font-bold text-text">Rast</h2>
+            <div className="rounded-sm border border-kant bg-yta px-4 py-2.5 text-[14px] text-text">
+              {jobb.rast_minuter} min rast
+            </div>
+          </section>
+        )}
+
         {/* Adress */}
         {jobb.adress && (
           <section className="mt-6">

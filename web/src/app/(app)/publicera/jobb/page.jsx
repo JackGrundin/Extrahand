@@ -38,6 +38,7 @@ export default function PubliceraJobb() {
   const [dagScheman, setDagScheman] = useState([]);
   const [sammaTider, setSammaTider] = useState(false);
   const [obTillagg, setObTillagg] = useState([]);
+  const [rastMinuter, setRastMinuter] = useState('');
   const [kategori, setKategori] = useState('');
 
   const [fel, setFel] = useState({});
@@ -123,6 +124,7 @@ export default function PubliceraJobb() {
         antal_dagar: dagScheman.length || undefined,
         arbetstider: dagScheman.length > 0 ? JSON.stringify(dagScheman) : undefined,
         ob_tillagg: saniteraObTillagg(obTillagg),
+        rast_minuter: rastMinuter ? parseInt(rastMinuter) : 0,
         behorighets_krav: behorighetsKrav,
         ...(accepteraHögrePåslag ? { acceptera_hogre_paslag: true } : {}),
       });
@@ -271,6 +273,19 @@ export default function PubliceraJobb() {
             </div>
           )}
           <FältFel>{fel.schema}</FältFel>
+        </div>
+
+        <div>
+          <Input
+            etikett="Rast (min)"
+            type="number"
+            inputMode="numeric"
+            min={0}
+            step={5}
+            value={rastMinuter}
+            onChange={(e) => setRastMinuter(e.target.value)}
+            placeholder="t.ex. 30"
+          />
         </div>
 
         <OBTilläggRedigerare värde={obTillagg} onÄndra={setObTillagg} />

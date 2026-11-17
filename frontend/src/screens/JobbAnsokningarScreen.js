@@ -330,7 +330,14 @@ export default function JobbAnsokningarScreen({ route, navigation }) {
         timlön={timlön}
         paslag={jobb?.paslag}
         initialObTillagg={jobb?.ob_tillagg}
-        planeradeTimmar={planeradeTimmar(jobb?.arbetstider)}
+        planeradeTimmar={(() => {
+          // Rasten dras av på klientsidan: visa planerade timmar netto (brutto − rast),
+          // precis som webbens "Använd planerat". Backend rör inte de rapporterade timmarna.
+          const brutto = planeradeTimmar(jobb?.arbetstider);
+          if (brutto == null) return null;
+          const rast = Math.max(0, Number(jobb?.rast_minuter) || 0);
+          return Math.max(0, Math.round((brutto - rast / 60) * 100) / 100);
+        })()}
         sparar={sparar}
         onSkicka={skickaRapport}
       />

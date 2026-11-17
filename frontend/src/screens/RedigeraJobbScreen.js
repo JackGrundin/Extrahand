@@ -44,6 +44,7 @@ export default function RedigeraJobbScreen({ route, navigation }) {
   const [kategoriModalVisas, setKategoriModalVisas] = useState(false);
   const [sokKategori, setSokKategori] = useState('');
   const [obTillagg, setObTillagg] = useState(() => parsaObTillagg(jobb.ob_tillagg));
+  const [rastMinuter, setRastMinuter] = useState(jobb.rast_minuter ? String(jobb.rast_minuter) : '');
   const [behorighetsKrav, setBehorighetsKrav] = useState(() => normaliseraKrav(jobb.behorighets_krav));
   const [obFormVisas, setObFormVisas] = useState(false);
   const [obStart, setObStart] = useState('');
@@ -106,6 +107,7 @@ export default function RedigeraJobbScreen({ route, navigation }) {
         antal_dagar: antalDagar ? parseInt(antalDagar) : undefined,
         arbetstider: arbetstiderStart && arbetstiderSlut ? `${arbetstiderStart}-${arbetstiderSlut}` : undefined,
         ob_tillagg: obTillagg,
+        rast_minuter: rastMinuter ? parseInt(rastMinuter) : 0,
         behorighets_krav: behorighetsKrav,
       });
       Alert.alert('Sparat!', 'Annonsen har uppdaterats.', [
@@ -175,6 +177,9 @@ export default function RedigeraJobbScreen({ route, navigation }) {
             <TidVäljare style={{ flex: 1 }} placeholder="17:00" value={arbetstiderSlut} onChange={(v) => { setArbetstiderSlut(v); rensaFel('arbetstider'); }} />
           </View>
           <FältFel text={fel.arbetstider} />
+
+          <Text style={styles.label}>Rast (min)</Text>
+          <TextInput style={styles.input} placeholder="t.ex. 30" value={rastMinuter} onChangeText={(t) => setRastMinuter(t.replace(/[^0-9]/g, ''))} keyboardType="numeric" />
 
           <Text style={styles.label}>OB-tillägg (obekväm arbetstid)</Text>
           {obTillagg.map((ob, i) => (

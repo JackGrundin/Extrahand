@@ -26,6 +26,11 @@ export default function AvslutaPassModal({ jobb, ansokanId, onStäng, onKlar, on
 
   const timlön = Number(jobb?.Lon) || 0;
   const planerade = planeradeTimmar(jobb?.arbetstider);
+  // Rasten dras av här på klientsidan – enstaka pass rapporteras manuellt, så backend
+  // rör inte timmarna. "Använd planerat" förifyller därför netto (planerade − rast).
+  const rastMinuter = Math.max(0, Number(jobb?.rast_minuter) || 0);
+  const planeratNetto =
+    planerade != null ? Math.max(0, Math.round((planerade - rastMinuter / 60) * 100) / 100) : null;
 
   // Komma → punkt, precis som appen.
   const timmarTal = parseFloat(String(timmar).replace(',', '.'));
@@ -83,6 +88,11 @@ export default function AvslutaPassModal({ jobb, ansokanId, onStäng, onKlar, on
               Planerat <span className="font-semibold text-text">{planerade} h</span>
             </span>
           )}
+          {rastMinuter > 0 && (
+            <span className="text-text-dämpad">
+              Rast <span className="font-semibold text-text">{rastMinuter} min</span>
+            </span>
+          )}
         </div>
 
         {/* Jobbade timmar */}
@@ -113,7 +123,7 @@ export default function AvslutaPassModal({ jobb, ansokanId, onStäng, onKlar, on
               <button
                 type="button"
                 onClick={() => {
-                  setTimmar(String(planerade));
+                  setTimmar(String(planeratNetto));
                   setTimFel('');
                 }}
                 className="shrink-0 rounded-sm border border-kant px-3 py-3 text-[13px] font-semibold text-primär hover:bg-primär-mjuk"

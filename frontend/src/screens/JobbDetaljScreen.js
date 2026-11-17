@@ -151,6 +151,13 @@ export default function JobbDetaljScreen({ route, navigation }) {
         ) : null;
       })()}
 
+      {jobb.rast_minuter > 0 && (
+        <View style={styles.rastRad}>
+          <Ionicons name="timer-outline" size={15} color="#2563eb" accessible={false} importantForAccessibility="no" />
+          <Text style={styles.rastText}>{jobb.rast_minuter} min rast</Text>
+        </View>
+      )}
+
       {jobb.adress && (
         <View style={styles.adressKort}>
           <View style={styles.adressRad}>
@@ -261,6 +268,8 @@ const styles = StyleSheet.create({
   lön: { fontSize: 16, color: '#2563eb', fontWeight: '600', marginBottom: 8 },
   detaljerRad: { flexDirection: 'row', gap: 16, marginBottom: 20 },
   detalj: { fontSize: 14, color: '#666' },
+  rastRad: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 20 },
+  rastText: { fontSize: 14, fontWeight: '600', color: '#444' },
   dagSchema: { backgroundColor: '#f8faff', borderRadius: 12, padding: 14, marginBottom: 20, borderWidth: 1, borderColor: '#bfdbfe' },
   dagSchemaRubrikRad: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 10 },
   dagSchemaRubrik: { fontSize: 14, fontWeight: '700', color: '#2563eb' },

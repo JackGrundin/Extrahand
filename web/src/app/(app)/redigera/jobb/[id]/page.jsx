@@ -48,6 +48,7 @@ export default function RedigeraJobb() {
   const [dagScheman, setDagScheman] = useState([]);
   const [sammaTider, setSammaTider] = useState(false);
   const [obTillagg, setObTillagg] = useState([]);
+  const [rastMinuter, setRastMinuter] = useState('');
   const [kategori, setKategori] = useState('');
 
   const [fel, setFel] = useState({});
@@ -86,6 +87,7 @@ export default function RedigeraJobb() {
         setKategori(jobb.Kategori ?? '');
         setBehorighetsKrav(normaliseraKrav(jobb.behorighets_krav));
         setObTillagg(parsaObTillagg(jobb.ob_tillagg));
+        setRastMinuter(jobb.rast_minuter != null ? String(jobb.rast_minuter) : '');
         const dagar = (parsaArbetstider(jobb.arbetstider) ?? [])
           .filter((d) => d?.datum)
           .map((d) => ({ datum: d.datum, start: d.start || '08:00', slut: d.slut || '17:00' }));
@@ -156,6 +158,7 @@ export default function RedigeraJobb() {
         antal_dagar: dagScheman.length || undefined,
         arbetstider: dagScheman.length > 0 ? JSON.stringify(dagScheman) : undefined,
         ob_tillagg: saniteraObTillagg(obTillagg),
+        rast_minuter: rastMinuter ? parseInt(rastMinuter) : 0,
         behorighets_krav: behorighetsKrav,
       });
       router.push('/annonser');
@@ -320,6 +323,19 @@ export default function RedigeraJobb() {
             </div>
           )}
           <FältFel>{fel.schema}</FältFel>
+        </div>
+
+        <div>
+          <Input
+            etikett="Rast (min)"
+            type="number"
+            inputMode="numeric"
+            min={0}
+            step={5}
+            value={rastMinuter}
+            onChange={(e) => setRastMinuter(e.target.value)}
+            placeholder="t.ex. 30"
+          />
         </div>
 
         <OBTilläggRedigerare värde={obTillagg} onÄndra={setObTillagg} />
