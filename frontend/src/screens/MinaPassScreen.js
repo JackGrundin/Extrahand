@@ -1,7 +1,7 @@
 import { useCallback, useRef, useState } from 'react';
-import { View, Text, SectionList, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, SectionList, TouchableOpacity, StyleSheet, Alert } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
-import { api } from '../api/klient';
+import { api, felText } from '../api/klient';
 import { useRealtidsPing } from '../context/RealtidsContext';
 import { useNyaPass } from '../context/NyaPassContext';
 import { useAppStateAktiv } from '../utils/useAppStateAktiv';
@@ -43,6 +43,9 @@ export default function MinaPassScreen({ navigation }) {
   const [ansökningar, setAnsökningar] = useState([]);
   const [laddar, setLaddar] = useState(true);
   const [aktivFlik, setAktivFlik] = useState('kommande');
+  // Vilket enstaka pass som just nu hämtar sitt jobb inför navigering till JobbDetalj.
+  // Spärrar dubbeltryck och ger möjlighet till laddningskänsla på kortet.
+  const [öppnarId, setÖppnarId] = useState(null);
 
   // Orange prick på nyss godkända pass. nyaPassIds kommer från NyaPassContext (räknas på
   // navigatornivå vid godkännande-ping); vi fryser den aktuella mängden i en ref så prickarna
@@ -192,14 +195,34 @@ export default function MinaPassScreen({ navigation }) {
             : (() => { const d = new Date(item.created_at); return { rader: [String(d.getDate()), d.toLocaleDateString('sv-SE', { month: 'short' })], variant: 'dag' }; })();
           const visaDatum = allaDatum.slice(0, 3);
           const fler = allaDatum.length > 3 ? allaDatum.length - 3 : 0;
-          // Det samlade schemakortet öppnar schemat med hela passlistan; ett vanligt pass
-          // öppnar chatten som tidigare.
           const ärSchemaKort = item.schemaId != null && item.schemaPassId == null;
+          // Knappen längst ned öppnar chatt/schema som förut.
           const öppna = () => ärSchemaKort
             ? navigation.navigate('SchemaDetalj', { schemaId: item.schemaId })
             : navigation.navigate('Chatt', { ansokningId: item.id });
+          // Kortkroppen öppnar passets detalj. Ett schema (annons-ansökan eller genomfört
+          // pass) har sin SchemaDetalj; ett enstaka pass pekar på jobbdetaljen. JobbDetalj
+          // kräver ett helt jobb-objekt, så vi hämtar det vid tryck – materialiserade
+          // schemapass har inget öppningsbart annons-jobb (GET /jobb/:id ger 404) och går
+          // därför aldrig den vägen.
+          const öppnaDetalj = async () => {
+            if (item.schemaId != null) {
+              navigation.navigate('SchemaDetalj', { schemaId: item.schemaId });
+              return;
+            }
+            if (öppnarId != null) return;
+            setÖppnarId(item.id);
+            try {
+              const jobb = await api.hämtaJobbId(item.jobb_id);
+              navigation.navigate('JobbDetalj', { jobb: { ...jobb, foretagNamn: item.foretagNamn } });
+            } catch (fel) {
+              Alert.alert('Fel', felText(fel));
+            } finally {
+              setÖppnarId(null);
+            }
+          };
           return (
-            <TouchableOpacity style={styles.kort} onPress={öppna} activeOpacity={0.85}>
+            <TouchableOpacity style={styles.kort} onPress={öppnaDetalj} activeOpacity={0.85}>
               <View style={styles.datumRad}>
                 <View style={styles.datumBricka}>
                   {/* Perioden ritas med två jämnstora rader. Dag-varianten behåller sin
@@ -225,7 +248,16 @@ export default function MinaPassScreen({ navigation }) {
                       </View>
                     )}
                   </View>
-                  <Text style={styles.passForetag} numberOfLines={1}>{item.foretagNamn ?? 'Okänt företag'}</Text>
+                  {item.foretagId ? (
+                    <TouchableOpacity
+                      onPress={() => navigation.navigate('FöretagsProfil', { foretagId: item.foretagId })}
+                      activeOpacity={0.7}
+                    >
+                      <Text style={styles.passForetag} numberOfLines={1}>{item.foretagNamn ?? 'Okänt företag'}</Text>
+                    </TouchableOpacity>
+                  ) : (
+                    <Text style={styles.passForetag} numberOfLines={1}>{item.foretagNamn ?? 'Okänt företag'}</Text>
+                  )}
                   {/* Vilken avdelning personen är bokad på. Rollen ligger per dag i
                       arbetstider; det samlade schemakortet visar alla förekommande, ett
                       enskilt pass sin egen. */}

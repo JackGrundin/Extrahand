@@ -42,11 +42,10 @@ function grupperaPerMånad(pass) {
   return Object.values(grupper).sort((a, b) => a.sortering - b.sortering);
 }
 
-// Speglar appens MinaPassScreen: schema → schemadetaljen, enstaka pass → chatt-tråden
-// (där tidrapport/tidslinje bor). Ett enstaka pass får ALDRIG peka på den publika
-// ansökningssidan /jobb/[id] – jobbet är tillsatt och den vyn skickar vidare till "Hitta jobb".
+// Kortkroppen öppnar passets detalj: ett schema → schemadetaljen, ett enstaka pass →
+// jobbdetaljen /jobb/[id]. Chatt-tråden nås separat via "Öppna chatt"-länken nedan.
 function detaljLänk(a) {
-  return a.schemaId ? `/schema/${a.schemaId}` : `/chatt/${a.id}`;
+  return a.schemaId ? `/schema/${a.schemaId}` : `/jobb/${a.jobb_id}`;
 }
 
 function PassKort({ pass, genomfört }) {
@@ -70,10 +69,23 @@ function PassKort({ pass, genomfört }) {
             </span>
           )}
         </div>
+      </Link>
+      {/* Företagsnamnet är en egen länk till den publika företagsprofilen (kan inte ligga
+          inuti kortlänken – nästlade <a> är ogiltigt). */}
+      {pass.foretagId ? (
+        <Link
+          href={`/foretag/${pass.foretagId}`}
+          className="mt-0.5 block truncate text-[14px] text-text-dämpad hover:text-primär hover:underline"
+        >
+          {pass.foretagNamn ?? 'Okänt företag'}
+        </Link>
+      ) : (
         <p className="mt-0.5 truncate text-[14px] text-text-dämpad">
           {pass.foretagNamn ?? 'Okänt företag'}
         </p>
+      )}
 
+      <Link href={detaljLänk(pass)} className="block">
         {roller.length > 0 && (
           <div className="mt-2">
             <RollBrickor kategorier={roller} />
