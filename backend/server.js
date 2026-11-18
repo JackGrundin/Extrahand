@@ -23,6 +23,7 @@ const { startaPassPåminnelse } = require('./cron/passPaminnelse');
 const { startaNollställPass } = require('./cron/nollstallPass');
 const { startaSchemaTidrapport } = require('./cron/schemaTidrapport');
 const { startaSchemaPåminnelse } = require('./cron/schemaPaminnelse');
+const { startaAvslutaPass } = require('./cron/avslutaPass');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -142,6 +143,7 @@ const server = app.listen(PORT, () => {
   startaNollställPass();
   startaSchemaTidrapport();
   startaSchemaPåminnelse();
+  startaAvslutaPass();
 });
 
 server.on('error', (err) => console.error('HTTP-server fel:', err));

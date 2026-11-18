@@ -629,4 +629,49 @@ async function hämtaPågåendePassFörPåminnelse() {
     .filter(p => p.foretagId != null && p.arbetstider != null);
 }
 
-module.exports = { skapaAnsökan, uppdateraIntygande, hämtaAnsökningarFörSökande, hämtaAnsökningarFörJobb, finnsDubblettAnsökan, hämtaAnsökanFörJobbOchSökande, hämtaTotalTimmar, uppdateraStatus, sättFavorit, markeraAvhopp, avvisaVäntandeAnsökningar, hämtaAnsökanViaId, avvisaAllaUtomEn, återställAllaFörJobb, hämtaAllaKonversationerFörFöretag, hämtaGodkändaFörJobb, hämtaGodkändaFörFleraJobb, hämtaNamnFörAnvändare, ångraAnsökan, hämtaAnsökanMedJobbInfo, hämtaKonversationMellan, hämtaGrupperadeKonversationer, hämtaPågåendePassFörPåminnelse, hämtaIBitar };
+// Hämtar alla godkända enstaka pass (Jobb utan schema_id) som ännu saknar tidrapport, för
+// att kunna auto-avsluta dem när sluttiden passerat med mer än 24 h (cron/avslutaPass.js).
+// Till skillnad från hämtaPågåendePassFörPåminnelse returneras alla fält som behövs för att
+// skapa tidrapporten (timlön, OB, påslag, rast). Schemajobb filtreras bort på jobbet via
+// .is('schema_id', null); de rapporteras automatiskt av cron/schemaTidrapport.js i stället.
+async function hämtaPassAttAvsluta() {
+  const { data: ansökningar, error } = await supabase
+    .from('ansokningar')
+    .select('id, jobb_id, sokande_id')
+    .eq('status', 'godkänd');
+
+  if (error) throw error;
+  if (!ansökningar || !ansökningar.length) return [];
+
+  const jobbIds = [...new Set(ansökningar.map(a => a.jobb_id))];
+  const ansokanIds = ansökningar.map(a => a.id);
+
+  const [jobb, tidrapporter] = await Promise.all([
+    hämtaIBitar(jobbIds, bit => supabase.from('Jobb').select('id, arbetstider, rast_minuter, Lon, ob_tillagg, paslag, Foretag_id').is('schema_id', null).in('id', bit)),
+    hämtaIBitar(ansokanIds, bit => supabase.from('tidrapporter').select('ansokan_id').in('ansokan_id', bit)),
+  ]);
+
+  const jobbMap = Object.fromEntries((jobb || []).map(j => [j.id, j]));
+  // Ansökningar som redan har en tidrapport (även bestridd – då korrigerar företaget
+  // manuellt) filtreras bort. Det är cronens idempotens: ett pass auto-avslutas bara en gång.
+  const harTidrapport = new Set((tidrapporter || []).map(r => r.ansokan_id));
+
+  return ansökningar
+    .filter(a => !harTidrapport.has(a.id))
+    .map(a => {
+      const j = jobbMap[a.jobb_id];
+      return {
+        ansokanId: a.id,
+        sokandeId: a.sokande_id,
+        foretagId: j?.Foretag_id ?? j?.foretag_id ?? null,
+        arbetstider: j?.arbetstider ?? null,
+        rastMinuter: j?.rast_minuter ?? 0,
+        timlon: j?.Lon ?? 0,
+        obTillagg: Array.isArray(j?.ob_tillagg) ? j.ob_tillagg : [],
+        paslag: j?.paslag ?? null,
+      };
+    })
+    .filter(p => p.foretagId != null && p.arbetstider != null);
+}
+
+module.exports = { skapaAnsökan, uppdateraIntygande, hämtaAnsökningarFörSökande, hämtaAnsökningarFörJobb, finnsDubblettAnsökan, hämtaAnsökanFörJobbOchSökande, hämtaTotalTimmar, uppdateraStatus, sättFavorit, markeraAvhopp, avvisaVäntandeAnsökningar, hämtaAnsökanViaId, avvisaAllaUtomEn, återställAllaFörJobb, hämtaAllaKonversationerFörFöretag, hämtaGodkändaFörJobb, hämtaGodkändaFörFleraJobb, hämtaNamnFörAnvändare, ångraAnsökan, hämtaAnsökanMedJobbInfo, hämtaKonversationMellan, hämtaGrupperadeKonversationer, hämtaPågåendePassFörPåminnelse, hämtaPassAttAvsluta, hämtaIBitar };
