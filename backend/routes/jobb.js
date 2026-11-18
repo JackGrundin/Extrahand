@@ -93,7 +93,10 @@ router.get('/:id', async (req, res) => {
     if (jobb.schema_pass_id) {
       return res.status(404).json({ fel: 'Jobbet hittades inte' });
     }
-    res.json(jobb);
+    // Ett enstaka pass är "tillsatt" när det har en godkänd ansökan (ingen kolumn på Jobb –
+    // samma härledning som filtreraAktivaJobb). Frontend döljer då ansökningsknappen.
+    const godkända = await hämtaGodkändaFörJobb(jobb.id);
+    res.json({ ...jobb, tillsatt: godkända.length > 0 });
   } catch (fel) {
     console.error('Fel vid hämtning av jobb:', fel);
     res.status(500).json({ fel: 'Serverfel vid hämtning av jobb' });

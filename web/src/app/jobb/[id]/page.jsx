@@ -242,7 +242,9 @@ export default function JobbDetalj() {
 
         {/* Ansökan */}
         <section className="mt-8 rounded-lg border border-kant bg-yta-dämpad p-5">
-          {sökt ? (
+          {jobb.tillsatt ? (
+            <p className="text-[14px] text-text-dämpad">Detta pass är tillsatt.</p>
+          ) : sökt ? (
             <>
               <Besked typ="framgång">Din ansökan har skickats. Företaget hör av sig.</Besked>
               {krock && <Besked typ="info">{KROCK_ANSOKAN_TEXT}</Besked>}

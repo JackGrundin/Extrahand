@@ -201,7 +201,11 @@ export default function JobbDetaljScreen({ route, navigation }) {
         onÄndra={setIkryssade}
       />
 
-      {användare?.typ === 'privatperson' && (
+      {användare?.typ === 'privatperson' && jobb.tillsatt && (
+        <Text style={styles.tillsattText}>Detta pass är tillsatt</Text>
+      )}
+
+      {användare?.typ === 'privatperson' && !jobb.tillsatt && (
         <>
           {!sökt && (
             <>
@@ -283,6 +287,7 @@ const styles = StyleSheet.create({
   kartaKnapp: { flexDirection: 'row', alignItems: 'center', gap: 6, alignSelf: 'flex-start', borderWidth: 1, borderColor: '#2563eb', borderRadius: 8, paddingHorizontal: 12, paddingVertical: 7 },
   kartaKnappText: { fontSize: 14, color: '#2563eb', fontWeight: '600' },
   sektionsRubrik: { fontSize: 16, fontWeight: '600', color: '#1a1a1a', marginBottom: 8 },
+  tillsattText: { fontSize: 15, color: '#666', textAlign: 'center', paddingVertical: 12 },
   beskrivning: { fontSize: 15, color: '#444', lineHeight: 22, marginBottom: 32 },
   textArea: { borderWidth: 1, borderColor: '#ddd', borderRadius: 10, padding: 14, fontSize: 15, backgroundColor: '#fafafa', minHeight: 110, marginBottom: 16 },
   knapp: { backgroundColor: '#2563eb', borderRadius: 12, padding: 16, alignItems: 'center' },
