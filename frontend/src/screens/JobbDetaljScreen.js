@@ -5,7 +5,7 @@ import { useHeaderHeight } from '@react-navigation/elements';
 import { useAuth } from '../context/AuthContext';
 import { api, felText } from '../api/klient';
 import { parsaArbetstider, formatDagDatum, parsaObTillagg, beräknaObBelopp } from '../utils/datumHelper';
-import { beräknaFakturapris, KROCK_ANSOKAN_TEXT, UTBETALNING_ENSTAKA } from '../utils/konstanter';
+import { beräknaFakturapris, KROCK_ANSOKAN_TEXT, utbetalningstextFörInstallning } from '../utils/konstanter';
 import { normaliseraKrav, saknadeKrav } from '../utils/behorighet';
 import BehörighetsKrav from '../components/BehörighetsKrav';
 import { useJobbPåslag } from '../utils/useJobbPåslag';
@@ -201,9 +201,9 @@ export default function JobbDetaljScreen({ route, navigation }) {
         onÄndra={setIkryssade}
       />
 
-      {/* Tydlig utbetalningsinfo för privatpersoner – enstaka pass betalas ut snabbt. */}
+      {/* Tydlig utbetalningsinfo för privatpersoner – följer personens utbetalningsinställning. */}
       {användare?.typ === 'privatperson' && (
-        <Text style={styles.utbetalningInfo}>{UTBETALNING_ENSTAKA}</Text>
+        <Text style={styles.utbetalningInfo}>{utbetalningstextFörInstallning(användare?.utbetalningInstallning)}</Text>
       )}
 
       {användare?.typ === 'privatperson' && jobb.tillsatt && (

@@ -239,13 +239,14 @@ export const STATUSFÄRGER_TIDRAPPORT = {
 export const KROCK_ANSOKAN_TEXT =
   'Du har redan ansökt ett pass som krockar i tid – du får det jobb du blir godkänd på först.';
 
-// Utbetalningsinformation som visas för privatpersoner (aldrig för företag). Enstaka pass
-// betalas ut snabbt efter godkänd tidrapport; schema samlas och betalas ut runt den 25:e.
+// Utbetalningsinformation som visas för privatpersoner (aldrig för företag). Texten väljs
+// efter personens utbetalningsinställning: 'direkt' betalas ut snabbt efter godkänd
+// tidrapport, '25' betalas ut den 25:e månaden efter avslutat arbete.
 // Speglas i web/src/utils/konstanter.js – ändra alltid på båda ställena.
 export const UTBETALNING_ENSTAKA =
   'Utbetalning sker inom 1–3 bankdagar efter att tidrapporten godkänts.';
 export const UTBETALNING_SCHEMA =
-  'Utbetalning sker runt den 25:e varje månad.';
+  'Utbetalning sker den 25:e månaden efter avslutat arbete.';
 
 // Tidrapportkortet vet inte om passet kom från ett schema, men personens
 // utbetalningsinställning är den faktiska sanningen för när lönen betalas ut.
