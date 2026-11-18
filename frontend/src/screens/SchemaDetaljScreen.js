@@ -8,7 +8,7 @@ import { useRealtidsPing } from '../context/RealtidsContext';
 import { useAttAvsluta } from '../context/AttAvslutaContext';
 import { api, felText } from '../api/klient';
 import { parsaObTillagg, beräknaObBelopp, formatDagDatum, veckodagsNamn, sökStängd } from '../utils/datumHelper';
-import { beräknaFakturapris, ansökanStatusVisning, KROCK_ANSOKAN_TEXT } from '../utils/konstanter';
+import { beräknaFakturapris, ansökanStatusVisning, KROCK_ANSOKAN_TEXT, UTBETALNING_SCHEMA } from '../utils/konstanter';
 import { normaliseraKrav, saknadeKrav } from '../utils/behorighet';
 import BehörighetsKrav from '../components/BehörighetsKrav';
 import IntygandeRad from '../components/IntygandeRad';
@@ -565,6 +565,11 @@ export default function SchemaDetaljScreen({ route, navigation }) {
           </View>
         )}
 
+        {/* Tydlig utbetalningsinfo för den sökande – schema betalas ut runt den 25:e. */}
+        {!ärFöretag && (
+          <Text style={styles.utbetalningInfo}>{UTBETALNING_SCHEMA}</Text>
+        )}
+
         {/* Passen fälls ihop för företaget, som öppnar schemat för att se sökande, men står
             utfällda för privatpersonen, för vilken passen är hela poängen med sidan. */}
         <TouchableOpacity
@@ -752,6 +757,7 @@ const styles = StyleSheet.create({
   sökandeAntal: { backgroundColor: '#2563eb', borderRadius: 11, minWidth: 22, paddingHorizontal: 7, paddingVertical: 2, alignItems: 'center', marginTop: 4 },
   sökandeAntalText: { fontSize: 13, color: '#fff', fontWeight: '700' },
   beskrivning: { fontSize: 15, color: '#444', lineHeight: 22, marginBottom: 12 },
+  utbetalningInfo: { fontSize: 13, color: '#666', marginTop: 12 },
 
   passLista: { borderWidth: 1, borderColor: '#e5e7eb', borderRadius: 12, overflow: 'hidden' },
   passRad: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 12, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: '#f3f4f6' },

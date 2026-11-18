@@ -5,7 +5,7 @@ import { useHeaderHeight } from '@react-navigation/elements';
 import { useAuth } from '../context/AuthContext';
 import { api, felText } from '../api/klient';
 import { parsaArbetstider, formatDagDatum, parsaObTillagg, beräknaObBelopp } from '../utils/datumHelper';
-import { beräknaFakturapris, KROCK_ANSOKAN_TEXT } from '../utils/konstanter';
+import { beräknaFakturapris, KROCK_ANSOKAN_TEXT, UTBETALNING_ENSTAKA } from '../utils/konstanter';
 import { normaliseraKrav, saknadeKrav } from '../utils/behorighet';
 import BehörighetsKrav from '../components/BehörighetsKrav';
 import { useJobbPåslag } from '../utils/useJobbPåslag';
@@ -201,6 +201,11 @@ export default function JobbDetaljScreen({ route, navigation }) {
         onÄndra={setIkryssade}
       />
 
+      {/* Tydlig utbetalningsinfo för privatpersoner – enstaka pass betalas ut snabbt. */}
+      {användare?.typ === 'privatperson' && (
+        <Text style={styles.utbetalningInfo}>{UTBETALNING_ENSTAKA}</Text>
+      )}
+
       {användare?.typ === 'privatperson' && jobb.tillsatt && (
         <Text style={styles.tillsattText}>Detta pass är tillsatt</Text>
       )}
@@ -288,6 +293,7 @@ const styles = StyleSheet.create({
   kartaKnappText: { fontSize: 14, color: '#2563eb', fontWeight: '600' },
   sektionsRubrik: { fontSize: 16, fontWeight: '600', color: '#1a1a1a', marginBottom: 8 },
   tillsattText: { fontSize: 15, color: '#666', textAlign: 'center', paddingVertical: 12 },
+  utbetalningInfo: { fontSize: 13, color: '#666', marginBottom: 12 },
   beskrivning: { fontSize: 15, color: '#444', lineHeight: 22, marginBottom: 32 },
   textArea: { borderWidth: 1, borderColor: '#ddd', borderRadius: 10, padding: 14, fontSize: 15, backgroundColor: '#fafafa', minHeight: 110, marginBottom: 16 },
   knapp: { backgroundColor: '#2563eb', borderRadius: 12, padding: 16, alignItems: 'center' },

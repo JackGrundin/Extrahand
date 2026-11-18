@@ -14,7 +14,7 @@ import Textfält from '@/components/ui/Textfält';
 import RollBrickor from '@/components/app/RollBrickor';
 import { api, felText } from '@/lib/api';
 import { formatPeriod, veckodagsNamn, formatDagDatum } from '@/utils/datumHelper';
-import { schematypEtikett, formateraPris, KROCK_ANSOKAN_TEXT } from '@/utils/konstanter';
+import { schematypEtikett, formateraPris, KROCK_ANSOKAN_TEXT, UTBETALNING_SCHEMA } from '@/utils/konstanter';
 import { normaliseraKrav, saknadeKrav } from '@/utils/behorighet';
 
 export default function PrivatSchemaVy() {
@@ -149,6 +149,11 @@ export default function PrivatSchemaVy() {
             ))}
           </ul>
         </section>
+      )}
+
+      {/* Tydlig utbetalningsinfo för den sökande – schema betalas ut runt den 25:e. */}
+      {ärPrivatperson && (
+        <p className="mt-6 text-[13px] text-text-svag">{UTBETALNING_SCHEMA}</p>
       )}
 
       {/* Pass */}

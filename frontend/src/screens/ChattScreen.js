@@ -5,7 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { api, felText } from '../api/klient';
 import { useAuth } from '../context/AuthContext';
 import { useNotifikationer } from '../context/NotifikationsContext';
-import { STATUSFÄRGER_TIDRAPPORT } from '../utils/konstanter';
+import { STATUSFÄRGER_TIDRAPPORT, utbetalningstextFörInstallning } from '../utils/konstanter';
 import { parsaObTillagg } from '../utils/datumHelper';
 import ErbjudPassModal from '../components/ErbjudPassModal';
 import JobbforfraganKort from '../components/JobbforfraganKort';
@@ -17,7 +17,7 @@ import { useLoggaRefresh } from '../components/LoggaRefresh';
 import TomtTillstånd from '../components/TomtTillstånd';
 import { haptik } from '../utils/haptik';
 
-function TidrapportKort({ rapport, ärPrivatperson, ärSenaste, onUppdaterad }) {
+function TidrapportKort({ rapport, ärPrivatperson, utbetalningInstallning, ärSenaste, onUppdaterad }) {
   const [sparar, setSparar] = useState(false);
   const [bestridVisas, setBestridVisas] = useState(false);
   const [bestridText, setBestridText] = useState('');
@@ -187,6 +187,11 @@ function TidrapportKort({ rapport, ärPrivatperson, ärSenaste, onUppdaterad }) 
               Lön betalas ut {new Date(rapport.lonedatum).toLocaleDateString('sv-SE')}
             </Text>
           </View>
+        )}
+
+        {/* Tydlig utbetalningsregel för privatpersonen, utifrån hens utbetalningsinställning. */}
+        {ärPrivatperson && rapport.status === 'godkänd' && (
+          <Text style={styles.utbetalningInfo}>{utbetalningstextFörInstallning(utbetalningInstallning)}</Text>
         )}
       </View>
 
@@ -515,6 +520,7 @@ export default function ChattScreen({ route, navigation }) {
               <TidrapportKort
                 rapport={item.data}
                 ärPrivatperson={ärPrivatperson}
+                utbetalningInstallning={användare?.utbetalningInstallning}
                 ärSenaste={item.ärSenaste}
                 onUppdaterad={hämta}
               />
@@ -620,6 +626,7 @@ const styles = StyleSheet.create({
   utbetalningVärde: { fontSize: 15, fontWeight: '700', color: '#16a34a' },
   lonedatumRad: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 8, paddingTop: 10, borderTopWidth: 1, borderTopColor: '#dcfce7' },
   lonedatumText: { fontSize: 14, fontWeight: '600', color: '#16a34a' },
+  utbetalningInfo: { fontSize: 13, color: '#666', marginTop: 8 },
   modalBakgrund: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'center', padding: 24 },
   modalKort: { backgroundColor: '#fff', borderRadius: 16, padding: 20 },
   modalRubrik: { fontSize: 17, fontWeight: '700', color: '#1a1a1a', marginBottom: 8 },

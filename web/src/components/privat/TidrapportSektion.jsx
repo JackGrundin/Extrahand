@@ -6,8 +6,10 @@
 import { useCallback, useEffect, useState } from 'react';
 import Knapp from '@/components/ui/Knapp';
 import Besked from '@/components/ui/Besked';
+import { useAuth } from '@/context/AuthContext';
 import { api, felText } from '@/lib/api';
 import { formatDagDatum } from '@/utils/datumHelper';
+import { utbetalningstextFörInstallning } from '@/utils/konstanter';
 
 function formatBelopp(kr) {
   if (kr == null) return '–';
@@ -19,6 +21,7 @@ function formatBelopp(kr) {
 }
 
 export default function TidrapportSektion({ ansökanId }) {
+  const { användare } = useAuth();
   const [rapport, setRapport] = useState(null);
   const [laddar, setLaddar] = useState(true);
   const [fel, setFel] = useState('');
@@ -152,6 +155,13 @@ export default function TidrapportSektion({ ansökanId }) {
       {rapport.status === 'godkänd' && rapport.lonedatum && (
         <p className="mt-1 text-[13px] font-semibold text-framgång">
           Lön betalas ut {formatDagDatum(rapport.lonedatum)}
+        </p>
+      )}
+
+      {/* Tydlig utbetalningsregel utifrån personens utbetalningsinställning. */}
+      {rapport.status === 'godkänd' && (
+        <p className="mt-1 text-[13px] text-text-svag">
+          {utbetalningstextFörInstallning(användare?.utbetalningInstallning)}
         </p>
       )}
 

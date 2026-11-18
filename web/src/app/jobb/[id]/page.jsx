@@ -16,7 +16,7 @@ import Textfält from '@/components/ui/Textfält';
 import { useAuth } from '@/context/AuthContext';
 import { api, felText } from '@/lib/api';
 import { normaliseraKrav, saknadeKrav } from '@/utils/behorighet';
-import { KROCK_ANSOKAN_TEXT } from '@/utils/konstanter';
+import { KROCK_ANSOKAN_TEXT, UTBETALNING_ENSTAKA } from '@/utils/konstanter';
 import {
   parsaArbetstider,
   formatDagDatum,
@@ -275,6 +275,9 @@ export default function JobbDetalj() {
           ) : (
             <>
               <h2 className="text-[17px] font-bold text-text">Ansök till jobbet</h2>
+
+              {/* Tydlig utbetalningsinfo – enstaka pass betalas ut snabbt efter godkänd tidrapport. */}
+              <p className="mt-2 text-[13px] text-text-svag">{UTBETALNING_ENSTAKA}</p>
 
               {krav.length > 0 && (
                 <div className="mt-3">
