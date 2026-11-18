@@ -158,7 +158,7 @@ router.post('/logga-in', inloggningsGräns, async (req, res) => {
     }
 
     const token = skapaToken(användare);
-    res.json({ token, användare: { id: användare.id, namn: användare.Namn, email: användare.Email, typ: användare.Typ, avtalGodkant: användare.avtal_godkant ?? false } });
+    res.json({ token, användare: { id: användare.id, namn: användare.Namn, email: användare.Email, typ: användare.Typ, avtalGodkant: användare.avtal_godkant ?? false, utbetalningInstallning: användare.utbetalning_installning ?? 'direkt' } });
   } catch (fel) {
     console.error('Inloggningsfel:', fel);
     res.status(500).json({ fel: 'Serverfel vid inloggning' });
@@ -193,7 +193,7 @@ router.post('/verifiera-kod', känsligGräns, async (req, res) => {
     await markeraEmailVerifierad(användare.id);
 
     const token = skapaToken(användare);
-    res.json({ token, användare: { id: användare.id, namn: användare.Namn, email: användare.Email, typ: användare.Typ, avtalGodkant: användare.avtal_godkant ?? false } });
+    res.json({ token, användare: { id: användare.id, namn: användare.Namn, email: användare.Email, typ: användare.Typ, avtalGodkant: användare.avtal_godkant ?? false, utbetalningInstallning: användare.utbetalning_installning ?? 'direkt' } });
   } catch (fel) {
     console.error('Verifieringsfel:', fel);
     res.status(500).json({ fel: 'Serverfel vid verifiering' });
