@@ -15,6 +15,17 @@ export function formatDagDatum(isoStr) {
   return new Date(isoStr + 'T12:00:00').toLocaleDateString('sv-SE', { day: 'numeric', month: 'short' });
 }
 
+// Datum + veckodag + ev. tid för EN pass-dag, t.ex. 'Mån 18 nov · 08:00–16:00'. Tidsspannet
+// visas bara när både start och slut finns. Används på passkorten i Mina pass så tiderna
+// syns utan att öppna detaljvyn. Saknas datum returneras null.
+export function formatDagMedTid(dag) {
+  if (!dag?.datum) return null;
+  const vd = veckodagsNamn(dag.datum);
+  const veckodag = vd ? vd.charAt(0).toUpperCase() + vd.slice(1) : '';
+  const datum = `${veckodag} ${formatDagDatum(dag.datum)}`.trim();
+  return dag.start && dag.slut ? `${datum} · ${dag.start}–${dag.slut}` : datum;
+}
+
 // Sammanfattar en lista ISO-datum som EN period, t.ex. '15 jun – 15 aug 2026'.
 // Ett schema kan ha 60 pass, och att räkna upp de första datumen och lägga på
 // "+55 till" säger mindre om uppdraget än var det börjar och slutar.

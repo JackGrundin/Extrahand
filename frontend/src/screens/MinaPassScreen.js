@@ -11,7 +11,7 @@ import RollBrickor from '../components/RollBrickor';
 import SkeletonLista from '../components/SkeletonKort';
 import TomtTillstånd from '../components/TomtTillstånd';
 
-import { parsaArbetstider, formatDagDatum, formatBricka, passSlutTidpunkt, förstaArbetsdatum } from '../utils/datumHelper';
+import { parsaArbetstider, formatDagMedTid, formatBricka, passSlutTidpunkt, förstaArbetsdatum } from '../utils/datumHelper';
 
 // Ett pass räknas som genomfört när dess sista sluttid redan passerat, eller när
 // företaget skapat en tidrapport för passet. Vi jämför mot exakt sluttidpunkt (samma
@@ -189,12 +189,13 @@ export default function MinaPassScreen({ navigation }) {
         }
         renderItem={({ item }) => {
           const schema = parsaArbetstider(item.arbetstider);
-          const allaDatum = schema ? schema.map(d => d.datum).filter(Boolean) : [];
+          const dagar = schema ? schema.filter(d => d?.datum) : [];
+          const allaDatum = dagar.map(d => d.datum);
           const bricka = allaDatum.length > 0
             ? formatBricka(allaDatum)
             : (() => { const d = new Date(item.created_at); return { rader: [String(d.getDate()), d.toLocaleDateString('sv-SE', { month: 'short' })], variant: 'dag' }; })();
-          const visaDatum = allaDatum.slice(0, 3);
-          const fler = allaDatum.length > 3 ? allaDatum.length - 3 : 0;
+          const visaDagar = dagar.slice(0, 3);
+          const fler = dagar.length > 3 ? dagar.length - 3 : 0;
           const ärSchemaKort = item.schemaId != null && item.schemaPassId == null;
           // Knappen längst ned öppnar chatt/schema som förut.
           const öppna = () => ärSchemaKort
@@ -267,15 +268,20 @@ export default function MinaPassScreen({ navigation }) {
                       ? <RollBrickor roller={roller} max={2} style={{ marginTop: 4 }} />
                       : null;
                   })()}
-                  {/* Schemakortets bricka visar redan hela perioden; en uppräkning av de
-                      tre första datumen plus "+25 till" sa varken vad schemat omfattar
-                      eller när det slutar. För ett vanligt pass står chipsen kvar: dess
-                      datum kan vara utspridda (15, 18, 22 jun), och då är listan mer sann
-                      än ett spann. */}
-                  {ärSchemaKort ? null : allaDatum.length > 0 ? (
+                  {/* Schemakortets bricka visar redan hela perioden – där räcker antalet
+                      pass. För ett vanligt pass visas varje dag med datum OCH tider, så man
+                      ser när passet börjar och slutar utan att öppna detaljvyn. Datumen kan
+                      vara utspridda (15, 18, 22 jun), så listan är mer sann än ett spann. */}
+                  {ärSchemaKort ? (
+                    allaDatum.length > 0 ? (
+                      <View style={styles.passDetaljer}>
+                        <Text style={styles.passDetalj}>{allaDatum.length} pass</Text>
+                      </View>
+                    ) : null
+                  ) : dagar.length > 0 ? (
                     <View style={styles.passDetaljer}>
-                      {visaDatum.map((d, i) => (
-                        <Text key={i} style={styles.passDetalj}>{formatDagDatum(d)}</Text>
+                      {visaDagar.map((d, i) => (
+                        <Text key={i} style={styles.passDetalj}>{formatDagMedTid(d)}</Text>
                       ))}
                       {fler > 0 && <Text style={styles.passDetalj}>+{fler} till</Text>}
                     </View>
@@ -327,7 +333,7 @@ const styles = StyleSheet.create({
   schemaBricka: { backgroundColor: '#eff6ff', borderRadius: 6, paddingHorizontal: 6, paddingVertical: 2 },
   schemaBrickaText: { fontSize: 11, fontWeight: '700', color: '#2563eb' },
   passForetag: { fontSize: 13, color: '#888', marginTop: 2 },
-  passDetaljer: { flexDirection: 'row', gap: 8, marginTop: 4 },
+  passDetaljer: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 4 },
   passDetalj: { fontSize: 12, color: '#6b7280', backgroundColor: '#f3f4f6', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6 },
   timmarBricka: { backgroundColor: '#dcfce7', borderRadius: 8, paddingHorizontal: 8, paddingVertical: 4 },
   timmarText: { fontSize: 13, fontWeight: '700', color: '#16a34a' },

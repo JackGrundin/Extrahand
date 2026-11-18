@@ -14,7 +14,7 @@ import { useAuth } from '@/context/AuthContext';
 import { api, felText } from '@/lib/api';
 import {
   parsaArbetstider,
-  formatDagDatum,
+  formatDagMedTid,
   formatPeriod,
   förstaArbetsdatum,
   passSlutTidpunkt,
@@ -50,11 +50,12 @@ function detaljLänk(a) {
 
 function PassKort({ pass, genomfört }) {
   const schema = parsaArbetstider(pass.arbetstider);
-  const allaDatum = (schema ?? []).map((d) => d?.datum).filter(Boolean);
+  const dagar = (schema ?? []).filter((d) => d?.datum);
+  const allaDatum = dagar.map((d) => d.datum);
   const ärSchemaKort = pass.schemaId != null && pass.schemaPassId == null;
   const roller = [...new Set((schema ?? []).map((d) => d?.kategori).filter(Boolean))];
-  const visaDatum = allaDatum.slice(0, 3);
-  const fler = allaDatum.length > 3 ? allaDatum.length - 3 : 0;
+  const visaDagar = dagar.slice(0, 3);
+  const fler = dagar.length > 3 ? dagar.length - 3 : 0;
 
   return (
     <div className="rounded-lg border border-kant bg-yta p-5 shadow-mjuk">
@@ -92,23 +93,21 @@ function PassKort({ pass, genomfört }) {
           </div>
         )}
 
-        {/* Schemakort visar hela perioden; ett enstaka pass sina datum som chips. */}
+        {/* Schemakort visar hela perioden + antal pass; ett enstaka pass sina dagar med
+            datum och tider så man slipper öppna detaljvyn. */}
         {ärSchemaKort && allaDatum.length > 0 ? (
           <p className="mt-3 text-[13px] font-semibold text-text-dämpad">
-            {formatPeriod(allaDatum)}
+            {formatPeriod(allaDatum)} · {dagar.length} pass
           </p>
-        ) : allaDatum.length > 0 ? (
-          <div className="mt-3 flex flex-wrap gap-1.5">
-            {visaDatum.map((d) => (
-              <span
-                key={d}
-                className="rounded-pill bg-yta-dämpad px-2.5 py-0.5 text-[12px] font-semibold text-text-dämpad"
-              >
-                {formatDagDatum(d)}
-              </span>
+        ) : dagar.length > 0 ? (
+          <div className="mt-3 space-y-0.5">
+            {visaDagar.map((d) => (
+              <p key={d.datum} className="text-[13px] font-semibold text-text-dämpad">
+                {formatDagMedTid(d)}
+              </p>
             ))}
             {fler > 0 && (
-              <span className="px-1 text-[12px] font-semibold text-text-svag">+{fler} till</span>
+              <p className="text-[12px] font-semibold text-text-svag">+{fler} till</p>
             )}
           </div>
         ) : pass.antalDagar != null ? (
