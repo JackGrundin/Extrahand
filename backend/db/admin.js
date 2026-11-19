@@ -143,6 +143,14 @@ async function hämtaTidrapporterFörAdmin({ status, from, till } = {}) {
   });
 }
 
+// Punkt 17: eskalerade, ännu ohanterade bestridanden för adminvyn. Återanvänder berikningen
+// i hämtaTidrapporterFörAdmin (namn, företag, jobbtitel, schemapass) – spridningen ...r där
+// tar med bestridande_orsak, bestridande_starttid/sluttid, eskalerad och eskalering_hanterad.
+async function hämtaEskaleradeBestridanden() {
+  const rapporter = await hämtaTidrapporterFörAdmin({ status: 'bestridd' });
+  return rapporter.filter(r => r.eskalerad === true && r.eskalering_hanterad !== true);
+}
+
 // Företagslistan berikad med antal godkända pass. hämtaAllaFöretag ger redan antalJobb +
 // prenumeration_status; här läggs godkändaPass till genom att räkna godkända ansökningar
 // mot företagets jobb.
@@ -295,4 +303,5 @@ module.exports = {
   hämtaPrivatpersonerMedStatistik,
   hämtaFaktureringsstatistik,
   hämtaFaktureringPerFöretag,
+  hämtaEskaleradeBestridanden,
 };

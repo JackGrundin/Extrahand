@@ -71,6 +71,9 @@ async function uppdateraTidrapportStatus(id, status, bestridande_orsak, starttid
   const fält = { status };
   if (status === 'bestridd') {
     fält.bestridande_orsak = bestridande_orsak ?? null;
+    // Stämpla när bestridandet skedde – cronens 24h-gräns för eskalering mäts mot den
+    // (spegling av hur godkand_at stämplas vid 'godkänd').
+    fält.bestridd_at = new Date().toISOString();
     // Valfria föreslagna korrigerade tider. Rör kolumnerna BARA när tider faktiskt angetts –
     // annars funkar ett vanligt bestridande (utan tider) även innan migrationen körts.
     if (starttid && sluttid) {
@@ -213,4 +216,42 @@ async function markeraTidrapportBetald(id) {
   if (error) throw error;
 }
 
-module.exports = { skapaTidrapport, uppdateraAutoTidrapport, hämtaTidrapportFörAnsökan, hämtaTidrapportViaId, uppdateraTidrapportStatus, hämtaAllaTidrapporter, hämtaTidrapporterFörFöretag, markeraTidrapportBetald };
+// Punkt 17: bestridanden som passerat 24 h och ännu inte eskalerats. cutoffIso är
+// (nu − 24 h) som ISO-sträng; lt-filtret på bestridd_at utesluter automatiskt gamla rader
+// utan tidsstämpel (bestridd_at = NULL), som aldrig ska eskaleras retroaktivt.
+async function hämtaBestridandenAttEskalera(cutoffIso) {
+  const { data, error } = await supabase
+    .from('tidrapporter')
+    .select('*')
+    .eq('status', 'bestridd')
+    .eq('eskalerad', false)
+    .lt('bestridd_at', cutoffIso);
+  if (error) throw error;
+  return data || [];
+}
+
+// Atomiskt anspråk på eskaleringen (mönster från krävPåminnelse i db/scheman.js): bara den
+// körning som vinner uppdateringen får notifiera, så en omstartad process varken dubblerar
+// eller tappar eskaleringsnotiser.
+async function krävEskalering(id) {
+  const { data, error } = await supabase
+    .from('tidrapporter')
+    .update({ eskalerad: true })
+    .eq('id', id)
+    .eq('eskalerad', false)
+    .select('id');
+  if (error) throw error;
+  return (data || []).length > 0;
+}
+
+// Markerar en eskalering som hanterad (admin skickade en korrigering). Raden lämnar
+// bestridande-listan utan att av-eskaleras.
+async function markeraEskaleringHanterad(id) {
+  const { error } = await supabase
+    .from('tidrapporter')
+    .update({ eskalering_hanterad: true })
+    .eq('id', id);
+  if (error) throw error;
+}
+
+module.exports = { skapaTidrapport, uppdateraAutoTidrapport, hämtaTidrapportFörAnsökan, hämtaTidrapportViaId, uppdateraTidrapportStatus, hämtaAllaTidrapporter, hämtaTidrapporterFörFöretag, markeraTidrapportBetald, hämtaBestridandenAttEskalera, krävEskalering, markeraEskaleringHanterad };

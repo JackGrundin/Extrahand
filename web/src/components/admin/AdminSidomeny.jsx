@@ -15,6 +15,7 @@ const LÄNKAR = [
   { namn: 'Företag', väg: '/admin/foretag' },
   { namn: 'Privatpersoner', väg: '/admin/privatpersoner' },
   { namn: 'Fakturering', väg: '/admin/fakturering' },
+  { namn: 'Bestridanden', väg: '/admin/bestridanden' },
   { namn: 'Raderade konton', väg: '/admin/raderade' },
 ];
 
