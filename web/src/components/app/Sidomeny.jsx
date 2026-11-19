@@ -86,6 +86,15 @@ export default function Sidomeny({ badges = {}, onNavigera }) {
         >
           Logga ut
         </button>
+        {/* Diskret feedback-länk längst ned – öppnar ett förifyllt mejl. */}
+        <a
+          href="mailto:feedback@fastgig.se?subject=Feedback"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="mt-1 block w-full rounded-sm px-3 py-2.5 text-left text-[15px] font-semibold text-text-dämpad transition-colors hover:bg-yta-dämpad hover:text-text"
+        >
+          Ge oss feedback
+        </a>
       </div>
     </div>
   );

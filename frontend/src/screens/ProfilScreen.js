@@ -408,6 +408,16 @@ export default function ProfilScreen({ navigation }) {
       </TouchableOpacity>
 
       <TouchableOpacity
+        style={styles.integritetspolicyKnapp}
+        onPress={() => Linking.openURL('mailto:feedback@fastgig.se?subject=Feedback')}
+        accessibilityRole="button"
+        accessibilityLabel="Ge oss feedback"
+      >
+        <Ionicons name="mail-outline" size={18} color={FÄRG.primär} accessible={false} importantForAccessibility="no" />
+        <Text style={styles.integritetspolicyText}>Ge oss feedback</Text>
+      </TouchableOpacity>
+
+      <TouchableOpacity
         style={styles.taBortKontoKnapp}
         onPress={bekräftaRadering}
         disabled={raderar}
