@@ -10,7 +10,7 @@ import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import Besked from '@/components/ui/Besked';
-import { api } from '@/lib/api';
+import { api, felText } from '@/lib/api';
 import { behöverAvslutas, förstaArbetsdatum, formatDagDatum, formatPeriod, parsaArbetstider } from '@/utils/datumHelper';
 
 // accent styr en tunn färgad topplist som drar ögat till det som kräver handling.
@@ -20,18 +20,27 @@ const ACCENTER = {
   neutral: 'border-t-kant',
 };
 
-function Summeringskort({ etikett, värde, under, href, accent = 'neutral', aktiv = false }) {
+function Summeringskort({ etikett, värde, under, cta, href, onKlick, accent = 'neutral', aktiv = false }) {
   const innehåll = (
     <div
       className={`flex h-full flex-col rounded-lg border border-kant border-t-[3px] ${
         ACCENTER[accent]
-      } bg-yta p-6 shadow-mjuk transition-shadow ${href ? 'hover:shadow-lyft' : ''}`}
+      } bg-yta p-6 shadow-mjuk transition-shadow ${href || onKlick ? 'hover:shadow-lyft' : ''}`}
     >
       <p className="text-[12px] font-semibold uppercase tracking-wider text-text-svag">{etikett}</p>
       <p className={`mt-3 text-[36px] font-bold leading-none ${aktiv ? 'text-primär' : 'text-text'}`}>{värde}</p>
       {under && <p className="mt-auto pt-3 text-[13px] text-text-dämpad">{under}</p>}
+      {/* cta är bara visuell text – hela kortet är klickbart, så inget nästlat <a>. */}
+      {cta && <p className="mt-auto pt-3 text-[13px] font-semibold text-primär">{cta}</p>}
     </div>
   );
+  if (onKlick) {
+    return (
+      <button type="button" onClick={onKlick} className="block h-full w-full text-left">
+        {innehåll}
+      </button>
+    );
+  }
   return href ? (
     <Link href={href} className="block h-full">
       {innehåll}
@@ -65,6 +74,7 @@ function ÖversiktInnehåll() {
 
   const [data, setData] = useState(null);
   const [fel, setFel] = useState('');
+  const [uppgraderingsfel, setUppgraderingsfel] = useState('');
 
   useEffect(() => {
     let avbruten = false;
@@ -159,11 +169,27 @@ function ÖversiktInnehåll() {
   }
 
   const prenumeration = data.prenumeration;
-  const planText = prenumeration?.pro
-    ? 'Pro'
-    : prenumeration
-      ? `${prenumeration.gratisPassKvar} gratispass kvar`
-      : 'Gratis';
+
+  // Ej Pro: starta Stripe Checkout (samma mönster som publicera-flödena). Pro: öppna
+  // kundportalen. Båda returnerar { url } att redirecta till; fel visas som Besked.
+  async function uppgradera() {
+    setUppgraderingsfel('');
+    try {
+      const { url } = await api.skapaCheckout();
+      if (url) window.location.href = url;
+    } catch (f) {
+      setUppgraderingsfel(felText(f));
+    }
+  }
+  async function hanteraPrenumeration() {
+    setUppgraderingsfel('');
+    try {
+      const { url } = await api.öppnaPortal();
+      if (url) window.location.href = url;
+    } catch (f) {
+      setUppgraderingsfel(felText(f));
+    }
+  }
 
   const idagText = new Date().toLocaleDateString('sv-SE', {
     weekday: 'long',
@@ -201,6 +227,8 @@ function ÖversiktInnehåll() {
         <Besked typ="info">Betalningen avbröts – ingen ändring gjordes.</Besked>
       )}
 
+      {uppgraderingsfel && <Besked typ="fel">{uppgraderingsfel}</Besked>}
+
       {/* Summeringskort */}
       <div className="grid items-stretch gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <Summeringskort etikett="Aktiva annonser" värde={härledd.jobb.length} href="/annonser" />
@@ -218,7 +246,21 @@ function ÖversiktInnehåll() {
           aktiv={härledd.nyaAnsökningar > 0}
           href="/annonser"
         />
-        <Summeringskort etikett="Plan" värde={planText} />
+        {prenumeration?.pro ? (
+          <Summeringskort
+            etikett="Plan"
+            värde="Pro"
+            cta="Hantera prenumeration →"
+            onKlick={hanteraPrenumeration}
+          />
+        ) : (
+          <Summeringskort
+            etikett="Pass till ordinarie pris"
+            värde={prenumeration?.gratisPassKvar ?? 0}
+            cta="Uppgradera till Pro →"
+            onKlick={uppgradera}
+          />
+        )}
       </div>
 
       <div className="mt-12 grid gap-10 lg:grid-cols-2">
@@ -232,24 +274,31 @@ function ÖversiktInnehåll() {
               Inga pass att avsluta – allt klart.
             </p>
           ) : (
-            <ul className="space-y-2">
-              {härledd.attAvslutaLista.map((p) => (
-                <li key={p.id}>
-                  <Link
-                    href="/avsluta"
-                    className="flex items-center justify-between rounded-lg border border-kant bg-yta p-4 shadow-mjuk transition-shadow hover:shadow-lyft"
-                  >
-                    <div className="min-w-0">
-                      <p className="truncate text-[15px] font-semibold text-text">{p.titel}</p>
-                      {p.tid && <p className="text-[13px] text-text-dämpad">{p.tid}</p>}
-                    </div>
-                    <span className="ml-3 shrink-0 text-[13px] font-semibold text-primär">
-                      {formatDagDatum(p.datum)}
-                    </span>
-                  </Link>
-                </li>
-              ))}
-            </ul>
+            <>
+              <ul className="space-y-2">
+                {härledd.attAvslutaLista.slice(0, 5).map((p) => (
+                  <li key={p.id}>
+                    <Link
+                      href="/avsluta"
+                      className="flex items-center justify-between rounded-lg border border-kant bg-yta p-4 shadow-mjuk transition-shadow hover:shadow-lyft"
+                    >
+                      <div className="min-w-0">
+                        <p className="truncate text-[15px] font-semibold text-text">{p.titel}</p>
+                        {p.tid && <p className="text-[13px] text-text-dämpad">{p.tid}</p>}
+                      </div>
+                      <span className="ml-3 shrink-0 text-[13px] font-semibold text-primär">
+                        {formatDagDatum(p.datum)}
+                      </span>
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+              {härledd.attAvslutaLista.length > 5 && (
+                <Link href="/avsluta" className="mt-3 inline-block text-[14px] font-semibold text-primär hover:underline">
+                  Visa alla →
+                </Link>
+              )}
+            </>
           )}
         </section>
 
@@ -263,24 +312,31 @@ function ÖversiktInnehåll() {
               Inga nya ansökningar.
             </p>
           ) : (
-            <ul className="space-y-2">
-              {härledd.nyaAnsökningarLista.map((a) => (
-                <li key={a.id}>
-                  <Link
-                    href={a.länk}
-                    className="flex items-center justify-between rounded-lg border border-kant bg-yta p-4 shadow-mjuk transition-shadow hover:shadow-lyft"
-                  >
-                    <div className="min-w-0">
-                      <p className="truncate text-[15px] font-semibold text-text">{a.titel}</p>
-                      {a.datum && <p className="text-[13px] text-text-dämpad">{a.datum}</p>}
-                    </div>
-                    <span className="ml-3 shrink-0 rounded-pill bg-primär-mjuk px-2.5 py-0.5 text-[12px] font-bold text-primär">
-                      {a.antal} {a.antal === 1 ? 'ny' : 'nya'}
-                    </span>
-                  </Link>
-                </li>
-              ))}
-            </ul>
+            <>
+              <ul className="space-y-2">
+                {härledd.nyaAnsökningarLista.slice(0, 5).map((a) => (
+                  <li key={a.id}>
+                    <Link
+                      href={a.länk}
+                      className="flex items-center justify-between rounded-lg border border-kant bg-yta p-4 shadow-mjuk transition-shadow hover:shadow-lyft"
+                    >
+                      <div className="min-w-0">
+                        <p className="truncate text-[15px] font-semibold text-text">{a.titel}</p>
+                        {a.datum && <p className="text-[13px] text-text-dämpad">{a.datum}</p>}
+                      </div>
+                      <span className="ml-3 shrink-0 rounded-pill bg-primär-mjuk px-2.5 py-0.5 text-[12px] font-bold text-primär">
+                        {a.antal} {a.antal === 1 ? 'ny' : 'nya'}
+                      </span>
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+              {härledd.nyaAnsökningarLista.length > 5 && (
+                <Link href="/annonser" className="mt-3 inline-block text-[14px] font-semibold text-primär hover:underline">
+                  Visa alla →
+                </Link>
+              )}
+            </>
           )}
         </section>
       </div>
