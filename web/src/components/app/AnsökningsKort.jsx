@@ -38,7 +38,13 @@ export default function AnsökningsKort({ ansökan, jobbStartat, onStatus, onFav
         </div>
         <div className="min-w-0 flex-1">
           <div className="flex items-center justify-between gap-2">
-            <p className="truncate text-[16px] font-bold text-text">{ansökan.sökandeNamn || 'Sökande'}</p>
+            {ansökan.sokande_id ? (
+              <Link href={`/sokande/${ansökan.sokande_id}`} className="truncate text-[16px] font-bold text-text hover:underline">
+                {ansökan.sökandeNamn || 'Sökande'}
+              </Link>
+            ) : (
+              <p className="truncate text-[16px] font-bold text-text">{ansökan.sökandeNamn || 'Sökande'}</p>
+            )}
             <button
               type="button"
               onClick={() => onFavorit(ansökan.id, !ansökan.favorit)}
