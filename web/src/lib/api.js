@@ -149,6 +149,11 @@ export const api = {
   hämtaAnvändareProfil: (id) => anrop('GET', `/users/${id}/profil`),
   // Mottagna betyg för en användare → { snitt, antal, betyg: [...] }.
   hämtaBetyg: (anvandareId) => anrop('GET', `/betyg/anvandare/${anvandareId}`),
+  // Avslutade uppdrag som ännu inte betygsatts – underlaget för betygspopupen. Backend
+  // grupperar redan ett schema till ETT uppdrag, så webben gör ingen egen gruppering.
+  väntandeBetyg: () => anrop('GET', '/betyg/vantande'),
+  // Sätt betyg på motparten. kropp = { stjarnor (1–5), kommentar }.
+  sättaBetyg: (ansokanId, kropp) => anrop('POST', `/betyg/${ansokanId}`, kropp),
 
   // ── Företagsvyer ──────────────────────────────────────────────────────────
   // Paths speglar frontend/src/api/klient.js. OBS: POST/PUT /jobb tar emot GEMENA

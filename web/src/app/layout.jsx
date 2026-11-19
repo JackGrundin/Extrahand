@@ -2,6 +2,7 @@ import './globals.css';
 import { AuthProvider } from '@/context/AuthContext';
 import { RealtidsProvider } from '@/context/RealtidsContext';
 import BetaModal from '@/components/app/BetaModal';
+import BetygsModal from '@/components/BetygsModal';
 import CookieBanner from '@/components/CookieBanner';
 
 export const metadata = {
@@ -36,6 +37,9 @@ export default function RootLayout({ children }) {
           <RealtidsProvider>
             {children}
             <BetaModal />
+            {/* Global betygsprompt för både företag och privatpersoner. Self-guardar på
+                inloggad användare, så den är ofarlig på publika/utloggade sidor. */}
+            <BetygsModal />
             {/* GDPR-samtyckesbanner. Laddar Google Analytics (gtag) först när besökaren
                 godkänner – avböjer man laddas inga analys-skript. Valet sparas i localStorage. */}
             <CookieBanner />
