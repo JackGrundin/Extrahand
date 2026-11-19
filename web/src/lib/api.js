@@ -270,8 +270,9 @@ export const api = {
   // Punkt 17: eskalerade bestridanden. Admin kan godkänna företagets ursprungliga rapport
   // eller skicka en korrigerad tidrapport (nya timmar) via det vanliga tidrapportsflödet.
   adminBestridanden: () => anrop('GET', '/admin/bestridanden'),
-  adminGodkännBestridande: (id) => anrop('POST', `/admin/bestridanden/${id}/godkann`, {}),
-  adminKorrigeraBestridande: (id, timmar) => anrop('POST', `/admin/bestridanden/${id}/korrigera`, { timmar }),
+  // fusk = true utfärdar en varning till privatpersonen (se backend/routes/admin.js).
+  adminGodkännBestridande: (id, fusk = false) => anrop('POST', `/admin/bestridanden/${id}/godkann`, { fusk }),
+  adminKorrigeraBestridande: (id, timmar, fusk = false) => anrop('POST', `/admin/bestridanden/${id}/korrigera`, { timmar, fusk }),
   godkännAvtal: (id) => anrop('PATCH', `/users/admin/${id}/avtal`, {}),
   återkallaAvtal: (id, orsak) => anrop('PATCH', `/users/admin/${id}/avtal-aterkalla`, { orsak }),
   återkallaAvtalRaderad: (id) => anrop('PATCH', `/users/admin/${id}/avtal-aterkalla-raderad`, {}),

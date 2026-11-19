@@ -82,6 +82,12 @@ export default function AdminPrivatpersoner() {
                   </p>
                 </div>
                 <div className="flex gap-2">
+                  {Number(p.varningar) > 0 && (
+                    <div className="rounded-sm bg-fel-mjuk px-3 py-2 text-center">
+                      <p className="text-[18px] font-bold text-fel">{Number(p.varningar)}</p>
+                      <p className="text-[11px] font-semibold uppercase text-fel">Varningar</p>
+                    </div>
+                  )}
                   <div className="rounded-sm bg-yta-dämpad px-3 py-2 text-center">
                     <p className="text-[18px] font-bold text-text">{Number(p.genomfördaPass) || 0}</p>
                     <p className="text-[11px] font-semibold uppercase text-text-svag">Pass</p>

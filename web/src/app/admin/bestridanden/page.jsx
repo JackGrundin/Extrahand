@@ -15,8 +15,9 @@ function kr(belopp) {
   return `${Math.round(Number(belopp) || 0).toLocaleString('sv-SE')} kr`;
 }
 
-function BestridandeKort({ r, timmar, onTimmarÄndrad, sparar, onKorrigera, onGodkänn }) {
+function BestridandeKort({ r, timmar, onTimmarÄndrad, fusk, onFuskÄndrad, sparar, onKorrigera, onGodkänn }) {
   const korrId = `korr-${r.id}`;
+  const fuskId = `fusk-${r.id}`;
   return (
     <li className="rounded-lg border border-kant bg-yta p-5 shadow-mjuk">
       <div className="flex flex-wrap items-start justify-between gap-3">
@@ -64,7 +65,18 @@ function BestridandeKort({ r, timmar, onTimmarÄndrad, sparar, onKorrigera, onGo
         )}
       </div>
 
-      <div className="mt-4 flex flex-wrap items-end gap-3">
+      <label htmlFor={fuskId} className="mt-4 flex cursor-pointer items-center gap-2 text-[14px] text-text">
+        <input
+          id={fuskId}
+          type="checkbox"
+          checked={fusk}
+          onChange={(e) => onFuskÄndrad(r.id, e.target.checked)}
+          className="h-4 w-4 accent-fel"
+        />
+        Markera som fusk (skicka varning)
+      </label>
+
+      <div className="mt-3 flex flex-wrap items-end gap-3">
         <div className="w-28">
           <Input
             etikett="Korrekta timmar"
@@ -102,6 +114,7 @@ function BestridandeKort({ r, timmar, onTimmarÄndrad, sparar, onKorrigera, onGo
 export default function AdminBestridanden() {
   const [rapporter, setRapporter] = useState(null);
   const [timmar, setTimmar] = useState({});
+  const [fusk, setFusk] = useState({});
   const [fel, setFel] = useState('');
   const [sparar, setSparar] = useState(null);
 
@@ -125,6 +138,10 @@ export default function AdminBestridanden() {
     setTimmar((t) => ({ ...t, [id]: värde }));
   }
 
+  function ändraFusk(id, värde) {
+    setFusk((f) => ({ ...f, [id]: värde }));
+  }
+
   async function skickaKorrigering(id) {
     const antal = Number(timmar[id]);
     if (!antal || antal <= 0) {
@@ -134,9 +151,14 @@ export default function AdminBestridanden() {
     setSparar(`korr-${id}`);
     setFel('');
     try {
-      await api.adminKorrigeraBestridande(id, antal);
+      await api.adminKorrigeraBestridande(id, antal, !!fusk[id]);
       setTimmar((t) => {
         const nästa = { ...t };
+        delete nästa[id];
+        return nästa;
+      });
+      setFusk((f) => {
+        const nästa = { ...f };
         delete nästa[id];
         return nästa;
       });
@@ -152,7 +174,12 @@ export default function AdminBestridanden() {
     setSparar(id);
     setFel('');
     try {
-      await api.adminGodkännBestridande(id);
+      await api.adminGodkännBestridande(id, !!fusk[id]);
+      setFusk((f) => {
+        const nästa = { ...f };
+        delete nästa[id];
+        return nästa;
+      });
       await hämta();
     } catch (f) {
       setFel(felText(f));
@@ -186,6 +213,8 @@ export default function AdminBestridanden() {
               r={r}
               timmar={timmar[r.id] ?? ''}
               onTimmarÄndrad={ändraTimmar}
+              fusk={!!fusk[r.id]}
+              onFuskÄndrad={ändraFusk}
               sparar={sparar}
               onKorrigera={skickaKorrigering}
               onGodkänn={godkännUrsprunglig}

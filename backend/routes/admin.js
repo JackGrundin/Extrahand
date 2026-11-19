@@ -16,7 +16,7 @@ const {
   skapaTidrapport,
   markeraEskaleringHanterad,
 } = require('../db/tidrapporter');
-const { hämtaAllaPrivatpersoner, hämtaRaderadeKonton, sättBlockerad, hämtaPushToken } = require('../db/användare');
+const { hämtaAllaPrivatpersoner, hämtaRaderadeKonton, sättBlockerad, hämtaPushToken, registreraVarning, stängAvKonto } = require('../db/användare');
 const { hämtaFaktureringsunderlag } = require('../db/fakturering');
 const { beräknaObBelopp, beräknaBelopp, påslagEller40 } = require('../utils/pris');
 const { skickaNotifikation } = require('../utils/pushNotifikation');
@@ -147,6 +147,28 @@ router.get('/raderade', kräverInloggning, kräverAdmin, async (req, res) => {
   }
 });
 
+// Utfärdar en varning till en privatperson som bedömts fuska med en tidrapport. Ökar
+// varningsräknaren och pushar en varning. Vid >= 3 varningar stängs kontot av automatiskt och en
+// avstängningspush skickas. Fire-and-forget: allt sker i bakgrunden och får aldrig fälla svaret,
+// så anroparen kör den utan att invänta (.catch(console.error)).
+async function hanteraFuskVarning(anvandareId) {
+  const antal = await registreraVarning(anvandareId);
+  const token = await hämtaPushToken(anvandareId);
+  await skickaNotifikation(
+    token,
+    'Varning',
+    'Du har fått en varning för felaktig tidrapportering. Vid upprepade överträdelser kan ditt konto stängas av.'
+  );
+  if (antal >= 3) {
+    await stängAvKonto(anvandareId);
+    await skickaNotifikation(
+      token,
+      'Konto avstängt',
+      'Ditt konto har stängts av på grund av upprepade överträdelser mot FastGigs regler. Kontakta support@fastgig.se för mer information.'
+    );
+  }
+}
+
 // GET /api/admin/bestridanden — eskalerade, ännu ohanterade bestridanden (punkt 17)
 router.get('/bestridanden', kräverInloggning, kräverAdmin, async (req, res) => {
   try {
@@ -183,6 +205,11 @@ router.post('/bestridanden/:id/godkann', kräverInloggning, kräverAdmin, async 
     })().catch(console.error);
     if (rapport.foretag_id) sändRealtidsPing(rapport.foretag_id, 'tidrapport');
     if (rapport.anvandare_id) sändRealtidsPing(rapport.anvandare_id, 'tidrapport');
+
+    // Admin kan markera att bestridandet berodde på fusk från privatpersonen – då utfärdas en varning.
+    if (req.body?.fusk === true && rapport.anvandare_id) {
+      hanteraFuskVarning(rapport.anvandare_id).catch(console.error);
+    }
   } catch (fel) {
     console.error('Admin-godkänn-bestridande fel:', fel);
     res.status(500).json({ fel: 'Serverfel' });
@@ -240,6 +267,11 @@ router.post('/bestridanden/:id/korrigera', kräverInloggning, kräverAdmin, asyn
       const token = await hämtaPushToken(R.anvandare_id);
       await skickaNotifikation(token, 'Ny tidrapport', 'Du har fått en tidrapport att granska.');
     })().catch(console.error);
+
+    // Admin kan markera att bestridandet berodde på fusk från privatpersonen – då utfärdas en varning.
+    if (req.body?.fusk === true && R.anvandare_id) {
+      hanteraFuskVarning(R.anvandare_id).catch(console.error);
+    }
   } catch (fel) {
     if (fel.kod === 409) return res.status(409).json({ fel: fel.message });
     console.error('Admin-korrigera-bestridande fel:', fel);

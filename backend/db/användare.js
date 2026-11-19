@@ -139,7 +139,7 @@ async function hämtaAllaFöretag() {
 async function hämtaAllaPrivatpersoner() {
   const { data, error } = await supabase
     .from('användare')
-    .select('id, Namn, Email, telefonnummer, avtal_godkant, created_at')
+    .select('id, Namn, Email, telefonnummer, avtal_godkant, varningar, created_at')
     .eq('Typ', 'privatperson')
     .not('aktiv', 'is', false)
     .order('created_at', { ascending: false });
@@ -180,6 +180,36 @@ async function sättBlockerad(id, blockerad) {
     .maybeSingle();
   if (error) throw error;
   return data;
+}
+
+// Ökar en privatpersons varningsräknare med 1 och returnerar det nya antalet. Ingen RPC finns,
+// så vi läser-ökar-skriver (samma mönster som pass-räknaren innan den fick databasfunktioner).
+// Returvärdet låter routen avgöra om kontot ska stängas av (>= 3 varningar).
+async function registreraVarning(id) {
+  const { data, error } = await supabase
+    .from('användare')
+    .select('varningar')
+    .eq('id', id)
+    .maybeSingle();
+  if (error) throw error;
+  const nytt = (Number(data?.varningar) || 0) + 1;
+  const { error: uppErr } = await supabase
+    .from('användare')
+    .update({ varningar: nytt })
+    .eq('id', id);
+  if (uppErr) throw uppErr;
+  return nytt;
+}
+
+// Stänger av ett konto (aktiv = false). Till skillnad från raderaKonto nollas INGA personuppgifter
+// – detta är en avstängning, inte en radering. Inaktiva konton filtreras bort i jobb-/schemalistor
+// och blockeras från inloggning precis som raderade konton.
+async function stängAvKonto(id) {
+  const { error } = await supabase
+    .from('användare')
+    .update({ aktiv: false })
+    .eq('id', id);
+  if (error) throw error;
 }
 
 // Läser ett företags blockerad-flagga. Används av publiceringsspärren i POST /api/jobb och
@@ -323,4 +353,4 @@ async function hämtaRaderadeKonton() {
   return data || [];
 }
 
-module.exports = { skapaAnvändare, hämtaAnvändareViaEmail, hämtaAnvändareViaId, uppdateraProfil, uppdateraProfilBild, uppdateraStad, hämtaPrivatpersonerIStad, sparaPushToken, hämtaPushToken, hämtaAllaPrivatpersoner, godkännAvtal, återkallaAvtal, sättBlockerad, ärBlockerad, hämtaAvtalGodkant, hämtaAllaFöretag, sparaVerifieringskod, markeraEmailVerifierad, sparaÅterställningsToken, hämtaAnvändareViaÅterställningsToken, uppdateraLösenord, raderaKonto, hämtaRaderadeKonton };
+module.exports = { skapaAnvändare, hämtaAnvändareViaEmail, hämtaAnvändareViaId, uppdateraProfil, uppdateraProfilBild, uppdateraStad, hämtaPrivatpersonerIStad, sparaPushToken, hämtaPushToken, hämtaAllaPrivatpersoner, godkännAvtal, återkallaAvtal, sättBlockerad, registreraVarning, stängAvKonto, ärBlockerad, hämtaAvtalGodkant, hämtaAllaFöretag, sparaVerifieringskod, markeraEmailVerifierad, sparaÅterställningsToken, hämtaAnvändareViaÅterställningsToken, uppdateraLösenord, raderaKonto, hämtaRaderadeKonton };
