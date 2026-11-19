@@ -101,16 +101,13 @@ export default function MinaPassScreen({ navigation }) {
   useAppStateAktiv(() => { hämta(); });
 
   const godkända = ansökningar.filter(a => a.status === 'godkänd');
-  // Ett pass är genomfört när dess sista arbetsdatum passerat, eller när en tidrapport
-  // skapats för passet (rapportStatus finns). Övriga godkända pass är kommande.
+  // Godkända pass delas i tre ömsesidigt uteslutande högar. ärGenomfört betyder att
+  // passet är över (sista sluttiden passerat) ELLER att en tidrapport finns.
   //
   // Ett schema ger både en annons-ansökan (alla datum, inget schemaPassId) och en ansökan
   // per pass. Under Kommande visas bara det samlade schemakortet, så ett sommarjobb inte
-  // fyller listan med 60 rader. Under Genomförda visas i stället varje pass för sig, med
-  // sin egen tidrapport – och då döljs det samlade kortet.
-  const genomförda = godkända
-    .filter(ärGenomfört)
-    .filter(a => !(a.schemaId && !a.schemaPassId));
+  // fyller listan med 60 rader. Under Att avsluta och Genomförda visas i stället varje
+  // pass för sig, med sin egen tidrapport – och då döljs det samlade kortet.
   const kommande = godkända
     .filter(a => !ärGenomfört(a))
     .filter(a => !a.schemaPassId)
@@ -127,13 +124,35 @@ export default function MinaPassScreen({ navigation }) {
       if (!datumB) return -1;
       return datumA < datumB ? -1 : datumA > datumB ? 1 : 0;
     });
+  // Att avsluta: passet är över men har ännu ingen godkänd tidrapport – det kan sakna
+  // rapport helt (väntar på att företaget rapporterar), eller ha en som väntar/bestridits.
+  const attAvsluta = godkända
+    .filter(a => ärGenomfört(a) && a.rapportStatus !== 'godkänd')
+    .filter(a => !(a.schemaId && !a.schemaPassId));
+  // Genomförda: enbart pass med godkänd tidrapport – klart och utbetalt.
+  const genomförda = godkända
+    .filter(a => a.rapportStatus === 'godkänd')
+    .filter(a => !(a.schemaId && !a.schemaPassId));
 
-  const sektioner = grupperaPerMånad(aktivFlik === 'kommande' ? kommande : genomförda);
+  const aktivLista = aktivFlik === 'kommande' ? kommande
+    : aktivFlik === 'avsluta' ? attAvsluta
+    : genomförda;
+  const sektioner = grupperaPerMånad(aktivLista);
 
   return (
     <View style={{ flex: 1, backgroundColor: '#f8fafc' }}>
       {refresh.LoggaOverlay}
       <View style={styles.flikar}>
+        <TouchableOpacity
+          style={[styles.flik, aktivFlik === 'avsluta' && styles.flikAktiv]}
+          onPress={() => setAktivFlik('avsluta')}
+          activeOpacity={0.8}
+        >
+          {/* Antalet visas bara när det finns pass att avsluta – annars står bara etiketten. */}
+          <Text style={[styles.flikText, aktivFlik === 'avsluta' && styles.flikTextAktiv]}>
+            Att avsluta{attAvsluta.length > 0 ? ` (${attAvsluta.length})` : ''}
+          </Text>
+        </TouchableOpacity>
         <TouchableOpacity
           style={[styles.flik, aktivFlik === 'kommande' && styles.flikAktiv]}
           onPress={() => setAktivFlik('kommande')}
@@ -178,6 +197,12 @@ export default function MinaPassScreen({ navigation }) {
               ikon="calendar-outline"
               rubrik="Du har inga kommande pass ännu"
               text="Sök och ansök till jobb – godkända pass hamnar här."
+            />
+          ) : aktivFlik === 'avsluta' ? (
+            <TomtTillstånd
+              ikon="time-outline"
+              rubrik="Inga pass att avsluta"
+              text="Pass som väntar på att företaget rapporterar hamnar här."
             />
           ) : (
             <TomtTillstånd
