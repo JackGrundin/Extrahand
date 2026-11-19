@@ -142,6 +142,8 @@ export const api = {
   // Backend strippar ev. data-URL-prefix. Endast privatpersoner får ladda upp.
   laddaUppDokument: (kropp) => anrop('POST', '/users/dokument', kropp),
   raderaDokument: (id) => anrop('DELETE', `/users/dokument/${id}`),
+  // Privatperson vars avtal återkallats ber om en ny granskning (mejl till admin).
+  ansökOmNyttAvtal: () => anrop('POST', '/avtal/ansok-om-nytt', {}),
   // En annan användares publika profil (kräver inloggning). För företag bär svaret
   // namn, bransch, stad, hemsida, totalTimmar och aktivaJobb.
   hämtaAnvändareProfil: (id) => anrop('GET', `/users/${id}/profil`),

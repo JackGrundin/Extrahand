@@ -210,6 +210,8 @@ export const api = {
   // Profildokument (CV, intyg, körkort). kropp: { namn, fil (base64), mimeType }
   laddaUppDokument: (kropp) => anrop('POST', '/users/dokument', kropp),
   raderaDokument: (id) => anrop('DELETE', `/users/dokument/${id}`),
+  // Privatperson vars avtal återkallats ber om en ny granskning (mejl till admin).
+  ansökOmNyttAvtal: () => anrop('POST', '/avtal/ansok-om-nytt', {}),
   uppdateraStatus: (ansokningId, status) => anrop('PATCH', `/ansokningar/${ansokningId}/status`, { status }),
   växlaFavoritAnsökan: (ansokningId, favorit) => anrop('PATCH', `/ansokningar/${ansokningId}/favorit`, { favorit }),
 

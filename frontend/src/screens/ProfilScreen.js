@@ -47,6 +47,9 @@ export default function ProfilScreen({ navigation }) {
   // profilen och sparas optimistiskt vid val.
   const [utbetalning, setUtbetalning] = useState('direkt');
   const [spararUtbetalning, setSpararUtbetalning] = useState(false);
+  // Begäran om ny avtalsgranskning (visas bara när avtalet återkallats).
+  const [skickarAvtal, setSkickarAvtal] = useState(false);
+  const [avtalSkickat, setAvtalSkickat] = useState(false);
 
   // Mjuk entré: innehållet tonar in och glider upp en aning när profilen laddats.
   const tona = useRef(new Animated.Value(0)).current;
@@ -195,6 +198,22 @@ export default function ProfilScreen({ navigation }) {
     }
   }
 
+  // Privatperson vars avtal återkallats ber om en ny granskning. Endpointen svarar alltid ok –
+  // notifieringen är ett mejl till admin. Efter lyckad begäran göms knappen bakom en kvittens.
+  async function ansökOmNyttAvtal() {
+    if (skickarAvtal || avtalSkickat) return;
+    setSkickarAvtal(true);
+    try {
+      await api.ansökOmNyttAvtal();
+      setAvtalSkickat(true);
+      Alert.alert('Skickat', 'Din ansökan har skickats. Vi återkommer inom kort.');
+    } catch (fel) {
+      Alert.alert('Fel', felText(fel));
+    } finally {
+      setSkickarAvtal(false);
+    }
+  }
+
   if (laddar) return <ActivityIndicator style={{ flex: 1 }} size="large" />;
 
   return (
@@ -253,6 +272,24 @@ export default function ProfilScreen({ navigation }) {
         <Ionicons name="create-outline" size={18} color={FÄRG.primär} accessible={false} importantForAccessibility="no" />
         <Text style={styles.redigeraText}>Redigera profil</Text>
       </TouchableOpacity>
+
+      {/* Återkallat avtal: ge privatpersonen en väg tillbaka via en ny avtalsansökan. */}
+      {ärPrivatperson && användare?.avtalGodkant === false && (
+        <View style={styles.avtalBox}>
+          <Text style={styles.avtalRubrik}>Ditt avtal har återkallats</Text>
+          <Text style={styles.avtalText}>Ansök om ett nytt för att kunna söka jobb igen.</Text>
+          {avtalSkickat ? (
+            <Text style={styles.avtalKvitto}>Din ansökan har skickats. Vi återkommer inom kort.</Text>
+          ) : (
+            <Knapp
+              text="Ansök om nytt avtal"
+              onPress={ansökOmNyttAvtal}
+              laddar={skickarAvtal}
+              style={styles.avtalKnapp}
+            />
+          )}
+        </View>
+      )}
 
       {ärPrivatperson && (
         <DokumentLista redigerbar dokument={profil?.dokument} onÄndrad={hämta} />
@@ -459,6 +496,11 @@ const styles = StyleSheet.create({
   redigeraText: { color: FÄRG.primär, fontWeight: '700', fontSize: 15 },
   integritetspolicyKnapp: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, alignSelf: 'stretch', borderWidth: 1.5, borderColor: FÄRG.kant, borderRadius: RADIE.sm, paddingVertical: 13, paddingHorizontal: 20, marginTop: 14 },
   integritetspolicyText: { color: FÄRG.primär, fontWeight: '700', fontSize: 15 },
+  avtalBox: { width: '100%', backgroundColor: FÄRG.varningMjuk, borderWidth: 1, borderColor: FÄRG.varningKant, borderRadius: RADIE.sm, padding: 16, marginBottom: 14 },
+  avtalRubrik: { fontSize: 15, fontWeight: '700', color: FÄRG.varningText, marginBottom: 4 },
+  avtalText: { fontSize: 14, color: FÄRG.textDämpad, lineHeight: 20, marginBottom: 12 },
+  avtalKnapp: { alignSelf: 'stretch' },
+  avtalKvitto: { fontSize: 14, color: FÄRG.varningText, fontWeight: '600', lineHeight: 20 },
   sektion: { width: '100%', ...STIL.kort, marginBottom: 14 },
   sektionsRubrik: { ...TEXT.överlinje, color: FÄRG.textDämpad, marginBottom: 6 },
   sektionsText: { fontSize: 15, color: FÄRG.text, lineHeight: 22 },

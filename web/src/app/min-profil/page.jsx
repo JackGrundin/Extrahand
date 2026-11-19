@@ -54,6 +54,9 @@ export default function MinProfil() {
   const [fel, setFel] = useState('');
   const [stadFel, setStadFel] = useState('');
   const [sparat, setSparat] = useState(false);
+  // Begäran om ny avtalsgranskning (visas bara när avtalet återkallats).
+  const [skickarAvtal, setSkickarAvtal] = useState(false);
+  const [avtalSkickat, setAvtalSkickat] = useState(false);
 
   // Auth-gate: utloggad → inloggning med next tillbaka hit; företag → sin egen profil.
   useEffect(() => {
@@ -188,6 +191,22 @@ export default function MinProfil() {
     }
   }
 
+  // Privatperson vars avtal återkallats ber om en ny granskning. Endpointen svarar alltid ok –
+  // notifieringen är ett mejl till admin. Efter lyckad begäran göms knappen bakom en kvittens.
+  async function ansökOmNyttAvtal() {
+    if (skickarAvtal || avtalSkickat) return;
+    setSkickarAvtal(true);
+    setFel('');
+    try {
+      await api.ansökOmNyttAvtal();
+      setAvtalSkickat(true);
+    } catch (f) {
+      setFel(felText(f));
+    } finally {
+      setSkickarAvtal(false);
+    }
+  }
+
   // Medan auth kontrolleras / vi omdirigerar bort ett företag: visa bara spinnern.
   if (authLaddar || !inloggad || användare?.typ === 'företag' || laddar) {
     return (
@@ -210,6 +229,27 @@ export default function MinProfil() {
 
         {fel && <Besked typ="fel">{fel}</Besked>}
         {sparat && <Besked typ="framgång">Profilen är sparad.</Besked>}
+
+        {/* Återkallat avtal: ge privatpersonen en väg tillbaka via en ny avtalsansökan. */}
+        {användare?.avtalGodkant === false && (
+          <div className="mt-4 rounded-lg border border-varning/40 bg-varning/10 px-5 py-4">
+            <p className="text-[15px] font-semibold text-text">Ditt avtal har återkallats</p>
+            <p className="mt-0.5 text-[14px] text-text-dämpad">
+              Ansök om ett nytt för att kunna söka jobb igen.
+            </p>
+            {avtalSkickat ? (
+              <p className="mt-3 text-[14px] font-semibold text-framgång">
+                Din ansökan har skickats. Vi återkommer inom kort.
+              </p>
+            ) : (
+              <div className="mt-3">
+                <Knapp variant="primär" storlek="liten" laddar={skickarAvtal} onClick={ansökOmNyttAvtal}>
+                  Ansök om nytt avtal
+                </Knapp>
+              </div>
+            )}
+          </div>
+        )}
 
         <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-[280px_1fr_300px]">
           {/* Vänsterkolumn: profilkort + dokument + utbetalning */}

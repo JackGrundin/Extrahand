@@ -88,6 +88,32 @@ async function skickaAvtalÅterkalladMail(email, namn, orsak) {
   if (error) throw new Error(error.message);
 }
 
+// Skickas till FastGig-admin (info@fastgig.se) när en privatperson, vars avtal återkallats,
+// ber om en ny avtalsgranskning. Namn och e-post ekas in i HTML och escapas via säkerNamn.
+async function skickaNyAvtalsansökanMail(namn, email) {
+  if (!process.env.RESEND_API_KEY) {
+    throw new Error('RESEND_API_KEY saknas i miljövariablerna.');
+  }
+  const resend = skapaResend();
+  const { error } = await resend.emails.send({
+    from: process.env.EMAIL_FROM || 'FastGig <noreply@fastgig.se>',
+    to: 'info@fastgig.se',
+    subject: 'Ny avtalsansökan – FastGig',
+    html: `
+      <div style="font-family:-apple-system,sans-serif;max-width:480px;margin:0 auto;padding:32px 24px;background:#fff;">
+        <h1 style="color:#2563eb;font-size:24px;margin:0 0 8px;">FastGig</h1>
+        <p style="color:#444;font-size:16px;margin:0 0 20px;">En användare har ansökt om nytt avtal.</p>
+        <div style="background:#eff6ff;border-radius:12px;padding:16px 18px;margin-bottom:20px;">
+          <p style="color:#1e40af;font-size:15px;margin:0 0 4px;"><strong>Namn:</strong> ${säkerNamn(namn)}</p>
+          <p style="color:#1e40af;font-size:15px;margin:0;"><strong>E-post:</strong> ${säkerNamn(email)}</p>
+        </div>
+        <p style="color:#888;font-size:13px;margin:0;">Granska personens avtal i admin-vyn.</p>
+      </div>
+    `,
+  });
+  if (error) throw new Error(error.message);
+}
+
 function säkerNamn(namn) {
   return String(namn ?? '').replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
 }
@@ -143,4 +169,4 @@ async function skickaInbjudanMail(email, { företagNamn, titel, länk }) {
   if (error) throw new Error(error.message);
 }
 
-module.exports = { skickaVerifieringsMail, skickaÅterställningsMail, skickaAvtalÅterkalladMail, skickaInbjudanMail };
+module.exports = { skickaVerifieringsMail, skickaÅterställningsMail, skickaAvtalÅterkalladMail, skickaNyAvtalsansökanMail, skickaInbjudanMail };

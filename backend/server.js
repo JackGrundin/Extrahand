@@ -17,6 +17,7 @@ const schemanRoutes = require('./routes/scheman');
 const adressRoutes = require('./routes/adress');
 const inbjudanRoutes = require('./routes/inbjudan');
 const adminRoutes = require('./routes/admin');
+const avtalRoutes = require('./routes/avtal');
 const aterstallningSidaRoutes = require('./routes/aterstallningSida');
 const { stripeWebhook } = require('./routes/stripeWebhook');
 const { startaPassPåminnelse } = require('./cron/passPaminnelse');
@@ -129,6 +130,7 @@ app.use('/api/scheman', schemanRoutes);
 app.use('/api/adress', adressRoutes);
 app.use('/api/inbjudan', inbjudanRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/avtal', avtalRoutes);
 
 process.on('uncaughtException', (err) => {
   console.error('Ohanterat undantag:', err);
