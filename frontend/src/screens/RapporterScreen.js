@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { View, Text, FlatList, SectionList, StyleSheet, ActivityIndicator, TextInput, TouchableOpacity, Alert, Modal, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, Text, FlatList, SectionList, ScrollView, StyleSheet, ActivityIndicator, TextInput, TouchableOpacity, Alert, Modal, KeyboardAvoidingView, Platform } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { api, felText } from '../api/klient';
@@ -20,12 +20,64 @@ function isoDatum(d) {
 function kr(belopp) {
   return `${Math.round(belopp ?? 0).toLocaleString('sv-SE')} kr`;
 }
+function antal(n) {
+  return (Math.round(Number(n) || 0)).toLocaleString('sv-SE');
+}
+
+// Period-pillarna på Dashboard-fliken. Speglar web/src/utils/tidsfilter.js: alla intervall är
+// "fram till nu", så bara den undre gränsen (from) varierar och skickas som ?from=YYYY-MM-DD.
+const TIDSPERIODER = [
+  { nyckel: 'denna-manad', etikett: 'Denna månad' },
+  { nyckel: '3-manader', etikett: 'Senaste 3 mån' },
+  { nyckel: '6-manader', etikett: 'Senaste 6 mån' },
+  { nyckel: 'detta-ar', etikett: 'Detta år' },
+  { nyckel: 'totalt', etikett: 'Totalt' },
+];
+
+// Undre datumgräns (YYYY-MM-DD) för en vald period, eller null för 'totalt'. Månad/år är
+// kalenderankrade, 3/6 månader rullande från dagens datum – samma logik som tidsfilterFrån.
+function frånDatumFörPeriod(nyckel, nu = new Date()) {
+  switch (nyckel) {
+    case '3-manader': return isoDatum(new Date(nu.getFullYear(), nu.getMonth() - 3, nu.getDate()));
+    case '6-manader': return isoDatum(new Date(nu.getFullYear(), nu.getMonth() - 6, nu.getDate()));
+    case 'detta-ar': return isoDatum(new Date(nu.getFullYear(), 0, 1));
+    case 'totalt': return null;
+    case 'denna-manad':
+    default: return isoDatum(new Date(nu.getFullYear(), nu.getMonth(), 1));
+  }
+}
+
+function periodEtikett(nyckel) {
+  return (TIDSPERIODER.find(t => t.nyckel === nyckel) || TIDSPERIODER[0]).etikett;
+}
+
+// Litet siffer-kort för Dashboard-fliken.
+function StatKort({ etikett, värde, under, primär }) {
+  return (
+    <View style={[styles.statKort, primär && styles.statKortPrimär]}>
+      <Text style={styles.statEtikett}>{etikett}</Text>
+      <Text style={styles.statVärde}>{värde}</Text>
+      {under ? <Text style={styles.statUnder}>{under}</Text> : null}
+    </View>
+  );
+}
 
 export default function RapporterScreen({ navigation }) {
-  const [aktivFlik, setAktivFlik] = useState('rapporter');
+  const [aktivFlik, setAktivFlik] = useState('dashboard');
   const [rapporter, setRapporter] = useState([]);
   const [privatpersoner, setPrivatpersoner] = useState([]);
   const [företag, setFöretag] = useState([]);
+  // Dashboard-statistik + vald period (styr aktivitet/ekonomi, inte användar-räknarna).
+  const [statistik, setStatistik] = useState(null);
+  const [tidsperiod, setTidsperiod] = useState('denna-manad');
+  // Berikad privatpersonslista (varningar, pass, betyg) för Privatpersoner-fliken.
+  const [privatpersonerStat, setPrivatpersonerStat] = useState([]);
+  const [sökPrivatpersonStat, setSökPrivatpersonStat] = useState('');
+  // Eskalerade bestridanden + per-rad-utkast (korrekta timmar + fusk-flagga) och sparar-id.
+  const [bestridanden, setBestridanden] = useState([]);
+  const [bestridandeTimmar, setBestridandeTimmar] = useState({});
+  const [bestridandeFusk, setBestridandeFusk] = useState({});
+  const [sparBestridande, setSparBestridande] = useState(null);
   const [faktureringsunderlag, setFaktureringsunderlag] = useState([]);
   const [faktureringFel, setFaktureringFel] = useState(null);
   const [raderadeKonton, setRaderadeKonton] = useState([]);
@@ -43,7 +95,7 @@ export default function RapporterScreen({ navigation }) {
 
   // Rubriken speglar aktiv flik – annars stod det alltid "Tidrapporter" även på Företag.
   useEffect(() => {
-    const titlar = { rapporter: 'Tidrapporter', avtal: 'Avtal', företag: 'Företag', fakturering: 'Fakturering', raderade: 'Raderade konton' };
+    const titlar = { dashboard: 'Dashboard', rapporter: 'Tidrapporter', bestridanden: 'Bestridanden', avtal: 'Avtal', företag: 'Företag', fakturering: 'Fakturering', privatpersoner: 'Privatpersoner', raderade: 'Raderade konton' };
     navigation.setOptions({ title: titlar[aktivFlik] ?? 'Admin' });
   }, [aktivFlik, navigation]);
 
@@ -52,12 +104,14 @@ export default function RapporterScreen({ navigation }) {
     // De fyra admin-anropen är oberoende – kör dem parallellt i stället för i sekvens.
     // allSettled behåller den tidigare per-anrop-isoleringen: ett fel på ett anrop får
     // inte hindra de andra listorna från att laddas.
-    const [rapporterRes, privatRes, företagRes, faktureringRes, raderadeRes] = await Promise.allSettled([
+    const [rapporterRes, privatRes, företagRes, faktureringRes, raderadeRes, bestridandeRes, privatStatRes] = await Promise.allSettled([
       api.allaRapporter('', ''),
       api.hämtaAllaPrivatpersoner(),
       api.hämtaAllaFöretag(),
       api.hämtaFaktureringsunderlag(),
       api.hämtaRaderadeKonton(),
+      api.adminBestridanden(),
+      api.adminPrivatpersonerStatistik(),
     ]);
 
     if (rapporterRes.status === 'fulfilled') setRapporter(rapporterRes.value);
@@ -65,6 +119,12 @@ export default function RapporterScreen({ navigation }) {
 
     if (privatRes.status === 'fulfilled') setPrivatpersoner(privatRes.value);
     else console.error('Privatpersoner:', privatRes.reason);
+
+    if (bestridandeRes.status === 'fulfilled') setBestridanden(bestridandeRes.value);
+    else console.error('Bestridanden:', bestridandeRes.reason);
+
+    if (privatStatRes.status === 'fulfilled') setPrivatpersonerStat(privatStatRes.value);
+    else console.error('Privatpersoner (statistik):', privatStatRes.reason);
 
     if (företagRes.status === 'fulfilled') setFöretag(företagRes.value);
     else console.error('Företag:', företagRes.reason);
@@ -246,6 +306,67 @@ export default function RapporterScreen({ navigation }) {
 
   useFocusEffect(useCallback(() => { hämta(); }, []));
 
+  // Dashboard-statistiken hämtas separat och körs om när perioden byts – användar-räknarna
+  // är ändå totaler, bara aktivitet/ekonomi påverkas av from-datumet.
+  useEffect(() => {
+    let avbruten = false;
+    (async () => {
+      try {
+        const data = await api.adminStatistik(frånDatumFörPeriod(tidsperiod));
+        if (!avbruten) setStatistik(data);
+      } catch (fel) {
+        console.error('Statistik:', fel);
+      }
+    })();
+    return () => { avbruten = true; };
+  }, [tidsperiod]);
+
+  function ändraBestridandeTimmar(id, värde) {
+    setBestridandeTimmar(prev => ({ ...prev, [id]: värde }));
+  }
+  function växlaBestridandeFusk(id) {
+    setBestridandeFusk(prev => ({ ...prev, [id]: !prev[id] }));
+  }
+  // Rensar radens utkast efter en avslutad åtgärd.
+  function rensaBestridandeUtkast(id) {
+    setBestridandeTimmar(prev => { const n = { ...prev }; delete n[id]; return n; });
+    setBestridandeFusk(prev => { const n = { ...prev }; delete n[id]; return n; });
+  }
+
+  // Skickar en korrigerad tidrapport (nya timmar) via det vanliga tidrapportsflödet. Raden
+  // lämnar listan när vi hämtar om – den ursprungliga rapporten markeras som hanterad i backend.
+  async function skickaKorrigering(id) {
+    const timmar = Number(bestridandeTimmar[id]);
+    if (!timmar || timmar <= 0) {
+      Alert.alert('Ange timmar', 'Fyll i korrekta timmar (större än 0) innan du skickar en korrigering.');
+      return;
+    }
+    setSparBestridande(`korr-${id}`);
+    try {
+      await api.adminKorrigeraBestridande(id, timmar, !!bestridandeFusk[id]);
+      rensaBestridandeUtkast(id);
+      setBestridanden(prev => prev.filter(r => r.id !== id));
+    } catch (fel) {
+      Alert.alert('Fel', felText(fel));
+    } finally {
+      setSparBestridande(null);
+    }
+  }
+
+  // Godkänner företagets ursprungliga rapport – den blir utbetalbar och faller ur listan.
+  async function godkännUrsprunglig(id) {
+    setSparBestridande(`godk-${id}`);
+    try {
+      await api.adminGodkännBestridande(id, !!bestridandeFusk[id]);
+      rensaBestridandeUtkast(id);
+      setBestridanden(prev => prev.filter(r => r.id !== id));
+    } catch (fel) {
+      Alert.alert('Fel', felText(fel));
+    } finally {
+      setSparBestridande(null);
+    }
+  }
+
   const totaltBelopp = rapporter.reduce((sum, r) => sum + (r.totalt_belopp ?? 0), 0);
   const totaltTimmar = rapporter.reduce((sum, r) => sum + (r.timmar ?? 0), 0);
   // Löneavdragen minskar vad personerna får ut, men inte vad företagen faktureras.
@@ -283,6 +404,13 @@ export default function RapporterScreen({ navigation }) {
         (p.Email || '').toLowerCase().includes(sökQP))
     : privatpersoner;
 
+  const sökQPS = sökPrivatpersonStat.trim().toLowerCase();
+  const filtradePrivatpersonerStat = sökQPS
+    ? privatpersonerStat.filter(p =>
+        (p.Namn || '').toLowerCase().includes(sökQPS) ||
+        (p.Email || '').toLowerCase().includes(sökQPS))
+    : privatpersonerStat;
+
   function renderFlik(id, etikett, antal) {
     const aktiv = aktivFlik === id;
     return (
@@ -299,16 +427,200 @@ export default function RapporterScreen({ navigation }) {
 
   return (
     <View style={styles.container}>
-      <View style={styles.flikar}>
-        {renderFlik('rapporter', 'Tidrapporter', rapporter.length)}
-        {renderFlik('avtal', 'Avtal', antalVäntandeAvtal)}
-        {renderFlik('företag', 'Företag', företag.length)}
-        {renderFlik('fakturering', 'Fakturering', faktureringsunderlag.length)}
-        {renderFlik('raderade', 'Raderade', raderadeKonton.length)}
+      <View style={styles.flikarWrap}>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.flikar}>
+          {renderFlik('dashboard', 'Dashboard')}
+          {renderFlik('rapporter', 'Tidrapporter', rapporter.length)}
+          {renderFlik('bestridanden', 'Bestridanden', bestridanden.length)}
+          {renderFlik('avtal', 'Avtal', antalVäntandeAvtal)}
+          {renderFlik('företag', 'Företag', företag.length)}
+          {renderFlik('fakturering', 'Fakturering', faktureringsunderlag.length)}
+          {renderFlik('privatpersoner', 'Privatpersoner', privatpersonerStat.length)}
+          {renderFlik('raderade', 'Raderade', raderadeKonton.length)}
+        </ScrollView>
       </View>
 
       {laddar ? (
         <ActivityIndicator style={{ flex: 1 }} size="large" />
+      ) : aktivFlik === 'dashboard' ? (
+        <ScrollView contentContainerStyle={styles.dashLista}>
+          <View style={styles.periodRad}>
+            {TIDSPERIODER.map((p) => {
+              const aktiv = tidsperiod === p.nyckel;
+              return (
+                <TouchableOpacity key={p.nyckel} onPress={() => setTidsperiod(p.nyckel)} style={[styles.periodPill, aktiv && styles.periodPillAktiv]}>
+                  <Text style={[styles.periodText, aktiv && styles.periodTextAktiv]}>{p.etikett}</Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+
+          {!statistik ? (
+            <ActivityIndicator style={{ marginTop: 40 }} size="large" />
+          ) : (
+            <>
+              <Text style={styles.dashRubrik}>Användare</Text>
+              <Text style={styles.dashUnder}>Totalsiffror – påverkas inte av perioden.</Text>
+              <View style={styles.statRad}>
+                <StatKort etikett="Totalt användare" värde={antal(statistik.antalAnvändare)} primär />
+                <StatKort etikett="Företag" värde={antal(statistik.antalFöretag)} />
+              </View>
+              <View style={styles.statRad}>
+                <StatKort etikett="Privatpersoner" värde={antal(statistik.antalPrivatpersoner)} />
+                <StatKort etikett="Nya (30 dagar)" värde={antal(statistik.nyaAnvändare30d)} under="Senaste 30 dagarna" />
+              </View>
+
+              <Text style={styles.dashRubrik}>Aktivitet</Text>
+              <Text style={styles.dashUnder}>Avser {periodEtikett(tidsperiod).toLowerCase()} (Pro är en totalsiffra).</Text>
+              <View style={styles.statRad}>
+                <StatKort etikett="Godkända pass" värde={antal(statistik.godkändaPass)} />
+                <StatKort etikett="Jobbade timmar" värde={`${(Number(statistik.totaltTimmar) || 0).toLocaleString('sv-SE')} h`} />
+              </View>
+              <View style={styles.statRad}>
+                <StatKort etikett="Pro-prenumeranter" värde={antal(statistik.proPrenumeranter)} primär />
+                <View style={styles.statKortTom} />
+              </View>
+
+              <Text style={styles.dashRubrik}>Ekonomi</Text>
+              <Text style={styles.dashUnder}>Avser {periodEtikett(tidsperiod).toLowerCase()}, baserat på godkända tidrapporter.</Text>
+              <View style={styles.statRad}>
+                <StatKort etikett="Total fakturerad summa" värde={kr(statistik.fakturerat)} primär />
+                <StatKort etikett="Total bruttolön" värde={kr(statistik.bruttolön)} />
+              </View>
+              <View style={styles.statRad}>
+                <StatKort etikett="Påslagsintäkt (FastGig)" värde={kr(statistik.påslagsintäkt)} under="Fakturerat − arbetskostnad" />
+                <View style={styles.statKortTom} />
+              </View>
+            </>
+          )}
+        </ScrollView>
+      ) : aktivFlik === 'bestridanden' ? (
+        <FlatList
+          data={bestridanden}
+          keyExtractor={(item) => String(item.id)}
+          removeClippedSubviews={true}
+          maxToRenderPerBatch={10}
+          windowSize={5}
+          initialNumToRender={8}
+          contentContainerStyle={styles.lista}
+          ListHeaderComponent={bestridanden.length > 0 ? (
+            <Text style={styles.bestridInfo}>Bestridanden som inte hanterats inom 24 timmar och eskalerats till FastGig.</Text>
+          ) : null}
+          ListEmptyComponent={<Text style={styles.tom}>Inga eskalerade bestridanden just nu</Text>}
+          renderItem={({ item }) => {
+            const fusk = !!bestridandeFusk[item.id];
+            const sparKorr = sparBestridande === `korr-${item.id}`;
+            const sparGodk = sparBestridande === `godk-${item.id}`;
+            return (
+              <View style={styles.kort}>
+                <View style={styles.titelRad}>
+                  <Text style={[styles.namn, { flex: 1 }]} numberOfLines={1}>{item.anvandareNamn ?? 'Okänd'}</Text>
+                  <Text style={styles.bestriddBadge}>Bestridd</Text>
+                  {item.ärSchemapass && <Text style={styles.schemaBadge}>Schemapass</Text>}
+                </View>
+                <Text style={styles.jobbTitel} numberOfLines={1}>{item.jobbTitel ?? 'Pass'}</Text>
+                <Text style={styles.sekundär}>{visaDatum(item.datum)} · {item.foretagNamn ?? 'Okänt företag'}</Text>
+
+                <View style={[styles.kortDetaljer, { marginTop: 10 }]}>
+                  <View style={styles.detalj}><Text style={styles.detaljEtikett}>Timmar</Text><Text style={styles.detaljVärde}>{Number(item.timmar) || 0}</Text></View>
+                  <View style={styles.detalj}><Text style={styles.detaljEtikett}>Timlön</Text><Text style={styles.detaljVärde}>{kr(item.timlon)}</Text></View>
+                  <View style={[styles.detalj, styles.detaljFramhavd]}><Text style={styles.detaljEtikett}>Totalt</Text><Text style={styles.detaljVärdeStor}>{kr(item.totalt_belopp)}</Text></View>
+                </View>
+
+                <View style={styles.bestridRuta}>
+                  <Text style={styles.bestridEtikett}>Bestridande</Text>
+                  <Text style={styles.bestridTextInner}>{item.bestridande_orsak || 'Ingen förklaring angiven'}</Text>
+                  {item.bestridande_starttid && item.bestridande_sluttid ? (
+                    <Text style={styles.bestridTid}>Föreslagen tid: {item.bestridande_starttid}–{item.bestridande_sluttid}</Text>
+                  ) : null}
+                </View>
+
+                <TouchableOpacity
+                  style={styles.fuskRad}
+                  onPress={() => växlaBestridandeFusk(item.id)}
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                  accessibilityRole="checkbox"
+                  accessibilityState={{ checked: fusk }}
+                >
+                  <Ionicons name={fusk ? 'checkbox' : 'square-outline'} size={22} color={fusk ? '#dc2626' : '#cbd5e1'} />
+                  <Text style={styles.fuskText}>Markera som fusk (skicka varning)</Text>
+                </TouchableOpacity>
+
+                <View style={styles.bestridAktioner}>
+                  <TextInput
+                    style={styles.timmarInput}
+                    placeholder={`${Number(item.timmar) || 0} tim`}
+                    keyboardType="numeric"
+                    value={bestridandeTimmar[item.id] ?? ''}
+                    onChangeText={(v) => ändraBestridandeTimmar(item.id, v)}
+                  />
+                  <TouchableOpacity style={[styles.korrKnapp, sparKorr && styles.knappAv]} disabled={sparKorr} onPress={() => skickaKorrigering(item.id)}>
+                    <Text style={styles.korrText}>{sparKorr ? 'Skickar…' : 'Skicka korrigering'}</Text>
+                  </TouchableOpacity>
+                </View>
+                <TouchableOpacity style={[styles.godkUrsprKnapp, sparGodk && styles.knappAv]} disabled={sparGodk} onPress={() => godkännUrsprunglig(item.id)}>
+                  <Text style={styles.godkUrsprText}>{sparGodk ? 'Godkänner…' : 'Godkänn ursprunglig'}</Text>
+                </TouchableOpacity>
+              </View>
+            );
+          }}
+        />
+      ) : aktivFlik === 'privatpersoner' ? (
+        <>
+          <View style={styles.sökContainer}>
+            <Ionicons name="search-outline" size={18} color="#aaa" style={styles.sökIkon} accessible={false} importantForAccessibility="no" />
+            <TextInput
+              style={styles.sökInput}
+              placeholder="Sök på namn eller mejl..."
+              value={sökPrivatpersonStat}
+              onChangeText={setSökPrivatpersonStat}
+              autoCapitalize="none"
+            />
+          </View>
+          <FlatList
+            data={filtradePrivatpersonerStat}
+            keyExtractor={(item) => String(item.id)}
+            removeClippedSubviews={true}
+            maxToRenderPerBatch={10}
+            windowSize={5}
+            initialNumToRender={8}
+            contentContainerStyle={styles.lista}
+            ListEmptyComponent={<Text style={styles.tom}>Inga privatpersoner hittades</Text>}
+            renderItem={({ item }) => {
+              const godkänt = item.avtal_godkant === true;
+              const varn = Number(item.varningar) || 0;
+              return (
+                <View style={styles.kort}>
+                  <View style={styles.namnRad}>
+                    <TouchableOpacity style={{ flexShrink: 1 }} onPress={() => navigation.navigate('SökanadeProfil', { sokandeId: item.id, ansokningId: null })}>
+                      <Text style={[styles.namn, styles.klickbart]} numberOfLines={1}>{item.Namn || 'Namnlös'}</Text>
+                    </TouchableOpacity>
+                    <View style={[styles.avtalBadge, godkänt ? styles.avtalBadgeOk : styles.avtalBadgeNej]}>
+                      <Text style={godkänt ? styles.avtalBadgeOkText : styles.avtalBadgeNejText}>{godkänt ? '✓ Avtal godkänt' : '✗ Ej godkänt'}</Text>
+                    </View>
+                  </View>
+                  <Text style={styles.email}>{item.Email ?? '–'}{item.telefonnummer ? ` · ${item.telefonnummer}` : ''}</Text>
+                  <View style={styles.statRutor}>
+                    {varn > 0 && (
+                      <View style={[styles.statRuta, styles.statRutaVarning]}>
+                        <Text style={styles.statRutaVarningVärde}>{varn}</Text>
+                        <Text style={styles.statRutaVarningEtikett}>Varningar</Text>
+                      </View>
+                    )}
+                    <View style={styles.statRuta}>
+                      <Text style={styles.statRutaVärde}>{Number(item.genomfördaPass) || 0}</Text>
+                      <Text style={styles.statRutaEtikett}>Pass</Text>
+                    </View>
+                    <View style={styles.statRuta}>
+                      <Text style={styles.statRutaVärde}>{item.betygSnitt != null ? `${item.betygSnitt}★` : '–'}</Text>
+                      <Text style={styles.statRutaEtikett}>Betyg{item.betygAntal ? ` (${item.betygAntal})` : ''}</Text>
+                    </View>
+                  </View>
+                </View>
+              );
+            }}
+          />
+        </>
       ) : aktivFlik === 'rapporter' ? (
         <>
           <View style={styles.filter}>
@@ -710,8 +1022,9 @@ export default function RapporterScreen({ navigation }) {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#f8fafc' },
-  flikar: { flexDirection: 'row', backgroundColor: '#fff', borderBottomWidth: 1, borderBottomColor: '#eee' },
-  flik: { flex: 1, paddingVertical: 12, alignItems: 'center', gap: 3 },
+  flikarWrap: { backgroundColor: '#fff', borderBottomWidth: 1, borderBottomColor: '#eee' },
+  flikar: { paddingHorizontal: 4 },
+  flik: { paddingVertical: 12, paddingHorizontal: 14, alignItems: 'center', gap: 3 },
   flikAktiv: { borderBottomWidth: 2, borderBottomColor: '#2563eb' },
   flikText: { fontSize: 12, fontWeight: '600', color: '#999' },
   flikTextAktiv: { color: '#2563eb' },
@@ -821,4 +1134,53 @@ const styles = StyleSheet.create({
   sökContainer: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#fff', margin: 12, borderRadius: 10, borderWidth: 1, borderColor: '#e5e7eb', paddingHorizontal: 12 },
   sökIkon: { marginRight: 8 },
   sökInput: { flex: 1, paddingVertical: 11, fontSize: 14, color: '#1a1a1a' },
+
+  // Dashboard
+  dashLista: { padding: 16, paddingBottom: 32 },
+  periodRad: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 8 },
+  periodPill: { backgroundColor: '#fff', borderWidth: 1, borderColor: '#e5e7eb', borderRadius: 16, paddingHorizontal: 14, paddingVertical: 7 },
+  periodPillAktiv: { backgroundColor: '#2563eb', borderColor: '#2563eb' },
+  periodText: { fontSize: 13, fontWeight: '600', color: '#64748b' },
+  periodTextAktiv: { color: '#fff' },
+  dashRubrik: { fontSize: 16, fontWeight: '700', color: '#1a1a1a', marginTop: 20, marginBottom: 2 },
+  dashUnder: { fontSize: 12, color: '#94a3b8', marginBottom: 12 },
+  statRad: { flexDirection: 'row', gap: 12, marginBottom: 12 },
+  statKort: { flex: 1, backgroundColor: '#fff', borderRadius: 12, borderTopWidth: 3, borderTopColor: '#e5e7eb', padding: 16, shadowColor: '#000', shadowOpacity: 0.04, shadowRadius: 4, elevation: 1 },
+  statKortPrimär: { borderTopColor: '#2563eb' },
+  statKortTom: { flex: 1 },
+  statEtikett: { fontSize: 11, fontWeight: '700', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: 0.5 },
+  statVärde: { fontSize: 26, fontWeight: '800', color: '#1a1a1a', marginTop: 8 },
+  statUnder: { fontSize: 12, color: '#94a3b8', marginTop: 6 },
+
+  // Bestridanden
+  bestridInfo: { fontSize: 13, color: '#64748b', marginBottom: 12, lineHeight: 18 },
+  bestriddBadge: { fontSize: 11, fontWeight: '700', color: '#dc2626', backgroundColor: '#fee2e2', borderRadius: 6, paddingHorizontal: 8, paddingVertical: 3, overflow: 'hidden' },
+  bestridRuta: { backgroundColor: '#fef2f2', borderRadius: 8, padding: 12, marginTop: 10 },
+  bestridEtikett: { fontSize: 11, fontWeight: '700', color: '#dc2626', textTransform: 'uppercase', letterSpacing: 0.3 },
+  bestridTextInner: { fontSize: 14, color: '#1a1a1a', marginTop: 4 },
+  bestridTid: { fontSize: 13, color: '#6b7280', marginTop: 6 },
+  fuskRad: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 14 },
+  fuskText: { fontSize: 14, color: '#1a1a1a' },
+  bestridAktioner: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 12 },
+  timmarInput: { width: 90, borderWidth: 1, borderColor: '#ddd', borderRadius: 8, paddingVertical: 10, paddingHorizontal: 12, fontSize: 14, backgroundColor: '#fafafa' },
+  korrKnapp: { flex: 1, backgroundColor: '#2563eb', borderRadius: 8, paddingVertical: 12, alignItems: 'center' },
+  korrText: { color: '#fff', fontWeight: '700', fontSize: 14 },
+  godkUrsprKnapp: { marginTop: 10, backgroundColor: '#eef2ff', borderRadius: 8, paddingVertical: 11, alignItems: 'center' },
+  godkUrsprText: { color: '#4338ca', fontWeight: '700', fontSize: 14 },
+  knappAv: { opacity: 0.6 },
+
+  // Privatpersoner (statistik)
+  namnRad: { flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' },
+  avtalBadge: { borderRadius: 999, paddingHorizontal: 8, paddingVertical: 2 },
+  avtalBadgeOk: { backgroundColor: '#dcfce7' },
+  avtalBadgeNej: { backgroundColor: '#fee2e2' },
+  avtalBadgeOkText: { fontSize: 11, fontWeight: '700', color: '#16a34a' },
+  avtalBadgeNejText: { fontSize: 11, fontWeight: '700', color: '#dc2626' },
+  statRutor: { flexDirection: 'row', gap: 8, marginTop: 12 },
+  statRuta: { backgroundColor: '#f1f5f9', borderRadius: 8, paddingHorizontal: 14, paddingVertical: 8, alignItems: 'center', minWidth: 64 },
+  statRutaVärde: { fontSize: 17, fontWeight: '700', color: '#1a1a1a' },
+  statRutaEtikett: { fontSize: 11, fontWeight: '600', color: '#94a3b8', textTransform: 'uppercase' },
+  statRutaVarning: { backgroundColor: '#fee2e2' },
+  statRutaVarningVärde: { fontSize: 17, fontWeight: '800', color: '#dc2626' },
+  statRutaVarningEtikett: { fontSize: 11, fontWeight: '700', color: '#dc2626', textTransform: 'uppercase' },
 });

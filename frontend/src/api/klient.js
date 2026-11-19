@@ -233,6 +233,15 @@ export const api = {
   återkallaAvtal: (id, orsak) => anrop('PATCH', `/users/admin/${id}/avtal-aterkalla`, { orsak }),
   hämtaRaderadeKonton: () => anrop('GET', '/users/admin/raderade'),
   återkallaAvtalRaderad: (id) => anrop('PATCH', `/users/admin/${id}/avtal-aterkalla-raderad`),
+  // Admin-dashboard: alla siffror i ett anrop. Tomt from = totalt (ingen undre datumgräns).
+  adminStatistik: (from) => anrop('GET', `/admin/statistik${from ? `?from=${from}` : ''}`),
+  // Berikad privatpersonslista (varningar, genomförda pass, betygssnitt). Skild från
+  // hämtaAllaPrivatpersoner som matar Avtal-fliken.
+  adminPrivatpersonerStatistik: () => anrop('GET', '/admin/privatpersoner'),
+  // Eskalerade, ohanterade bestridanden + admins två åtgärder. fusk=true utfärdar en varning.
+  adminBestridanden: () => anrop('GET', '/admin/bestridanden'),
+  adminGodkännBestridande: (id, fusk = false) => anrop('POST', `/admin/bestridanden/${id}/godkann`, { fusk }),
+  adminKorrigeraBestridande: (id, timmar, fusk = false) => anrop('POST', `/admin/bestridanden/${id}/korrigera`, { timmar, fusk }),
 
   // Fakturering
   hämtaFaktureringsunderlag: () => anrop('GET', '/fakturering'),
