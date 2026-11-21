@@ -5,6 +5,7 @@ import { AuthProvider } from './src/context/AuthContext';
 import { NotifikationsProvider } from './src/context/NotifikationsContext';
 import { AttAvslutaProvider } from './src/context/AttAvslutaContext';
 import { NyaPassProvider } from './src/context/NyaPassContext';
+import { InkorgsProvider } from './src/context/InkorgsContext';
 import { RealtidsProvider } from './src/context/RealtidsContext';
 import { AnslutningsProvider } from './src/context/AnslutningsContext';
 import { BetygsProvider } from './src/context/BetygsContext';
@@ -32,6 +33,7 @@ export default function App() {
           <NotifikationsProvider>
             <AttAvslutaProvider>
               <NyaPassProvider>
+               <InkorgsProvider>
                 <RealtidsProvider>
                   {/* Innanför RealtidsProvider: betygsprompten lyssnar på tidrapport-pingen.
                       Den renderar en Modal utanför navigatorn, vilket är det som gör att
@@ -41,6 +43,7 @@ export default function App() {
                     <Navigation />
                   </BetygsProvider>
                 </RealtidsProvider>
+               </InkorgsProvider>
               </NyaPassProvider>
             </AttAvslutaProvider>
           </NotifikationsProvider>

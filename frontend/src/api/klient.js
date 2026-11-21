@@ -258,6 +258,9 @@ export const api = {
   // Avslutade uppdrag som ännu inte betygsatts – underlaget för betygspopupen.
   väntandeBetyg: () => anrop('GET', '/betyg/vantande'),
 
+  // Inkorg (åtgärdslista – härledd, ingen egen tabell)
+  hämtaInkorg: () => anrop('GET', '/inkorg'),
+
   // Scheman (längre uppdrag: sommarjobb, säsongsarbete). Ett schema söks som helhet via
   // sitt annons-jobb, så ansökan går genom sökaJobb ovan med schemats annons_jobb_id.
   skapaSchema: (kropp) => anrop('POST', '/scheman', kropp),

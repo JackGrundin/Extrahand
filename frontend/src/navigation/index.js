@@ -11,6 +11,7 @@ import { useAuth } from '../context/AuthContext';
 import { useNotifikationer } from '../context/NotifikationsContext';
 import { useAttAvsluta } from '../context/AttAvslutaContext';
 import { useNyaPass } from '../context/NyaPassContext';
+import { useInkorg } from '../context/InkorgsContext';
 import { useRealtidsPing } from '../context/RealtidsContext';
 import { api } from '../api/klient';
 import LoggaInScreen from '../screens/LoggaInScreen';
@@ -36,6 +37,7 @@ import PubliceraSchemaScreen from '../screens/PubliceraSchemaScreen';
 import SchemaDetaljScreen from '../screens/SchemaDetaljScreen';
 import RedigeraSchemaScreen from '../screens/RedigeraSchemaScreen';
 import SchemaKalenderScreen from '../screens/SchemaKalenderScreen';
+import InkorgsScreen from '../screens/InkorgsScreen';
 import GlömtLösenordScreen from '../screens/GlömtLösenordScreen';
 import OfflineBanner from '../components/OfflineBanner';
 import OnboardingGate from '../components/OnboardingGate';
@@ -118,6 +120,26 @@ function AnsökningarNavigator() {
     >
       <Stack.Screen name="MinaAnsokningar" component={MinaAnsokningarScreen} options={{ title: 'Mina ansökningar' }} />
       <Stack.Screen name="Chatt" component={ChattScreen} options={{ title: 'Chatt' }} />
+      <Stack.Screen name="Betygsatt" component={BetygsattScreen} options={{ title: 'Betygsätt' }} />
+    </Stack.Navigator>
+  );
+}
+
+function InkorgNavigator() {
+  return (
+    <Stack.Navigator
+      screenOptions={({ navigation }) => ({
+        ...headerTema,
+        headerRight: () => <ChatKnapp navigation={navigation} />,
+      })}
+    >
+      <Stack.Screen name="Inkorg" component={InkorgsScreen} options={{ title: 'Inkorg' }} />
+      {/* Posterna öppnar dessa skärmar; de måste finnas i stacken för att navigeringen
+          ska stanna kvar i Inkorg-fliken. */}
+      <Stack.Screen name="Chatt" component={ChattScreen} options={{ title: 'Chatt' }} />
+      <Stack.Screen name="JobbAnsokningar" component={JobbAnsokningarScreen} options={({ route }) => ({ title: route.params?.titel ?? 'Ansökningar' })} />
+      <Stack.Screen name="SchemaDetalj" component={SchemaDetaljScreen} options={{ title: 'Schema' }} />
+      <Stack.Screen name="SökanadeProfil" component={SökandeProfilScreen} options={{ title: 'Sökandes profil' }} />
       <Stack.Screen name="Betygsatt" component={BetygsattScreen} options={{ title: 'Betygsätt' }} />
     </Stack.Navigator>
   );
@@ -231,6 +253,7 @@ function HuvudNavigator() {
   const { uppdateraOlästa } = useNotifikationer();
   const { antalAttAvsluta, antalNyaAnsökningar, uppdateraAttAvsluta } = useAttAvsluta();
   const { antalNyaPass, uppdateraNyaPass } = useNyaPass();
+  const { antalInkorg, uppdateraInkorg } = useInkorg();
   const ärPrivatperson = användare?.typ === 'privatperson';
   const ärFöretag = användare?.typ === 'företag';
   const ärAdmin = användare?.email === 'info@fastgig.se';
@@ -262,6 +285,12 @@ function HuvudNavigator() {
     if (ärPrivatperson) uppdateraNyaPass();
   }, [användare?.id, ärPrivatperson]);
 
+  // Seed:a antalet åtgärder i inkorgen (badge på Inkorg-fliken) direkt vid inloggning, för
+  // både företag och privatperson.
+  useEffect(() => {
+    if (användare?.id) uppdateraInkorg();
+  }, [användare?.id, uppdateraInkorg]);
+
   // Äkta realtid: en signal (utan innehåll) på användarens privata kanal räknar om olästa
   // (och pass-att-avsluta för företag) direkt när något nytt skapats i databasen.
   useRealtidsPing((payload) => {
@@ -269,6 +298,8 @@ function HuvudNavigator() {
     if (ärFöretag) uppdateraAttAvsluta();
     // Ett godkännande skickar 'pass-status'; räkna om den orangea Mina pass-pricken direkt.
     if (ärPrivatperson) uppdateraNyaPass();
+    // Inkorgens badge räknas om på varje signal – billigt och alltid färskt för båda roller.
+    uppdateraInkorg();
     // Admin har godkänt avtalet: hämta om profilen så att avtalGodkant blir true
     // och "Avtal krävs"-spärren släpper direkt, utan omstart. Bara denna typ
     // triggar en profilhämtning – vanliga pings (meddelande, tidrapport) ska inte.
@@ -321,6 +352,7 @@ function HuvudNavigator() {
             MinaPassTab:    focused ? 'time'            : 'time-outline',
             MinaJobbTab:    focused ? 'list'            : 'list-outline',
             PubliceraTab:   focused ? 'add-circle'      : 'add-circle-outline',
+            InkorgTab:      focused ? 'mail'            : 'mail-outline',
             RapporterTab:   focused ? 'bar-chart'       : 'bar-chart-outline',
             Profil:         focused ? 'person'          : 'person-outline',
           };
@@ -347,6 +379,18 @@ function HuvudNavigator() {
           }}
         />
       )}
+      {ärPrivatperson && (
+        <Tab.Screen
+          name="InkorgTab"
+          component={InkorgNavigator}
+          options={{
+            tabBarLabel: 'Inkorg',
+            // Antal åtgärder att hantera – nollas av sig själv när listan tömts.
+            tabBarBadge: antalInkorg > 0 ? (antalInkorg > 9 ? '9+' : antalInkorg) : undefined,
+            tabBarBadgeStyle: { backgroundColor: FÄRG.varning },
+          }}
+        />
+      )}
       {ärFöretag && (
         <Tab.Screen
           name="MinaJobbTab"
@@ -363,6 +407,18 @@ function HuvudNavigator() {
       )}
       {ärFöretag && (
         <Tab.Screen name="PubliceraTab" component={PubliceraNavigator} options={{ tabBarLabel: 'Publicera' }} />
+      )}
+      {ärFöretag && (
+        <Tab.Screen
+          name="InkorgTab"
+          component={InkorgNavigator}
+          options={{
+            tabBarLabel: 'Inkorg',
+            // Antal åtgärder att hantera – nollas av sig själv när listan tömts.
+            tabBarBadge: antalInkorg > 0 ? (antalInkorg > 9 ? '9+' : antalInkorg) : undefined,
+            tabBarBadgeStyle: { backgroundColor: FÄRG.varning },
+          }}
+        />
       )}
       <Tab.Screen
         name="ChattTab"

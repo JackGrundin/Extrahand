@@ -18,6 +18,7 @@ const adressRoutes = require('./routes/adress');
 const inbjudanRoutes = require('./routes/inbjudan');
 const adminRoutes = require('./routes/admin');
 const avtalRoutes = require('./routes/avtal');
+const inkorgRoutes = require('./routes/inkorg');
 const aterstallningSidaRoutes = require('./routes/aterstallningSida');
 const { stripeWebhook } = require('./routes/stripeWebhook');
 const { startaPassPåminnelse } = require('./cron/passPaminnelse');
@@ -131,6 +132,7 @@ app.use('/api/adress', adressRoutes);
 app.use('/api/inbjudan', inbjudanRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/avtal', avtalRoutes);
+app.use('/api/inkorg', inkorgRoutes);
 
 process.on('uncaughtException', (err) => {
   console.error('Ohanterat undantag:', err);

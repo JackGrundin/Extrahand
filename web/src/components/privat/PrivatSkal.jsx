@@ -78,6 +78,7 @@ export default function PrivatSkal({ children }) {
   const [olästa, setOlästa] = useState(0);
   const [ansökanStatus, setAnsökanStatus] = useState(0);
   const [nyaPass, setNyaPass] = useState(0);
+  const [inkorg, setInkorg] = useState(0);
   const sökväg = usePathname();
   const { visa, toaster } = useToaster();
 
@@ -148,6 +149,17 @@ export default function PrivatSkal({ children }) {
     [minId],
   );
 
+  // Antal åtgärder i inkorgen (härledd lista: tidrapporter att bekräfta, obetygsatta pass,
+  // avtal som saknas). Nollas naturligt när åtgärderna utförts. Fel sväljs.
+  const laddaInkorg = useCallback(async () => {
+    try {
+      const svar = await api.hämtaInkorg();
+      setInkorg(Array.isArray(svar?.poster) ? svar.poster.length : 0);
+    } catch {
+      /* en trasig badge får aldrig sänka vyn */
+    }
+  }, []);
+
   // Ladda vid montering och vid sidbyte. Öppnar man inboxen nollas oläst-stämpeln; öppnar man
   // Mina ansökningar uppdateras status-snapshotten (pricken släcks). Hoppas över i publikt läge.
   useEffect(() => {
@@ -157,7 +169,8 @@ export default function PrivatSkal({ children }) {
       nollställStatus: sökväg?.startsWith('/mina-ansokningar'),
       nollställPass: sökväg?.startsWith('/mina-pass'),
     });
-  }, [ärPrivat, laddaBadges, sökväg]);
+    laddaInkorg();
+  }, [ärPrivat, laddaBadges, laddaInkorg, sökväg]);
 
   // Realtid: nytt meddelande → oläst-badge + toast; statusändring på ansökan → status-badge +
   // toast; inkommen jobbförfrågan → toast till inboxen.
@@ -176,6 +189,9 @@ export default function PrivatSkal({ children }) {
         typ: 'framgång',
       });
     }
+    // Inkorgen reagerar på allt som kan skapa eller lösa en åtgärd (tidrapport att bekräfta,
+    // pass att betygsätta, avtal som godkänts).
+    if (['tidrapport', 'pass-status', 'betyg', 'avtal'].includes(p?.typ)) laddaInkorg();
     if (p?.typ === 'jobbforfragan') {
       visa({ titel: 'Ny jobbförfrågan', text: 'Ett företag har skickat en förfrågan.', href: '/chatt' });
     }
@@ -198,7 +214,7 @@ export default function PrivatSkal({ children }) {
     <div className="min-h-screen bg-bakgrund">
       {/* Fast sidomeny – desktop */}
       <aside className="fixed inset-y-0 left-0 z-40 hidden w-64 border-r border-kant bg-yta md:block">
-        <PrivatSidomeny olästa={olästa} ansökanStatus={ansökanStatus} nyaPass={nyaPass} />
+        <PrivatSidomeny olästa={olästa} ansökanStatus={ansökanStatus} nyaPass={nyaPass} inkorg={inkorg} />
       </aside>
 
       {/* Mobil topprad */}
@@ -230,6 +246,7 @@ export default function PrivatSkal({ children }) {
               olästa={olästa}
               ansökanStatus={ansökanStatus}
               nyaPass={nyaPass}
+              inkorg={inkorg}
             />
           </div>
         </div>

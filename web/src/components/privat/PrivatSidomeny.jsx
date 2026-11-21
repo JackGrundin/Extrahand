@@ -9,6 +9,7 @@ import { usePathname } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 
 const LÄNKAR = [
+  { namn: 'Inkorg', väg: '/inkorg' },
   { namn: 'Hitta jobb', väg: '/jobb' },
   { namn: 'Mina ansökningar', väg: '/mina-ansokningar' },
   { namn: 'Mina pass', väg: '/mina-pass' },
@@ -16,7 +17,7 @@ const LÄNKAR = [
   { namn: 'Min profil', väg: '/min-profil' },
 ];
 
-export default function PrivatSidomeny({ onNavigera, olästa = 0, ansökanStatus = 0, nyaPass = 0 }) {
+export default function PrivatSidomeny({ onNavigera, olästa = 0, ansökanStatus = 0, nyaPass = 0, inkorg = 0 }) {
   const { användare, loggaUt } = useAuth();
   const sökväg = usePathname();
 
@@ -27,6 +28,7 @@ export default function PrivatSidomeny({ onNavigera, olästa = 0, ansökanStatus
   // Röd badge per väg: olästa meddelanden på /chatt, besvarade ansökningar på /mina-ansokningar,
   // nyss godkända pass på /mina-pass.
   const BADGE_PER_VÄG = {
+    '/inkorg': inkorg,
     '/chatt': olästa,
     '/mina-ansokningar': ansökanStatus,
     '/mina-pass': nyaPass,

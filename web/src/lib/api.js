@@ -227,6 +227,9 @@ export const api = {
     anrop('PATCH', `/ansokningar/${ansökningId}/favorit`, { favorit }),
   företagsKonversationer: () => anrop('GET', '/ansokningar/foretag'),
 
+  // Inkorg (åtgärdslista – härledd, ingen egen tabell)
+  hämtaInkorg: () => anrop('GET', '/inkorg'),
+
   // Tidrapporter (historik-fliken + avsluta pass)
   tidrapporterFörFöretag: () => anrop('GET', '/tidrapporter/foretag'),
   // Avsluta ett pass: skicka BARA ansokan_id + timmar (+ valfri ob_tillagg) – backend

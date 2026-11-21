@@ -36,7 +36,7 @@ function sättSedd(ts) {
 export default function AppSkal({ children }) {
   const { användare } = useAuth();
   const [menyÖppen, setMenyÖppen] = useState(false);
-  const [badges, setBadges] = useState({ annonser: 0, meddelanden: 0 });
+  const [badges, setBadges] = useState({ annonser: 0, meddelanden: 0, inkorg: 0 });
   const sökväg = usePathname();
   const { visa, toaster } = useToaster();
   const minId = String(användare?.id ?? '');
@@ -49,6 +49,17 @@ export default function AppSkal({ children }) {
       const summa = (arr) =>
         (Array.isArray(arr) ? arr : []).reduce((s, x) => s + (Number(x?.nyaAnsökningar) || 0), 0);
       setBadges((prev) => ({ ...prev, annonser: summa(jobb) + summa(scheman) }));
+    } catch {
+      /* ignoreras med flit */
+    }
+  }, []);
+
+  // Antal åtgärder i inkorgen (härledd lista). Fel sväljs – en trasig badge får aldrig
+  // sänka hela vyn.
+  const laddaInkorg = useCallback(async () => {
+    try {
+      const svar = await api.hämtaInkorg();
+      setBadges((prev) => ({ ...prev, inkorg: Array.isArray(svar?.poster) ? svar.poster.length : 0 }));
     } catch {
       /* ignoreras med flit */
     }
@@ -77,7 +88,8 @@ export default function AppSkal({ children }) {
     if (sökväg?.startsWith('/meddelanden')) sättSedd(Date.now());
     laddaBadges();
     laddaOlästa();
-  }, [laddaBadges, laddaOlästa, sökväg]);
+    laddaInkorg();
+  }, [laddaBadges, laddaOlästa, laddaInkorg, sökväg]);
 
   // Realtid: en ny ansökan uppdaterar annons-badgen, ett nytt meddelande uppdaterar
   // oläst-badgen och visar en toast.
@@ -87,6 +99,9 @@ export default function AppSkal({ children }) {
       laddaOlästa();
       visa({ titel: 'Nytt meddelande', text: 'Du har fått ett nytt meddelande.', href: '/meddelanden' });
     }
+    // Inkorgen reagerar på allt som kan skapa eller lösa en åtgärd (ansökan, tidrapport,
+    // bestridande). Billigare att räkna om på relevanta signaler än att polla.
+    if (['ansokan', 'tidrapport', 'pass-status'].includes(p?.typ)) laddaInkorg();
   });
 
   // Stäng mobildrawern vid sidbyte.

@@ -10,6 +10,7 @@ import { useAuth } from '@/context/AuthContext';
 
 const LÄNKAR = [
   { namn: 'Översikt', väg: '/oversikt' },
+  { namn: 'Inkorg', väg: '/inkorg', badgeNyckel: 'inkorg', rödBadge: true },
   { namn: 'Mina annonser', väg: '/annonser', badgeNyckel: 'annonser' },
   { namn: 'Schemaöversikt', väg: '/kalender' },
   { namn: 'Meddelanden', väg: '/meddelanden', badgeNyckel: 'meddelanden' },
@@ -50,8 +51,8 @@ export default function Sidomeny({ badges = {}, onNavigera }) {
             >
               <span>{l.namn}</span>
               {antal > 0 && (
-                <span className="ml-2 inline-flex h-5 min-w-[20px] items-center justify-center rounded-pill bg-primär px-1.5 text-[12px] font-bold text-white">
-                  {antal}
+                <span className={`ml-2 inline-flex h-5 min-w-[20px] items-center justify-center rounded-pill px-1.5 text-[12px] font-bold text-white ${l.rödBadge ? 'bg-fel' : 'bg-primär'}`}>
+                  {antal > 9 ? '9+' : antal}
                 </span>
               )}
             </Link>
