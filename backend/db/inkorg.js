@@ -38,15 +38,31 @@ async function titlarPerAnsökan(ansokanIds) {
 // och nya ansökningar per annons-jobb.
 async function inkorgFöretag(företagId) {
   // 1 + 2: väntande och bestridda tidrapporter i ett svep (tidrapporter bär foretag_id).
+  // 'godkänd' hämtas bara för existenskontrollen nedan – den ger inga egna inkorgsposter.
   const { data: rapporter, error: rapportFel } = await supabase
     .from('tidrapporter')
     .select('ansokan_id, status, eskalerad, auto_skapad')
     .eq('foretag_id', företagId)
-    .in('status', ['väntar', 'bestridd']);
+    .in('status', ['väntar', 'bestridd', 'godkänd']);
   if (rapportFel) throw rapportFel;
 
   const väntande = (rapporter || []).filter(r => r.status === 'väntar' && r.auto_skapad === true);
-  const bestridda = (rapporter || []).filter(r => r.status === 'bestridd' && r.eskalerad === false);
+
+  // En ansökan är "redan hanterad" om den har en väntande eller godkänd rapport – då är ett
+  // äldre bestridande ersatt av en korrigering (ny rad på samma ansokan_id) och ska inte
+  // längre visas. Motsvarar SQL:ens NOT EXISTS (status IN ('väntar','godkänd') AND id != t.id);
+  // en bestridd rad har aldrig själv status väntar/godkänd, så id-villkoret är alltid uppfyllt.
+  const hanteradeAnsökningar = new Set(
+    (rapporter || [])
+      .filter(r => r.status === 'väntar' || r.status === 'godkänd')
+      .map(r => r.ansokan_id)
+  );
+
+  const bestridda = (rapporter || []).filter(
+    r => r.status === 'bestridd'
+      && r.eskalerad === false
+      && !hanteradeAnsökningar.has(r.ansokan_id)
+  );
 
   const titlar = await titlarPerAnsökan([...väntande, ...bestridda].map(r => r.ansokan_id));
 
