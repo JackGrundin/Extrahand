@@ -128,7 +128,7 @@ export default function BetygsModal() {
     setVisas(kvar.length > 0);
   }
 
-  if (!visas || !aktuell) return null;
+  if (!användare || !visas || !aktuell) return null;
 
   const rubrik = ärFöretag
     ? `Hur gick det med ${aktuell.motpartNamn ?? 'personen'}?`
