@@ -77,6 +77,7 @@ export default function PubliceraJobb() {
   function hanteraAntalDagar(val) {
     setAntalDagar(val);
     rensaFel('schema');
+    rensaFel('antal_dagar');
     const n = parseInt(val) || 0;
     setDagScheman((prev) => Array.from({ length: n }, (_, i) => prev[i] || { datum: '', start: '08:00', slut: '17:00' }));
     if (n <= 1) setSammaTider(false);
@@ -104,7 +105,7 @@ export default function PubliceraJobb() {
   }
 
   async function skicka({ accepteraHögrePåslag = false } = {}) {
-    const valideringsfel = valideraJobb({ titel, beskrivning, kategori, plats, adress, lon, dagScheman });
+    const valideringsfel = valideraJobb({ titel, beskrivning, kategori, plats, adress, lon, dagScheman, antal_dagar: antalDagar });
     if (Object.keys(valideringsfel).some((k) => valideringsfel[k])) {
       setFel(valideringsfel);
       return;
@@ -248,6 +249,8 @@ export default function PubliceraJobb() {
             etikett="Antal dagar"
             type="number"
             inputMode="numeric"
+            min={1}
+            fel={fel.antal_dagar}
             value={antalDagar}
             onChange={(e) => hanteraAntalDagar(e.target.value)}
             placeholder="t.ex. 1"

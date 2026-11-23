@@ -71,6 +71,7 @@ export default function PubliceraJobbScreen({ navigation }) {
   function hanteraAntalDagar(val) {
     setAntalDagar(val);
     rensaFel('schema');
+    rensaFel('antal_dagar');
     const n = parseInt(val) || 0;
     setDagScheman(prev =>
       Array.from({ length: n }, (_, i) => prev[i] || { datum: '', start: '', slut: '' })
@@ -173,7 +174,7 @@ export default function PubliceraJobbScreen({ navigation }) {
   }
 
   async function hanteraPublicering() {
-    const nyaFel = valideraJobb({ titel, beskrivning, kategori, plats, adress, lon, dagScheman });
+    const nyaFel = valideraJobb({ titel, beskrivning, kategori, plats, adress, lon, dagScheman, antal_dagar: antalDagar });
     if (Object.keys(nyaFel).length) {
       setFel(nyaFel);
       // Fälten ligger i ordning uppifrån, så det räcker att scrolla till toppen för att
@@ -305,7 +306,8 @@ export default function PubliceraJobbScreen({ navigation }) {
           })() : null}
 
           <Text style={styles.label}>Antal dagar *</Text>
-          <TextInput style={[styles.input, dagScheman.length === 0 && fel.schema && styles.inputFel]} placeholder="t.ex. 5" value={antalDagar} onChangeText={hanteraAntalDagar} keyboardType="numeric" />
+          <TextInput style={[styles.input, (fel.antal_dagar || (dagScheman.length === 0 && fel.schema)) && styles.inputFel]} placeholder="t.ex. 5" value={antalDagar} onChangeText={hanteraAntalDagar} keyboardType="numeric" />
+          <FältFel text={fel.antal_dagar} />
           {dagScheman.length === 0 && <FältFel text={fel.schema} />}
 
           {dagScheman.length > 0 && (

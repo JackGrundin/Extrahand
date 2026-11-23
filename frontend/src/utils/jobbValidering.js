@@ -21,7 +21,7 @@ function idagLokalt() {
 // kräverSchema: publiceringen har dag-för-dag-schema (dagScheman). Redigeringen har platta
 // tidfält och validerar dem separat, så den anropar utan schema.
 export function valideraJobb(
-  { titel, beskrivning, kategori, plats, adress, lon, dagScheman },
+  { titel, beskrivning, kategori, plats, adress, lon, dagScheman, antal_dagar },
   { kräverStadFrånLista = true, kräverSchema = true } = {}
 ) {
   const fel = {};
@@ -40,16 +40,22 @@ export function valideraJobb(
   if (!(parseFloat(lon) > 0)) fel.lon = 'Ange en timlön';
 
   if (kräverSchema) {
-    // Varje dag måste ha datum, starttid och sluttid – inte bara någon av dagarna.
-    const komplett = Array.isArray(dagScheman)
-      && dagScheman.length > 0
-      && dagScheman.every(d => d?.datum && d?.start && d?.slut);
-    if (!komplett) {
-      fel.schema = 'Fyll i datum och tider för alla dagar';
-    } else if (dagScheman.some(d => d.datum < idagLokalt())) {
-      // Backend är sista försvaret (routes/jobb.js), men UI ska också blockera – på webben
-      // är min på <input type=date> bara rådgivande och går att kringgå med fritext.
-      fel.schema = 'Datum kan inte vara i det förflutna';
+    // Antal dagar måste vara minst 1. 0/negativt ger tom dagScheman, så kontrollera det
+    // först och hoppa över komplett-felet nedan – annars dubbelfel på samma sak.
+    if (antal_dagar != null && antal_dagar !== '' && Number(antal_dagar) < 1) {
+      fel.antal_dagar = 'Antal dagar måste vara minst 1';
+    } else {
+      // Varje dag måste ha datum, starttid och sluttid – inte bara någon av dagarna.
+      const komplett = Array.isArray(dagScheman)
+        && dagScheman.length > 0
+        && dagScheman.every(d => d?.datum && d?.start && d?.slut);
+      if (!komplett) {
+        fel.schema = 'Fyll i datum och tider för alla dagar';
+      } else if (dagScheman.some(d => d.datum < idagLokalt())) {
+        // Backend är sista försvaret (routes/jobb.js), men UI ska också blockera – på webben
+        // är min på <input type=date> bara rådgivande och går att kringgå med fritext.
+        fel.schema = 'Datum kan inte vara i det förflutna';
+      }
     }
   }
 

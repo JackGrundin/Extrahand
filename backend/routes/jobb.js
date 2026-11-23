@@ -21,7 +21,7 @@ const GILTIGA_TYPER = ['gig', 'sommarjobb', 'deltid', 'heltid', 'uppdrag'];
 // obligatoriskt fält saknas, annars null. Servern är sista försvaret: en tom timlön
 // kopieras vidare som 0 till tidrapporten och ger en faktura på 0 kr, så det måste
 // stoppas här även om appen redan validerat. Alla fält utom OB-tillägg krävs.
-function valideraJobbInput({ titel, beskrivning, typ, plats, adress, lon, kategori, arbetstider, behorighets_krav }) {
+function valideraJobbInput({ titel, beskrivning, typ, plats, adress, lon, kategori, arbetstider, behorighets_krav, antal_dagar }) {
   if (!titel || !beskrivning || !typ) return 'Fälten titel, beskrivning och typ krävs';
   if (!GILTIGA_TYPER.includes(typ)) return 'Ogiltig typ';
   if (!plats || !String(plats).trim()) return 'Stad krävs';
@@ -29,6 +29,9 @@ function valideraJobbInput({ titel, beskrivning, typ, plats, adress, lon, katego
   if (!kategori || !String(kategori).trim()) return 'Kategori krävs';
   if (!arbetstider || !String(arbetstider).trim()) return 'Arbetstider krävs';
   if (lon == null || !(Number(lon) > 0)) return 'Giltig timlön krävs';
+  // Antal dagar är metadata (antalet faktiska pass härleds ur arbetstider), men ett 0/negativt
+  // värde ska avvisas – en craftad request kan annars lagra ett vilseledande antal.
+  if (antal_dagar != null && antal_dagar !== '' && Number(antal_dagar) < 1) return 'Antal dagar måste vara minst 1';
   // Behörighetskrav är frivilliga – de flesta jobb har inga – men skickas de måste de
   // hålla formatet, annars går de inte att jämföra mot vad den sökande intygat.
   return valideraBehorighetsKrav(behorighets_krav);
@@ -129,7 +132,7 @@ router.get('/:id', async (req, res) => {
 router.post('/', kräverInloggning, kräverTyp('företag'), async (req, res) => {
   const { titel, beskrivning, plats, adress, lon, typ, kategori, antal_dagar, arbetstider, ob_tillagg, behorighets_krav, acceptera_hogre_paslag, rast_minuter } = req.body;
 
-  const valideringsfel = valideraJobbInput({ titel, beskrivning, typ, plats, adress, lon, kategori, arbetstider, behorighets_krav });
+  const valideringsfel = valideraJobbInput({ titel, beskrivning, typ, plats, adress, lon, kategori, arbetstider, behorighets_krav, antal_dagar });
   if (valideringsfel) {
     return res.status(400).json({ fel: valideringsfel });
   }
@@ -221,7 +224,7 @@ async function notifieraPrivatpersonerIStad(jobb) {
 router.put('/:id', kräverInloggning, kräverTyp('företag'), async (req, res) => {
   const { titel, beskrivning, plats, adress, lon, typ, kategori, antal_dagar, arbetstider, ob_tillagg, behorighets_krav, rast_minuter } = req.body;
 
-  const valideringsfel = valideraJobbInput({ titel, beskrivning, typ, plats, adress, lon, kategori, arbetstider, behorighets_krav });
+  const valideringsfel = valideraJobbInput({ titel, beskrivning, typ, plats, adress, lon, kategori, arbetstider, behorighets_krav, antal_dagar });
   if (valideringsfel) {
     return res.status(400).json({ fel: valideringsfel });
   }
