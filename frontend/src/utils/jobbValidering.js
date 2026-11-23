@@ -1,5 +1,14 @@
 import { ärGiltigStad } from '../components/StadInput';
 
+// Dagens datum som 'YYYY-MM-DD' i LOKAL tid. toISOString() ger UTC-dagen och skulle
+// felaktigt flagga dagens pass som passerat strax efter midnatt.
+function idagLokalt() {
+  const d = new Date();
+  const mån = String(d.getMonth() + 1).padStart(2, '0');
+  const dag = String(d.getDate()).padStart(2, '0');
+  return `${d.getFullYear()}-${mån}-${dag}`;
+}
+
 // Validerar ett jobbformulär. Returnerar ett objekt med bara de fält som saknas,
 // t.ex. { lon: 'Ange en timlön', schema: '...' }. Tomt objekt = allt giltigt.
 //
@@ -35,7 +44,13 @@ export function valideraJobb(
     const komplett = Array.isArray(dagScheman)
       && dagScheman.length > 0
       && dagScheman.every(d => d?.datum && d?.start && d?.slut);
-    if (!komplett) fel.schema = 'Fyll i datum och tider för alla dagar';
+    if (!komplett) {
+      fel.schema = 'Fyll i datum och tider för alla dagar';
+    } else if (dagScheman.some(d => d.datum < idagLokalt())) {
+      // Backend är sista försvaret (routes/jobb.js), men UI ska också blockera – på webben
+      // är min på <input type=date> bara rådgivande och går att kringgå med fritext.
+      fel.schema = 'Datum kan inte vara i det förflutna';
+    }
   }
 
   return fel;

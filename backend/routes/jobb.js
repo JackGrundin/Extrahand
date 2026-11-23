@@ -11,6 +11,7 @@ const { normaliseraKrav, valideraBehorighetsKrav } = require('../utils/behorighe
 const { notifieraOmNyaKrav } = require('../utils/kravNotis');
 const { skickaNotifikation } = require('../utils/pushNotifikation');
 const { sändJobblistaPing } = require('../realtid');
+const { idagStockholm, parsaArbetstider, slutEpochFörPass } = require('../utils/tid');
 
 const router = express.Router();
 
@@ -31,6 +32,27 @@ function valideraJobbInput({ titel, beskrivning, typ, plats, adress, lon, katego
   // Behörighetskrav är frivilliga – de flesta jobb har inga – men skickas de måste de
   // hålla formatet, annars går de inte att jämföra mot vad den sökande intygat.
   return valideraBehorighetsKrav(behorighets_krav);
+}
+
+// Validerar att inget av jobbets arbetspass ligger i det förflutna. Samma mönster och
+// felsträngar som valideraPassLista i routes/scheman.js – datum jämförs lexikografiskt
+// mot idagStockholm() (svensk tidszon, aldrig serverns UTC-lokaltid), och sluttiden kollas
+// via slutEpochFörPass så att ett pass idag vars sluttid redan gått också avvisas.
+//
+// arbetstider kan vara en JSON-array av { datum, start, slut } (publicering) eller den
+// dateslösa strängen "08:00-17:00" (redigeringsflödet, se RedigeraJobbScreen). Poster UTAN
+// datum hoppas över med flit – redigering rör aldrig passdatumen.
+function valideraArbetstiderDatum(arbetstider) {
+  const idag = idagStockholm();
+  for (const dag of parsaArbetstider(arbetstider)) {
+    if (!dag?.datum) continue;
+    if (dag.datum < idag) return 'Pass kan inte läggas på ett datum som redan passerat';
+    const passSlut = slutEpochFörPass({ datum: dag.datum, starttid: dag.start, sluttid: dag.slut });
+    if (passSlut != null && passSlut <= Date.now()) {
+      return 'Pass kan inte läggas på en tid som redan passerat';
+    }
+  }
+  return null;
 }
 
 // GET /api/jobb — publik, hämtar alla jobb
@@ -110,6 +132,11 @@ router.post('/', kräverInloggning, kräverTyp('företag'), async (req, res) => 
   const valideringsfel = valideraJobbInput({ titel, beskrivning, typ, plats, adress, lon, kategori, arbetstider, behorighets_krav });
   if (valideringsfel) {
     return res.status(400).json({ fel: valideringsfel });
+  }
+
+  const datumfel = valideraArbetstiderDatum(arbetstider);
+  if (datumfel) {
+    return res.status(400).json({ fel: datumfel });
   }
 
   try {
@@ -197,6 +224,13 @@ router.put('/:id', kräverInloggning, kräverTyp('företag'), async (req, res) =
   const valideringsfel = valideraJobbInput({ titel, beskrivning, typ, plats, adress, lon, kategori, arbetstider, behorighets_krav });
   if (valideringsfel) {
     return res.status(400).json({ fel: valideringsfel });
+  }
+
+  // Om datum skickas med (ett schema på { datum, start, slut }) gäller samma kontroll som
+  // vid publicering. Dateslös arbetstider ("08:00-17:00") hoppas över inuti funktionen.
+  const datumfel = valideraArbetstiderDatum(arbetstider);
+  if (datumfel) {
+    return res.status(400).json({ fel: datumfel });
   }
 
   try {
