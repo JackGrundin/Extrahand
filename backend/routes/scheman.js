@@ -29,7 +29,7 @@ const { hämtaAnsökningarFörJobb, uppdateraStatus, markeraAvhopp, hämtaGodkä
 const { hämtaPrenumeration, ärPro, harGjortPlanval, sättPlanvalGjort, minskaPassDennaManad } = require('../db/prenumeration');
 const { hämtaPrivatpersonerIStad, hämtaPushToken, ärBlockerad } = require('../db/användare');
 const { hämtaInbjudningarFörSchema } = require('../db/schemaInbjudan');
-const { GRATIS_PASS_PER_MANAD, valideraObTillagg } = require('../utils/pris');
+const { GRATIS_PASS_PER_MANAD, MIN_ANTAL_PASS_SCHEMA, valideraObTillagg } = require('../utils/pris');
 const { normaliseraKrav, valideraBehorighetsKrav } = require('../utils/behorighet');
 const { notifieraOmNyaKrav } = require('../utils/kravNotis');
 const { skickaNotifikation } = require('../utils/pushNotifikation');
@@ -193,6 +193,13 @@ router.post('/', kräverInloggning, kräverTyp('företag'), async (req, res) => 
     sista_ansokningsdag, senast_besked,
   });
   if (valideringsfel) return res.status(400).json({ fel: valideringsfel });
+
+  // Miniminivå för scheman. Ligger medvetet HÄR och inte i valideraPassLista: den
+  // funktionen delas av POST /:id/pass (lägga pass på ett redan publicerat schema), där
+  // 10-pass-regeln inte ska slå till. Färre pass hör hemma som ett enstaka pass.
+  if (!Array.isArray(pass) || pass.length < MIN_ANTAL_PASS_SCHEMA) {
+    return res.status(400).json({ fel: `Ett schema måste innehålla minst ${MIN_ANTAL_PASS_SCHEMA} pass` });
+  }
 
   try {
     // Blockerade företag får inte publicera. Flaggan bor i databasen (JWT:n bär den inte),

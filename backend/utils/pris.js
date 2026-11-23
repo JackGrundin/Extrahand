@@ -28,6 +28,11 @@ const PÅSLAG_SCHEMA = 0.15;
 const PÅSLAG_INBJUDAN_PASS = 0.15;
 const PÅSLAG_INBJUDAN_SCHEMA = 0.07;
 
+// Minsta antal pass ett schema måste ha. Färre pass hör hemma som ett enstaka pass
+// (lägre påslag, enklare flöde). Speglas i frontend/src/utils/konstanter.js och web –
+// ändra alltid på alla ställena.
+const MIN_ANTAL_PASS_SCHEMA = 10;
+
 // Koefficienten som gör om bruttolön (timlön eller OB-belopp) till fakturabelopp före
 // påslag: sociala avgifter läggs på och Invoicerys avgift räknas upp. ≈ 1.398085.
 const INVOICERY_AVGIFT = 0.06; // Invoicerys plattformsavgift
@@ -143,6 +148,7 @@ module.exports = {
   PÅSLAG_INBJUDAN_PASS,
   PÅSLAG_INBJUDAN_SCHEMA,
   GRATIS_PASS_PER_MANAD,
+  MIN_ANTAL_PASS_SCHEMA,
   BRUTTO_KOEFFICIENT,
   beräknaFakturapris,
   påslagEller40,

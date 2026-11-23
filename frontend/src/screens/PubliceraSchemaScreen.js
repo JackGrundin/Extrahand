@@ -22,7 +22,7 @@ import { formatDagDatum, veckodagsNamn, datumIntervall, veckodagsIndex } from '.
 import { synkaPassMotDatum, uppdateraFält, tillämpaPåMarkerade, ärKomplett, tillPayload, nyttPassId, sorteraPass, hittaKrockar, harNolltid, antalPassEfterSynk } from '../utils/schemaPass';
 import { api, felText } from '../api/klient';
 import { haptik } from '../utils/haptik';
-import { KATEGORIER, SCHEMATYPER, PÅSLAG_GRATIS, beräknaFakturapris, formateraPris, beräknaAvdragFörPass, beräknaAvdragTotalt } from '../utils/konstanter';
+import { KATEGORIER, SCHEMATYPER, MIN_ANTAL_PASS_SCHEMA, PÅSLAG_GRATIS, normalisera, beräknaFakturapris, formateraPris, beräknaAvdragFörPass, beräknaAvdragTotalt } from '../utils/konstanter';
 
 const STEG_ETIKETTER = ['Grunduppgifter', 'Period och datum', 'Detaljer per pass', 'Avdrag och publicering'];
 const VECKODAGAR = ['Mån', 'Tis', 'Ons', 'Tors', 'Fre', 'Lör', 'Sön'];
@@ -81,6 +81,10 @@ export default function PubliceraSchemaScreen({ navigation }) {
   const [avdragNamn, setAvdragNamn] = useState('');
   const [avdragBelopp, setAvdragBelopp] = useState('');
   const [avdragTyp, setAvdragTyp] = useState('per_dag');
+  // Roll för enstaka-pass-fallbacken (väljs i varningsrutan när schemat har för få pass).
+  const [passKategori, setPassKategori] = useState('');
+  const [fallbackKatModal, setFallbackKatModal] = useState(false);
+  const [sokFallbackKat, setSokFallbackKat] = useState('');
 
   const [laddar, setLaddar] = useState(false);
   const [fel, setFel] = useState({});
@@ -111,6 +115,9 @@ export default function PubliceraSchemaScreen({ navigation }) {
   // Ref, inte state: vakten nedan läser flaggan när den anropas, och en omrendering hinner
   // inte påverka den bort-navigering vi just startat.
   const harPublicerat = useRef(false);
+  // Minns om plankan-gaten (KRAVER_PLANVAL) utlöstes av enstaka-pass-fallbacken, så
+  // "Fortsätt utan abonnemang" försöker igen med rätt åtgärd.
+  const planvalSomPass = useRef(false);
 
   // Android-bakåt (och svep tillbaka på iOS) ska gå ett steg bakåt i flödet, inte lämna
   // skärmen med ett halvfyllt schema. Först på steg 1 släpper vi igenom.
@@ -437,6 +444,47 @@ export default function PubliceraSchemaScreen({ navigation }) {
     navigation.popToTop();
   }
 
+  // Fallback när schemat har för få pass: publicera det första passet som ett enstaka pass.
+  // Enstaka pass går via api.publicera (jobb-routen) med `lon` och arbetstider-nycklarna
+  // start/slut – passets starttid/sluttid mappas därför om. Minns även valet så plankan-
+  // gaten (KRAVER_PLANVAL) försöker igen med pass och inte med schemat.
+  async function publiceraOmSomPass({ accepteraHögrePåslag = false } = {}) {
+    const p = sorteraPass(pass)[0];
+    if (!p) return;
+    // Enstaka pass kräver en kategori; använd den valda rollen, annars passets egen.
+    const kategori = (passKategori || p.kategori || '').trim();
+    if (!kategori) { Alert.alert('Välj roll', 'Välj en roll för passet innan du publicerar som enstaka pass.'); return; }
+    planvalSomPass.current = true;
+    setLaddar(true);
+    try {
+      await api.publicera({
+        titel: titel.trim(),
+        beskrivning: beskrivning.trim(),
+        plats: plats.trim() || undefined,
+        adress: adress.trim(),
+        lon: timlönTal,
+        typ: 'gig',
+        kategori,
+        antal_dagar: 1,
+        arbetstider: JSON.stringify([{ datum: p.datum, start: p.starttid, slut: p.sluttid }]),
+        ob_tillagg: p.ob_tillagg || [],
+        rast_minuter: Number(p.rast_minuter) || 0,
+        behorighets_krav: behorighetsKrav,
+        ...(accepteraHögrePåslag ? { acceptera_hogre_paslag: true } : {}),
+      });
+      haptik.lyckat();
+      harPublicerat.current = true;
+      navigation.navigate('MinaJobbTab', { screen: 'MinaJobb' });
+      navigation.popToTop();
+    } catch (error) {
+      if (error.kod === 'KRAVER_PLANVAL') { setPlanModalVisas(true); return; }
+      haptik.fel();
+      Alert.alert('Fel', felText(error));
+    } finally {
+      setLaddar(false);
+    }
+  }
+
   async function hanteraPublicering() {
     // Full validering som sista grind – samma regler som backends valideraSchemaInput.
     const nyaFel = valideraSchema({ titel, beskrivning, plats, adress, typ, timlon, pass, avdrag });
@@ -447,6 +495,7 @@ export default function PubliceraSchemaScreen({ navigation }) {
     }
     setFel({});
 
+    planvalSomPass.current = false;
     setLaddar(true);
     try {
       await publicera();
@@ -462,7 +511,10 @@ export default function PubliceraSchemaScreen({ navigation }) {
   async function fortsattUtanAbonnemang() {
     setPlanModalVisas(false);
     setLaddar(true);
-    try { await publicera({ accepteraHögrePåslag: true }); }
+    try {
+      if (planvalSomPass.current) await publiceraOmSomPass({ accepteraHögrePåslag: true });
+      else await publicera({ accepteraHögrePåslag: true });
+    }
     catch (error) { Alert.alert('Fel', felText(error)); }
     finally { setLaddar(false); }
   }
@@ -924,6 +976,46 @@ export default function PubliceraSchemaScreen({ navigation }) {
                   trackColor={{ true: '#2563eb', false: '#ccc' }}
                 />
               </View>
+
+              {/* För få pass: ett schema måste ha minst MIN_ANTAL_PASS_SCHEMA pass. Erbjud att
+                  publicera det första passet som ett enstaka pass. Enstaka pass kräver en roll,
+                  så den väljs här innan publicering. */}
+              {pass.length > 0 && pass.length < MIN_ANTAL_PASS_SCHEMA && (
+                <View style={styles.fåPassRuta}>
+                  <Text style={styles.fåPassTitel}>Ett schema måste ha minst {MIN_ANTAL_PASS_SCHEMA} pass</Text>
+                  <Text style={styles.fåPassText}>
+                    Du har lagt till {pass.length} pass. Vill du publicera det som ett enstaka pass i stället?
+                  </Text>
+                  <Text style={styles.fåPassEtikett}>Roll för passet</Text>
+                  {(() => {
+                    const effektivKat = passKategori || sorteraPass(pass)[0]?.kategori || '';
+                    return (
+                      <>
+                        <TouchableOpacity
+                          style={styles.fåPassVäljare}
+                          onPress={() => setFallbackKatModal(true)}
+                          activeOpacity={0.7}
+                          accessibilityRole="button"
+                          accessibilityLabel={effektivKat ? `Roll: ${effektivKat}` : 'Välj roll'}
+                        >
+                          <Text style={[styles.fåPassVäljarText, !effektivKat && styles.fåPassPlaceholder]}>
+                            {effektivKat || 'Välj roll...'}
+                          </Text>
+                          <Ionicons name="chevron-forward" size={18} color="#9ca3af" accessible={false} importantForAccessibility="no" />
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                          style={[styles.fåPassKnapp, (!effektivKat || laddar) && styles.fåPassKnappInaktiv]}
+                          onPress={() => publiceraOmSomPass()}
+                          disabled={!effektivKat || laddar}
+                          activeOpacity={0.8}
+                        >
+                          {laddar ? <ActivityIndicator color="#1a1a1a" /> : <Text style={styles.fåPassKnappText}>Publicera som enstaka pass →</Text>}
+                        </TouchableOpacity>
+                      </>
+                    );
+                  })()}
+                </View>
+              )}
             </>
           )}
 
@@ -991,6 +1083,43 @@ export default function PubliceraSchemaScreen({ navigation }) {
         onFortsattUtan={fortsattUtanAbonnemang}
       />
 
+      {/* Rollväljare för enstaka-pass-fallbacken (speglar kategorimodalen i PubliceraJobbScreen). */}
+      <Modal visible={fallbackKatModal} animationType="slide" transparent statusBarTranslucent>
+        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+          <TouchableOpacity
+            style={styles.popupÖverlägg}
+            activeOpacity={1}
+            onPress={() => { setFallbackKatModal(false); setSokFallbackKat(''); }}
+          />
+          <View style={styles.fallbackPanel}>
+            <Text style={styles.fallbackPanelTitel}>Välj roll</Text>
+            <TextInput
+              style={styles.fallbackSokInput}
+              placeholder="Sök roll..."
+              placeholderTextColor="#9ca3af"
+              value={sokFallbackKat}
+              onChangeText={setSokFallbackKat}
+              autoCorrect={false}
+              autoCapitalize="none"
+              clearButtonMode="while-editing"
+            />
+            <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+              {KATEGORIER.filter(k => normalisera(k).includes(normalisera(sokFallbackKat))).map((k) => (
+                <TouchableOpacity
+                  key={k}
+                  style={styles.fallbackKatRad}
+                  activeOpacity={0.7}
+                  onPress={() => { setPassKategori(k); setFallbackKatModal(false); setSokFallbackKat(''); }}
+                >
+                  <Text style={styles.fallbackKatRadText}>{k}</Text>
+                  {passKategori === k && <Ionicons name="checkmark" size={20} color="#1d4ed8" accessible={false} importantForAccessibility="no" />}
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
+
       {/* Publicerings-popup med vägar vidare. "Bjud in person" bara för privata scheman. */}
       <Modal visible={!!publiceratSchema} transparent animationType="fade" onRequestClose={tillMinaScheman}>
         <View style={styles.popupÖverlägg}>
@@ -1030,6 +1159,26 @@ const styles = StyleSheet.create({
   privatRad: { flexDirection: 'row', alignItems: 'center', marginTop: 24, padding: 14, backgroundColor: '#f8fafc', borderRadius: 12, borderWidth: 1, borderColor: '#e2e8f0' },
   privatTitel: { fontSize: 15, fontWeight: '700', color: '#0f172a' },
   privatText: { fontSize: 13, color: '#64748b', marginTop: 2, lineHeight: 18 },
+
+  // Varningsruta när schemat har för få pass (erbjuder publicering som enstaka pass).
+  fåPassRuta: { marginTop: 24, padding: 16, backgroundColor: '#fff7ed', borderRadius: 12, borderWidth: 1.5, borderColor: '#fed7aa' },
+  fåPassTitel: { fontSize: 15, fontWeight: '700', color: '#b45309' },
+  fåPassText: { fontSize: 13, color: '#64748b', marginTop: 4, lineHeight: 18 },
+  fåPassEtikett: { fontSize: 13, fontWeight: '600', color: '#444', marginTop: 14, marginBottom: 6 },
+  fåPassVäljare: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderWidth: 1, borderColor: '#ddd', borderRadius: 10, padding: 14, backgroundColor: '#fff' },
+  fåPassVäljarText: { fontSize: 15, color: '#1a1a1a' },
+  fåPassPlaceholder: { color: '#9ca3af' },
+  fåPassKnapp: { marginTop: 12, borderWidth: 1.5, borderColor: '#f59e0b', borderRadius: 10, paddingVertical: 13, alignItems: 'center', backgroundColor: '#fff' },
+  fåPassKnappInaktiv: { opacity: 0.5 },
+  fåPassKnappText: { fontSize: 15, fontWeight: '700', color: '#b45309' },
+
+  // Rollväljarmodalen för fallbacken.
+  fallbackPanel: { position: 'absolute', bottom: 0, left: 0, right: 0, maxHeight: '70%', backgroundColor: '#fff', borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 20, paddingBottom: 32 },
+  fallbackPanelTitel: { fontSize: 16, fontWeight: '700', color: '#1a1a1a', marginBottom: 12 },
+  fallbackSokInput: { borderWidth: 1, borderColor: '#e2e8f0', borderRadius: 10, padding: 12, fontSize: 15, backgroundColor: '#f8fafc', marginBottom: 12 },
+  fallbackKatRad: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: '#f1f5f9' },
+  fallbackKatRadText: { fontSize: 15, color: '#1a1a1a' },
+
   input: { borderWidth: 1, borderColor: '#ddd', borderRadius: 10, padding: 14, fontSize: 15, backgroundColor: '#fafafa' },
   textArea: { height: 120 },
   inputFel: { borderColor: '#dc2626', borderWidth: 1.5, backgroundColor: '#fef2f2' },

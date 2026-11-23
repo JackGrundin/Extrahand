@@ -14,6 +14,7 @@ import Besked from '@/components/ui/Besked';
 import FältFel from '@/components/ui/FältFel';
 import StadInput from '@/components/app/StadInput';
 import AdressInput from '@/components/app/AdressInput';
+import KategoriVäljare from '@/components/app/KategoriVäljare';
 import DatumVäljare from '@/components/app/DatumVäljare';
 import TidVäljare from '@/components/app/TidVäljare';
 import OBTilläggRedigerare from '@/components/app/OBTilläggRedigerare';
@@ -29,6 +30,7 @@ import { valideraSchema } from '@/utils/schemaValidering';
 import { ärGiltigStad } from '@/utils/stad';
 import {
   SCHEMATYPER,
+  MIN_ANTAL_PASS_SCHEMA,
   beräknaAvdragFörPass,
   beräknaAvdragTotalt,
   formateraPris,
@@ -91,11 +93,18 @@ export default function PubliceraSchema() {
 
   // Steg 4
   const [avdrag, setAvdrag] = useState([]);
+  // Roll för enstaka-pass-fallbacken. Ett enstaka pass kräver en kategori (schemapass
+  // saknar ofta en), så den väljs i varningsrutan innan man publicerar som enstaka pass.
+  const [passKategori, setPassKategori] = useState('');
 
   const [fel, setFel] = useState({});
   const [serverfel, setServerfel] = useState('');
   const [laddar, setLaddar] = useState(false);
   const [visaPlanval, setVisaPlanval] = useState(false);
+  // Planvals-gaten kan slå till för både schema- och enstaka-pass-publicering. Minns vilken
+  // så "Fortsätt utan abonnemang" försöker igen med rätt åtgärd (annars publiceras alltid
+  // schemat, som då fastnar på 10-pass-regeln).
+  const [planvalSomPass, setPlanvalSomPass] = useState(false);
   const [laddarUppgradera, setLaddarUppgradera] = useState(false);
   // Publicerings-popup: sätts till det skapade schemat efter lyckad publicering.
   const [publiceratSchema, setPubliceratSchema] = useState(null);
@@ -296,7 +305,43 @@ export default function PubliceraSchema() {
       // Visa publicerings-popupen med vägar vidare i stället för tyst redirect.
       setPubliceratSchema(skapat);
     } catch (f) {
-      if (f?.kod === 'KRAVER_PLANVAL') setVisaPlanval(true);
+      if (f?.kod === 'KRAVER_PLANVAL') { setPlanvalSomPass(false); setVisaPlanval(true); }
+      else setServerfel(felText(f));
+    } finally {
+      setLaddar(false);
+    }
+  }
+
+  // Fallback när schemat har för få pass: publicera det första passet som ett enstaka
+  // pass i stället. Enstaka pass använder api.publicera (jobb-routen) med `lon` och
+  // arbetstider-nycklarna start/slut – passets starttid/sluttid mappas därför om.
+  async function publiceraOmSomPass({ accepteraHögrePåslag = false } = {}) {
+    const p = sorteraPass(pass)[0];
+    if (!p) return;
+    // Enstaka pass kräver en kategori; använd den valda rollen, annars passets egen.
+    const kategori = (passKategori || p.kategori || '').trim();
+    if (!kategori) { setServerfel('Välj en roll för passet'); return; }
+    setServerfel('');
+    setLaddar(true);
+    try {
+      const skapat = await api.publicera({
+        titel: titel.trim(),
+        beskrivning: beskrivning.trim(),
+        plats: plats.trim() || undefined,
+        adress: adress.trim(),
+        lon: parseFloat(timlon) || undefined,
+        typ: 'gig',
+        kategori,
+        antal_dagar: 1,
+        arbetstider: JSON.stringify([{ datum: p.datum, start: p.starttid, slut: p.sluttid }]),
+        ob_tillagg: saniteraObTillagg(p.ob_tillagg),
+        rast_minuter: Number(p.rast_minuter) || 0,
+        behorighets_krav: behorighetsKrav,
+        ...(accepteraHögrePåslag ? { acceptera_hogre_paslag: true } : {}),
+      });
+      router.push(`/annonser/jobb/${skapat.id}/ansokningar`);
+    } catch (f) {
+      if (f?.kod === 'KRAVER_PLANVAL') { setPlanvalSomPass(true); setVisaPlanval(true); }
       else setServerfel(felText(f));
     } finally {
       setLaddar(false);
@@ -553,6 +598,34 @@ export default function PubliceraSchema() {
               </span>
             </span>
           </label>
+
+          {/* För få pass: ett schema måste ha minst MIN_ANTAL_PASS_SCHEMA pass. Erbjud att
+              publicera det första passet som ett enstaka pass i stället. */}
+          {pass.length > 0 && pass.length < MIN_ANTAL_PASS_SCHEMA && (
+            <div className="rounded-lg border border-varning-kant bg-varning-mjuk p-4">
+              <p className="text-[15px] font-semibold text-varning-text">
+                Ett schema måste ha minst {MIN_ANTAL_PASS_SCHEMA} pass
+              </p>
+              <p className="mt-1 text-[14px] text-text-dämpad">
+                Du har lagt till {pass.length} pass. Vill du publicera det som ett enstaka pass i stället?
+              </p>
+              {/* Ett enstaka pass kräver en roll – välj den här innan publicering. Förifylls
+                  från passets egen roll om den har en. */}
+              {(() => {
+                const effektivKat = passKategori || sorteraPass(pass)[0]?.kategori || '';
+                return (
+                  <>
+                    <div className="mt-3">
+                      <KategoriVäljare etikett="Roll för passet" värde={effektivKat} onVälj={setPassKategori} />
+                    </div>
+                    <Knapp variant="kontur" laddar={laddar} disabled={!effektivKat} onClick={() => publiceraOmSomPass()} className="mt-3">
+                      Publicera som enstaka pass →
+                    </Knapp>
+                  </>
+                );
+              })()}
+            </div>
+          )}
         </div>
       )}
 
@@ -583,7 +656,8 @@ export default function PubliceraSchema() {
           laddarUppgradera={laddarUppgradera}
           onFortsätt={() => {
             setVisaPlanval(false);
-            publicera({ accepteraHögrePåslag: true });
+            if (planvalSomPass) publiceraOmSomPass({ accepteraHögrePåslag: true });
+            else publicera({ accepteraHögrePåslag: true });
           }}
           onUppgradera={uppgradera}
         />

@@ -90,6 +90,10 @@ export const PRO_PRIS_KR = 299;
 export const PÅSLAG_INBJUDAN_PASS = 0.15;
 export const PÅSLAG_INBJUDAN_SCHEMA = 0.07;
 
+// Minsta antal pass ett schema måste ha. Färre pass hör hemma som ett enstaka pass.
+// Speglar backend/utils/pris.js och frontend – ändra alltid på alla ställena.
+export const MIN_ANTAL_PASS_SCHEMA = 10;
+
 // Koefficienten som gör om bruttolön till fakturabelopp före påslag (≈ 1.398085).
 export const INVOICERY_AVGIFT = 0.06;
 export const SOCIALA_AVGIFTER = 0.3142;
