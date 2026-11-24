@@ -95,7 +95,7 @@ export default function DatumVäljare({ etikett, värde, onÄndra, fel, min, max
   ];
 
   return (
-    <div ref={wrapRef} className={`relative flex flex-col gap-1.5 ${className}`}>
+    <div ref={wrapRef} className={`relative flex flex-col gap-1.5 ${öppen ? 'z-50' : ''} ${className}`}>
       {etikett && <label className="text-[13px] font-semibold text-text-dämpad">{etikett}</label>}
 
       <button
