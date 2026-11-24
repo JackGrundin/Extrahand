@@ -91,7 +91,9 @@ export default function JobbAnsökningar() {
         </div>
       )}
 
-      {jobb && (
+      {/* Dölj inbjudan när passet redan är tillsatt – en godkänd ansökan betyder att det inte
+          finns något att bjuda in till längre. */}
+      {jobb && !ansökningar.some((a) => a.status === 'godkänd') && (
         <div className="mt-6">
           <button
             type="button"

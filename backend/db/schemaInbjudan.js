@@ -160,10 +160,11 @@ async function hämtaMinaInbjudningar(anvandare_id) {
     resultat.push({
       id: i.id,
       typ: ärSchema ? 'schema' : 'jobb',
-      // schema_id + status exponeras additivt: inkorgen (db/inkorg.js) behöver schema_id för
-      // navigeringen och status för att dölja scheman som redan är tillsatta/avbrutna.
-      // Förfrågningar-fliken ignorerar de extra fälten.
+      // schema_id/jobb_id + status exponeras additivt: inkorgen (db/inkorg.js) navigerar via
+      // schema_id (schema) resp. jobb_id (enstaka pass) och använder status för att dölja
+      // scheman som redan är tillsatta/avbrutna. Förfrågningar-fliken ignorerar de extra fälten.
       schema_id: i.schema_id ?? null,
+      jobb_id: ärSchema ? null : jobbId,
       status: ärSchema ? (schema?.status ?? null) : null,
       titel: ärSchema ? (schema?.titel ?? null) : (jobb?.Titel ?? null),
       företagNamn: namnMap[foretagId] ?? null,

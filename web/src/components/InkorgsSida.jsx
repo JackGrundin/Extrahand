@@ -74,6 +74,13 @@ function Ikon({ typ }) {
           <path d="M16 2v4M8 2v4M3 10h18" />
         </svg>
       );
+    case 'jobb_inbjudan':
+      return (
+        <svg {...gemensamt}>
+          <rect x="2" y="4" width="20" height="16" rx="2" />
+          <path d="m22 7-10 5L2 7" />
+        </svg>
+      );
     default:
       return (
         <svg {...gemensamt}>
@@ -98,6 +105,8 @@ function länkFör(post, ärFöretag) {
       return post.jobbId ? `/annonser/jobb/${post.jobbId}/ansokningar` : null;
     case 'schema_inbjudan':
       return post.schemaId ? `/schema/${post.schemaId}` : null;
+    case 'jobb_inbjudan':
+      return post.jobbId ? `/jobb/${post.jobbId}` : null;
     case 'avtal':
       return '/min-profil';
     default:

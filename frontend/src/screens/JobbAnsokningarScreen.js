@@ -260,7 +260,8 @@ export default function JobbAnsokningarScreen({ route, navigation }) {
           />
         }
         ListFooterComponent={
-          tidigare ? null : (
+          // Dölj inbjudan när passet redan är tillsatt (godkänd ansökan finns) eller är historiskt.
+          tidigare || ansökningar.some(a => a.status === 'godkänd') ? null : (
             <View style={styles.inbjudanRuta}>
               <View style={styles.inbjudanRad}>
                 <Text style={styles.inbjudanRubrik}>Bjud in</Text>

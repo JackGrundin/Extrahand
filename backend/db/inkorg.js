@@ -169,8 +169,8 @@ async function inkorgPrivatperson(användareId) {
   // 3: godkända ansökningar för pass/scheman som ännu inte passerat.
   const godkändaPoster = await godkändaAnsökningsPoster(användareId);
 
-  // 4: inkomna schema-inbjudningar som ännu inte accepterats.
-  const inbjudanPoster = await schemaInbjudanPoster(användareId);
+  // 4: inkomna inbjudningar (schema + enstaka pass) som ännu inte accepterats.
+  const inbjudningsPoster = await inbjudanPoster(användareId);
 
   // 5: avtal ej godkänt (avtal_godkant finns inte i JWT – hämta separat).
   let avtalPoster = [];
@@ -187,7 +187,7 @@ async function inkorgPrivatperson(användareId) {
     }];
   }
 
-  return [...tidrapportPoster, ...betygsPoster, ...godkändaPoster, ...inbjudanPoster, ...avtalPoster];
+  return [...tidrapportPoster, ...betygsPoster, ...godkändaPoster, ...inbjudningsPoster, ...avtalPoster];
 }
 
 // Godkända ansökningar där passet/schemat ännu inte passerat → "du är godkänd, öppna chatten".
@@ -250,22 +250,41 @@ async function godkändaAnsökningsPoster(användareId) {
   return poster;
 }
 
-// Inkomna schema-inbjudningar som ännu inte accepterats. Återanvänder Förfrågningar-flikens
-// underlag (avböjda + redan ansökta döljs redan där). Tillsatta/avbrutna scheman går inte
-// längre att acceptera och tas bort.
-async function schemaInbjudanPoster(användareId) {
+// Inkomna inbjudningar (schema OCH enstaka pass) som ännu inte accepterats. Återanvänder
+// Förfrågningar-flikens underlag (avböjda + redan ansökta döljs redan där). Tillsatta/avbrutna
+// scheman går inte längre att acceptera och tas bort, och passerade jobb-pass filtreras på datum.
+async function inbjudanPoster(användareId) {
   const inbjudningar = await hämtaMinaInbjudningar(användareId);
-  return (inbjudningar || [])
+  if (!inbjudningar?.length) return [];
+  const idag = idagStockholm();
+
+  const undertext = (i) => (i.företagNamn ? `Inbjudan från ${i.företagNamn}` : 'Du har fått en inbjudan');
+
+  const schemaPoster = inbjudningar
     .filter(i => i.typ === 'schema' && i.schema_id && i.status !== 'tillsatt' && i.status !== 'avbrutet')
     .map(i => ({
       typ: 'schema_inbjudan',
       titel: i.titel ?? 'Schemainbjudan',
-      undertext: i.företagNamn ? `Inbjudan från ${i.företagNamn}` : 'Du har fått en inbjudan',
+      undertext: undertext(i),
       ansokanId: null,
       jobbId: null,
       schemaId: i.schema_id,
       skapad_at: i.skapad_datum ?? null,
     }));
+
+  const jobbPoster = inbjudningar
+    .filter(i => i.typ === 'jobb' && i.jobb_id && (i.datum == null || i.datum >= idag))
+    .map(i => ({
+      typ: 'jobb_inbjudan',
+      titel: i.titel ?? 'Jobbinbjudan',
+      undertext: undertext(i),
+      ansokanId: null,
+      jobbId: i.jobb_id,
+      schemaId: null,
+      skapad_at: i.skapad_datum ?? null,
+    }));
+
+  return [...schemaPoster, ...jobbPoster];
 }
 
 // Härleder hela åtgärdslistan för den inloggade. Poster försvinner automatiskt när

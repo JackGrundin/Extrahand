@@ -19,6 +19,7 @@ const IKON_PER_TYP = {
   avtal: 'document-text-outline',
   godkänd_ansökan: 'checkmark-circle-outline',
   schema_inbjudan: 'calendar-outline',
+  jobb_inbjudan: 'mail-outline',
 };
 
 // Inkorgen (åtgärdslista) i appen – samma härledda underlag som webbens /inkorg. Posterna
@@ -49,7 +50,7 @@ export default function InkorgsScreen({ navigation }) {
   useRealtidsPing(() => { hämta(); });
 
   // Öppnar rätt skärm för en post. Målet skiljer sig per posttyp.
-  function öppna(post) {
+  async function öppna(post) {
     switch (post.typ) {
       case 'tidrapport':
       case 'bestridande':
@@ -63,6 +64,18 @@ export default function InkorgsScreen({ navigation }) {
         break;
       case 'schema_inbjudan':
         if (post.schemaId != null) navigation.navigate('SchemaDetalj', { schemaId: post.schemaId });
+        break;
+      case 'jobb_inbjudan':
+        // JobbDetalj tar ett helt jobb-objekt (inte id) – hämta det först, samma mönster som
+        // push-hanteraren i navigation/index.js.
+        if (post.jobbId != null) {
+          try {
+            const jobb = await api.hämtaJobbId(post.jobbId);
+            navigation.navigate('JobbDetalj', { jobb });
+          } catch (fel) {
+            console.error(fel);
+          }
+        }
         break;
       case 'avtal':
         navigation.getParent()?.navigate('Profil');
