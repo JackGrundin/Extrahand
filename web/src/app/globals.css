@@ -114,3 +114,15 @@ a {
     font-size: 24px;
   }
 }
+
+/* Hindra Safari (iOS) från att auto-zooma vid fokus på formulärfält. Safari zoomar
+   bara när font-size < 16px; app-fälten använder mindre Tailwind-storlekar, så vi
+   tvingar 16px på mobil. !important krävs för att slå Tailwinds text-[Npx]-utilities.
+   Viewport-metataggen lämnas orörd (ingen user-scalable=no) av tillgänglighetsskäl. */
+@media (max-width: 768px) {
+  input,
+  textarea,
+  select {
+    font-size: 16px !important;
+  }
+}
