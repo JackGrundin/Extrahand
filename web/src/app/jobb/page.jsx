@@ -38,6 +38,8 @@ export default function JobbLista() {
   const [sortering, setSortering] = useState('nyast');
   const [kategoriSök, setKategoriSök] = useState('');
   const [visaAllaBranscher, setVisaAllaBranscher] = useState(false);
+  // Filterpanelen är hopfällbar på mobil (stängd från start); på desktop syns den alltid.
+  const [filterÖppet, setFilterÖppet] = useState(false);
 
   const ladda = useCallback(async () => {
     try {
@@ -140,8 +142,23 @@ export default function JobbLista() {
 
           {fel && <Besked typ="fel">{fel}</Besked>}
 
+          {/* Filterväxel – bara mobil. Fäller ut filterpanelen som annars tar hela skärmen. */}
+          <button
+            type="button"
+            onClick={() => setFilterÖppet((o) => !o)}
+            className="mt-6 mb-3 flex w-full items-center justify-center gap-2 rounded-lg border border-kant bg-yta px-4 py-2.5 text-[14px] font-semibold text-text shadow-mjuk md:hidden"
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <path d="M22 3H2l8 9.46V19l4 2v-8.54L22 3z" />
+            </svg>
+            {filterÖppet ? 'Dölj filter' : 'Filtrera'}
+            {antalFilter > 0 && (
+              <span className="rounded-pill bg-primär px-2 py-0.5 text-[12px] font-bold text-white">{antalFilter}</span>
+            )}
+          </button>
+
           {/* Filterpanel */}
-          <div className="mt-6 rounded-lg border border-kant bg-yta p-5 shadow-mjuk">
+          <div className={`${filterÖppet ? 'block' : 'hidden'} mt-3 rounded-lg border border-kant bg-yta p-5 shadow-mjuk md:mt-6 md:block`}>
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div>
                 <Input
