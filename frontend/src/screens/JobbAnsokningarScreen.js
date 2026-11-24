@@ -74,11 +74,14 @@ function StatusKnappar({ item, onUppdaterad, onAvsluta, onAvvisad, navigation, t
   }
 
   if (item.status === 'godkänd') {
+    // Etiketten ("Bekräftat pass") hämtas från den delade ansökanStatusVisning så att
+    // texten är enhetlig överallt; den gröna badge-stilen behålls.
+    const status = ansökanStatusVisning(item, { ärFöretag: true });
     return (
       <View style={styles.godkändContainer}>
         <View style={styles.godkändRad}>
           <View style={styles.godkändBadge}>
-            <Text style={styles.godkändText}>Godkänd</Text>
+            <Text style={styles.godkändText}>{status.etikett}</Text>
           </View>
           {/* "Ta tillbaka godkännandet" döljs för tidigare/passerade pass och när passet startat */}
           {!tidigare && !startat && (
