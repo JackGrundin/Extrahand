@@ -161,16 +161,36 @@ async function filtreraAktivaJobb(jobb, { visaTillsatta = false } = {}) {
   return aktiva.map(j => ({ ...j, nyaAnsökningar: nyaPerJobb[j.id] || 0, antalAnsökningar: antalPerJobb[j.id] || 0, harGodkänd: godkändaJobbIds.has(j.id), godkändNamn: godkändNamnPerJobb[j.id] ?? null }));
 }
 
-// Returnerar en Set med de jobb-id (bland de angivna) som har minst en godkänd ansökan.
-// Ett jobb behöver bara avslutas om någon faktiskt blivit godkänd att jobba passet.
-async function jobbMedGodkändAnsökan(jobbIds) {
-  if (!jobbIds.length) return new Set();
+// Returnerar en map jobb_id → namn på den godkända sökanden, för de jobb (bland de angivna)
+// som har en godkänd ansökan. Ett jobb behöver bara avslutas om någon faktiskt blivit godkänd
+// att jobba passet, så nycklarna i mappen är samtidigt mängden "tillsatta" jobb (harGodkänd).
+// Namnet slås upp i EN query (ingen per-jobb-loop), samma mönster som hämtaJobbFörFöretag.
+async function godkändaNamnFörJobb(jobbIds) {
+  if (!jobbIds.length) return {};
   const { data } = await supabase
     .from('ansokningar')
-    .select('jobb_id')
+    .select('jobb_id, sokande_id')
     .eq('status', 'godkänd')
     .in('jobb_id', jobbIds);
-  return new Set((data || []).map(a => a.jobb_id));
+
+  const sokandePerJobb = {};
+  for (const a of (data || [])) sokandePerJobb[a.jobb_id] = a.sokande_id;
+
+  const sokandeIds = [...new Set(Object.values(sokandePerJobb).filter(Boolean))];
+  let namnMap = {};
+  if (sokandeIds.length > 0) {
+    const { data: sökande } = await supabase
+      .from('användare')
+      .select('id, Namn')
+      .in('id', sokandeIds);
+    namnMap = Object.fromEntries((sökande || []).map(s => [s.id, s.Namn]));
+  }
+
+  const resultat = {};
+  for (const [jobbId, sokandeId] of Object.entries(sokandePerJobb)) {
+    resultat[jobbId] = namnMap[sokandeId] ?? null;
+  }
+  return resultat;
 }
 
 async function hämtaAllaJobb() {
@@ -305,8 +325,14 @@ async function hämtaTidigareJobbFörFöretag(foretag_id) {
 
   // Märk varje passerat jobb med om någon blev godkänd. Frontend visar "Behöver avslutas"
   // bara när harGodkänd är sant – ett jobb som ingen tillsattes för har inget pass att avsluta.
-  const godkända = await jobbMedGodkändAnsökan(passerade.map(j => j.id));
-  return passerade.map(j => ({ ...j, harGodkänd: godkända.has(j.id) }));
+  // godkändNamn följer med så att passkortet kan visa "Bekräftat: [Namn]" även för passerade
+  // pass som ännu inte avslutats (samma fält som hämtaJobbFörFöretag levererar).
+  const godkändNamnPerJobb = await godkändaNamnFörJobb(passerade.map(j => j.id));
+  return passerade.map(j => ({
+    ...j,
+    harGodkänd: Object.prototype.hasOwnProperty.call(godkändNamnPerJobb, j.id),
+    godkändNamn: godkändNamnPerJobb[j.id] ?? null,
+  }));
 }
 
 // Schemajobb får inte ändras via jobb-API:t – de ägs av schemat och redigeras via

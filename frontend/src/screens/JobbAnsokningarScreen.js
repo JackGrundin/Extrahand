@@ -15,11 +15,14 @@ import { useRealtidsPing } from '../context/RealtidsContext';
 import { useAttAvsluta } from '../context/AttAvslutaContext';
 import { useLoggaRefresh } from '../components/LoggaRefresh';
 
-function StatusKnappar({ item, onUppdaterad, onAvsluta, onAvvisad, navigation, tidigare, startat }) {
+function StatusKnappar({ item, onUppdaterad, onGodkänd, onAvsluta, onAvvisad, navigation, tidigare, startat }) {
   const [sparar, setSparar] = useState(false);
 
   async function godkänn() {
     setSparar(true);
+    // Optimistisk flip: kortet visar "Bekräftat pass" direkt. onUppdaterad() hämtar sedan om
+    // listan så övriga sökande (som backend auto-avvisar) och lönedatum stämmer.
+    onGodkänd?.(item.id);
     try {
       await api.uppdateraStatus(item.id, 'godkänd');
       haptik.lyckat();
@@ -27,6 +30,8 @@ function StatusKnappar({ item, onUppdaterad, onAvsluta, onAvvisad, navigation, t
     } catch (fel) {
       haptik.fel();
       Alert.alert('Fel', felText(fel));
+      // Rulla tillbaka den optimistiska flippen genom att hämta om sanningen från servern.
+      onUppdaterad();
     } finally {
       setSparar(false);
     }
@@ -323,7 +328,7 @@ export default function JobbAnsokningarScreen({ route, navigation }) {
             <TouchableOpacity onPress={() => navigation.navigate('SökanadeProfil', { sokandeId: item.sokande_id, ansokningId: item.id })} style={styles.profilLänkRad}>
               <Text style={styles.chattLänk}>Visa profil →</Text>
             </TouchableOpacity>
-            <StatusKnappar item={item} onUppdaterad={hämta} onAvsluta={öppnaAvsluta} onAvvisad={(id) => setAnsökningar(prev => prev.filter(a => a.id !== id))} navigation={navigation} tidigare={tidigare} startat={harStartat(jobb?.arbetstider)} />
+            <StatusKnappar item={item} onUppdaterad={hämta} onGodkänd={(id) => setAnsökningar(prev => prev.map(a => (a.id === id ? { ...a, status: 'godkänd' } : a)))} onAvsluta={öppnaAvsluta} onAvvisad={(id) => setAnsökningar(prev => prev.filter(a => a.id !== id))} navigation={navigation} tidigare={tidigare} startat={harStartat(jobb?.arbetstider)} />
           </TouchableOpacity>
         )}
       />

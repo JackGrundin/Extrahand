@@ -142,15 +142,22 @@ export default function JobbKort({ jobb, onÄndrad, redanAvslutad = false, onAvs
       </div>
 
       <div className="mt-4 flex flex-wrap items-center gap-2">
+        {/* Tillsatt pass: visa tydligt vem som är bekräftad. harGodkänd/godkändNamn kommer från
+            backend (minaJobb). Samma gröna status-tokens som AnsökningsKort använder för "Godkänd". */}
+        {jobb.harGodkänd && (
+          <span className="rounded-pill bg-framgång-mjuk px-2.5 py-1 text-[12px] font-bold text-framgång">
+            Bekräftat: {jobb.godkändNamn || 'tillsatt'}
+          </span>
+        )}
         {/* Beständig sökande-badge: ligger kvar tills ansökningarna hanterats (antalAnsökningar
             räknar väntande). "nya"-pillen tystnar när företaget öppnat listan – samma modell
             som schemakorten. */}
-        {jobb.antalAnsökningar > 0 && (
+        {!jobb.harGodkänd && jobb.antalAnsökningar > 0 && (
           <span className="rounded-pill bg-primär-mjuk px-2.5 py-1 text-[12px] font-bold text-primär">
             {jobb.antalAnsökningar} sökande
           </span>
         )}
-        {jobb.nyaAnsökningar > 0 && (
+        {!jobb.harGodkänd && jobb.nyaAnsökningar > 0 && (
           <span className="rounded-pill bg-primär px-2.5 py-1 text-[12px] font-bold text-white">
             {jobb.nyaAnsökningar} {jobb.nyaAnsökningar === 1 ? 'ny' : 'nya'}
           </span>

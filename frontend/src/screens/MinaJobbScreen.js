@@ -191,10 +191,20 @@ export default function MinaJobbScreen({ navigation, route }) {
             <Text style={styles.avslutaBadgeText}>Behöver avslutas</Text>
           </View>
         )}
-        {/* Beständig sökande-badge: ligger kvar tills ansökningarna hanterats (antalAnsökningar
-            räknar väntande). "nya"-tillägget tystnar när företaget öppnat listan – samma modell
-            som schemakorten. */}
-        {item.antalAnsökningar > 0 && (
+        {/* Tillsatt pass: visa tydligt vem som är bekräftad – samma gröna person-chip som
+            schemakortet. harGodkänd och godkändNamn kommer från backend (minaJobb). Chippen och
+            sökande-badgen utesluter varandra: ett tillsatt pass har inga väntande ansökningar. */}
+        {item.harGodkänd ? (
+          <View style={[styles.schemaChip, styles.schemaChipGrön, { alignSelf: 'flex-start', marginBottom: 8 }]}>
+            <Ionicons name="person" size={12} color="#15803d" accessible={false} importantForAccessibility="no" />
+            <Text style={[styles.schemaChipText, { color: '#15803d' }]}>
+              {item.godkändNamn ? `Bekräftat: ${item.godkändNamn}` : 'Bekräftat pass'}
+            </Text>
+          </View>
+        ) : item.antalAnsökningar > 0 && (
+          /* Beständig sökande-badge: ligger kvar tills ansökningarna hanterats (antalAnsökningar
+             räknar väntande). "nya"-tillägget tystnar när företaget öppnat listan – samma modell
+             som schemakorten. */
           <View style={styles.nyaAnsBadge}>
             <Ionicons name="person-add" size={13} color="#fff" accessible={false} importantForAccessibility="no" />
             <Text style={styles.nyaAnsBadgeText}>

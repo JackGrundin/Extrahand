@@ -40,11 +40,16 @@ export default function JobbAnsökningar() {
   }, [hämta, id]);
 
   async function sättStatus(ansökningId, status) {
+    // Optimistisk flip så godkännandet/återtaget syns direkt i kortet. hämta() reconcilierar
+    // efteråt (backend auto-avvisar t.ex. övriga sökande vid godkännande). Vi sparar inte undan
+    // det gamla värdet för rollback – ett fel visas som besked och hämta() återställer sanningen.
+    setAnsökningar((prev) => prev.map((a) => (a.id === ansökningId ? { ...a, status } : a)));
     try {
       await api.uppdateraStatus(ansökningId, status);
       await hämta();
     } catch (f) {
       setFel(felText(f));
+      await hämta();
     }
   }
 
