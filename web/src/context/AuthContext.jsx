@@ -28,6 +28,10 @@ export function AuthProvider({ children }) {
   const loggaUt = useCallback(() => {
     rensaToken();
     setAnvändare(null);
+    // Hård omladdning garanterar att ALL state (context, cachning) rensas – säkrare än
+    // router.push, och täcker även publika sidor utan egen route-guard. rensaToken() körs
+    // först, så efter omladdningen finns ingen token → inget profil-anrop → ingen 401-loop.
+    if (typeof window !== 'undefined') window.location.href = '/';
   }, []);
 
   // Återställ sessionen vid sidladdning. Ta INTE bort token vid tillfälligt fel –

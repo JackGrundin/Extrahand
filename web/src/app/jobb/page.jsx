@@ -1,11 +1,14 @@
 'use client';
 
-// Publik jobblista för privatpersoner: bläddra bland öppna enstaka pass och filtrera.
-// Ligger UTANFÖR (app)-gruppen (ingen auth krävs för att läsa). Filtreringen är klient-sidig
-// och speglar appens JobbScreen (ort = substräng mot Plats, bransch = flerval mot Kategori,
-// min-lön mot Lon, min-dagar mot antal_dagar, sortering). Backend GET /jobb är publik och
-// har redan rensat bort schema-jobb, tillsatta och passerade pass.
+// Jobblista för privatpersoner: bläddra bland öppna enstaka pass och filtrera.
+// Kräver inloggning – utloggade skickas till /logga-in?next=/jobb (guard nedan, speglar
+// mina-pass m.fl.). Filtreringen är klient-sidig och speglar appens JobbScreen (ort =
+// substräng mot Plats, bransch = flerval mot Kategori, min-lön mot Lon, min-dagar mot
+// antal_dagar, sortering). Backend GET /jobb har redan rensat bort schema-jobb, tillsatta
+// och passerade pass.
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { useAuth } from '@/context/AuthContext';
 import PrivatSkal from '@/components/privat/PrivatSkal';
 import { useJobblistaPing } from '@/context/RealtidsContext';
 import AvtalBanner from '@/components/privat/AvtalBanner';
@@ -26,6 +29,8 @@ const SORTERINGAR = [
 ];
 
 export default function JobbLista() {
+  const router = useRouter();
+  const { laddar: authLaddar, inloggad } = useAuth();
   const [jobb, setJobb] = useState([]);
   const [laddar, setLaddar] = useState(true);
   const [fel, setFel] = useState('');
@@ -53,9 +58,15 @@ export default function JobbLista() {
     }
   }, []);
 
+  // Kräver inloggning: utloggade skickas till inloggningen och tar sig tillbaka hit efteråt.
   useEffect(() => {
-    ladda();
-  }, [ladda]);
+    if (authLaddar) return;
+    if (!inloggad) router.replace('/logga-in?next=/jobb');
+  }, [authLaddar, inloggad, router]);
+
+  useEffect(() => {
+    if (!authLaddar && inloggad) ladda();
+  }, [authLaddar, inloggad, ladda]);
 
   // Realtid: hämta om listan när ett jobb publiceras, ändras, tas bort eller blir
   // tillsatt/ledigt. Alla jobblista-signaler påverkar vilka jobb som är öppna, så ingen
@@ -130,6 +141,17 @@ export default function JobbLista() {
     valdaKategorier.size +
     (minLön ? 1 : 0) +
     (minDagar ? 1 : 0);
+
+  // Vänta in auth och redirect innan listan ritas, så den publika vyn aldrig blinkar till.
+  if (authLaddar || !inloggad) {
+    return (
+      <PrivatSkal>
+        <div className="flex min-h-[50vh] items-center justify-center">
+          <div className="h-8 w-8 animate-spin rounded-full border-2 border-kant border-t-primär" />
+        </div>
+      </PrivatSkal>
+    );
+  }
 
   return (
     <PrivatSkal>
