@@ -120,7 +120,14 @@ export default function ChattTråd() {
         <Link href="/meddelanden" className="text-[14px] font-semibold text-text-dämpad hover:text-text">
           ← Meddelanden
         </Link>
-        <h1 className="mt-2 text-[20px] font-bold text-text">{rubrik}</h1>
+        {/* Namnet är klickbart och leder till den sökandes profil. */}
+        {motpartId != null ? (
+          <Link href={`/sokande/${motpartId}`} className="mt-2 inline-block text-[20px] font-bold text-text hover:underline">
+            {rubrik}
+          </Link>
+        ) : (
+          <h1 className="mt-2 text-[20px] font-bold text-text">{rubrik}</h1>
+        )}
         {meta?.jobbTitel && <p className="text-[14px] text-text-dämpad">{meta.jobbTitel}</p>}
       </div>
 

@@ -338,6 +338,18 @@ export default function ChattScreen({ route, navigation }) {
     return null;
   }
 
+  // Öppnar motpartens profil från det klickbara namnet överst. Privatpersonen leds till
+  // företagsprofilen, företaget till den sökandes profil. motpartId är redan rätt id för
+  // respektive roll (foretagId för privatperson, sokande_id för företag).
+  function öppnaMotpartsProfil() {
+    if (motpartId == null) return;
+    if (ärPrivatperson) {
+      navigation.navigate('FöretagsProfil', { foretagId: motpartId });
+    } else {
+      navigation.navigate('SökanadeProfil', { sokandeId: motpartId, ansokningId: aktivAnsokanId ?? undefined });
+    }
+  }
+
   // Scrollar till botten av tidslinjen. Retries fångar att pass-/tidrapportkorten
   // längst ned mäts klart först efter första scrollen (variabel höjd).
   const scrollaTillBotten = useCallback((animated = false) => {
@@ -462,9 +474,26 @@ export default function ChattScreen({ route, navigation }) {
     <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === 'ios' ? 'padding' : undefined} keyboardVerticalOffset={90}>
       {refresh.LoggaOverlay}
       {motpartNamn && (
-        <View style={styles.passStrip}>
-          <Text style={styles.passTitel} numberOfLines={1}>{motpartNamn}</Text>
-        </View>
+        motpartId != null ? (
+          // Namnet är klickbart och leder till motpartens profil: privatpersonen till
+          // företagsprofilen, företaget till den sökandes profil.
+          <TouchableOpacity
+            style={styles.passStrip}
+            onPress={öppnaMotpartsProfil}
+            activeOpacity={0.7}
+            accessibilityRole="button"
+            accessibilityLabel={`Visa ${motpartNamn}s profil`}
+          >
+            <View style={styles.motpartRad}>
+              <Text style={[styles.passTitel, styles.passTitelRad]} numberOfLines={1}>{motpartNamn}</Text>
+              <Ionicons name="chevron-forward" size={16} color="#2563eb" accessible={false} importantForAccessibility="no" />
+            </View>
+          </TouchableOpacity>
+        ) : (
+          <View style={styles.passStrip}>
+            <Text style={styles.passTitel} numberOfLines={1}>{motpartNamn}</Text>
+          </View>
+        )
       )}
 
       {!ärPrivatperson && (
@@ -562,6 +591,8 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#f8fafc' },
   passStrip: { backgroundColor: '#fff', paddingHorizontal: 16, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: '#e5e7eb' },
   passTitel: { fontSize: 13, fontWeight: '700', color: '#2563eb', marginBottom: 6 },
+  motpartRad: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
+  passTitelRad: { marginBottom: 0, flexShrink: 1 },
   datumRad: { flexDirection: 'row' },
   datumChip: { backgroundColor: '#eff6ff', borderRadius: 8, paddingHorizontal: 8, paddingVertical: 4, borderWidth: 1, borderColor: '#bfdbfe' },
   datumChipText: { fontSize: 13, fontWeight: '700', color: '#2563eb' },

@@ -4,7 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useHeaderHeight } from '@react-navigation/elements';
 import { useAuth } from '../context/AuthContext';
 import { api, felText } from '../api/klient';
-import { parsaArbetstider, formatDagDatum, parsaObTillagg, beräknaObBelopp } from '../utils/datumHelper';
+import { parsaArbetstider, formatDatumMedVeckodag, parsaObTillagg, beräknaObBelopp } from '../utils/datumHelper';
 import { beräknaFakturapris, KROCK_ANSOKAN_TEXT, utbetalningstextFörInstallning } from '../utils/konstanter';
 import { normaliseraKrav, saknadeKrav } from '../utils/behorighet';
 import BehörighetsKrav from '../components/BehörighetsKrav';
@@ -75,7 +75,7 @@ export default function JobbDetaljScreen({ route, navigation }) {
     <ScrollView style={styles.container} keyboardShouldPersistTaps="handled" contentContainerStyle={styles.scrollInnehåll}>
       {jobb.foretagNamn && <Text style={styles.foretagNamn}>{jobb.foretagNamn}</Text>}
       <Text style={styles.titel}>{jobb.Titel}</Text>
-      <Text style={styles.info}>{jobb.Plats} · {jobb.Typ}</Text>
+      <Text style={styles.info}>{[jobb.Plats, jobb.Kategori, jobb.Typ].filter(Boolean).join(' · ')}</Text>
       {jobb.Lon && <Text style={styles.lön}>{jobb.Lon.toLocaleString('sv-SE')} kr/tim</Text>}
       {(() => {
         const ob = parsaObTillagg(jobb.ob_tillagg);
@@ -134,7 +134,7 @@ export default function JobbDetaljScreen({ route, navigation }) {
               {schema.map((dag, i) => (
                 <View key={i} style={styles.dagRad}>
                   <View style={styles.datumChip}>
-                    <Text style={styles.datumChipText}>{formatDagDatum(dag.datum) ?? '–'}</Text>
+                    <Text style={styles.datumChipText}>{formatDatumMedVeckodag(dag.datum) ?? '–'}</Text>
                   </View>
                   {(dag.start || dag.slut) && (
                     <Text style={styles.dagTid}>{dag.start ?? '–'} – {dag.slut ?? '–'}</Text>

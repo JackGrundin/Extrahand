@@ -19,8 +19,7 @@ import { normaliseraKrav, saknadeKrav } from '@/utils/behorighet';
 import { KROCK_ANSOKAN_TEXT, utbetalningstextFörInstallning } from '@/utils/konstanter';
 import {
   parsaArbetstider,
-  formatDagDatum,
-  veckodagsNamn,
+  formatDatumMedVeckodag,
   parsaObTillagg,
   planeradeTimmar,
 } from '@/utils/datumHelper';
@@ -140,6 +139,7 @@ export default function JobbDetalj() {
             ))}
           {[
             jobb.Plats || null,
+            jobb.Kategori || null,
             jobb.Lon != null ? `${Math.round(Number(jobb.Lon))} kr/tim` : null,
             jobb.antal_dagar ? `${jobb.antal_dagar} ${jobb.antal_dagar === 1 ? 'dag' : 'dagar'}` : null,
           ]
@@ -199,7 +199,7 @@ export default function JobbDetalj() {
                   className="flex items-center justify-between rounded-sm border border-kant bg-yta px-4 py-2.5 text-[14px]"
                 >
                   <span className="text-text">
-                    {veckodagsNamn(d.datum)} {formatDagDatum(d.datum)}
+                    {formatDatumMedVeckodag(d.datum)}
                   </span>
                   <span className="font-semibold text-text-dämpad">
                     {d.start}–{d.slut}
@@ -220,11 +220,18 @@ export default function JobbDetalj() {
           </section>
         )}
 
-        {/* Adress */}
+        {/* Adress – klickbar länk som öppnar adressen i Google Maps i en ny flik. */}
         {jobb.adress && (
           <section className="mt-6">
             <h2 className="mb-1 text-[17px] font-bold text-text">Adress</h2>
-            <p className="text-[15px] text-text-dämpad">{jobb.adress}</p>
+            <a
+              href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(jobb.adress)}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-[15px] text-primär hover:underline"
+            >
+              {jobb.adress}
+            </a>
           </section>
         )}
 

@@ -15,6 +15,14 @@ export function formatDagDatum(isoStr) {
   return new Date(isoStr + 'T12:00:00').toLocaleDateString('sv-SE', { day: 'numeric', month: 'short' });
 }
 
+// Datum med fullt veckodagsnamn, t.ex. 'Måndag 15 dec'. Återanvänder formatDagDatum.
+export function formatDatumMedVeckodag(isoStr) {
+  if (!isoStr) return null;
+  const veckodag = new Date(isoStr + 'T12:00:00').toLocaleDateString('sv-SE', { weekday: 'long' });
+  const kapital = veckodag.charAt(0).toUpperCase() + veckodag.slice(1);
+  return `${kapital} ${formatDagDatum(isoStr)}`;
+}
+
 // Datum + veckodag + ev. tid för EN pass-dag, t.ex. 'Mån 18 nov · 08:00–16:00'. Tidsspannet
 // visas bara när både start och slut finns. Används på passkorten i Mina pass så tiderna
 // syns utan att öppna detaljvyn. Saknas datum returneras null.

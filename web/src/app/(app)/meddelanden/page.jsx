@@ -9,7 +9,7 @@ import Link from 'next/link';
 import Besked from '@/components/ui/Besked';
 import { useRealtidsPing } from '@/context/RealtidsContext';
 import { api } from '@/lib/api';
-import { STATUSFÄRGER_ANSÖKAN } from '@/utils/konstanter';
+import { ansökanStatusVisning } from '@/utils/konstanter';
 
 function tidKort(iso) {
   if (!iso) return '';
@@ -72,7 +72,7 @@ export default function MeddelandeInkorg() {
       ) : (
         <ul className="mt-6 space-y-2">
           {lista.map((k) => {
-            const färg = STATUSFÄRGER_ANSÖKAN[k.status] ?? STATUSFÄRGER_ANSÖKAN.väntande;
+            const status = ansökanStatusVisning(k, { ärFöretag: true }) ?? { etikett: k.status, bg: '#f3f4f6', text: '#6b7280' };
             const initial = (k.sökandeNamn || '?').charAt(0).toUpperCase();
             return (
               <li key={k.id}>
@@ -100,10 +100,10 @@ export default function MeddelandeInkorg() {
                     </p>
                   </div>
                   <span
-                    className="ml-1 hidden shrink-0 rounded-pill px-2.5 py-0.5 text-[12px] font-bold capitalize sm:inline"
-                    style={{ backgroundColor: färg.bg, color: färg.text }}
+                    className="ml-1 hidden shrink-0 rounded-pill px-2.5 py-0.5 text-[12px] font-bold sm:inline"
+                    style={{ backgroundColor: status.bg, color: status.text }}
                   >
-                    {k.status}
+                    {status.etikett}
                   </span>
                 </Link>
               </li>

@@ -208,6 +208,13 @@ export const STATUSFÄRGER_ANSÖKAN = {
   väntande: { bg: '#fef9c3', text: '#854d0e' },
 };
 
+// Mjukare, tydligare etiketter för en ansökans status. Avhopp hanteras separat (se nedan).
+const ANSÖKAN_ETIKETTER = {
+  godkänd:  'Bekräftat pass',
+  väntande: 'Ansökan skickad',
+  avvisad:  'Ej aktuell',
+};
+
 // Etikett och färg för en ansökans status.
 //
 // Ett avhopp lagras som status 'avvisad' med avhoppad_at satt (se migrations/ansokan_avhopp.sql):
@@ -225,9 +232,8 @@ export function ansökanStatusVisning(ansökan, { ärFöretag = false } = {}) {
   }
 
   const färg = STATUSFÄRGER_ANSÖKAN[ansökan.status] ?? { bg: '#f3f4f6', text: '#6b7280' };
-  const etikett = ansökan.status === 'avvisad' && ärFöretag
-    ? 'Nekad'
-    : ansökan.status.charAt(0).toUpperCase() + ansökan.status.slice(1);
+  const etikett = ANSÖKAN_ETIKETTER[ansökan.status]
+    ?? ansökan.status.charAt(0).toUpperCase() + ansökan.status.slice(1);
 
   return { ...färg, etikett };
 }

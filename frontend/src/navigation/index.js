@@ -120,6 +120,8 @@ function AnsökningarNavigator() {
     >
       <Stack.Screen name="MinaAnsokningar" component={MinaAnsokningarScreen} options={{ title: 'Mina ansökningar' }} />
       <Stack.Screen name="Chatt" component={ChattScreen} options={{ title: 'Chatt' }} />
+      {/* Chattens klickbara namn leder privatpersonen till företagsprofilen – måste finnas i stacken. */}
+      <Stack.Screen name="FöretagsProfil" component={FöretagsProfilScreen} options={{ title: 'Företagsprofil' }} />
       <Stack.Screen name="Betygsatt" component={BetygsattScreen} options={{ title: 'Betygsätt' }} />
     </Stack.Navigator>
   );
@@ -141,6 +143,8 @@ function InkorgNavigator() {
       <Stack.Screen name="JobbDetalj" component={JobbDetaljScreen} options={{ title: 'Jobbdetaljer' }} />
       <Stack.Screen name="SchemaDetalj" component={SchemaDetaljScreen} options={{ title: 'Schema' }} />
       <Stack.Screen name="SökanadeProfil" component={SökandeProfilScreen} options={{ title: 'Sökandes profil' }} />
+      {/* Chattens klickbara namn leder privatpersonen till företagsprofilen – måste finnas i stacken. */}
+      <Stack.Screen name="FöretagsProfil" component={FöretagsProfilScreen} options={{ title: 'Företagsprofil' }} />
       <Stack.Screen name="Betygsatt" component={BetygsattScreen} options={{ title: 'Betygsätt' }} />
     </Stack.Navigator>
   );
@@ -168,6 +172,10 @@ function ChattNavigator() {
     <Stack.Navigator screenOptions={headerTema}>
       <Stack.Screen name="ChattLista" component={ChattListaScreen} options={{ title: 'Chattar' }} />
       <Stack.Screen name="Chatt" component={ChattScreen} options={{ title: 'Chatt' }} />
+      {/* Chattens klickbara namn leder till motpartens profil (företag→sökande, privat→företag).
+          Båda roller når chatten härifrån, så båda skärmarna måste finnas i stacken. */}
+      <Stack.Screen name="SökanadeProfil" component={SökandeProfilScreen} options={{ title: 'Sökandes profil' }} />
+      <Stack.Screen name="FöretagsProfil" component={FöretagsProfilScreen} options={{ title: 'Företagsprofil' }} />
       <Stack.Screen name="Betygsatt" component={BetygsattScreen} options={{ title: 'Betygsätt' }} />
       <Stack.Screen name="JobbAnsokningar" component={JobbAnsokningarScreen} options={({ route }) => ({ title: route.params?.titel ?? 'Ansökningar' })} />
     </Stack.Navigator>
