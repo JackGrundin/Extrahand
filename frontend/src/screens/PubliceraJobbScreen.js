@@ -1,6 +1,7 @@
 import { useCallback, useRef, useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, ScrollView, ActivityIndicator, KeyboardAvoidingView, Platform, Modal, Linking } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
+import { useHeaderHeight } from '@react-navigation/elements';
 import { Ionicons } from '@expo/vector-icons';
 import TidVäljare from '../components/TidVäljare';
 import DatumVäljare from '../components/DatumVäljare';
@@ -17,6 +18,7 @@ import StadInput from '../components/StadInput';
 import AdressInput from '../components/AdressInput';
 
 export default function PubliceraJobbScreen({ navigation }) {
+  const rubrikHöjd = useHeaderHeight();
   const [titel, setTitel] = useState('');
   const [beskrivning, setBeskrivning] = useState('');
   const [plats, setPlats] = useState('');
@@ -231,7 +233,7 @@ export default function PubliceraJobbScreen({ navigation }) {
 
   return (
     <>
-      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined} keyboardVerticalOffset={rubrikHöjd}>
         <ScrollView ref={scrollRef} style={styles.container} keyboardShouldPersistTaps="handled">
           {/* Enstaka pass eller ett helt schema. Schemat har en egen skärm eftersom
               formuläret skiljer sig helt: period + passgenerator i stället för antal dagar. */}

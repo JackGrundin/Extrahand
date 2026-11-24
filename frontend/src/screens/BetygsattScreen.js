@@ -1,11 +1,13 @@
 import { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
+import { useHeaderHeight } from '@react-navigation/elements';
 import StjärnVal from '../components/StjärnVal';
 import { api, felText } from '../api/klient';
 import { useAuth } from '../context/AuthContext';
 import { haptik } from '../utils/haptik';
 
 export default function BetygsattScreen({ route, navigation }) {
+  const rubrikHöjd = useHeaderHeight();
   const { ansokningId } = route.params;
   const { användare } = useAuth();
   // Företag betygsätter en person, privatperson betygsätter ett uppdrag
@@ -35,7 +37,7 @@ export default function BetygsattScreen({ route, navigation }) {
   }
 
   return (
-    <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+    <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined} keyboardVerticalOffset={rubrikHöjd}>
       <ScrollView style={styles.container} keyboardShouldPersistTaps="handled">
         <Text style={styles.rubrik}>{ärFöretag ? 'Betygsätt personen' : 'Betygsätt uppdraget'}</Text>
         <Text style={styles.beskrivning}>Hur upplevde du samarbetet?</Text>

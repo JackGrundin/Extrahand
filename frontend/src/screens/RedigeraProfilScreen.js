@@ -1,9 +1,11 @@
 import { useState } from 'react';
 import { Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, Alert, ActivityIndicator, KeyboardAvoidingView, Platform } from 'react-native';
+import { useHeaderHeight } from '@react-navigation/elements';
 import { api, felText } from '../api/klient';
 import StadInput, { ärGiltigStad } from '../components/StadInput';
 
 export default function RedigeraProfilScreen({ route, navigation }) {
+  const rubrikHöjd = useHeaderHeight();
   const profil = route.params?.profil ?? {};
   const ärFöretag = profil.typ === 'företag';
 
@@ -54,7 +56,7 @@ export default function RedigeraProfilScreen({ route, navigation }) {
   }
 
   return (
-    <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+    <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined} keyboardVerticalOffset={rubrikHöjd}>
       <ScrollView style={styles.container} keyboardShouldPersistTaps="handled">
 
         {ärFöretag ? (

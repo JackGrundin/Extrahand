@@ -1,5 +1,6 @@
 import { useCallback, useMemo, useRef, useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, ScrollView, ActivityIndicator, KeyboardAvoidingView, Platform, Linking, Switch, Modal } from 'react-native';
+import { useHeaderHeight } from '@react-navigation/elements';
 import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import PrenumerationModal from '../components/PrenumerationModal';
@@ -34,6 +35,7 @@ const VARNA_ÖVER_ANTAL = 60;
 const MAX_ANTAL_PASS = 200;
 
 export default function PubliceraSchemaScreen({ navigation }) {
+  const rubrikHöjd = useHeaderHeight();
   const [steg, setSteg] = useState(1);
 
   // Steg 1
@@ -533,7 +535,7 @@ export default function PubliceraSchemaScreen({ navigation }) {
 
   return (
     <>
-      <KeyboardAvoidingView style={{ flex: 1, backgroundColor: '#fff' }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+      <KeyboardAvoidingView style={{ flex: 1, backgroundColor: '#fff' }} behavior={Platform.OS === 'ios' ? 'padding' : undefined} keyboardVerticalOffset={rubrikHöjd}>
         <StegIndikator steg={steg} antal={4} etiketter={STEG_ETIKETTER} onVäljSteg={(n) => { setMarkerade(new Set()); setSteg(n); }} />
 
         <ScrollView ref={scrollRef} style={styles.container} keyboardShouldPersistTaps="handled">

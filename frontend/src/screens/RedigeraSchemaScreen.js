@@ -1,5 +1,6 @@
 import { useCallback, useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, ScrollView, ActivityIndicator, KeyboardAvoidingView, Platform, Modal } from 'react-native';
+import { useHeaderHeight } from '@react-navigation/elements';
 import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { api, felText } from '../api/klient';
@@ -18,6 +19,7 @@ const TOMT_PASS = { datum: '', starttid: '', sluttid: '', kategori: '', ob_tilla
 // Redigering EFTER publicering. Befintliga pass har låsta datum och tider – de är avtalade
 // med den som sökt. Nya pass går att lägga till, och kommande pass att ställa in.
 export default function RedigeraSchemaScreen({ route, navigation }) {
+  const rubrikHöjd = useHeaderHeight();
   const { schemaId } = route.params;
 
   const [schema, setSchema] = useState(null);
@@ -266,7 +268,7 @@ export default function RedigeraSchemaScreen({ route, navigation }) {
     senastBesked !== (schema.senast_besked ?? '');
 
   return (
-    <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+    <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined} keyboardVerticalOffset={rubrikHöjd}>
       <ScrollView style={styles.container} keyboardShouldPersistTaps="handled">
         {ärTillsatt && (
           <View style={styles.infoRuta}>

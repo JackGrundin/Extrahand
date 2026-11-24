@@ -1,5 +1,6 @@
 import { useRef, useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, ScrollView, ActivityIndicator, KeyboardAvoidingView, Platform, Modal } from 'react-native';
+import { useHeaderHeight } from '@react-navigation/elements';
 import { Ionicons } from '@expo/vector-icons';
 import { api, felText } from '../api/klient';
 import { TYPER, KATEGORIER, beräknaFakturapris, formateraPris, normalisera } from '../utils/konstanter';
@@ -25,6 +26,7 @@ function parsaArbetstiderTider(arbetstider) {
 }
 
 export default function RedigeraJobbScreen({ route, navigation }) {
+  const rubrikHöjd = useHeaderHeight();
   const { jobb } = route.params;
   const påslag = useJobbPåslag(jobb.paslag, true);
 
@@ -122,7 +124,7 @@ export default function RedigeraJobbScreen({ route, navigation }) {
 
   return (
     <>
-      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined} keyboardVerticalOffset={rubrikHöjd}>
         <ScrollView ref={scrollRef} style={styles.container} keyboardShouldPersistTaps="handled">
           <Text style={styles.label}>Jobbtitel *</Text>
           <TextInput style={[styles.input, fel.titel && styles.inputFel]} value={titel} onChangeText={(t) => { setTitel(t); rensaFel('titel'); }} />
