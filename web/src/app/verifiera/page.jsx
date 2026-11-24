@@ -36,12 +36,9 @@ function VerifieraInnehåll() {
     setLaddar(true);
     try {
       const svar = await verifieraKod(email.trim(), kod.trim());
-      // Inbjudningslänk (next) först; annars företag → översikt, privatperson → jobblistan.
-      const mål = nästa
-        ? nästa
-        : svar?.användare?.typ === 'företag'
-          ? '/oversikt'
-          : '/jobb';
+      // Inbjudningslänk (next) först och orörd – en inbjuden ska rakt till schemat, inte
+      // onboardingen. Annars landar nya konton (båda roller) på välkomst-/onboardingsidan.
+      const mål = nästa || '/valkommen';
       // Privatpersoner ser först välkomstrutan om avtalet; företag navigeras direkt.
       if (svar?.användare?.typ === 'privatperson') {
         setVälkomstMål(mål);
