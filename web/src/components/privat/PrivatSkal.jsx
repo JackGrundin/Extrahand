@@ -10,6 +10,7 @@
 // useRealtidsPing – alla privatsidor (inte bara /chatt) får därmed signalerna.
 import { useCallback, useEffect, useState } from 'react';
 import { usePathname } from 'next/navigation';
+import Image from 'next/image';
 import Toppnav from '@/components/Toppnav';
 import PrivatSidomeny from '@/components/privat/PrivatSidomeny';
 import { useAuth } from '@/context/AuthContext';
@@ -219,7 +220,7 @@ export default function PrivatSkal({ children }) {
 
       {/* Mobil topprad */}
       <header className="sticky top-0 z-30 flex items-center justify-between border-b border-kant bg-yta/90 px-4 py-3 backdrop-blur md:hidden">
-        <span className="font-bold text-text">FastGig</span>
+        <Image src="/logotyp.png" alt="FastGig" width={132} height={34} priority className="h-8 w-auto" />
         <button
           type="button"
           onClick={() => setMenyÖppen(true)}
