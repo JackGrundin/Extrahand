@@ -60,6 +60,20 @@ function Ikon({ typ }) {
           <path d="M12 9v4M12 17h.01" />
         </svg>
       );
+    case 'godkänd_ansökan':
+      return (
+        <svg {...gemensamt}>
+          <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+          <path d="M22 4 12 14.01l-3-3" />
+        </svg>
+      );
+    case 'schema_inbjudan':
+      return (
+        <svg {...gemensamt}>
+          <rect x="3" y="4" width="18" height="18" rx="2" />
+          <path d="M16 2v4M8 2v4M3 10h18" />
+        </svg>
+      );
     default:
       return (
         <svg {...gemensamt}>
@@ -76,11 +90,14 @@ function länkFör(post, ärFöretag) {
     case 'tidrapport':
     case 'bestridande':
     case 'betyg':
+    case 'godkänd_ansökan':
       if (!post.ansokanId) return null;
       return ärFöretag ? `/meddelanden/${post.ansokanId}` : `/chatt/${post.ansokanId}`;
     case 'ansokningar':
       if (post.schemaId) return `/annonser/schema/${post.schemaId}`;
       return post.jobbId ? `/annonser/jobb/${post.jobbId}/ansokningar` : null;
+    case 'schema_inbjudan':
+      return post.schemaId ? `/schema/${post.schemaId}` : null;
     case 'avtal':
       return '/min-profil';
     default:

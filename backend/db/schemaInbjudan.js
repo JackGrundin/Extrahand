@@ -100,7 +100,7 @@ async function hämtaMinaInbjudningar(anvandare_id) {
   if (schemaIds.length) {
     const { data: scheman } = await supabase
       .from('scheman')
-      .select('id, titel, timlon, startdatum, foretag_id, annons_jobb_id')
+      .select('id, titel, timlon, startdatum, foretag_id, annons_jobb_id, status')
       .in('id', schemaIds);
     schemaMap = Object.fromEntries((scheman || []).map(s => [s.id, s]));
   }
@@ -160,6 +160,11 @@ async function hämtaMinaInbjudningar(anvandare_id) {
     resultat.push({
       id: i.id,
       typ: ärSchema ? 'schema' : 'jobb',
+      // schema_id + status exponeras additivt: inkorgen (db/inkorg.js) behöver schema_id för
+      // navigeringen och status för att dölja scheman som redan är tillsatta/avbrutna.
+      // Förfrågningar-fliken ignorerar de extra fälten.
+      schema_id: i.schema_id ?? null,
+      status: ärSchema ? (schema?.status ?? null) : null,
       titel: ärSchema ? (schema?.titel ?? null) : (jobb?.Titel ?? null),
       företagNamn: namnMap[foretagId] ?? null,
       datum: ärSchema ? (schema?.startdatum ?? null) : förstaDatum(jobb),

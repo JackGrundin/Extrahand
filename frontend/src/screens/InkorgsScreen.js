@@ -17,6 +17,8 @@ const IKON_PER_TYP = {
   ansokningar: 'person-outline',
   betyg: 'star-outline',
   avtal: 'document-text-outline',
+  godkänd_ansökan: 'checkmark-circle-outline',
+  schema_inbjudan: 'calendar-outline',
 };
 
 // Inkorgen (åtgärdslista) i appen – samma härledda underlag som webbens /inkorg. Posterna
@@ -52,11 +54,15 @@ export default function InkorgsScreen({ navigation }) {
       case 'tidrapport':
       case 'bestridande':
       case 'betyg':
+      case 'godkänd_ansökan':
         if (post.ansokanId != null) navigation.navigate('Chatt', { ansokningId: post.ansokanId });
         break;
       case 'ansokningar':
         if (post.schemaId != null) navigation.navigate('SchemaDetalj', { schemaId: post.schemaId });
         else if (post.jobbId != null) navigation.navigate('JobbAnsokningar', { jobbId: post.jobbId, titel: post.titel });
+        break;
+      case 'schema_inbjudan':
+        if (post.schemaId != null) navigation.navigate('SchemaDetalj', { schemaId: post.schemaId });
         break;
       case 'avtal':
         navigation.getParent()?.navigate('Profil');

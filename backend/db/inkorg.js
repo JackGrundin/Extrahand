@@ -3,6 +3,8 @@ const ws = require('ws');
 const { hämtaIBitar } = require('./ansokningar');
 const { hämtaObetygsatta } = require('./betyg');
 const { hämtaAvtalGodkant } = require('./användare');
+const { hämtaMinaInbjudningar } = require('./schemaInbjudan');
+const { idagStockholm, parsaArbetstider } = require('../utils/tid');
 
 const supabase = createClient(
   process.env.SUPABASE_URL,
@@ -41,7 +43,7 @@ async function inkorgFöretag(företagId) {
   // 'godkänd' hämtas bara för existenskontrollen nedan – den ger inga egna inkorgsposter.
   const { data: rapporter, error: rapportFel } = await supabase
     .from('tidrapporter')
-    .select('ansokan_id, status, eskalerad, auto_skapad')
+    .select('ansokan_id, status, eskalerad, auto_skapad, created_at, bestridd_at')
     .eq('foretag_id', företagId)
     .in('status', ['väntar', 'bestridd', 'godkänd']);
   if (rapportFel) throw rapportFel;
@@ -73,6 +75,7 @@ async function inkorgFöretag(företagId) {
     ansokanId: r.ansokan_id,
     jobbId: null,
     schemaId: null,
+    skapad_at: r.created_at ?? null,
   }));
 
   const bestridandePoster = bestridda.map(r => ({
@@ -82,6 +85,7 @@ async function inkorgFöretag(företagId) {
     ansokanId: r.ansokan_id,
     jobbId: null,
     schemaId: null,
+    skapad_at: r.bestridd_at ?? r.created_at ?? null,
   }));
 
   // 3: nya ansökningar grupperade per annons-jobb. Pass-jobben (schema_pass_id satt)
@@ -98,11 +102,16 @@ async function inkorgFöretag(företagId) {
   if (annonsJobb && annonsJobb.length) {
     const jobbMap = Object.fromEntries(annonsJobb.map(j => [j.id, j]));
     const ansökningar = await hämtaIBitar(annonsJobb.map(j => j.id), bit =>
-      supabase.from('ansokningar').select('jobb_id').eq('status', 'väntande').in('jobb_id', bit));
+      supabase.from('ansokningar').select('jobb_id, created_at').eq('status', 'väntande').in('jobb_id', bit));
 
     const antalPerJobb = new Map();
+    const senastePerJobb = new Map();
     for (const a of ansökningar) {
       antalPerJobb.set(a.jobb_id, (antalPerJobb.get(a.jobb_id) || 0) + 1);
+      const nuvarande = senastePerJobb.get(a.jobb_id);
+      if (a.created_at && (!nuvarande || a.created_at > nuvarande)) {
+        senastePerJobb.set(a.jobb_id, a.created_at);
+      }
     }
 
     ansökningsPoster = [...antalPerJobb.entries()].map(([jobbId, antal]) => {
@@ -114,6 +123,7 @@ async function inkorgFöretag(företagId) {
         ansokanId: null,
         jobbId,
         schemaId: j?.schema_id ?? null,
+        skapad_at: senastePerJobb.get(jobbId) ?? null,
       };
     });
   }
@@ -127,7 +137,7 @@ async function inkorgPrivatperson(användareId) {
   // 1: auto-skapade tidrapporter som väntar på bekräftelse (tidrapporter bär anvandare_id).
   const { data: rapporter, error: rapportFel } = await supabase
     .from('tidrapporter')
-    .select('ansokan_id')
+    .select('ansokan_id, created_at')
     .eq('anvandare_id', användareId)
     .eq('status', 'väntar')
     .eq('auto_skapad', true);
@@ -141,6 +151,7 @@ async function inkorgPrivatperson(användareId) {
     ansokanId: r.ansokan_id,
     jobbId: null,
     schemaId: null,
+    skapad_at: r.created_at ?? null,
   }));
 
   // 2: obetygsatta pass – återanvänder betygspopupens underlag (grupperat per schema).
@@ -152,9 +163,16 @@ async function inkorgPrivatperson(användareId) {
     ansokanId: g.ansokanId,
     jobbId: null,
     schemaId: null,
+    skapad_at: g.datum ?? null,
   }));
 
-  // 3: avtal ej godkänt (avtal_godkant finns inte i JWT – hämta separat).
+  // 3: godkända ansökningar för pass/scheman som ännu inte passerat.
+  const godkändaPoster = await godkändaAnsökningsPoster(användareId);
+
+  // 4: inkomna schema-inbjudningar som ännu inte accepterats.
+  const inbjudanPoster = await schemaInbjudanPoster(användareId);
+
+  // 5: avtal ej godkänt (avtal_godkant finns inte i JWT – hämta separat).
   let avtalPoster = [];
   const avtalGodkant = await hämtaAvtalGodkant(användareId);
   if (!avtalGodkant) {
@@ -165,18 +183,106 @@ async function inkorgPrivatperson(användareId) {
       ansokanId: null,
       jobbId: null,
       schemaId: null,
+      skapad_at: null,
     }];
   }
 
-  return [...tidrapportPoster, ...betygsPoster, ...avtalPoster];
+  return [...tidrapportPoster, ...betygsPoster, ...godkändaPoster, ...inbjudanPoster, ...avtalPoster];
+}
+
+// Godkända ansökningar där passet/schemat ännu inte passerat → "du är godkänd, öppna chatten".
+// Bara annons-/enstaka-jobb (schema_pass_id NULL) tas med: pass-jobben bär var sin direkt
+// godkänd ansökan, så utan filtret skulle ett 14-passschema ge 14 poster. Ett schema
+// kollapsar därmed till EN post (annons-ansökan), enstaka pass ger en post var.
+async function godkändaAnsökningsPoster(användareId) {
+  const { data: ansökningar, error } = await supabase
+    .from('ansokningar')
+    .select('id, jobb_id, created_at')
+    .eq('sokande_id', användareId)
+    .eq('status', 'godkänd');
+  if (error) throw error;
+  if (!ansökningar || !ansökningar.length) return [];
+
+  const jobb = await hämtaIBitar(ansökningar.map(a => a.jobb_id), bit =>
+    supabase.from('Jobb').select('id, Titel, arbetstider, schema_id').is('schema_pass_id', null).in('id', bit));
+  const jobbMap = Object.fromEntries((jobb || []).map(j => [j.id, j]));
+
+  // Schemats slutdatum avgör om annons-ansökan fortfarande är aktuell.
+  const schemaIds = [...new Set((jobb || []).map(j => j.schema_id).filter(Boolean))];
+  let slutdatumMap = {};
+  if (schemaIds.length) {
+    const scheman = await hämtaIBitar(schemaIds, bit =>
+      supabase.from('scheman').select('id, slutdatum').in('id', bit));
+    slutdatumMap = Object.fromEntries((scheman || []).map(s => [s.id, s.slutdatum ?? null]));
+  }
+
+  // Enstaka pass med redan skapad tidrapport hör till tidrapport-flödet, inte hit.
+  const tidrapporter = await hämtaIBitar(ansökningar.map(a => a.id), bit =>
+    supabase.from('tidrapporter').select('ansokan_id').in('ansokan_id', bit));
+  const harTidrapport = new Set((tidrapporter || []).map(r => r.ansokan_id));
+
+  const idag = idagStockholm();
+  const poster = [];
+  for (const a of ansökningar) {
+    const j = jobbMap[a.jobb_id];
+    if (!j) continue; // pass-jobb (schema_pass_id satt) filtrerades bort i queryn
+    let framtid;
+    if (j.schema_id) {
+      const slut = slutdatumMap[j.schema_id];
+      framtid = slut != null && slut >= idag;
+    } else {
+      if (harTidrapport.has(a.id)) continue;
+      const datum = parsaArbetstider(j.arbetstider).map(p => p?.datum).filter(Boolean);
+      const sista = datum.length ? datum.reduce((x, y) => (y > x ? y : x)) : null;
+      framtid = sista != null && sista >= idag;
+    }
+    if (!framtid) continue;
+    poster.push({
+      typ: 'godkänd_ansökan',
+      titel: j.Titel ?? 'Godkänd',
+      undertext: 'Du är godkänd – öppna chatten',
+      ansokanId: a.id,
+      jobbId: null,
+      schemaId: null,
+      skapad_at: a.created_at ?? null,
+    });
+  }
+  return poster;
+}
+
+// Inkomna schema-inbjudningar som ännu inte accepterats. Återanvänder Förfrågningar-flikens
+// underlag (avböjda + redan ansökta döljs redan där). Tillsatta/avbrutna scheman går inte
+// längre att acceptera och tas bort.
+async function schemaInbjudanPoster(användareId) {
+  const inbjudningar = await hämtaMinaInbjudningar(användareId);
+  return (inbjudningar || [])
+    .filter(i => i.typ === 'schema' && i.schema_id && i.status !== 'tillsatt' && i.status !== 'avbrutet')
+    .map(i => ({
+      typ: 'schema_inbjudan',
+      titel: i.titel ?? 'Schemainbjudan',
+      undertext: i.företagNamn ? `Inbjudan från ${i.företagNamn}` : 'Du har fått en inbjudan',
+      ansokanId: null,
+      jobbId: null,
+      schemaId: i.schema_id,
+      skapad_at: i.skapad_datum ?? null,
+    }));
 }
 
 // Härleder hela åtgärdslistan för den inloggade. Poster försvinner automatiskt när
 // åtgärden utförts eftersom listan räknas fram vid varje anrop.
 async function hämtaInkorg(användare) {
-  if (användare.typ === 'företag') return inkorgFöretag(användare.id);
-  if (användare.typ === 'privatperson') return inkorgPrivatperson(användare.id);
-  return [];
+  let poster = [];
+  if (användare.typ === 'företag') poster = await inkorgFöretag(användare.id);
+  else if (användare.typ === 'privatperson') poster = await inkorgPrivatperson(användare.id);
+  else return [];
+
+  // Nyaste först. Poster utan tidsstämpel (t.ex. avtal) hamnar sist.
+  return poster.sort((a, b) => {
+    const at = a.skapad_at ?? '';
+    const bt = b.skapad_at ?? '';
+    if (at === bt) return 0;
+    return at > bt ? -1 : 1;
+  });
 }
 
 module.exports = { hämtaInkorg };
