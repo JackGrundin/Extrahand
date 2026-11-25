@@ -516,25 +516,38 @@ export default function Navigation() {
     return () => clearTimeout(timer);
   }, []);
 
-  // Tryck på en inbjudningsnotis öppnar jobbet eller schemat i appen. Privatpersonens
-  // SchemaDetalj/JobbDetalj ligger i JobbTab → JobbNavigator. getLastNotificationResponseAsync
-  // täcker kallstart (appen var helt stängd när notisen trycktes); lyssnaren täcker appen
-  // igång/i bakgrunden. Gatead på privatperson eftersom företagets vyer ligger i andra flikar.
+  // Tryck på en notis öppnar rätt vy i appen. Inbjudningar öppnar jobbet/schemat; en
+  // jobbförfrågan öppnar chatten med företaget. Privatpersonens SchemaDetalj/JobbDetalj
+  // ligger i JobbTab → JobbNavigator, chatten i ChattTab → ChattNavigator.
+  // getLastNotificationResponseAsync täcker kallstart (appen var helt stängd när notisen
+  // trycktes); lyssnaren täcker appen igång/i bakgrunden. Gatead på privatperson eftersom
+  // företagets vyer ligger i andra flikar.
   useEffect(() => {
     if (användare?.typ !== 'privatperson') return undefined;
 
-    function öppna(skärm, params, försök = 0) {
+    function öppna(skärm, params, { flik = 'JobbTab', försök = 0 } = {}) {
       if (navigationRef.isReady()) {
-        navigationRef.navigate('JobbTab', { screen: skärm, params });
+        navigationRef.navigate(flik, { screen: skärm, params });
       } else if (försök < 10) {
         // Kallstart: containern kan vara omonterad en kort stund efter att svaret lästs.
-        setTimeout(() => öppna(skärm, params, försök + 1), 300);
+        setTimeout(() => öppna(skärm, params, { flik, försök: försök + 1 }), 300);
       }
     }
     async function hanteraSvar(svar) {
       const data = svar?.notification?.request?.content?.data;
+      if (!data?.typ) return;
+
+      // Jobbförfrågan via chatten: inget jobb finns ännu (skapas vid accept), så öppna
+      // chatten med företaget där JobbforfraganKort visar Acceptera/Avböj.
+      if (data.typ === 'jobbforfragan') {
+        if (data.medAnvandareId != null) {
+          öppna('Chatt', { medAnvandareId: data.medAnvandareId }, { flik: 'ChattTab' });
+        }
+        return;
+      }
+
       // 'schema_inbjudan' behålls som alias för äldre notiser; nya använder 'inbjudan'.
-      if (data?.typ !== 'inbjudan' && data?.typ !== 'schema_inbjudan') return;
+      if (data.typ !== 'inbjudan' && data.typ !== 'schema_inbjudan') return;
       if (data.schemaId) {
         öppna('SchemaDetalj', { schemaId: data.schemaId });
       } else if (data.jobbId) {
