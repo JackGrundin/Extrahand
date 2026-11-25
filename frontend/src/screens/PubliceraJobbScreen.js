@@ -31,6 +31,8 @@ export default function PubliceraJobbScreen({ navigation }) {
   const [laddar, setLaddar] = useState(false);
   const [fel, setFel] = useState({});
   const scrollRef = useRef(null);
+  // Stadfältets y-position i ScrollView-innehållet, så vi kan skrolla fram det vid fokus.
+  const stadY = useRef(0);
   const [kategoriModalVisas, setKategoriModalVisas] = useState(false);
   const [sokKategori, setSokKategori] = useState('');
   const [obTillagg, setObTillagg] = useState([]);
@@ -111,6 +113,11 @@ export default function PubliceraJobbScreen({ navigation }) {
   function hanteraPlatsInput(text) {
     setPlats(text);
     rensaFel('plats');
+  }
+
+  // Skrolla fram stadfältet så att förslagsdropdownen inte hamnar bakom tangentbordet.
+  function scrollaFramStad() {
+    if (stadY.current > 0) scrollRef.current?.scrollTo({ y: Math.max(stadY.current - 120, 0), animated: true });
   }
 
   function läggTillOb() {
@@ -274,14 +281,17 @@ export default function PubliceraJobbScreen({ navigation }) {
           <Text style={styles.label}>Behörighetskrav</Text>
           <BehörighetsKravRedigerare värde={behorighetsKrav} onÄndra={setBehorighetsKrav} />
 
-          <Text style={styles.label}>Stad *</Text>
-          <StadInput
-            värde={plats}
-            onÄndra={hanteraPlatsInput}
-            placeholder="t.ex. Stockholm"
-            fel={!!fel.plats}
-          />
-          <FältFel text={fel.plats} />
+          <View onLayout={e => { stadY.current = e.nativeEvent.layout.y; }}>
+            <Text style={styles.label}>Stad *</Text>
+            <StadInput
+              värde={plats}
+              onÄndra={hanteraPlatsInput}
+              onFokus={scrollaFramStad}
+              placeholder="t.ex. Stockholm"
+              fel={!!fel.plats}
+            />
+            <FältFel text={fel.plats} />
+          </View>
 
           <Text style={styles.label}>Adress till arbetsplatsen *</Text>
           <AdressInput

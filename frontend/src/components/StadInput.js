@@ -27,6 +27,9 @@ export default function StadInput({
   // Valfri: anropas när användaren VÄLJER en stad ur listan (inte vid varje tangenttryck).
   // Utan prop är beteendet oförändrat – används bara av jobblistan för sökhistorik.
   onVälj,
+  // Valfri: anropas när fältet får fokus. Parent kan då skrolla fram fältet så att
+  // förslagslistan inte hamnar bakom tangentbordet. Utan prop är beteendet oförändrat.
+  onFokus,
 }) {
   const [förslag, setFörslag] = useState([]);
   const [öppen, setÖppen] = useState(false);
@@ -69,7 +72,7 @@ export default function StadInput({
         placeholderTextColor={FÄRG.textSvag}
         value={värde}
         onChangeText={hanteraInput}
-        onFocus={() => setFokuserad(true)}
+        onFocus={() => { setFokuserad(true); onFokus?.(); }}
         onBlur={() => setFokuserad(false)}
         autoCorrect={false}
         autoCapitalize={autoCapitalize}
