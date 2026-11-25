@@ -21,7 +21,7 @@ import BehörighetsKravRedigerare from '@/components/app/BehörighetsKravRediger
 import PlanvalModal from '@/components/app/PlanvalModal';
 import { api, felText } from '@/lib/api';
 import { valideraJobb } from '@/utils/jobbValidering';
-import { datumTillIso, planeradeTimmar, beräknaObBelopp } from '@/utils/datumHelper';
+import { datumTillIso, planeradeTimmar, beräknaObBelopp, formatDagMedTid } from '@/utils/datumHelper';
 import { saniteraObTillagg } from '@/utils/ob';
 import { beräknaFakturapris, formateraPris, PÅSLAG_GRATIS } from '@/utils/konstanter';
 
@@ -46,6 +46,8 @@ export default function PubliceraJobb() {
   const [laddar, setLaddar] = useState(false);
   const [visaPlanval, setVisaPlanval] = useState(false);
   const [laddarUppgradera, setLaddarUppgradera] = useState(false);
+  // Förhandsgranskning: visas efter validering, innan passet faktiskt skickas.
+  const [visaFörhandsgranskning, setVisaFörhandsgranskning] = useState(false);
   // Publicerings-popup: sätts till det skapade jobbet efter lyckad publicering.
   const [publiceratJobb, setPubliceratJobb] = useState(null);
   // Företagets prognospåslag, bara för prisvisningen – backend avgör i slutändan.
@@ -104,10 +106,23 @@ export default function PubliceraJobb() {
     }
   }
 
+  // Validerar formuläret och öppnar förhandsgranskningen – själva publiceringen sker
+  // först när företaget bekräftar i modalen (skicka).
+  function granska() {
+    const valideringsfel = valideraJobb({ titel, beskrivning, kategori, plats, adress, lon, dagScheman, antal_dagar: antalDagar });
+    if (Object.keys(valideringsfel).some((k) => valideringsfel[k])) {
+      setFel(valideringsfel);
+      return;
+    }
+    setFel({});
+    setVisaFörhandsgranskning(true);
+  }
+
   async function skicka({ accepteraHögrePåslag = false } = {}) {
     const valideringsfel = valideraJobb({ titel, beskrivning, kategori, plats, adress, lon, dagScheman, antal_dagar: antalDagar });
     if (Object.keys(valideringsfel).some((k) => valideringsfel[k])) {
       setFel(valideringsfel);
+      setVisaFörhandsgranskning(false);
       return;
     }
 
@@ -130,9 +145,11 @@ export default function PubliceraJobb() {
         ...(accepteraHögrePåslag ? { acceptera_hogre_paslag: true } : {}),
       });
       // Visa publicerings-popupen med vägar vidare i stället för tyst redirect.
+      setVisaFörhandsgranskning(false);
       setPubliceratJobb(skapat);
     } catch (f) {
       if (f?.kod === 'KRAVER_PLANVAL') {
+        setVisaFörhandsgranskning(false);
         setVisaPlanval(true);
       } else {
         setServerfel(felText(f));
@@ -311,10 +328,75 @@ export default function PubliceraJobb() {
           </div>
         )}
 
-        <Knapp variant="primär" full laddar={laddar} onClick={() => skicka()}>
+        <Knapp variant="primär" full onClick={granska}>
           Publicera pass
         </Knapp>
       </div>
+
+      {/* Förhandsgranskning innan passet publiceras. */}
+      {visaFörhandsgranskning && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
+          <div className="absolute inset-0 bg-black/40" aria-hidden="true" onClick={() => !laddar && setVisaFörhandsgranskning(false)} />
+          <div className="relative flex max-h-[85vh] w-full max-w-md flex-col rounded-lg border border-kant bg-yta shadow-lyft">
+            <h2 className="rubrik-m px-6 pt-6 text-center text-text">Förhandsgranska passet</h2>
+
+            <div className="flex-1 overflow-y-auto px-6 py-4">
+              <p className="text-[18px] font-semibold text-text">{titel.trim() || 'Namnlöst pass'}</p>
+
+              <dl className="mt-3 flex flex-col gap-2">
+                <div className="flex justify-between gap-4">
+                  <dt className="text-[14px] text-text-dämpad">Kategori</dt>
+                  <dd className="text-right text-[15px] text-text">{kategori || '–'}</dd>
+                </div>
+                <div className="flex justify-between gap-4">
+                  <dt className="text-[14px] text-text-dämpad">Stad</dt>
+                  <dd className="text-right text-[15px] text-text">{plats.trim() || '–'}</dd>
+                </div>
+                <div className="flex justify-between gap-4">
+                  <dt className="text-[14px] text-text-dämpad">Adress</dt>
+                  <dd className="text-right text-[15px] text-text">{adress.trim() || '–'}</dd>
+                </div>
+              </dl>
+
+              <div className="mt-4 border-t border-kant pt-3">
+                <p className="överlinje text-text-dämpad">Datum och tider</p>
+                {dagScheman.length === 0 ? (
+                  <p className="mt-1 text-[15px] text-text">–</p>
+                ) : (
+                  dagScheman.map((dag, i) => (
+                    <p key={i} className="mt-1 text-[15px] text-text">{formatDagMedTid(dag) || `Dag ${i + 1}`}</p>
+                  ))
+                )}
+              </div>
+
+              <div className="mt-4 border-t border-kant pt-3">
+                <p className="överlinje text-text-dämpad">Ersättning</p>
+                <p className="mt-1 text-[15px] text-text">{lon ? `${lönNum} kr/tim` : '–'}</p>
+                {obTillagg.map((ob, i) => (
+                  <p key={i} className="mt-1 text-[15px] text-text">
+                    OB {ob.start}–{ob.slut}: {ob.värde}
+                    {ob.typ === 'procent' ? '%' : ' kr/tim'}
+                  </p>
+                ))}
+              </div>
+
+              <div className="mt-4 border-t border-kant pt-3">
+                <p className="överlinje text-text-dämpad">Beskrivning</p>
+                <p className="mt-1 whitespace-pre-wrap text-[15px] text-text">{beskrivning.trim() || '–'}</p>
+              </div>
+            </div>
+
+            <div className="flex gap-3 border-t border-kant p-4">
+              <Knapp variant="kontur" full disabled={laddar} onClick={() => setVisaFörhandsgranskning(false)}>
+                Redigera
+              </Knapp>
+              <Knapp variant="primär" full laddar={laddar} onClick={() => skicka()}>
+                Publicera
+              </Knapp>
+            </div>
+          </div>
+        </div>
+      )}
 
       {visaPlanval && (
         <PlanvalModal

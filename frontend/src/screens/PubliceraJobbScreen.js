@@ -14,6 +14,7 @@ import { valideraJobb } from '../utils/jobbValidering';
 import { api, felText } from '../api/klient';
 import { haptik } from '../utils/haptik';
 import { KATEGORIER, PÅSLAG_GRATIS, beräknaFakturapris, formateraPris, normalisera } from '../utils/konstanter';
+import { formatDagMedTid } from '../utils/datumHelper';
 import StadInput from '../components/StadInput';
 import AdressInput from '../components/AdressInput';
 
@@ -48,6 +49,8 @@ export default function PubliceraJobbScreen({ navigation }) {
   const [betalningLaddar, setBetalningLaddar] = useState(false);
   // Publicerings-popup: sätts till det skapade jobbet efter lyckad publicering.
   const [publiceratJobb, setPubliceratJobb] = useState(null);
+  // Förhandsgranskning: visas efter validering, innan passet faktiskt skickas.
+  const [förhandsgranskaVisas, setFörhandsgranskaVisas] = useState(false);
 
   // Hämtar företagets plan så att prisrutan kan visa rätt påslag redan innan
   // publicering. Hämtas om vid varje fokus – t.ex. när användaren kommer tillbaka
@@ -182,7 +185,9 @@ export default function PubliceraJobbScreen({ navigation }) {
     navigation.navigate('MinaJobbTab', { screen: 'MinaJobb' });
   }
 
-  async function hanteraPublicering() {
+  // Validerar formuläret och öppnar förhandsgranskningen – själva publiceringen sker
+  // först när företaget bekräftar i modalen (bekräftaPublicera).
+  function hanteraPublicering() {
     const nyaFel = valideraJobb({ titel, beskrivning, kategori, plats, adress, lon, dagScheman, antal_dagar: antalDagar });
     if (Object.keys(nyaFel).length) {
       setFel(nyaFel);
@@ -192,17 +197,25 @@ export default function PubliceraJobbScreen({ navigation }) {
       return;
     }
     setFel({});
+    setFörhandsgranskaVisas(true);
+  }
 
+  // Skickar passet när företaget tryckt "Publicera" i förhandsgranskningen.
+  async function bekräftaPublicera() {
     setLaddar(true);
     try {
       await publicera();
+      // Stäng förhandsgranskningen så den inte ligger kvar bakom "Pass publicerat!".
+      setFörhandsgranskaVisas(false);
     } catch (error) {
       // Tredje passet denna månad på gratisplanen – låt företaget välja plan.
       if (error.kod === 'KRAVER_PLANVAL') {
+        setFörhandsgranskaVisas(false);
         setPlanModalVisas(true);
         return;
       }
       haptik.fel();
+      // Lämna förhandsgranskningen öppen så företaget kan försöka igen.
       Alert.alert('Fel', felText(error));
     } finally {
       setLaddar(false);
@@ -530,6 +543,66 @@ export default function PubliceraJobbScreen({ navigation }) {
           </View>
         </View>
       </Modal>
+
+      {/* Förhandsgranskning innan passet publiceras. */}
+      <Modal visible={förhandsgranskaVisas} transparent animationType="slide" onRequestClose={() => setFörhandsgranskaVisas(false)}>
+        <View style={styles.förhandÖverlägg}>
+          <View style={styles.förhandKort}>
+            <Text style={styles.förhandRubrik}>Förhandsgranska passet</Text>
+            <ScrollView style={styles.förhandScroll} showsVerticalScrollIndicator={false}>
+              <Text style={styles.förhandTitel}>{titel.trim() || 'Namnlöst pass'}</Text>
+
+              <View style={styles.förhandRad}>
+                <Text style={styles.förhandEtikett}>Kategori</Text>
+                <Text style={styles.förhandVärde}>{kategori || '–'}</Text>
+              </View>
+              <View style={styles.förhandRad}>
+                <Text style={styles.förhandEtikett}>Stad</Text>
+                <Text style={styles.förhandVärde}>{plats.trim() || '–'}</Text>
+              </View>
+              <View style={styles.förhandRad}>
+                <Text style={styles.förhandEtikett}>Adress</Text>
+                <Text style={styles.förhandVärde}>{adress.trim() || '–'}</Text>
+              </View>
+
+              <View style={styles.förhandSektion}>
+                <Text style={styles.förhandSektionTitel}>Datum och tider</Text>
+                {dagScheman.length === 0 ? (
+                  <Text style={styles.förhandDag}>–</Text>
+                ) : (
+                  dagScheman.map((dag, i) => (
+                    <Text key={i} style={styles.förhandDag}>{formatDagMedTid(dag) || `Dag ${i + 1}`}</Text>
+                  ))
+                )}
+              </View>
+
+              <View style={styles.förhandSektion}>
+                <Text style={styles.förhandSektionTitel}>Ersättning</Text>
+                <Text style={styles.förhandDag}>{lon ? `${parseFloat(lon) || 0} kr/tim` : '–'}</Text>
+                {obTillagg.map((ob, i) => (
+                  <Text key={i} style={styles.förhandDag}>
+                    OB {ob.start}–{ob.slut}: {ob.värde}{ob.typ === 'procent' ? '%' : ' kr/tim'}
+                  </Text>
+                ))}
+              </View>
+
+              <View style={styles.förhandSektion}>
+                <Text style={styles.förhandSektionTitel}>Beskrivning</Text>
+                <Text style={styles.förhandDag}>{beskrivning.trim() || '–'}</Text>
+              </View>
+            </ScrollView>
+
+            <View style={styles.förhandKnappar}>
+              <TouchableOpacity style={styles.förhandRedigera} onPress={() => setFörhandsgranskaVisas(false)} activeOpacity={0.8} disabled={laddar}>
+                <Text style={styles.förhandRedigeraText}>Redigera</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={[styles.förhandPublicera, laddar && styles.knappInaktiv]} onPress={bekräftaPublicera} activeOpacity={0.8} disabled={laddar}>
+                {laddar ? <ActivityIndicator color="#fff" /> : <Text style={styles.förhandPubliceraText}>Publicera</Text>}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </>
   );
 }
@@ -605,4 +678,21 @@ const styles = StyleSheet.create({
   popupPrimärText: { fontSize: 16, color: '#fff', fontWeight: '600' },
   popupStäng: { paddingVertical: 12, alignItems: 'center' },
   popupStängText: { fontSize: 15, color: '#6b7280', fontWeight: '600' },
+
+  förhandÖverlägg: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', paddingHorizontal: 20 },
+  förhandKort: { backgroundColor: '#fff', borderRadius: 18, paddingTop: 22, paddingBottom: 18, paddingHorizontal: 20, maxHeight: '82%' },
+  förhandRubrik: { fontSize: 18, fontWeight: '700', color: '#111', textAlign: 'center', marginBottom: 16 },
+  förhandScroll: { flexGrow: 0 },
+  förhandTitel: { fontSize: 20, fontWeight: '700', color: '#1a1a1a', marginBottom: 14 },
+  förhandRad: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', paddingVertical: 6, gap: 16 },
+  förhandEtikett: { fontSize: 14, color: '#6b7280', fontWeight: '500' },
+  förhandVärde: { fontSize: 15, color: '#1a1a1a', flexShrink: 1, textAlign: 'right' },
+  förhandSektion: { marginTop: 16, borderTopWidth: 1, borderTopColor: '#f0f0f0', paddingTop: 12 },
+  förhandSektionTitel: { fontSize: 13, fontWeight: '700', color: '#6b7280', marginBottom: 8, textTransform: 'uppercase', letterSpacing: 0.4 },
+  förhandDag: { fontSize: 15, color: '#1a1a1a', marginTop: 4 },
+  förhandKnappar: { flexDirection: 'row', gap: 10, marginTop: 18 },
+  förhandRedigera: { flex: 1, borderWidth: 1, borderColor: '#d1d5db', borderRadius: 12, paddingVertical: 14, alignItems: 'center' },
+  förhandRedigeraText: { fontSize: 16, color: '#374151', fontWeight: '600' },
+  förhandPublicera: { flex: 1, backgroundColor: '#1d4ed8', borderRadius: 12, paddingVertical: 14, alignItems: 'center' },
+  förhandPubliceraText: { fontSize: 16, color: '#fff', fontWeight: '600' },
 });
