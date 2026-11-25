@@ -13,7 +13,7 @@ import Besked from '@/components/ui/Besked';
 import Textfält from '@/components/ui/Textfält';
 import RollBrickor from '@/components/app/RollBrickor';
 import { api, felText } from '@/lib/api';
-import { formatPeriod, veckodagsNamn, formatDagDatum } from '@/utils/datumHelper';
+import { formatPeriod, formatDatumMedVeckodag } from '@/utils/datumHelper';
 import { schematypEtikett, formateraPris, KROCK_ANSOKAN_TEXT, UTBETALNING_SCHEMA } from '@/utils/konstanter';
 import { normaliseraKrav, saknadeKrav } from '@/utils/behorighet';
 
@@ -163,7 +163,7 @@ export default function PrivatSchemaVy() {
           {(schema.pass ?? []).map((p, i) => (
             <li key={p.id ?? i} className="flex items-center justify-between rounded-sm border border-kant bg-yta px-4 py-2.5 text-[14px]">
               <span className="text-text">
-                {veckodagsNamn(p.datum)} {formatDagDatum(p.datum)}
+                {formatDatumMedVeckodag(p.datum)}
                 {p.kategori ? ` · ${p.kategori}` : ''}
                 {p.rast_minuter > 0 ? ` · ${p.rast_minuter} min rast` : ''}
               </span>

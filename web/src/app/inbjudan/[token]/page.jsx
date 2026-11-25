@@ -19,6 +19,7 @@ import {
   formatPeriod,
   veckodagsNamn,
   formatDagDatum,
+  formatDatumMedVeckodag,
   parsaArbetstider,
   parsaObTillagg,
   planeradeTimmar,
@@ -275,7 +276,7 @@ function SchemaDetaljer({ schema }) {
               className="flex items-center justify-between rounded-sm border border-kant bg-yta px-4 py-2.5 text-[13px]"
             >
               <span className="text-text">
-                {veckodagsNamn(p.datum)} {formatDagDatum(p.datum)}
+                {formatDatumMedVeckodag(p.datum)}
                 {p.kategori ? ` · ${p.kategori}` : ''}
               </span>
               <span className="font-semibold text-text-dämpad">

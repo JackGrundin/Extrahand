@@ -15,12 +15,17 @@ export function formatDagDatum(isoStr) {
   return new Date(isoStr + 'T12:00:00').toLocaleDateString('sv-SE', { day: 'numeric', month: 'short' });
 }
 
-// Datum med fullt veckodagsnamn, t.ex. 'Måndag 15 dec'. Återanvänder formatDagDatum.
+// Veckodagens fulla namn, versaliserat, t.ex. 'Måndag'. Används i schemats passlista.
+export function veckodagsNamnLång(isoStr) {
+  if (!isoStr) return '';
+  const veckodag = new Date(isoStr + 'T12:00:00').toLocaleDateString('sv-SE', { weekday: 'long' });
+  return veckodag.charAt(0).toUpperCase() + veckodag.slice(1);
+}
+
+// Datum med fullt veckodagsnamn, t.ex. 'Måndag 15 dec'. Återanvänder de två hjälparna.
 export function formatDatumMedVeckodag(isoStr) {
   if (!isoStr) return null;
-  const veckodag = new Date(isoStr + 'T12:00:00').toLocaleDateString('sv-SE', { weekday: 'long' });
-  const kapital = veckodag.charAt(0).toUpperCase() + veckodag.slice(1);
-  return `${kapital} ${formatDagDatum(isoStr)}`;
+  return `${veckodagsNamnLång(isoStr)} ${formatDagDatum(isoStr)}`;
 }
 
 // Datum + veckodag + ev. tid för EN pass-dag, t.ex. 'Mån 18 nov · 08:00–16:00'. Tidsspannet

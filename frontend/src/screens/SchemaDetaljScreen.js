@@ -7,7 +7,7 @@ import { useAuth } from '../context/AuthContext';
 import { useRealtidsPing } from '../context/RealtidsContext';
 import { useAttAvsluta } from '../context/AttAvslutaContext';
 import { api, felText } from '../api/klient';
-import { parsaObTillagg, beräknaObBelopp, formatDagDatum, veckodagsNamn, sökStängd } from '../utils/datumHelper';
+import { parsaObTillagg, beräknaObBelopp, formatDagDatum, veckodagsNamnLång, sökStängd } from '../utils/datumHelper';
 import { beräknaFakturapris, ansökanStatusVisning, KROCK_ANSOKAN_TEXT, UTBETALNING_SCHEMA } from '../utils/konstanter';
 import { normaliseraKrav, saknadeKrav } from '../utils/behorighet';
 import BehörighetsKrav from '../components/BehörighetsKrav';
@@ -592,7 +592,7 @@ export default function SchemaDetaljScreen({ route, navigation }) {
             return (
               <View key={p.id} style={styles.passRad}>
                 <View style={styles.passDatumBlock}>
-                  <Text style={styles.passVeckodag}>{veckodagsNamn(p.datum)}</Text>
+                  <Text style={styles.passVeckodag}>{veckodagsNamnLång(p.datum)}</Text>
                   <Text style={styles.passDatum}>{formatDagDatum(p.datum)}</Text>
                 </View>
                 <View style={{ flex: 1 }}>
@@ -762,7 +762,7 @@ const styles = StyleSheet.create({
   passLista: { borderWidth: 1, borderColor: '#e5e7eb', borderRadius: 12, overflow: 'hidden' },
   passRad: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 12, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: '#f3f4f6' },
   passDatumBlock: { width: 70 },
-  passVeckodag: { fontSize: 11, color: '#9ca3af', textTransform: 'uppercase', fontWeight: '600' },
+  passVeckodag: { fontSize: 11, color: '#9ca3af', fontWeight: '600' },
   passDatum: { fontSize: 14, color: '#1a1a1a', fontWeight: '500' },
   passTid: { fontSize: 14, color: '#374151' },
   passBrickor: { flexDirection: 'row', flexWrap: 'wrap', gap: 5, marginTop: 3 },
