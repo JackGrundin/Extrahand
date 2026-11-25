@@ -260,7 +260,7 @@ export default function PubliceraJobbScreen({ navigation }) {
           <Text style={styles.label}>Jobbtitel *</Text>
           <TextInput
             style={[styles.input, fel.titel && styles.inputFel]}
-            placeholder="t.ex. Sommarjobbare på café"
+            placeholder="T.ex. 'Lagerarbetare', 'Serveringspersonal' eller 'Kassabiträde'"
             value={titel}
             onChangeText={(t) => { setTitel(t); rensaFel('titel'); }}
           />
@@ -269,7 +269,7 @@ export default function PubliceraJobbScreen({ navigation }) {
           <Text style={styles.label}>Beskrivning *</Text>
           <TextInput
             style={[styles.input, styles.textArea, fel.beskrivning && styles.inputFel]}
-            placeholder="Beskriv tjänsten, krav och arbetsuppgifter..."
+            placeholder="Beskriv arbetsuppgifterna och vad du söker hos kandidaten"
             value={beskrivning}
             onChangeText={(t) => { setBeskrivning(t); rensaFel('beskrivning'); }}
             multiline
@@ -287,7 +287,7 @@ export default function PubliceraJobbScreen({ navigation }) {
               värde={plats}
               onÄndra={hanteraPlatsInput}
               onFokus={scrollaFramStad}
-              placeholder="t.ex. Stockholm"
+              placeholder="Välj stad där passet utförs"
               fel={!!fel.plats}
             />
             <FältFel text={fel.plats} />
@@ -298,12 +298,13 @@ export default function PubliceraJobbScreen({ navigation }) {
             värde={adress}
             onÄndra={(t) => { setAdress(t); rensaFel('adress'); }}
             stad={plats}
+            placeholder="Ange den exakta arbetsplatsen dit personen ska komma"
             fel={!!fel.adress}
           />
           <FältFel text={fel.adress} />
 
           <Text style={styles.label}>Timlön (kr/tim) *</Text>
-          <TextInput style={[styles.input, fel.lon && styles.inputFel]} placeholder="t.ex. 160" value={lon} onChangeText={(t) => { setLon(t); rensaFel('lon'); }} keyboardType="numeric" />
+          <TextInput style={[styles.input, fel.lon && styles.inputFel]} placeholder="Ange bruttolön per timme i kronor" value={lon} onChangeText={(t) => { setLon(t); rensaFel('lon'); }} keyboardType="numeric" />
           <FältFel text={fel.lon} />
           {lon ? (() => {
             const timlön = parseFloat(lon) || 0;
@@ -449,9 +450,9 @@ export default function PubliceraJobbScreen({ navigation }) {
           )}
 
           <Text style={styles.label}>Kategori *</Text>
-          <TouchableOpacity style={[styles.väljarKnapp, fel.kategori && styles.inputFel]} onPress={() => setKategoriModalVisas(true)} activeOpacity={0.7} accessibilityRole="button" accessibilityLabel={kategori ? `Kategori: ${kategori}` : 'Välj kategori'}>
+          <TouchableOpacity style={[styles.väljarKnapp, fel.kategori && styles.inputFel]} onPress={() => setKategoriModalVisas(true)} activeOpacity={0.7} accessibilityRole="button" accessibilityLabel={kategori ? `Kategori: ${kategori}` : 'Välj den kategori som bäst beskriver arbetet'}>
             <Text style={[styles.väljarText, !kategori && styles.väljarPlaceholder]}>
-              {kategori || 'Välj kategori...'}
+              {kategori || 'Välj den kategori som bäst beskriver arbetet'}
             </Text>
             <Ionicons name="chevron-forward" size={18} color="#9ca3af" accessible={false} importantForAccessibility="no" />
           </TouchableOpacity>

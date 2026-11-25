@@ -6,7 +6,7 @@ import { useMemo, useState } from 'react';
 import FältFel from '@/components/ui/FältFel';
 import { KATEGORIER, normalisera } from '@/utils/konstanter';
 
-export default function KategoriVäljare({ etikett = 'Kategori', värde, onVälj, fel }) {
+export default function KategoriVäljare({ etikett = 'Kategori', värde, onVälj, fel, platshållare = 'Välj en kategori' }) {
   const [öppen, setÖppen] = useState(false);
   const [sök, setSök] = useState('');
 
@@ -29,7 +29,7 @@ export default function KategoriVäljare({ etikett = 'Kategori', värde, onVälj
           felläge ? 'border-fel border-[1.5px] bg-[#fef2f2]' : 'border-kant bg-yta-dämpad hover:border-kant-stark'
         } ${värde ? 'text-text' : 'text-text-svag'}`}
       >
-        {värde || 'Välj en kategori'}
+        {värde || platshållare}
       </button>
       <FältFel>{fel}</FältFel>
 

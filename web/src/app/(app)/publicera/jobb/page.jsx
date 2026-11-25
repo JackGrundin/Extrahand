@@ -183,7 +183,7 @@ export default function PubliceraJobb() {
             setTitel(e.target.value);
             rensaFel('titel');
           }}
-          placeholder="t.ex. Servitör – lunchpass"
+          placeholder="T.ex. 'Lagerarbetare', 'Serveringspersonal' eller 'Kassabiträde'"
           fel={fel.titel}
         />
 
@@ -194,7 +194,7 @@ export default function PubliceraJobb() {
             setBeskrivning(e.target.value);
             rensaFel('beskrivning');
           }}
-          placeholder="Beskriv tjänsten, krav och arbetsuppgifter…"
+          placeholder="Beskriv arbetsuppgifterna och vad du söker hos kandidaten"
           fel={fel.beskrivning}
         />
 
@@ -206,6 +206,7 @@ export default function PubliceraJobb() {
             setPlats(v);
             rensaFel('plats');
           }}
+          placeholder="Välj stad där passet utförs"
           fel={fel.plats}
         />
 
@@ -216,6 +217,7 @@ export default function PubliceraJobb() {
             rensaFel('adress');
           }}
           stad={plats}
+          placeholder="Ange den exakta arbetsplatsen dit personen ska komma"
           fel={fel.adress}
         />
 
@@ -225,6 +227,7 @@ export default function PubliceraJobb() {
             setKategori(v);
             rensaFel('kategori');
           }}
+          platshållare="Välj den kategori som bäst beskriver arbetet"
           fel={fel.kategori}
         />
 
@@ -238,7 +241,7 @@ export default function PubliceraJobb() {
               setLon(e.target.value);
               rensaFel('lon');
             }}
-            placeholder="t.ex. 185"
+            placeholder="Ange bruttolön per timme i kronor"
             fel={fel.lon}
           />
         </div>
