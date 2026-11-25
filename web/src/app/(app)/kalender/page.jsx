@@ -8,6 +8,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import Besked from '@/components/ui/Besked';
 import MånadsKalender from '@/components/app/MånadsKalender';
+import VeckoRutnät, { måndagIVeckan } from '@/components/app/VeckoRutnät';
 import { useRealtidsPing } from '@/context/RealtidsContext';
 import { api } from '@/lib/api';
 import { datumTillIso, veckodagsNamn, formatDagDatum } from '@/utils/datumHelper';
@@ -44,9 +45,19 @@ export default function Kalender() {
   const idag = new Date();
   const [vy, setVy] = useState({ år: idag.getFullYear(), månad: idag.getMonth() });
   const [valtDatum, setValtDatum] = useState(datumTillIso(idag));
+  const [läge, setLäge] = useState('kalender'); // 'kalender' | 'vecka'
+  const [valdVecka, setValdVecka] = useState(() => måndagIVeckan(idag));
   const [pass, setPass] = useState([]);
   const [fel, setFel] = useState('');
   const [laddar, setLaddar] = useState(true);
+
+  // Byt vecka i veckovyn. Synka även månadsvyn (vy) till den nya måndagens månad så det
+  // befintliga 3-månadersfönstret i hämta() alltid täcker veckan – datan låses aldrig till
+  // aktuell vecka.
+  const bytVecka = (nyMåndag) => {
+    setValdVecka(nyMåndag);
+    setVy({ år: nyMåndag.getFullYear(), månad: nyMåndag.getMonth() });
+  };
 
   const hämta = useCallback(async () => {
     setFel('');
@@ -87,14 +98,44 @@ export default function Kalender() {
   );
 
   return (
-    <div className="mx-auto max-w-3xl">
-      <div className="mb-6">
-        <h1 className="rubrik-l text-text">Schemaöversikt</h1>
-        <p className="mt-1 text-[15px] text-text-dämpad">Vem jobbar vilka dagar – och var det saknas personal.</p>
+    // Veckovyn behöver plats för sju dagkolumner – ge den mer bredd än månadsvyn så att hela
+    // veckan får plats på desktop (rutnätet scrollar ändå horisontellt på mobilbredd).
+    <div className={`mx-auto ${läge === 'vecka' ? 'max-w-5xl' : 'max-w-3xl'}`}>
+      <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <h1 className="rubrik-l text-text">Schemaöversikt</h1>
+          <p className="mt-1 text-[15px] text-text-dämpad">Vem jobbar vilka dagar – och var det saknas personal.</p>
+        </div>
+        {/* Växla mellan månadskalender och veckorutnät */}
+        <div className="flex shrink-0 rounded-pill border border-kant bg-yta p-1">
+          {[
+            ['kalender', 'Kalender'],
+            ['vecka', 'Vecka'],
+          ].map(([värde, etikett]) => (
+            <button
+              key={värde}
+              type="button"
+              onClick={() => setLäge(värde)}
+              className={`rounded-pill px-4 py-1.5 text-[13px] font-bold transition-colors ${
+                läge === värde ? 'bg-primär text-white' : 'text-text-dämpad hover:text-text'
+              }`}
+            >
+              {etikett}
+            </button>
+          ))}
+        </div>
       </div>
 
       {fel && <Besked typ="fel">{fel}</Besked>}
 
+      {laddar && pass.length === 0 ? (
+        <div className="flex justify-center py-20">
+          <div className="h-7 w-7 animate-spin rounded-full border-2 border-kant border-t-primär" />
+        </div>
+      ) : läge === 'vecka' ? (
+        <VeckoRutnät pass={pass} valdVecka={valdVecka} onBytVecka={bytVecka} />
+      ) : (
+        <>
       {/* Månadssummering */}
       <div className="mb-4 flex flex-wrap gap-3">
         <span className="rounded-pill bg-framgång-mjuk px-3 py-1 text-[13px] font-bold text-framgång">
@@ -117,20 +158,14 @@ export default function Kalender() {
         </div>
       )}
 
-      {laddar && pass.length === 0 ? (
-        <div className="flex justify-center py-20">
-          <div className="h-7 w-7 animate-spin rounded-full border-2 border-kant border-t-primär" />
-        </div>
-      ) : (
-        <MånadsKalender
-          passPerDatum={passPerDatum}
-          valtDatum={valtDatum}
-          onVäljDag={setValtDatum}
-          år={vy.år}
-          månad={vy.månad}
-          onBytMånad={(år, månad) => setVy({ år, månad })}
-        />
-      )}
+      <MånadsKalender
+        passPerDatum={passPerDatum}
+        valtDatum={valtDatum}
+        onVäljDag={setValtDatum}
+        år={vy.år}
+        månad={vy.månad}
+        onBytMånad={(år, månad) => setVy({ år, månad })}
+      />
 
       {/* Dagslista för vald dag */}
       <div className="mt-6">
@@ -192,6 +227,8 @@ export default function Kalender() {
           </div>
         )}
       </div>
+        </>
+      )}
     </div>
   );
 }

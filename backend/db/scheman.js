@@ -603,10 +603,12 @@ async function hämtaSchemaPassFörAnvändare(anvandare_id, frånDatum) {
 // Alla schemapass inom ett datumintervall för ett företag, med personens namn.
 // Kalendervyn kombinerar detta med företagets godkända enstaka pass.
 async function hämtaKalenderPass(foretag_id, från, till) {
-  // kategori och ob_tillagg behövs för arvet när passet saknar egna värden.
+  // kategori och ob_tillagg behövs för arvet när passet saknar egna värden. timlon och
+  // paslag behövs för veckovyns kostnadsberäkning – paslag är det frysta påslaget som
+  // sättSchemaTilldelning skriver på scheman-raden vid tilldelning.
   const { data: scheman } = await supabase
     .from('scheman')
-    .select('id, titel, kategori, ob_tillagg')
+    .select('id, titel, kategori, ob_tillagg, timlon, paslag')
     .eq('foretag_id', foretag_id)
     .neq('status', 'avbrutet');
 
@@ -646,6 +648,9 @@ async function hämtaKalenderPass(foretag_id, från, till) {
       // Rollen för just det här passet. Kalendern grupperar dagens pass per kategori så
       // att företaget ser vilka avdelningar som är bemannade.
       kategori: medArv.kategori,
+      // Timlön (ärvs från schemat) och det frysta påslaget – veckovyn räknar kostnad per pass.
+      timlon: schemaMap[p.schema_id]?.timlon ?? null,
+      paslag: schemaMap[p.schema_id]?.paslag ?? null,
       typ: 'schema',
       status: p.status,
     };

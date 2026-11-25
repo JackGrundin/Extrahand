@@ -441,6 +441,9 @@ async function hämtaEnstakaPassFörKalender(foretag_id, från, till) {
         // Måste finnas även här, annars blir de två källorna olika formade och kalenderns
         // gruppering per kategori tappar hälften av bemanningen.
         kategori: j.Kategori ?? null,
+        // Timlön och frysta påslaget – veckovyns kostnadsberäkning läser dem per pass.
+        timlon: j.Lon ?? null,
+        paslag: j.paslag ?? null,
         typ: 'pass',
         status: 'planerad',
       });
