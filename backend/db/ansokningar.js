@@ -359,6 +359,14 @@ async function hämtaNamnFörAnvändare(ids) {
   return Object.fromEntries(rader.map(u => [u.id, u.Namn]));
 }
 
+// Profilbildsuppslag för en lista användar-id. Returnerar en map id -> profil_bild (URL/null).
+async function hämtaProfilbilderFörAnvändare(ids) {
+  const rader = await hämtaIBitar(ids, bit =>
+    supabase.from('användare').select('id, profil_bild').in('id', bit)
+  );
+  return Object.fromEntries(rader.map(u => [u.id, u.profil_bild]));
+}
+
 async function hämtaGodkändaFörJobb(jobb_id) {
   const { data, error } = await supabase
     .from('ansokningar')
@@ -674,4 +682,4 @@ async function hämtaPassAttAvsluta() {
     .filter(p => p.foretagId != null && p.arbetstider != null);
 }
 
-module.exports = { skapaAnsökan, uppdateraIntygande, hämtaAnsökningarFörSökande, hämtaAnsökningarFörJobb, finnsDubblettAnsökan, hämtaAnsökanFörJobbOchSökande, hämtaTotalTimmar, uppdateraStatus, sättFavorit, markeraAvhopp, avvisaVäntandeAnsökningar, hämtaAnsökanViaId, avvisaAllaUtomEn, återställAllaFörJobb, hämtaAllaKonversationerFörFöretag, hämtaGodkändaFörJobb, hämtaGodkändaFörFleraJobb, hämtaNamnFörAnvändare, ångraAnsökan, hämtaAnsökanMedJobbInfo, hämtaKonversationMellan, hämtaGrupperadeKonversationer, hämtaPågåendePassFörPåminnelse, hämtaPassAttAvsluta, hämtaIBitar };
+module.exports = { skapaAnsökan, uppdateraIntygande, hämtaAnsökningarFörSökande, hämtaAnsökningarFörJobb, finnsDubblettAnsökan, hämtaAnsökanFörJobbOchSökande, hämtaTotalTimmar, uppdateraStatus, sättFavorit, markeraAvhopp, avvisaVäntandeAnsökningar, hämtaAnsökanViaId, avvisaAllaUtomEn, återställAllaFörJobb, hämtaAllaKonversationerFörFöretag, hämtaGodkändaFörJobb, hämtaGodkändaFörFleraJobb, hämtaNamnFörAnvändare, hämtaProfilbilderFörAnvändare, ångraAnsökan, hämtaAnsökanMedJobbInfo, hämtaKonversationMellan, hämtaGrupperadeKonversationer, hämtaPågåendePassFörPåminnelse, hämtaPassAttAvsluta, hämtaIBitar };

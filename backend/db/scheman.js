@@ -628,8 +628,9 @@ async function hämtaKalenderPass(foretag_id, från, till) {
   if (!pass || !pass.length) return [];
 
   const användarIds = [...new Set(pass.map(p => p.anvandare_id).filter(id => id != null))];
-  const { data: användare } = await supabase.from('användare').select('id, Namn').in('id', användarIds);
+  const { data: användare } = await supabase.from('användare').select('id, Namn, profil_bild').in('id', användarIds);
   const namnMap = Object.fromEntries((användare || []).map(u => [u.id, u.Namn]));
+  const bildMap = Object.fromEntries((användare || []).map(u => [u.id, u.profil_bild]));
 
   return pass.map(p => {
     const medArv = passMedArv(schemaMap[p.schema_id], p);
@@ -644,6 +645,8 @@ async function hämtaKalenderPass(foretag_id, från, till) {
       // behöver agera på.
       personId: p.anvandare_id,
       personNamn: p.anvandare_id != null ? (namnMap[p.anvandare_id] ?? null) : null,
+      // Profilbild (publik Storage-URL) så veckovyns avatar kan visa bilden i stället för initialer.
+      profilbild: p.anvandare_id != null ? (bildMap[p.anvandare_id] ?? null) : null,
       titel: schemaMap[p.schema_id]?.titel ?? null,
       // Rollen för just det här passet. Kalendern grupperar dagens pass per kategori så
       // att företaget ser vilka avdelningar som är bemannade.
@@ -651,6 +654,8 @@ async function hämtaKalenderPass(foretag_id, från, till) {
       // Timlön (ärvs från schemat) och det frysta påslaget – veckovyn räknar kostnad per pass.
       timlon: schemaMap[p.schema_id]?.timlon ?? null,
       paslag: schemaMap[p.schema_id]?.paslag ?? null,
+      // Schemapass öppnas via schemaId – jobbId bara för formparitet med enstaka pass.
+      jobbId: null,
       typ: 'schema',
       status: p.status,
     };

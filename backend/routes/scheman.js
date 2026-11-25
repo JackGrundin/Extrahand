@@ -25,7 +25,7 @@ const {
 const { GILTIGA_TYPER: AVDRAGSTYPER, skapaAvdrag, hämtaAktivaAvdrag, avaktiveraAvdrag } = require('../db/schemaAvdrag');
 const { tilldelaSchema, frigörFramtidaPass, återställSchema } = require('../db/schemaTilldelning');
 const { skapaJobb, räknaJobbDennaMånad, sättJobbPåslag, hämtaJobbFörFöretag, markeraAnsökningarSedda } = require('../db/jobb');
-const { hämtaAnsökningarFörJobb, uppdateraStatus, markeraAvhopp, hämtaGodkändaFörFleraJobb, hämtaNamnFörAnvändare } = require('../db/ansokningar');
+const { hämtaAnsökningarFörJobb, uppdateraStatus, markeraAvhopp, hämtaGodkändaFörFleraJobb, hämtaNamnFörAnvändare, hämtaProfilbilderFörAnvändare } = require('../db/ansokningar');
 const { hämtaPrenumeration, ärPro, harGjortPlanval, sättPlanvalGjort, minskaPassDennaManad } = require('../db/prenumeration');
 const { hämtaPrivatpersonerIStad, hämtaPushToken, ärBlockerad } = require('../db/användare');
 const { hämtaInbjudningarFörSchema } = require('../db/schemaInbjudan');
@@ -423,6 +423,7 @@ async function hämtaEnstakaPassFörKalender(foretag_id, från, till) {
   if (!godkända.length) return [];
 
   const namn = await hämtaNamnFörAnvändare(godkända.map(a => a.sokande_id));
+  const bilder = await hämtaProfilbilderFörAnvändare(godkända.map(a => a.sokande_id));
   const personPerJobb = Object.fromEntries(godkända.map(a => [a.jobb_id, a]));
 
   const rader = [];
@@ -437,6 +438,8 @@ async function hämtaEnstakaPassFörKalender(foretag_id, från, till) {
         sluttid: dag.slut ?? null,
         personId: person.sokande_id,
         personNamn: namn[person.sokande_id] ?? null,
+        // Profilbild så veckovyns avatar kan visa bilden i stället för initialer.
+        profilbild: bilder[person.sokande_id] ?? null,
         titel: j.Titel ?? null,
         // Måste finnas även här, annars blir de två källorna olika formade och kalenderns
         // gruppering per kategori tappar hälften av bemanningen.
@@ -444,6 +447,8 @@ async function hämtaEnstakaPassFörKalender(foretag_id, från, till) {
         // Timlön och frysta påslaget – veckovyns kostnadsberäkning läser dem per pass.
         timlon: j.Lon ?? null,
         paslag: j.paslag ?? null,
+        // Jobb-id så veckovyns cell kan länka till företagets jobbvy.
+        jobbId: j.id,
         typ: 'pass',
         status: 'planerad',
       });
