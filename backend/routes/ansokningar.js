@@ -104,7 +104,12 @@ router.post('/:jobbId', kräverInloggning, kräverTyp('privatperson'), async (re
       // Realtidssignal (utan innehåll) till företaget om den nya ansökan
       sändRealtidsPing(foretagId, 'ansokan');
       const pushToken = await hämtaPushToken(foretagId);
-      await skickaNotifikation(pushToken, 'Ny ansökan!', `${sökande?.Namn ?? 'Någon'} har sökt "${jobb?.Titel ?? 'ditt jobb'}"`)
+      await skickaNotifikation(
+        pushToken,
+        'Ny ansökan',
+        `${sökande?.Namn ?? 'Någon'} har ansökt till ${jobb?.Titel ?? 'ditt jobb'}`,
+        { typ: 'ny_ansökan', jobbId: jobb?.id }
+      )
     } catch (notisfel) {
       console.error('Push-notifikation fel:', notisfel);
     }
