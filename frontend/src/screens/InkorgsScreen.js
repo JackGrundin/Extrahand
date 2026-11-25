@@ -20,6 +20,7 @@ const IKON_PER_TYP = {
   godkänd_ansökan: 'checkmark-circle-outline',
   schema_inbjudan: 'calendar-outline',
   jobb_inbjudan: 'mail-outline',
+  jobbforfragan: 'briefcase-outline',
 };
 
 // Inkorgen (åtgärdslista) i appen – samma härledda underlag som webbens /inkorg. Posterna
@@ -64,6 +65,11 @@ export default function InkorgsScreen({ navigation }) {
         break;
       case 'schema_inbjudan':
         if (post.schemaId != null) navigation.navigate('SchemaDetalj', { schemaId: post.schemaId });
+        break;
+      case 'jobbforfragan':
+        // Inget jobb finns ännu (skapas vid accept) – öppna chatten med företaget, där
+        // JobbforfraganKort visar Acceptera/Avböj.
+        if (post.medAnvandareId != null) navigation.navigate('Chatt', { medAnvandareId: post.medAnvandareId });
         break;
       case 'jobb_inbjudan':
         // JobbDetalj tar ett helt jobb-objekt (inte id) – hämta det först, samma mönster som

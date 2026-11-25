@@ -4,6 +4,7 @@ const { hämtaIBitar } = require('./ansokningar');
 const { hämtaObetygsatta } = require('./betyg');
 const { hämtaAvtalGodkant } = require('./användare');
 const { hämtaMinaInbjudningar } = require('./schemaInbjudan');
+const { hämtaVäntandeFörAnvändare } = require('./jobbforfragan');
 const { idagStockholm, parsaArbetstider } = require('../utils/tid');
 
 const supabase = createClient(
@@ -172,6 +173,10 @@ async function inkorgPrivatperson(användareId) {
   // 4: inkomna inbjudningar (schema + enstaka pass) som ännu inte accepterats.
   const inbjudningsPoster = await inbjudanPoster(användareId);
 
+  // 4b: väntande jobbförfrågningar som företag skickat via chatten. Inget jobb finns ännu
+  // (skapas först vid accept), så posten länkar till chatten med företaget.
+  const förfråganPoster = await jobbforfraganPoster(användareId);
+
   // 5: avtal ej godkänt (avtal_godkant finns inte i JWT – hämta separat).
   let avtalPoster = [];
   const avtalGodkant = await hämtaAvtalGodkant(användareId);
@@ -187,7 +192,25 @@ async function inkorgPrivatperson(användareId) {
     }];
   }
 
-  return [...tidrapportPoster, ...betygsPoster, ...godkändaPoster, ...inbjudningsPoster, ...avtalPoster];
+  return [...tidrapportPoster, ...betygsPoster, ...godkändaPoster, ...inbjudningsPoster, ...förfråganPoster, ...avtalPoster];
+}
+
+// Väntande jobbförfrågningar (ett pass erbjudet direkt via chatten) som personen fått.
+// Återanvänder hämtaVäntandeFörAnvändare – bara 'väntar' tas med, så en accepterad/avböjd
+// förfrågan försvinner ur inkorgen automatiskt. Förfrågan saknar jobb (skapas vid accept),
+// så posten bär medAnvandareId för att öppna chatten med företaget.
+async function jobbforfraganPoster(användareId) {
+  const förfrågningar = await hämtaVäntandeFörAnvändare(användareId);
+  return (förfrågningar || []).map(f => ({
+    typ: 'jobbforfragan',
+    titel: f.titel ?? 'Jobbförfrågan',
+    undertext: f.företagNamn ? `Förfrågan från ${f.företagNamn}` : 'Du har fått en jobbförfrågan',
+    ansokanId: null,
+    jobbId: null,
+    schemaId: null,
+    medAnvandareId: f.fran_anvandare_id,
+    skapad_at: f.skapad_datum ?? null,
+  }));
 }
 
 // Godkända ansökningar där passet/schemat ännu inte passerat → "du är godkänd, öppna chatten".

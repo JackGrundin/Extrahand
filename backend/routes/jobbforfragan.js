@@ -58,8 +58,12 @@ router.post('/', kräverInloggning, kräverTyp('företag'), async (req, res) => 
       ]);
       await skickaNotifikation(
         pushToken,
-        'Ny passförfrågan!',
-        `${avsändare?.Namn ?? 'Ett företag'} har erbjudit dig ett pass den ${datum}`
+        'Ny jobbförfrågan',
+        `${avsändare?.Namn ?? 'Ett företag'} har skickat dig en jobbförfrågan`,
+        // Inget jobb finns ännu (skapas först vid accept) – navigera till chatten med
+        // företaget. Typen är 'jobbforfragan', INTE 'jobb_inbjudan' (den öppnar JobbDetalj
+        // via ett jobbId som saknas här).
+        { typ: 'jobbforfragan', medAnvandareId: req.användare.id }
       );
     } catch (notisfel) {
       console.error('Push-notifikation fel (förfrågan):', notisfel);
